@@ -1,0 +1,237 @@
+import * as SQLite from 'expo-sqlite';
+import { drizzle } from 'drizzle-orm/expo-sqlite';
+import * as schema from './schema';
+
+const expo = SQLite.openDatabaseSync('lifeos.db', { enableChangeListener: true });
+export const db = drizzle(expo, { schema });
+
+export async function initDatabase() {
+  expo.execSync(`PRAGMA journal_mode = WAL;`);
+  expo.execSync(`PRAGMA foreign_keys = ON;`);
+
+  // Create all tables
+  expo.execSync(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      age INTEGER,
+      vision_statement TEXT,
+      wake_time TEXT,
+      sleep_time TEXT,
+      work_start_time TEXT,
+      work_end_time TEXT,
+      onboarding_stage INTEGER NOT NULL DEFAULT 0,
+      install_date TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS goals (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      goal_type TEXT NOT NULL,
+      parent_id TEXT,
+      level TEXT NOT NULL,
+      timeline TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      energy_level TEXT,
+      ai_generated INTEGER DEFAULT 0,
+      metadata TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS routine_blocks (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      start_time TEXT NOT NULL,
+      end_time TEXT NOT NULL,
+      title TEXT NOT NULL,
+      module TEXT NOT NULL,
+      linked_entity_id TEXT,
+      status TEXT NOT NULL DEFAULT 'upcoming',
+      calendar_event_id TEXT,
+      energy_required TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS health_logs (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      weight REAL,
+      sleep_hours REAL,
+      steps INTEGER,
+      energy_level INTEGER,
+      notes TEXT,
+      source TEXT NOT NULL DEFAULT 'manual',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS food_entries (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      meal_type TEXT NOT NULL,
+      food_name TEXT NOT NULL,
+      quantity_g REAL NOT NULL,
+      calories REAL NOT NULL,
+      protein REAL NOT NULL,
+      carbs REAL NOT NULL,
+      fat REAL NOT NULL,
+      fibre REAL,
+      source TEXT NOT NULL DEFAULT 'manual',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS blood_reports (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      report_name TEXT NOT NULL,
+      parsed_markers TEXT,
+      ai_summary TEXT,
+      ai_suggestions TEXT,
+      raw_file_uri TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS contacts (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      nickname TEXT,
+      relationship_type TEXT NOT NULL,
+      preferred_cadence_days INTEGER NOT NULL,
+      last_contact_date TEXT,
+      notes TEXT,
+      birthday TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS contact_interactions (
+      id TEXT PRIMARY KEY,
+      contact_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS interests (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      weekly_minutes_target INTEGER NOT NULL,
+      weekly_minutes_actual INTEGER NOT NULL DEFAULT 0,
+      enjoyment_level INTEGER,
+      exploration_depth TEXT NOT NULL DEFAULT 'taste',
+      status TEXT NOT NULL DEFAULT 'active',
+      discovered_by TEXT NOT NULL DEFAULT 'user',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS exploration_log (
+      id TEXT PRIMARY KEY,
+      interest_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      minutes_spent INTEGER NOT NULL,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS learning_resources (
+      id TEXT PRIMARY KEY,
+      career_profile_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      type TEXT NOT NULL,
+      url TEXT,
+      estimated_hours REAL,
+      priority INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'not_started',
+      completed_at TEXT,
+      weekly_minutes INTEGER,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS skill_gaps (
+      id TEXT PRIMARY KEY,
+      career_profile_id TEXT NOT NULL,
+      skill TEXT NOT NULL,
+      current_level TEXT NOT NULL,
+      required_level TEXT NOT NULL,
+      priority INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS career_profiles (
+      id TEXT PRIMARY KEY,
+      current_role TEXT NOT NULL,
+      target_role TEXT NOT NULL,
+      timeline_months INTEGER NOT NULL,
+      current_skills TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS financial_goals (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      goal_type TEXT NOT NULL,
+      target_amount REAL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      target_date TEXT,
+      income_bracket TEXT,
+      monthly_savings REAL,
+      risk_profile TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      metadata TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS finance_milestones (
+      id TEXT PRIMARY KEY,
+      goal_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      target_amount REAL NOT NULL,
+      target_date TEXT NOT NULL,
+      completed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS habits (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      module TEXT NOT NULL,
+      frequency TEXT NOT NULL DEFAULT 'daily',
+      target_count INTEGER NOT NULL DEFAULT 1,
+      current_streak INTEGER NOT NULL DEFAULT 0,
+      best_streak INTEGER NOT NULL DEFAULT 0,
+      last_completed_date TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS gamification (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      domain_scores TEXT NOT NULL DEFAULT '{}',
+      streaks TEXT NOT NULL DEFAULT '{}',
+      badges TEXT NOT NULL DEFAULT '[]',
+      total_xp INTEGER NOT NULL DEFAULT 0,
+      weekly_xp INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+}
