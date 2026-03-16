@@ -1,15 +1,64 @@
-import * as SQLite from 'expo-sqlite';
-import { drizzle } from 'drizzle-orm/expo-sqlite';
+import { Platform } from 'react-native';
 import * as schema from './schema';
 
-const expo = SQLite.openDatabaseSync('lifeos.db', { enableChangeListener: true });
-export const db = drizzle(expo, { schema });
+type DB = ReturnType<typeof import('drizzle-orm/expo-sqlite').drizzle>;
+
+let _db: DB | null = null;
+
+export function getDB(): DB {
+  if (_db) return _db;
+  if (Platform.OS === 'web') {
+    throw new Error('SQLite is not available on web');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const SQLite = require('expo-sqlite') as typeof import('expo-sqlite');
+  const { drizzle } = require('drizzle-orm/expo-sqlite') as typeof import('drizzle-orm/expo-sqlite');
+  const expo = SQLite.openDatabaseSync('lifeos.db', { enableChangeListener: true });
+  _db = drizzle(expo, { schema });
+  return _db;
+}
+
+// Chainable no-op for web — every property access and function call returns the same proxy
+// Terminal methods like .all() return [], .get() returns undefined, .run() returns undefined
+// eslint-disable-next-line @typescript-eslint/no-empty-function
+const WEB_NOOP: unknown = new Proxy(function(){} as object, {
+  get(_target, prop) {
+    if (prop === 'all') return () => [];
+    if (prop === 'get') return () => undefined;
+    if (prop === 'run') return () => undefined;
+    if (prop === 'values') return () => WEB_NOOP;
+    return WEB_NOOP;
+  },
+  apply() { return WEB_NOOP; },
+});
+
+// Keep backward compat — but only access on native
+export const db = new Proxy({} as DB, {
+  get(_target, prop) {
+    if (Platform.OS === 'web') return WEB_NOOP;
+    return (getDB() as unknown as Record<string | symbol, unknown>)[prop];
+  },
+});
+
+let _expo: ReturnType<typeof import('expo-sqlite').openDatabaseSync> | null = null;
+
+function getExpo() {
+  if (_expo) return _expo;
+  const SQLite = require('expo-sqlite') as typeof import('expo-sqlite');
+  _expo = SQLite.openDatabaseSync('lifeos.db', { enableChangeListener: true });
+  return _expo;
+}
 
 export async function initDatabase() {
+  if (Platform.OS === 'web') {
+    console.log('SQLite not available on web, skipping DB init');
+    return;
+  }
+
+  const expo = getExpo();
   expo.execSync(`PRAGMA journal_mode = WAL;`);
   expo.execSync(`PRAGMA foreign_keys = ON;`);
 
-  // Create all tables
   expo.execSync(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,

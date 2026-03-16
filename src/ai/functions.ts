@@ -23,7 +23,7 @@ import { MOCK_SKILL_GAP } from './mocks/career';
 import { MOCK_ROUTINE } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION } from './mocks/health';
 
-const isMock = process.env.USE_AI_MOCK === 'true';
+const isMock = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
 
 export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
   if (isMock) return MOCK_GOAL_HIERARCHY;

@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAppFonts } from '@/theme/typography';
 import { initDatabase } from '@/db';
@@ -25,9 +25,11 @@ export default function RootLayout() {
   useEffect(() => {
     async function init() {
       await initDatabase();
-      const user = getUser();
-      if (user) {
-        setUser(user.id, user.name, user.onboardingStage);
+      if (Platform.OS !== 'web') {
+        const user = getUser();
+        if (user) {
+          setUser(user.id, user.name, user.onboardingStage);
+        }
       }
       setDbReady(true);
     }
@@ -43,7 +45,7 @@ export default function RootLayout() {
     const inTabs = segments[0] === '(tabs)';
 
     if (!userId) {
-      if (!inAuth) router.replace('/(auth)/welcome');
+      if (!inAuth && !inOnboarding) router.replace('/(auth)/welcome');
     } else if (onboardingStage < ONBOARDING_COMPLETE) {
       if (!inOnboarding) router.replace('/(onboarding)/day1-vision');
     } else {
