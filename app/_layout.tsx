@@ -9,6 +9,7 @@ import { useAppFonts } from '@/theme/typography';
 import { initDatabase } from '@/db';
 import { getUser } from '@/db/queries/users';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
+import { AchievementToast } from '@/components/shared/AchievementToast';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -65,6 +66,7 @@ export default function RootLayout() {
             animation: 'fade',
           }}
         />
+        <AchievementToast />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
