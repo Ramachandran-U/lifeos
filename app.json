@@ -1,27 +1,38 @@
 {
   "expo": {
-    "name": "lifeos",
+    "name": "LifeOS",
     "slug": "lifeos",
     "version": "1.0.0",
+    "scheme": "lifeos",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0D0D0D"
     },
+    "platforms": ["ios", "android"],
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      ["expo-notifications", { "icon": "./assets/notification-icon.png" }],
+["expo-calendar", {
+        "calendarPermission": "LifeOS syncs your routine to your calendar."
+      }]
+    ],
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.lifeos.app",
+      "supportsTablet": false
     },
     "android": {
+      "package": "com.lifeos.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0D0D0D",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

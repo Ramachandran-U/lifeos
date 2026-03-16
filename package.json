@@ -1,7 +1,7 @@
 {
   "name": "lifeos",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,10 +9,34 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@expo-google-fonts/nunito": "^0.4.2",
+    "@shopify/flash-list": "^2.3.0",
+    "@tanstack/react-query": "^5.90.21",
+    "date-fns": "^4.1.0",
+    "drizzle-kit": "^0.31.9",
+    "drizzle-orm": "^0.45.1",
     "expo": "~55.0.6",
+    "expo-calendar": "^55.0.9",
+    "expo-constants": "~55.0.7",
+    "expo-document-picker": "^55.0.8",
+    "expo-haptics": "^55.0.8",
+    "expo-health": "^0.0.0",
+    "expo-image-picker": "^55.0.12",
+    "expo-linking": "~55.0.7",
+    "expo-notifications": "^55.0.12",
+    "expo-router": "~55.0.5",
+    "expo-sqlite": "~55.0.10",
     "expo-status-bar": "~55.0.4",
+    "nanoid": "^5.1.7",
     "react": "19.2.0",
-    "react-native": "0.83.2"
+    "react-native": "0.83.2",
+    "react-native-gesture-handler": "^2.30.0",
+    "react-native-reanimated": "^4.2.2",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
