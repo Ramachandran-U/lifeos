@@ -1,8 +1,12 @@
 import { z } from 'zod';
 
+export type AIContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
+
 export interface AIMessage {
   role: 'user' | 'assistant';
-  content: string;
+  content: string | AIContentPart[];
 }
 
 export interface AIRequest {
@@ -123,3 +127,66 @@ export interface RoutineInput {
   goals?: string[];
   careerFocus?: string;
 }
+
+// --- Finance Types ---
+
+export const FinancialPlanSchema = z.object({
+  summary: z.string(),
+  monthlyTarget: z.number(),
+  strategy: z.array(z.object({
+    category: z.enum(['savings', 'investment', 'debt', 'income', 'expense_reduction']),
+    action: z.string(),
+    monthlyImpact: z.number(),
+    priority: z.number(),
+  })),
+  milestones: z.array(z.object({
+    title: z.string(),
+    targetAmount: z.number(),
+    targetDate: z.string(),
+  })),
+  weeklyTips: z.array(z.string()),
+});
+
+export type FinancialPlan = z.infer<typeof FinancialPlanSchema>;
+
+export const WeeklyFinanceInsightSchema = z.object({
+  headline: z.string(),
+  insight: z.string(),
+  actionItem: z.string(),
+  motivationalNote: z.string(),
+});
+
+export type WeeklyFinanceInsight = z.infer<typeof WeeklyFinanceInsightSchema>;
+
+export interface FinanceInput {
+  goalType: string;
+  targetAmount: number;
+  targetDate: string;
+  monthlySavings: number;
+  incomeBracket: string;
+  riskProfile: string;
+}
+
+export interface FinanceInsightInput {
+  goalTitle: string;
+  targetAmount: number;
+  currentSaved: number;
+  monthlySavings: number;
+  monthsRemaining: number;
+}
+
+// --- Food Recognition Types ---
+
+export const FoodRecognitionSchema = z.object({
+  items: z.array(z.object({
+    name: z.string(),
+    quantity: z.string(),
+    quantityG: z.number(),
+    calories: z.number(),
+    protein: z.number(),
+    carbs: z.number(),
+    fat: z.number(),
+  })),
+});
+
+export type FoodRecognition = z.infer<typeof FoodRecognitionSchema>;

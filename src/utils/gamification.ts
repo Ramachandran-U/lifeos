@@ -22,7 +22,8 @@ export type BadgeId =
   | 'skill_mastery'
   | 'life_balance'
   | 'goal_complete'
-  | 'week_1';
+  | 'week_1'
+  | 'food_photo';
 
 export interface Streaks {
   workout: StreakData;
@@ -72,6 +73,7 @@ export function checkBadges(
     completedSkillMastery?: boolean;
     onboardingComplete?: boolean;
     consecutiveDays?: number;
+    usedFoodPhoto?: boolean;
   },
 ): BadgeId[] {
   const newBadges: BadgeId[] = [];
@@ -110,6 +112,10 @@ export function checkBadges(
     newBadges.push('week_1');
   }
 
+  if (context.usedFoodPhoto && !currentBadges.includes('food_photo')) {
+    newBadges.push('food_photo');
+  }
+
   return newBadges;
 }
 
@@ -121,4 +127,5 @@ export const XP_VALUES = {
   uploadBloodReport: 50,
   completeResource: 100,
   earnBadge: 200,
+  photoFood: 20,
 } as const;

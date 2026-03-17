@@ -240,3 +240,14 @@ export const gamification = sqliteTable('gamification', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
+
+// --- Behaviour Events ---
+export const behaviourEvents = sqliteTable('behaviour_events', {
+  id: text('id').primaryKey(),
+  eventType: text('event_type').notNull(), // block_completed | goal_completed | food_logged | photo_food | weight_logged | blood_report | skill_started | finance_milestone | streak_maintained
+  module: text('module').notNull(), // goal | health | finance | career | social | polymath
+  metadata: text('metadata'), // JSON
+  hour: integer('hour').notNull(), // 0-23
+  dayOfWeek: integer('day_of_week').notNull(), // 0-6, 0=Sunday
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});

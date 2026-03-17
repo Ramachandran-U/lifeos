@@ -13,6 +13,7 @@ const tabConfig: Record<string, TabIcon> = {
   index: { name: 'home', activeColor: colors.primary },
   goals: { name: 'flag', activeColor: colors.goal },
   health: { name: 'heart', activeColor: colors.health },
+  finance: { name: 'wallet', activeColor: colors.finance },
   career: { name: 'briefcase', activeColor: colors.career },
   explore: { name: 'compass', activeColor: colors.polymath },
 };
@@ -37,6 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen name="index" options={{ title: 'Today' }} />
       <Tabs.Screen name="goals" options={{ title: 'Goals' }} />
       <Tabs.Screen name="health" options={{ title: 'Health' }} />
+      <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
       <Tabs.Screen name="career" options={{ title: 'Career' }} />
       <Tabs.Screen name="explore" options={{ title: 'Explore' }} />
     </Tabs>

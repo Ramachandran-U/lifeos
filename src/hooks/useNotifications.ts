@@ -111,6 +111,67 @@ export async function scheduleDailyRoutineNotification(wakeTime: string) {
   });
 }
 
+export async function scheduleGoalTaskReminder() {
+  await cancelNotification('goal_task_reminder');
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'goal_task_reminder',
+    content: {
+      title: 'Goal check-in',
+      body: 'You have a high-priority task still open. Can you tackle it before end of day?',
+      data: { screen: 'goals' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: 15,
+      minute: 0,
+    },
+  });
+}
+
+export async function scheduleStreakAtRiskNotification() {
+  await cancelNotification('streak_at_risk');
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'streak_at_risk',
+    content: {
+      title: 'Streak at risk!',
+      body: 'Don\'t lose your streak — complete one task before midnight to keep it alive.',
+      data: { screen: 'today' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: 20,
+      minute: 0,
+    },
+  });
+}
+
+export async function scheduleSocialOverdueNudge() {
+  await cancelNotification('social_overdue');
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'social_overdue',
+    content: {
+      title: 'Reconnect with someone',
+      body: 'You haven\'t reached out to anyone this week. A quick message can make someone\'s day.',
+      data: { screen: 'social' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: 18,
+      minute: 0,
+    },
+  });
+}
+
+export async function cancelAllCustomNotifications() {
+  const ids = ['goal_task_reminder', 'streak_at_risk', 'social_overdue', 'daily_routine'];
+  for (const id of ids) {
+    await cancelNotification(id);
+  }
+}
+
 export function useNotificationNavigation() {
   const router = useRouter();
 
@@ -126,6 +187,10 @@ export function useNotificationNavigation() {
         router.push('/(onboarding)/day14-polymath' as never);
       } else if (screen === 'weight_reminder') {
         router.push('/(tabs)/health');
+      } else if (screen === 'goals') {
+        router.push('/(tabs)/goals');
+      } else if (screen === 'social') {
+        router.push('/(tabs)/explore' as never);
       } else if (screen === 'daily_routine' || screen === 'today') {
         router.push('/(tabs)');
       }

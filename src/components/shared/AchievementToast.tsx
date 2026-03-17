@@ -17,6 +17,7 @@ const BADGE_INFO: Record<BadgeId, { icon: string; name: string; subtitle: string
   life_balance: { icon: '⚖️', name: 'Life in Balance', subtitle: 'All your domain scores are above 60' },
   goal_complete: { icon: '🏆', name: 'Mission Accomplished', subtitle: 'You completed a life goal' },
   week_1: { icon: '📅', name: 'One Week Strong', subtitle: 'You used LifeOS for 7 consecutive days' },
+  food_photo: { icon: '📸', name: 'Food Photographer', subtitle: 'You logged your first meal with a photo' },
 };
 
 export function AchievementToast() {

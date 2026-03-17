@@ -13,15 +13,25 @@ import {
   BloodReportResultSchema,
   MealSuggestion,
   MealSuggestionSchema,
+  FinanceInput,
+  FinancialPlan,
+  FinancialPlanSchema,
+  FinanceInsightInput,
+  WeeklyFinanceInsight,
+  WeeklyFinanceInsightSchema,
+  FoodRecognition,
+  FoodRecognitionSchema,
 } from './types';
 import { GOAL_DECOMPOSITION_PROMPT } from './prompts/goals';
 import { SKILL_GAP_PROMPT } from './prompts/career';
 import { ROUTINE_GENERATION_PROMPT } from './prompts/routine';
-import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT } from './prompts/health';
+import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT, FOOD_RECOGNITION_PROMPT } from './prompts/health';
+import { FINANCIAL_PLAN_PROMPT, WEEKLY_FINANCE_INSIGHT_PROMPT } from './prompts/finance';
 import { MOCK_GOAL_HIERARCHY } from './mocks/goals';
 import { MOCK_SKILL_GAP } from './mocks/career';
 import { MOCK_ROUTINE } from './mocks/routine';
-import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION } from './mocks/health';
+import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
+import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT } from './mocks/finance';
 
 const isMock = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
 
@@ -97,5 +107,56 @@ export async function suggestMeals(context: string): Promise<MealSuggestion> {
     return MealSuggestionSchema.parse(JSON.parse(response));
   } catch {
     throw new Error('AI returned invalid meal suggestions');
+  }
+}
+
+export async function generateFinancialPlan(input: FinanceInput): Promise<FinancialPlan> {
+  if (isMock) return MOCK_FINANCIAL_PLAN;
+
+  const response = await callAI({
+    system: FINANCIAL_PLAN_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+  });
+
+  try {
+    return FinancialPlanSchema.parse(JSON.parse(response));
+  } catch {
+    throw new Error('AI returned invalid financial plan');
+  }
+}
+
+export async function getWeeklyFinanceInsight(input: FinanceInsightInput): Promise<WeeklyFinanceInsight> {
+  if (isMock) return MOCK_WEEKLY_INSIGHT;
+
+  const response = await callAI({
+    system: WEEKLY_FINANCE_INSIGHT_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+  });
+
+  try {
+    return WeeklyFinanceInsightSchema.parse(JSON.parse(response));
+  } catch {
+    throw new Error('AI returned invalid finance insight');
+  }
+}
+
+export async function recogniseFood(imageBase64: string, mediaType: string): Promise<FoodRecognition> {
+  if (isMock) return MOCK_FOOD_RECOGNITION;
+
+  const response = await callAI({
+    system: FOOD_RECOGNITION_PROMPT,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+        { type: 'text', text: 'Identify all food items in this photo and estimate their nutritional information.' },
+      ],
+    }],
+  });
+
+  try {
+    return FoodRecognitionSchema.parse(JSON.parse(response));
+  } catch {
+    throw new Error('AI returned invalid food recognition');
   }
 }

@@ -1,4 +1,4 @@
-import { MealSuggestion, BloodReportResult } from '../types';
+import { MealSuggestion, BloodReportResult, FoodRecognition } from '../types';
 
 export const MOCK_MEAL_SUGGESTION: MealSuggestion = {
   meals: [
@@ -26,6 +26,14 @@ export const MOCK_MEAL_SUGGESTION: MealSuggestion = {
       fat: 24,
       description: 'Baked salmon fillet with roasted broccoli, sweet potato, and a lemon herb sauce',
     },
+  ],
+};
+
+export const MOCK_FOOD_RECOGNITION: FoodRecognition = {
+  items: [
+    { name: 'Grilled Chicken Breast', quantity: '1 piece (~150g)', quantityG: 150, calories: 248, protein: 46, carbs: 0, fat: 5 },
+    { name: 'Brown Rice', quantity: '1 cup (~195g)', quantityG: 195, calories: 216, protein: 5, carbs: 45, fat: 2 },
+    { name: 'Steamed Broccoli', quantity: '1 cup (~91g)', quantityG: 91, calories: 31, protein: 3, carbs: 6, fat: 0 },
   ],
 };
 

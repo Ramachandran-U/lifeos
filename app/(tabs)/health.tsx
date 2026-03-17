@@ -21,6 +21,9 @@ import { AddFoodSheet } from '@/components/modules/health/AddFoodSheet';
 import { getFoodEntriesByDate, getRecentWeightLogs, getBloodReports } from '@/db/queries/health';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
+import { useGameStore } from '@/store/useGameStore';
+import { useUserStore } from '@/store/useUserStore';
+import { logBehaviourEvent } from '@/db/queries/behaviour';
 import type { BloodReportResult } from '@/ai/types';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -35,6 +38,8 @@ export default function HealthScreen() {
   const [showAddFood, setShowAddFood] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('breakfast');
   const { call, loading } = useAI();
+  const { userId } = useUserStore();
+  const { awardBadge, addXP } = useGameStore();
 
   const loadData = useCallback(() => {
     setFoodEntries(getFoodEntriesByDate(today));
@@ -168,7 +173,17 @@ export default function HealthScreen() {
         visible={showAddFood}
         mealType={activeMealType}
         onClose={() => setShowAddFood(false)}
-        onSaved={loadData}
+        onSaved={() => {
+          logBehaviourEvent('food_logged', 'health');
+          loadData();
+        }}
+        onPhotoUsed={() => {
+          logBehaviourEvent('photo_food', 'health');
+          if (userId) {
+            awardBadge(userId, 'food_photo');
+            addXP(userId, 20);
+          }
+        }}
       />
     </SafeAreaView>
   );

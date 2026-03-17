@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
@@ -16,12 +16,23 @@ import { useUserStore } from '@/store/useUserStore';
 import { getUser, updateUser } from '@/db/queries/users';
 import { db } from '@/db';
 import { initDatabase } from '@/db';
+import {
+  scheduleDailyRoutineNotification,
+  scheduleGoalTaskReminder,
+  scheduleStreakAtRiskNotification,
+  scheduleSocialOverdueNudge,
+  cancelAllCustomNotifications,
+} from '@/hooks/useNotifications';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { userId, name, reset } = useUserStore();
   const [editName, setEditName] = useState(name);
   const [editAge, setEditAge] = useState('');
+  const [notifDailyRoutine, setNotifDailyRoutine] = useState(true);
+  const [notifGoalReminder, setNotifGoalReminder] = useState(true);
+  const [notifStreakAtRisk, setNotifStreakAtRisk] = useState(true);
+  const [notifSocialNudge, setNotifSocialNudge] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,7 +118,62 @@ export default function SettingsScreen() {
 
         <Card style={styles.section}>
           <Label>Notifications</Label>
-          <Caption>Manage notifications in your device settings.</Caption>
+          <View style={styles.switchRow}>
+            <Body style={styles.switchLabel}>Daily routine reminder</Body>
+            <Switch
+              value={notifDailyRoutine}
+              onValueChange={async (val) => {
+                setNotifDailyRoutine(val);
+                if (val) {
+                  const user = getUser();
+                  if (user?.wakeTime) await scheduleDailyRoutineNotification(user.wakeTime);
+                } else {
+                  await Notifications.cancelScheduledNotificationAsync('daily_routine').catch(() => {});
+                }
+              }}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={notifDailyRoutine ? colors.primary : colors.textMuted}
+            />
+          </View>
+          <View style={styles.switchRow}>
+            <Body style={styles.switchLabel}>Goal task reminder (3 PM)</Body>
+            <Switch
+              value={notifGoalReminder}
+              onValueChange={async (val) => {
+                setNotifGoalReminder(val);
+                if (val) await scheduleGoalTaskReminder();
+                else await Notifications.cancelScheduledNotificationAsync('goal_task_reminder').catch(() => {});
+              }}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={notifGoalReminder ? colors.primary : colors.textMuted}
+            />
+          </View>
+          <View style={styles.switchRow}>
+            <Body style={styles.switchLabel}>Streak at-risk (8 PM)</Body>
+            <Switch
+              value={notifStreakAtRisk}
+              onValueChange={async (val) => {
+                setNotifStreakAtRisk(val);
+                if (val) await scheduleStreakAtRiskNotification();
+                else await Notifications.cancelScheduledNotificationAsync('streak_at_risk').catch(() => {});
+              }}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={notifStreakAtRisk ? colors.primary : colors.textMuted}
+            />
+          </View>
+          <View style={styles.switchRow}>
+            <Body style={styles.switchLabel}>Social reconnect nudge (6 PM)</Body>
+            <Switch
+              value={notifSocialNudge}
+              onValueChange={async (val) => {
+                setNotifSocialNudge(val);
+                if (val) await scheduleSocialOverdueNudge();
+                else await Notifications.cancelScheduledNotificationAsync('social_overdue').catch(() => {});
+              }}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={notifSocialNudge ? colors.primary : colors.textMuted}
+            />
+          </View>
         </Card>
 
         <Card style={styles.section}>
@@ -153,5 +219,15 @@ const styles = StyleSheet.create({
   },
   infoText: {
     color: colors.textSecondary,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  switchLabel: {
+    flex: 1,
+    fontSize: fontSizes.sm,
   },
 });

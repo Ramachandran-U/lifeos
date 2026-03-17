@@ -8,7 +8,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { colors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
-import { Heading, Body, Caption } from '@/components/ui/Typography';
+import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
+import { Card } from '@/components/ui/Card';
 import { StreakCounter } from '@/components/ui/StreakCounter';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { LifeBalanceDashboard } from '@/components/shared/LifeBalanceDashboard';
@@ -16,6 +17,7 @@ import { DailyBriefing } from '@/components/shared/DailyBriefing';
 import { useUserStore } from '@/store/useUserStore';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
 import { getOrCreateGamification } from '@/db/queries/gamification';
+import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
 import { useState } from 'react';
 
 export default function TodayScreen() {
@@ -38,6 +40,7 @@ export default function TodayScreen() {
         // keep defaults
       }
     }
+    setWeeklyInsight(generateWeeklyInsight());
   }, [today, userId]);
 
   useFocusEffect(
@@ -46,8 +49,12 @@ export default function TodayScreen() {
     }, [loadData])
   );
 
+  const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
+
   const handleComplete = (blockId: string) => {
+    const block = blocks.find(b => b.id === blockId);
     updateRoutineBlockStatus(blockId, 'completed');
+    logBehaviourEvent('block_completed', block?.module ?? 'goal');
     loadData();
   };
 
@@ -83,6 +90,18 @@ export default function TodayScreen() {
             }
           />
         </Animated.View>
+
+        {weeklyInsight && (
+          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+            <Card style={styles.insightCard}>
+              <View style={styles.insightHeader}>
+                <Ionicons name="analytics-outline" size={18} color={colors.primary} />
+                <Label color={colors.primary}>WEEKLY INSIGHT</Label>
+              </View>
+              <Body style={styles.insightText}>{weeklyInsight}</Body>
+            </Card>
+          </Animated.View>
+        )}
 
         {blocks.length > 0 ? (
           <View style={styles.blocksSection}>
@@ -145,6 +164,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.xxl,
     gap: spacing.sm,
+  },
+  insightCard: {
+    gap: spacing.sm,
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  insightText: {
+    color: colors.textSecondary,
+    fontSize: fontSizes.sm,
+    lineHeight: 20,
   },
   emptyText: {
     color: colors.textMuted,
