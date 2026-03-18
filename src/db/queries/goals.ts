@@ -1,5 +1,5 @@
 import { eq, and, isNull } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
+import { nanoid } from '@/utils/id';
 import { db } from '../index';
 import { goals } from '../schema';
 

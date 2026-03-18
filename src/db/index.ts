@@ -56,10 +56,10 @@ export async function initDatabase() {
   }
 
   const expo = getExpo();
-  expo.execSync(`PRAGMA journal_mode = WAL;`);
-  expo.execSync(`PRAGMA foreign_keys = ON;`);
+  await expo.execAsync(`PRAGMA journal_mode = WAL;`);
+  await expo.execAsync(`PRAGMA foreign_keys = ON;`);
 
-  expo.execSync(`
+  await expo.execAsync(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -281,6 +281,16 @@ export async function initDatabase() {
       weekly_xp INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS behaviour_events (
+      id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      module TEXT NOT NULL,
+      metadata TEXT,
+      hour INTEGER NOT NULL,
+      day_of_week INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
 }

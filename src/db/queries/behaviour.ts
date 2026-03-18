@@ -1,5 +1,5 @@
 import { eq, sql, and, gte } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
+import { nanoid } from '@/utils/id';
 import { db } from '../index';
 import { behaviourEvents } from '../schema';
 import { subDays, format } from 'date-fns';
