@@ -21,12 +21,19 @@ import {
   WeeklyFinanceInsightSchema,
   FoodRecognition,
   FoodRecognitionSchema,
+  CategorizeMerchantResult,
+  CategorizeMerchantSchema,
+  TransactionCategory,
 } from './types';
 import { GOAL_DECOMPOSITION_PROMPT } from './prompts/goals';
 import { SKILL_GAP_PROMPT } from './prompts/career';
 import { ROUTINE_GENERATION_PROMPT } from './prompts/routine';
 import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT, FOOD_RECOGNITION_PROMPT } from './prompts/health';
-import { FINANCIAL_PLAN_PROMPT, WEEKLY_FINANCE_INSIGHT_PROMPT } from './prompts/finance';
+import {
+  FINANCIAL_PLAN_PROMPT,
+  WEEKLY_FINANCE_INSIGHT_PROMPT,
+  MERCHANT_CATEGORIZE_PROMPT,
+} from './prompts/finance';
 import { buildMockGoalHierarchy } from './mocks/goals';
 import { buildMockSkillGap } from './mocks/career';
 import { MOCK_ROUTINE } from './mocks/routine';
@@ -137,6 +144,27 @@ export async function getWeeklyFinanceInsight(input: FinanceInsightInput): Promi
     return WeeklyFinanceInsightSchema.parse(JSON.parse(response));
   } catch {
     throw new Error('AI returned invalid finance insight');
+  }
+}
+
+export async function categorizeMerchant(
+  merchant: string,
+  amountRupees: number,
+): Promise<CategorizeMerchantResult> {
+  if (isMock) {
+    return { category: 'other' as TransactionCategory, confidence: 0.5 };
+  }
+
+  const response = await callAI({
+    system: MERCHANT_CATEGORIZE_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify({ merchant, amountRupees }) }],
+    maxTokens: 80,
+  });
+
+  try {
+    return CategorizeMerchantSchema.parse(JSON.parse(response));
+  } catch {
+    return { category: 'other' as TransactionCategory, confidence: 0 };
   }
 }
 

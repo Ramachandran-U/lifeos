@@ -20,6 +20,16 @@ Output schema:
 }
 `;
 
+export const MERCHANT_CATEGORIZE_PROMPT = `
+You are LifeOS's transaction categorizer. Given a merchant name and amount in rupees, return ONE category from this fixed list:
+food_delivery, groceries, dining_out, transport, fuel, shopping, subscriptions, utilities, rent, entertainment, health, education, travel, investments, insurance, debt_repayment, transfers, income, gifts, charity, cash_withdrawal, fees_charges, personal_care, other.
+
+Return ONLY valid JSON. No preamble.
+
+Output schema:
+{ "category": string, "confidence": number (0 to 1) }
+`;
+
 export const WEEKLY_FINANCE_INSIGHT_PROMPT = `
 You are LifeOS's Financial Insight Engine. Generate a weekly motivational and actionable insight based on the user's financial goal progress.
 
