@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,30 +14,28 @@ import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAI } from '@/hooks/useAI';
 import { decomposeGoal } from '@/ai/functions';
 import { useUserStore } from '@/store/useUserStore';
-import { createUser, updateUser } from '@/db/queries/users';
+import { updateUser } from '@/db/queries/users';
 import type { GoalHierarchy } from '@/ai/types';
 
 export default function Day1VisionScreen() {
   const router = useRouter();
   const { call, loading, error } = useAI();
-  const { setUser } = useUserStore();
+  const { userId, name: storedName, email: userEmail, setUser, setOnboardingStage } = useUserStore();
 
   const [vision, setVision] = useState('');
-  const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [hierarchy, setHierarchy] = useState<GoalHierarchy | null>(null);
 
   const handleBuildPlan = async () => {
-    if (!vision.trim() || !name.trim()) return;
+    if (!vision.trim() || !userId) return;
 
     const result = await call(() =>
-      decomposeGoal({ visionStatement: vision, name, age: age ? parseInt(age, 10) : undefined })
+      decomposeGoal({ visionStatement: vision, name: storedName, age: age ? parseInt(age, 10) : undefined })
     );
 
     if (result) {
-      const newUserId = await createUser({ name, age: age ? parseInt(age, 10) : undefined, visionStatement: vision });
-      updateUser(newUserId, { onboardingStage: 1 });
-      setUser(newUserId, name, 1);
+      updateUser(userId, { visionStatement: vision, age: age ? parseInt(age, 10) : undefined, onboardingStage: 1 });
+      setOnboardingStage(1);
       setHierarchy(result);
     }
   };
@@ -79,31 +77,19 @@ export default function Day1VisionScreen() {
               style={styles.visionInput}
             />
 
-            <View style={styles.row}>
-              <View style={styles.halfInput}>
-                <Input
-                  label="Your name"
-                  placeholder="Alex"
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
-              <View style={styles.halfInput}>
-                <Input
-                  label="Age"
-                  placeholder="28"
-                  value={age}
-                  onChangeText={setAge}
-                  keyboardType="number-pad"
-                />
-              </View>
-            </View>
+            <Input
+              label="Age (optional)"
+              placeholder="28"
+              value={age}
+              onChangeText={setAge}
+              keyboardType="number-pad"
+            />
 
             {!hierarchy && !loading && (
               <Button
                 title="Build my plan"
                 onPress={handleBuildPlan}
-                disabled={!vision.trim() || !name.trim()}
+                disabled={!vision.trim()}
               />
             )}
 
@@ -208,13 +194,6 @@ const styles = StyleSheet.create({
   visionInput: {
     minHeight: 100,
     textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  halfInput: {
-    flex: 1,
   },
   loadingContainer: {
     alignItems: 'center',

@@ -62,6 +62,9 @@ export async function initDatabase() {
   await expo.execAsync(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
       name TEXT NOT NULL,
       age INTEGER,
       vision_statement TEXT,

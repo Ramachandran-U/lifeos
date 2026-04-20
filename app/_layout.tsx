@@ -8,7 +8,7 @@ import { StyleSheet, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAppFonts } from '@/theme/typography';
 import { initDatabase } from '@/db';
-import { getUser } from '@/db/queries/users';
+import { getUser, setWebSession } from '@/db/queries/users';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { AchievementToast } from '@/components/shared/AchievementToast';
 
@@ -26,11 +26,9 @@ export default function RootLayout() {
   useEffect(() => {
     async function init() {
       await initDatabase();
-      if (Platform.OS !== 'web') {
-        const user = getUser();
-        if (user) {
-          setUser(user.id, user.name, user.onboardingStage);
-        }
+      const user = getUser();
+      if (user) {
+        setUser(user.id, user.name, user.email, user.onboardingStage);
       }
       setDbReady(true);
     }
@@ -46,7 +44,7 @@ export default function RootLayout() {
     const inTabs = segments[0] === '(tabs)';
 
     if (!userId) {
-      if (!inAuth && !inOnboarding) router.replace('/(auth)/welcome');
+      if (!inAuth) router.replace('/(auth)/sign-in');
     } else if (onboardingStage < ONBOARDING_COMPLETE) {
       if (!inOnboarding) router.replace('/(onboarding)/day1-vision');
     } else {
