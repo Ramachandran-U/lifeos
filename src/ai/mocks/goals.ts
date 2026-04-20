@@ -1,62 +1,69 @@
 import { GoalHierarchy } from '../types';
 
-export const MOCK_GOAL_HIERARCHY: GoalHierarchy = {
-  primaryGoal: {
-    title: 'Become a Senior Product Manager at a top tech company',
-    type: 'career',
-  },
-  yearly: {
-    title: 'Land a Senior PM role',
-    milestone: 'Receive and accept an offer for a Senior PM position',
-  },
-  monthly: [
-    { month: 1, title: 'Foundation Building', milestone: 'Complete product strategy course and build first case study' },
-    { month: 2, title: 'Portfolio Development', milestone: 'Ship a side project demonstrating PM skills with metrics' },
-    { month: 3, title: 'Network & Apply', milestone: 'Complete 10 informational interviews and submit 5 applications' },
-  ],
-  weekly: [
-    {
-      week: 1,
-      focus: 'Start product strategy fundamentals',
-      tasks: [
-        'Read chapters 1-3 of "Inspired" by Marty Cagan',
-        'Complete Module 1 of Reforge Growth Series',
-        'Write a product teardown of a favourite app',
-      ],
+export function buildMockGoalHierarchy(visionStatement: string, name?: string): GoalHierarchy {
+  // Derive a clean primary goal title directly from the user's own words
+  const vision = visionStatement.trim();
+  // Capitalise first letter, strip trailing period if present
+  const primaryTitle = vision.charAt(0).toUpperCase() + vision.slice(1).replace(/\.$/, '');
+
+  return {
+    primaryGoal: {
+      title: primaryTitle,
+      type: 'career',
     },
-    {
-      week: 2,
-      focus: 'Practise structured thinking',
-      tasks: [
-        'Solve 3 product design interview questions',
-        'Read chapters 4-6 of "Inspired"',
-        'Analyse competitor landscape for side project idea',
-      ],
+    yearly: {
+      title: `Make serious progress toward: ${primaryTitle}`,
+      milestone: `Complete the foundational steps that put this goal within reach`,
     },
-    {
-      week: 3,
-      focus: 'Begin side project',
-      tasks: [
-        'Define PRD for side project',
-        'Set up project tracking in Linear',
-        'Conduct 3 user interviews',
-      ],
-    },
-    {
-      week: 4,
-      focus: 'Build and ship MVP',
-      tasks: [
-        'Build MVP with no-code tool',
-        'Run usability tests with 5 users',
-        'Write launch retrospective',
-      ],
-    },
-  ],
-  dailyTaskExamples: [
-    'Read 20 pages of "Inspired" (45 min)',
-    'Solve 1 product design question (30 min)',
-    'Write user story for side project feature (30 min)',
-    'Review 2 product launches on Product Hunt (20 min)',
-    'Send 1 LinkedIn message to a PM at target company (15 min)',
-  ],
-};
+    monthly: [
+      { month: 1, title: 'Research & Foundation', milestone: 'Understand the full requirements and create a clear roadmap' },
+      { month: 2, title: 'Skill Building', milestone: 'Acquire the core skills and knowledge needed for the goal' },
+      { month: 3, title: 'First Real Steps', milestone: 'Take the first concrete actions toward the goal and measure progress' },
+    ],
+    weekly: [
+      {
+        week: 1,
+        focus: 'Research and plan',
+        tasks: [
+          `Research what it concretely takes to achieve: ${primaryTitle}`,
+          'Identify the 3 biggest skill gaps or requirements',
+          'Find 2–3 people who have done this and study their path',
+        ],
+      },
+      {
+        week: 2,
+        focus: 'Build your knowledge base',
+        tasks: [
+          'Read or watch 3 resources directly related to the goal',
+          'Write down the key milestones in your own words',
+          'Identify one mentor or community to join',
+        ],
+      },
+      {
+        week: 3,
+        focus: 'Take the first action',
+        tasks: [
+          'Complete one small but real step toward the goal',
+          'Share your goal with someone who can hold you accountable',
+          'Set a 90-day target and write it down',
+        ],
+      },
+      {
+        week: 4,
+        focus: 'Review and adjust',
+        tasks: [
+          'Review what you learned and did this month',
+          'Adjust your plan based on new information',
+          'Commit to one habit that supports this goal daily',
+        ],
+      },
+    ],
+    dailyTaskExamples: [
+      `Spend 30 min on a skill directly required for: ${primaryTitle}`,
+      'Read or watch one piece of educational content on the topic (20 min)',
+      'Journal on progress and blockers (10 min)',
+      'Do one outreach or networking action related to the goal (15 min)',
+      'Review your goal roadmap and update your task list (10 min)',
+    ],
+  };
+}

@@ -27,8 +27,8 @@ import { SKILL_GAP_PROMPT } from './prompts/career';
 import { ROUTINE_GENERATION_PROMPT } from './prompts/routine';
 import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT, FOOD_RECOGNITION_PROMPT } from './prompts/health';
 import { FINANCIAL_PLAN_PROMPT, WEEKLY_FINANCE_INSIGHT_PROMPT } from './prompts/finance';
-import { MOCK_GOAL_HIERARCHY } from './mocks/goals';
-import { MOCK_SKILL_GAP } from './mocks/career';
+import { buildMockGoalHierarchy } from './mocks/goals';
+import { buildMockSkillGap } from './mocks/career';
 import { MOCK_ROUTINE } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT } from './mocks/finance';
@@ -36,7 +36,7 @@ import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT } from './mocks/finance';
 const isMock = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
 
 export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
-  if (isMock) return MOCK_GOAL_HIERARCHY;
+  if (isMock) return buildMockGoalHierarchy(input.visionStatement, input.name);
 
   const response = await callAI({
     system: GOAL_DECOMPOSITION_PROMPT,
@@ -51,7 +51,7 @@ export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
 }
 
 export async function analyseSkillGap(input: CareerInput): Promise<SkillGapAnalysis> {
-  if (isMock) return MOCK_SKILL_GAP;
+  if (isMock) return buildMockSkillGap(input.currentRole, input.targetRole, input.currentSkills);
 
   const response = await callAI({
     system: SKILL_GAP_PROMPT,

@@ -1,19 +1,64 @@
 import { SkillGapAnalysis } from '../types';
 
-export const MOCK_SKILL_GAP: SkillGapAnalysis = {
-  gaps: [
-    { skill: 'Product Strategy', currentLevel: 'beginner', requiredLevel: 'advanced', priority: 1 },
-    { skill: 'Data Analysis & SQL', currentLevel: 'intermediate', requiredLevel: 'advanced', priority: 2 },
-    { skill: 'Stakeholder Management', currentLevel: 'beginner', requiredLevel: 'expert', priority: 3 },
-    { skill: 'User Research', currentLevel: 'none', requiredLevel: 'intermediate', priority: 4 },
-    { skill: 'A/B Testing & Experimentation', currentLevel: 'none', requiredLevel: 'intermediate', priority: 5 },
-    { skill: 'Technical Architecture', currentLevel: 'intermediate', requiredLevel: 'advanced', priority: 6 },
-  ],
-  resources: [
-    { title: 'Inspired by Marty Cagan', type: 'book', estimatedHours: 12 },
-    { title: 'Reforge Growth Series', type: 'course', estimatedHours: 40, url: 'https://reforge.com' },
-    { title: 'SQL for Data Analysis (Mode Analytics)', type: 'course', estimatedHours: 20 },
-    { title: 'Build a Product Teardown Portfolio', type: 'project', estimatedHours: 30 },
-    { title: 'The Mom Test by Rob Fitzpatrick', type: 'book', estimatedHours: 6 },
-  ],
-};
+export function buildMockSkillGap(
+  currentRole: string,
+  targetRole: string,
+  currentSkills: string[],
+): SkillGapAnalysis {
+  // Build gap list: mark user's existing skills as intermediate, add 3 generic gaps for the target role
+  const existingSkillGaps = currentSkills.slice(0, 3).map((skill, i) => ({
+    skill,
+    currentLevel: 'intermediate' as const,
+    requiredLevel: 'advanced' as const,
+    priority: i + 1,
+  }));
+
+  const genericGaps = [
+    {
+      skill: `Core knowledge required for ${targetRole}`,
+      currentLevel: 'beginner' as const,
+      requiredLevel: 'advanced' as const,
+      priority: existingSkillGaps.length + 1,
+    },
+    {
+      skill: 'Communication & stakeholder management',
+      currentLevel: 'beginner' as const,
+      requiredLevel: 'expert' as const,
+      priority: existingSkillGaps.length + 2,
+    },
+    {
+      skill: `Practical experience in ${targetRole} responsibilities`,
+      currentLevel: 'none' as const,
+      requiredLevel: 'intermediate' as const,
+      priority: existingSkillGaps.length + 3,
+    },
+  ];
+
+  const gaps = [...existingSkillGaps, ...genericGaps];
+
+  return {
+    gaps,
+    resources: [
+      {
+        title: `Beginner's guide to ${targetRole}`,
+        type: 'course',
+        estimatedHours: 15,
+      },
+      {
+        title: `From ${currentRole} to ${targetRole}: career transition strategies`,
+        type: 'book',
+        estimatedHours: 8,
+      },
+      {
+        title: `Build a portfolio project relevant to ${targetRole}`,
+        type: 'project',
+        estimatedHours: 30,
+      },
+      {
+        title: `Find a mentor currently working as a ${targetRole}`,
+        type: 'course',
+        estimatedHours: 10,
+      },
+    ],
+  };
+}
