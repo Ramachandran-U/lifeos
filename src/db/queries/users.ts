@@ -111,6 +111,37 @@ export function getUserOnboardingStage(): number | undefined {
   return user?.onboardingStage;
 }
 
+/**
+ * Sentinel stored in passwordHash for accounts that only authenticate via Google.
+ * Password sign-in paths must check for this and redirect to Google sign-in.
+ */
+export const GOOGLE_SSO_HASH = '__GOOGLE_SSO__';
+
+/**
+ * Upsert a user from a Google profile. Returns the user id. If an account with
+ * the same email already exists (whether password or Google), reuses it; no
+ * account linking prompt yet — we trust Google's verified email.
+ */
+export async function upsertGoogleUser(profile: {
+  email: string;
+  name?: string;
+}): Promise<string> {
+  const existing = getUserByEmail(profile.email);
+  if (existing) {
+    if (profile.name && profile.name !== existing.name) {
+      updateUser(existing.id, { name: profile.name });
+    }
+    return existing.id;
+  }
+  const id = await createUser({
+    email: profile.email,
+    passwordHash: GOOGLE_SSO_HASH,
+    passwordSalt: '',
+    name: profile.name || profile.email.split('@')[0],
+  });
+  return id;
+}
+
 export function deleteAllUsers(): void {
   if (isWeb) {
     localStorage.removeItem('lifeos_users');
