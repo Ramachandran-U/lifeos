@@ -19,6 +19,7 @@ const FINANCIAL_GOALS_KEY = 'lifeos_financial_goals';
 const FINANCE_MILESTONES_KEY = 'lifeos_finance_milestones';
 const INTERESTS_KEY = 'lifeos_interests';
 const EXPLORATION_LOG_KEY = 'lifeos_exploration_log';
+const GOAL_COMMENTS_KEY = 'lifeos_goal_comments';
 
 function load<T>(key: string): T[] {
   try {
@@ -41,6 +42,7 @@ export interface WebUser {
   passwordSalt: string;
   name: string;
   age?: number;
+  heightCm?: number;
   visionStatement?: string;
   wakeTime?: string;
   sleepTime?: string;
@@ -210,6 +212,7 @@ export interface WebGoal {
   energyLevel?: string;
   aiGenerated?: boolean;
   metadata?: string;
+  priority?: number;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
@@ -241,12 +244,60 @@ export function webUpdateGoalStatus(id: string, status: string): void {
   save(GOALS_KEY, all);
 }
 
+export function webUpdateGoalDescription(id: string, description: string): void {
+  const all = load<WebGoal>(GOALS_KEY);
+  const idx = all.findIndex((g) => g.id === id);
+  if (idx === -1) return;
+  all[idx] = { ...all[idx], description, updatedAt: new Date().toISOString() };
+  save(GOALS_KEY, all);
+}
+
 export function webSoftDeleteGoal(id: string): void {
   const all = load<WebGoal>(GOALS_KEY);
   const idx = all.findIndex((g) => g.id === id);
   if (idx === -1) return;
   all[idx] = { ...all[idx], deletedAt: new Date().toISOString() };
   save(GOALS_KEY, all);
+}
+
+export function webSetGoalPriorities(updates: { id: string; priority: number }[]): void {
+  const all = load<WebGoal>(GOALS_KEY);
+  const byId = new Map(updates.map((u) => [u.id, u.priority]));
+  const now = new Date().toISOString();
+  const next = all.map((g) =>
+    byId.has(g.id) ? { ...g, priority: byId.get(g.id)!, updatedAt: now } : g,
+  );
+  save(GOALS_KEY, next);
+}
+
+// ─── Goal comments ───────────────────────────────────────────────────────────
+
+export interface WebGoalComment {
+  id: string;
+  goalId: string;
+  userId: string;
+  body: string;
+  createdAt: string;
+}
+
+export function webInsertGoalComment(c: WebGoalComment): void {
+  const all = load<WebGoalComment>(GOAL_COMMENTS_KEY);
+  all.push(c);
+  save(GOAL_COMMENTS_KEY, all);
+}
+
+export function webListGoalComments(goalId: string): WebGoalComment[] {
+  return load<WebGoalComment>(GOAL_COMMENTS_KEY)
+    .filter((c) => c.goalId === goalId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export function webDeleteGoalComment(id: string): void {
+  const all = load<WebGoalComment>(GOAL_COMMENTS_KEY);
+  save(
+    GOAL_COMMENTS_KEY,
+    all.filter((c) => c.id !== id),
+  );
 }
 
 // ─── Health logs ─────────────────────────────────────────────────────────────

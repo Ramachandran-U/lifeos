@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -23,12 +23,21 @@ import { QuestCard } from '@/components/gamification/QuestCard';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
 import { xpProgressInLevel } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
+import { updateUser } from '@/db/queries/users';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
 
 export default function TodayScreen() {
   const c = useColors();
+  const router = useRouter();
   const { userId, name } = useUserStore();
+  const setOnboardingStage = useUserStore((s) => s.setOnboardingStage);
+
+  const startOnboarding = useCallback(() => {
+    if (userId) updateUser(userId, { onboardingStage: 0 });
+    setOnboardingStage(0);
+    router.replace('/(onboarding)/day1-vision');
+  }, [userId, setOnboardingStage, router]);
   const loadGame = useGameStore((s) => s.loadFromDB);
   const streaks = useGameStore((s) => s.streaks);
   const totalXP = useGameStore((s) => s.totalXP);
@@ -160,6 +169,8 @@ export default function TodayScreen() {
                 ? `You have ${blocks.length} blocks planned today. ${completedCount} completed so far. Keep going!`
                 : 'No routine set up yet. Complete onboarding to get your personalised daily plan.'
               }
+              ctaLabel={blocks.length === 0 ? 'Complete onboarding' : undefined}
+              onCtaPress={blocks.length === 0 ? startOnboarding : undefined}
             />
           </Animated.View>
 
@@ -177,7 +188,17 @@ export default function TodayScreen() {
 
           {blocks.length > 0 ? (
             <View style={styles.blocksSection}>
-              <Body style={styles.sectionTitle}>Today's Routine</Body>
+              <View style={styles.routineHeader}>
+                <Body style={styles.sectionTitle}>Today's Routine</Body>
+                <Pressable
+                  style={[styles.editRoutineBtn, { borderColor: c.border, backgroundColor: c.surface }]}
+                  onPress={() => router.push('/(onboarding)/day1-routine')}
+                  hitSlop={6}
+                >
+                  <Ionicons name="pencil" size={14} color={c.primary} />
+                  <Caption style={{ color: c.primary, fontFamily: fonts.heading }}>Edit routine</Caption>
+                </Pressable>
+              </View>
               {blocks
                 .sort((a, b) => a.startTime.localeCompare(b.startTime))
                 .map((block) => (
@@ -271,6 +292,21 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     blocksSection: {
       gap: spacing.sm,
+    },
+    routineHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    editRoutineBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      borderWidth: 1,
     },
     sectionTitle: {
       fontFamily: fonts.heading,

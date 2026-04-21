@@ -21,6 +21,21 @@ describe('detectSource', () => {
 });
 
 describe('parseHdfc', () => {
+  it('parses a real HDFC credit-card InstaAlert (towards MERCHANT on DATE at TIME)', () => {
+    const body = `Dear Customer,
+
+Greetings from HDFC Bank!
+
+Rs.277.00 is debited from your HDFC Bank Credit Card ending 4834 towards PYU*Swiggy Food on 08 Apr, 2026 at 19:19:23.
+
+To know your available balance, outstanding amount and transactions in detail, please visit MyCards.`;
+    const out = parseHdfc(body)!;
+    expect(out).toBeTruthy();
+    expect(out.direction).toBe('debit');
+    expect(out.amount).toBe(27700);
+    expect(out.merchant).toBe('PYU*Swiggy Food');
+  });
+
   it('parses a debit with merchant and ref', () => {
     const body = 'Rs. 1,250.50 has been debited from A/c XX1234 to AMAZON PAY on 2026-04-20. UPI-Ref-No 4567891234';
     const out = parseHdfc(body)!;

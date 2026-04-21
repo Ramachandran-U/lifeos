@@ -67,6 +67,7 @@ export async function initDatabase() {
       password_salt TEXT NOT NULL,
       name TEXT NOT NULL,
       age INTEGER,
+      height_cm REAL,
       vision_statement TEXT,
       wake_time TEXT,
       sleep_time TEXT,
@@ -95,6 +96,14 @@ export async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS goal_comments (
+      id TEXT PRIMARY KEY,
+      goal_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS routine_blocks (
@@ -309,4 +318,6 @@ export async function initDatabase() {
     }
   };
   await safeAlter(`ALTER TABLE interests ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN height_cm REAL`);
+  await safeAlter(`ALTER TABLE goals ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`);
 }

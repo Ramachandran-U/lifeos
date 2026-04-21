@@ -1,4 +1,5 @@
 import { callAI } from './client';
+import { extractJson } from './extractJson';
 import {
   GoalInput,
   GoalHierarchy,
@@ -24,9 +25,18 @@ import {
   CategorizeMerchantResult,
   CategorizeMerchantSchema,
   TransactionCategory,
+  CareerStrategy,
+  CareerStrategySchema,
+  CareerStrategyInput,
+  Motivation,
+  MotivationSchema,
+  MotivationInput,
+  GoalDescription,
+  GoalDescriptionSchema,
+  GoalDescriptionInput,
 } from './types';
-import { GOAL_DECOMPOSITION_PROMPT } from './prompts/goals';
-import { SKILL_GAP_PROMPT } from './prompts/career';
+import { GOAL_DECOMPOSITION_PROMPT, GOAL_DESCRIPTION_PROMPT } from './prompts/goals';
+import { SKILL_GAP_PROMPT, CAREER_STRATEGY_PROMPT, MOTIVATION_PROMPT } from './prompts/career';
 import { ROUTINE_GENERATION_PROMPT } from './prompts/routine';
 import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT, FOOD_RECOGNITION_PROMPT } from './prompts/health';
 import {
@@ -34,8 +44,8 @@ import {
   WEEKLY_FINANCE_INSIGHT_PROMPT,
   MERCHANT_CATEGORIZE_PROMPT,
 } from './prompts/finance';
-import { buildMockGoalHierarchy } from './mocks/goals';
-import { buildMockSkillGap } from './mocks/career';
+import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals';
+import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
 import { MOCK_ROUTINE } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT } from './mocks/finance';
@@ -51,9 +61,11 @@ export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
   });
 
   try {
-    return GoalHierarchySchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid goal structure');
+    return GoalHierarchySchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid goal structure: ' + detail.slice(0, 120));
   }
 }
 
@@ -66,9 +78,11 @@ export async function analyseSkillGap(input: CareerInput): Promise<SkillGapAnaly
   });
 
   try {
-    return SkillGapAnalysisSchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid skill gap analysis');
+    return SkillGapAnalysisSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid skill gap analysis: ' + detail.slice(0, 120));
   }
 }
 
@@ -81,9 +95,11 @@ export async function generateRoutine(input: RoutineInput): Promise<GeneratedRou
   });
 
   try {
-    return GeneratedRoutineSchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid routine');
+    return GeneratedRoutineSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid routine: ' + detail.slice(0, 120));
   }
 }
 
@@ -96,9 +112,11 @@ export async function parseBloodReport(reportText: string): Promise<BloodReportR
   });
 
   try {
-    return BloodReportResultSchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid blood report analysis');
+    return BloodReportResultSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid blood report analysis: ' + detail.slice(0, 120));
   }
 }
 
@@ -111,9 +129,11 @@ export async function suggestMeals(context: string): Promise<MealSuggestion> {
   });
 
   try {
-    return MealSuggestionSchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid meal suggestions');
+    return MealSuggestionSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid meal suggestions: ' + detail.slice(0, 120));
   }
 }
 
@@ -126,9 +146,11 @@ export async function generateFinancialPlan(input: FinanceInput): Promise<Financ
   });
 
   try {
-    return FinancialPlanSchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid financial plan');
+    return FinancialPlanSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid financial plan: ' + detail.slice(0, 120));
   }
 }
 
@@ -141,9 +163,11 @@ export async function getWeeklyFinanceInsight(input: FinanceInsightInput): Promi
   });
 
   try {
-    return WeeklyFinanceInsightSchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid finance insight');
+    return WeeklyFinanceInsightSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid finance insight: ' + detail.slice(0, 120));
   }
 }
 
@@ -162,7 +186,7 @@ export async function categorizeMerchant(
   });
 
   try {
-    return CategorizeMerchantSchema.parse(JSON.parse(response));
+    return CategorizeMerchantSchema.parse(extractJson(response));
   } catch {
     return { category: 'other' as TransactionCategory, confidence: 0 };
   }
@@ -183,8 +207,61 @@ export async function recogniseFood(imageBase64: string, mediaType: string): Pro
   });
 
   try {
-    return FoodRecognitionSchema.parse(JSON.parse(response));
-  } catch {
-    throw new Error('AI returned invalid food recognition');
+    return FoodRecognitionSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+
+    throw new Error('AI returned invalid food recognition: ' + detail.slice(0, 120));
+  }
+}
+
+export async function generateCareerStrategy(input: CareerStrategyInput): Promise<CareerStrategy> {
+  if (isMock) return buildMockCareerStrategy(input);
+
+  const response = await callAI({
+    system: CAREER_STRATEGY_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    maxTokens: 2500,
+  });
+
+  try {
+    return CareerStrategySchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error('AI returned invalid career strategy: ' + detail.slice(0, 120));
+  }
+}
+
+export async function describeGoal(input: GoalDescriptionInput): Promise<GoalDescription> {
+  if (isMock) return buildMockGoalDescription(input);
+
+  const response = await callAI({
+    system: GOAL_DESCRIPTION_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    maxTokens: 200,
+  });
+
+  try {
+    return GoalDescriptionSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error('AI returned invalid goal description: ' + detail.slice(0, 120));
+  }
+}
+
+export async function generateMotivation(input: MotivationInput): Promise<Motivation> {
+  if (isMock) return buildMockMotivation(input);
+
+  const response = await callAI({
+    system: MOTIVATION_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    maxTokens: 200,
+  });
+
+  try {
+    return MotivationSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error('AI returned invalid motivation: ' + detail.slice(0, 120));
   }
 }

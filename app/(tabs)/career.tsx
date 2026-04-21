@@ -28,15 +28,19 @@ import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { SkillGapChart } from '@/components/modules/career/SkillGapChart';
 import { LearningResourceCard } from '@/components/modules/career/LearningResourceCard';
+import { CareerStrategyView } from '@/components/modules/career/CareerStrategyView';
+import { MotivationBanner } from '@/components/shared/MotivationBanner';
 import { useAI } from '@/hooks/useAI';
-import { analyseSkillGap } from '@/ai/functions';
+import { analyseSkillGap, generateCareerStrategy } from '@/ai/functions';
+import { createGoal } from '@/db/queries/goals';
+import { useUserStore } from '@/store/useUserStore';
 import {
   getAllCareerPaths,
   saveCareerPath,
   deleteCareerPath,
   type SavedCareerPath,
 } from '@/db/careerStorage';
-import type { SkillGapAnalysis } from '@/ai/types';
+import type { SkillGapAnalysis, CareerStrategy } from '@/ai/types';
 
 const TIMELINE_OPTIONS = [
   { label: '1 yr',  months: 12  },
@@ -44,6 +48,15 @@ const TIMELINE_OPTIONS = [
   { label: '3 yrs', months: 36  },
   { label: '5 yrs', months: 60  },
 ];
+
+const STRATEGY_TIMEFRAMES = [
+  { label: '8 wk', weeks: 8 },
+  { label: '12 wk', weeks: 12 },
+  { label: '24 wk', weeks: 24 },
+  { label: '52 wk', weeks: 52 },
+];
+
+const HOURS_OPTIONS = [5, 10, 15, 20];
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
@@ -58,8 +71,16 @@ export default function CareerScreen() {
   const [skillInput,       setSkillInput]        = useState('');
   const [skills,           setSkills]            = useState<string[]>([]);
 
+  // Strategy inputs
+  const [timeframeWeeks, setTimeframeWeeks] = useState(12);
+  const [weeklyHours, setWeeklyHours] = useState(10);
+  const [constraints, setConstraints] = useState('');
+
   // Results
   const [analysis, setAnalysis] = useState<SkillGapAnalysis | null>(null);
+  const [strategy, setStrategy] = useState<CareerStrategy | null>(null);
+  const [acceptedStepIds, setAcceptedStepIds] = useState<Set<string>>(new Set());
+  const userId = useUserStore((s) => s.userId);
 
   // Saved paths
   const [savedPaths,   setSavedPaths]   = useState<SavedCareerPath[]>([]);
@@ -95,6 +116,87 @@ export default function CareerScreen() {
       analyseSkillGap({ currentRole, targetRole, timelineMonths, currentSkills: skills }),
     );
     if (result) setAnalysis(result);
+  };
+
+  // ── Career Strategy ─────────────────────────────────────────────────────
+
+  const handleGenerateStrategy = async () => {
+    if (!currentRole.trim() || !targetRole.trim()) return;
+    const result = await call(() =>
+      generateCareerStrategy({
+        currentRole,
+        targetRole,
+        currentSkills: skills,
+        timeframeWeeks,
+        weeklyHours,
+        constraints: constraints.trim() || undefined,
+      }),
+    );
+    if (result) {
+      setStrategy(result);
+      setAcceptedStepIds(new Set());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const getNextPriority = (): number => Date.now(); // lower value = higher priority in sort asc
+
+  const acceptWeek = (weekIndex: number) => {
+    if (!strategy || !userId) return;
+    const w = strategy.weeklyOutput[weekIndex];
+    if (!w) return;
+    createGoal({
+      userId,
+      title: `W${w.week}: ${w.artifact}`,
+      description: w.description,
+      goalType: 'learning',
+      level: 'weekly',
+      aiGenerated: true,
+      metadata: JSON.stringify({
+        source: 'career_strategy',
+        kind: 'weekly_output',
+        week: w.week,
+        targetRole,
+      }),
+    });
+    setAcceptedStepIds((prev) => new Set(prev).add(`week:${weekIndex}`));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const acceptDaily = (slot: 'deepWork' | 'build' | 'review', itemIndex: number) => {
+    if (!strategy || !userId) return;
+    const item = strategy.dailyPlan[slot][itemIndex];
+    if (!item) return;
+    const slotLabel = slot === 'deepWork' ? 'Deep Work' : slot === 'build' ? 'Build' : 'Review';
+    createGoal({
+      userId,
+      title: `[${slotLabel}] ${item}`,
+      description: `Daily ${slotLabel.toLowerCase()} slot from your career strategy for ${targetRole}.`,
+      goalType: 'learning',
+      level: 'daily',
+      aiGenerated: true,
+      metadata: JSON.stringify({
+        source: 'career_strategy',
+        kind: 'daily_plan',
+        slot,
+        targetRole,
+      }),
+    });
+    setAcceptedStepIds((prev) => new Set(prev).add(`daily:${slot}:${itemIndex}`));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const acceptAllStrategy = () => {
+    if (!strategy || !userId) return;
+    strategy.weeklyOutput.forEach((_, i) => {
+      if (!acceptedStepIds.has(`week:${i}`)) acceptWeek(i);
+    });
+    (['deepWork', 'build', 'review'] as const).forEach((slot) => {
+      strategy.dailyPlan[slot].forEach((_, i) => {
+        if (!acceptedStepIds.has(`daily:${slot}:${i}`)) acceptDaily(slot, i);
+      });
+    });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   // ── Save path ──────────────────────────────────────────────────────────────
@@ -148,6 +250,8 @@ export default function CareerScreen() {
     setSkills([]);
     setSkillInput('');
     setAnalysis(null);
+    setStrategy(null);
+    setAcceptedStepIds(new Set());
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
@@ -248,6 +352,13 @@ export default function CareerScreen() {
 
   const renderResults = () => (
     <>
+      {/* Motivation banner */}
+      <MotivationBanner
+        module="career"
+        context={`moving from ${currentRole} to ${targetRole}`}
+        accent={c.career}
+      />
+
       {/* Path card */}
       <Animated.View entering={FadeInDown.duration(400)}>
         <Card moduleColor={c.career} style={s.targetCard}>
@@ -278,6 +389,85 @@ export default function CareerScreen() {
             status="not_started"
           />
         ))}
+      </Animated.View>
+
+      {/* Elite Career Strategist */}
+      <Animated.View entering={FadeInDown.delay(250).duration(400)} style={s.section}>
+        {!strategy ? (
+          <Card style={s.setupCard}>
+            <Label color={c.career}>ELITE STRATEGIST</Label>
+            <Caption style={{ color: c.textSecondary }}>
+              Generate a no-fluff execution plan: Reality Check, 12-week phases, daily + weekly artifacts.
+            </Caption>
+
+            <View>
+              <Label style={s.fieldLabel}>Timeframe</Label>
+              <View style={s.timelineRow}>
+                {STRATEGY_TIMEFRAMES.map((opt) => (
+                  <Pressable
+                    key={opt.weeks}
+                    style={[
+                      s.timelinePill,
+                      { borderColor: c.border },
+                      timeframeWeeks === opt.weeks && { backgroundColor: c.career, borderColor: c.career },
+                    ]}
+                    onPress={() => setTimeframeWeeks(opt.weeks)}
+                  >
+                    <Caption style={[s.timelineLabel, { color: timeframeWeeks === opt.weeks ? '#FFF' : c.textSecondary }]}>
+                      {opt.label}
+                    </Caption>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View>
+              <Label style={s.fieldLabel}>Weekly hours</Label>
+              <View style={s.timelineRow}>
+                {HOURS_OPTIONS.map((h) => (
+                  <Pressable
+                    key={h}
+                    style={[
+                      s.timelinePill,
+                      { borderColor: c.border },
+                      weeklyHours === h && { backgroundColor: c.career, borderColor: c.career },
+                    ]}
+                    onPress={() => setWeeklyHours(h)}
+                  >
+                    <Caption style={[s.timelineLabel, { color: weeklyHours === h ? '#FFF' : c.textSecondary }]}>
+                      {h}h
+                    </Caption>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View>
+              <Label style={s.fieldLabel}>Constraints (optional)</Label>
+              <TextInput
+                style={[s.skillTextInput, { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary }]}
+                placeholder="e.g. full-time job, toddler at home"
+                placeholderTextColor={c.textMuted}
+                value={constraints}
+                onChangeText={setConstraints}
+              />
+            </View>
+
+            <Button
+              title={loading ? 'Designing strategy…' : 'Generate strategy'}
+              onPress={handleGenerateStrategy}
+              disabled={loading}
+            />
+          </Card>
+        ) : (
+          <CareerStrategyView
+            strategy={strategy}
+            acceptedIds={acceptedStepIds}
+            onAcceptWeek={acceptWeek}
+            onAcceptDaily={acceptDaily}
+            onAcceptAll={acceptAllStrategy}
+          />
+        )}
       </Animated.View>
 
       {/* Action buttons */}

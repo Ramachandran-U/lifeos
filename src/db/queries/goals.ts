@@ -9,7 +9,9 @@ import {
   webGetGoalById,
   webGetChildGoals,
   webUpdateGoalStatus,
+  webUpdateGoalDescription,
   webSoftDeleteGoal,
+  webSetGoalPriorities,
   type WebGoal,
 } from '../webStorage';
 
@@ -88,6 +90,32 @@ export function updateGoalStatus(id: string, status: string) {
     .set({ status, updatedAt: new Date().toISOString() })
     .where(eq(goals.id, id))
     .run();
+}
+
+export function updateGoalDescription(id: string, description: string) {
+  if (isWeb) {
+    webUpdateGoalDescription(id, description);
+    return;
+  }
+  db.update(goals)
+    .set({ description, updatedAt: new Date().toISOString() })
+    .where(eq(goals.id, id))
+    .run();
+}
+
+export function setGoalPriorities(updates: { id: string; priority: number }[]) {
+  if (updates.length === 0) return;
+  if (isWeb) {
+    webSetGoalPriorities(updates);
+    return;
+  }
+  const now = new Date().toISOString();
+  for (const u of updates) {
+    db.update(goals)
+      .set({ priority: u.priority, updatedAt: now })
+      .where(eq(goals.id, u.id))
+      .run();
+  }
 }
 
 export function softDeleteGoal(id: string) {

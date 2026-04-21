@@ -82,11 +82,23 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
       const parsed = messages
         .map((m) => {
-          const tx = parseTransactionEmail(m.from, m.body);
+          const tx = parseTransactionEmail(m.from, `${m.subject}\n${m.body}`);
           if (!tx) return null;
           return { message: m, tx };
         })
         .filter((x): x is { message: (typeof messages)[number]; tx: NonNullable<ReturnType<typeof parseTransactionEmail>> } => x !== null);
+
+      const skipped = messages.filter((m) => !parseTransactionEmail(m.from, `${m.subject}\n${m.body}`));
+      if (skipped.length) {
+        console.group(`[finance] ${skipped.length} email(s) failed to parse`);
+        skipped.slice(0, 3).forEach((m, i) => {
+          console.log(`--- skipped #${i + 1} ---`);
+          console.log('from:', m.from);
+          console.log('subject:', m.subject);
+          console.log('body (first 600 chars):', m.body.slice(0, 600));
+        });
+        console.groupEnd();
+      }
 
       const categories = await categorizeBatch(
         parsed.map(({ tx }) => ({ merchant: tx.merchant, amount: tx.amount, direction: tx.direction })),

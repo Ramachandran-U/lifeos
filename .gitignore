@@ -40,3 +40,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Runtime logs
+expo.log
+ai-proxy.log
+test-results/
+.claude/

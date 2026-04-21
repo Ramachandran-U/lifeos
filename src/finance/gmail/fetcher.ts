@@ -8,7 +8,7 @@ import { getAccessToken } from './oauth';
 const BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 const BANK_QUERY =
-  'from:(alerts.hdfcbank.com OR notifications@icicibank.com OR icicibank.com OR axisbank.com OR axisbankmail.in) ' +
+  'from:(alerts.hdfcbank.com OR hdfcbank.net OR notifications@icicibank.com OR icicibank.com OR axisbank.com OR axisbankmail.in OR axis.bank.in OR alerts@axis.bank.in) ' +
   'newer_than:30d ' +
   '(debited OR credited OR "transaction alert")';
 

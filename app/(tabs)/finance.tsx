@@ -122,6 +122,7 @@ export default function FinanceScreen() {
     syncing,
     syncError,
     ingestedCount,
+    skippedCount,
     load,
     refreshConnection,
     sync,
@@ -455,6 +456,7 @@ export default function FinanceScreen() {
             syncing={syncing}
             syncError={syncError}
             ingestedCount={ingestedCount}
+            skippedCount={skippedCount}
             onConnect={handleConnect}
             onSync={handleSync}
             onDismissInsight={handleDismissInsight}
@@ -517,6 +519,7 @@ function OverviewTab({
   syncing,
   syncError,
   ingestedCount,
+  skippedCount,
   onConnect,
   onSync,
   onDismissInsight,
@@ -531,6 +534,7 @@ function OverviewTab({
   syncing: boolean;
   syncError: string | null;
   ingestedCount: number;
+  skippedCount: number;
   onConnect: () => void;
   onSync: () => void;
   onDismissInsight: (id: string) => void;
@@ -603,6 +607,7 @@ function OverviewTab({
               <Caption style={{ color: c.textMuted }}>
                 Last synced {formatRelative(lastSyncedAt)}
                 {ingestedCount > 0 && ` — ${ingestedCount} new`}
+                {skippedCount > 0 && ` · ${skippedCount} skipped`}
               </Caption>
             </View>
             <Pressable

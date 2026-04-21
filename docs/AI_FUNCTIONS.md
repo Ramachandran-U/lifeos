@@ -10,8 +10,10 @@ All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → Claude Son
 
 | Function | Input | Output | Used in |
 |----------|-------|--------|---------|
-| `decomposeGoal` | `{ vision, name, age }` | `GoalHierarchy` (yearly/monthly/weekly/daily) | Onboarding vision |
+| `decomposeGoal` | `{ vision, name, age }` | `GoalHierarchy` (yearly/monthly/weekly/daily) | Onboarding vision. Prompt is **Elite Life Strategist**-toned — every milestone is an artifact, not a theme; weekly tasks are 5-day shippable outputs; daily examples are verb-led and time-boxed. |
 | `analyseSkillGap` | `{ currentRole, targetRole, timeline, skills }` | `SkillGapAnalysis` (gaps + resources) | Onboarding career, Career tab |
+| `generateCareerStrategy` | `{ currentRole, targetRole, timeframe, hoursPerWeek, constraints, skills }` | `CareerStrategy` (reality check + phased plan + weekly/daily artifacts) | Career tab Elite Strategist. Output feeds [`CareerStrategyView`](../src/components/modules/career/CareerStrategyView.tsx); `Commit all` converts weekly/daily items into prioritised goals. |
+| `generateMotivation` | context slice | short strategist-tone banner | Home motivation banner |
 | `generateRoutine` | `{ wake, sleep, work*, goals }` | `GeneratedRoutine` (blocks + briefing) | Onboarding routine |
 | `parseBloodReport` | raw report text | `BloodReportResult` (markers, summary, suggestions) | Health upload |
 | `suggestMeals` | context string (target + eaten + prefs) | `MealSuggestion` | Health |

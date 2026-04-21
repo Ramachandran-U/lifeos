@@ -25,13 +25,30 @@ describe('callAI env resolution (regression: decompose error)', () => {
     jest.resetAllMocks();
   });
 
-  it('throws a helpful message when no key is set', async () => {
+  it('falls back to the local CLI proxy when no API key is set', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ text: 'from-cli' }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { callAI } = loadClient({
+      EXPO_PUBLIC_ANTHROPIC_API_KEY: '',
+      ANTHROPIC_API_KEY: '',
+    });
+    const out = await callAI({ system: 's', messages: [{ role: 'user', content: 'hi' }] });
+    expect(out).toBe('from-cli');
+    expect(fetchMock.mock.calls[0][0]).toMatch(/localhost:8787/);
+  });
+
+  it('hints at starting the proxy when the fetch fails', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Failed to fetch')) as unknown as typeof fetch;
     const { callAI } = loadClient({
       EXPO_PUBLIC_ANTHROPIC_API_KEY: '',
       ANTHROPIC_API_KEY: '',
     });
     await expect(callAI({ system: 's', messages: [{ role: 'user', content: 'hi' }] })).rejects.toThrow(
-      /EXPO_PUBLIC_ANTHROPIC_API_KEY/,
+      /scripts\/ai-proxy/,
     );
   });
 

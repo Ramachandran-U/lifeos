@@ -62,8 +62,10 @@ export async function handleOAuthCallback(code: string, clientId: string): Promi
   const verifier = sessionStorage.getItem(VERIFIER_KEY);
   if (!verifier) throw new Error('Missing PKCE verifier — start the OAuth flow again');
 
+  const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET;
   const body = new URLSearchParams({
     client_id: clientId,
+    ...(clientSecret ? { client_secret: clientSecret } : {}),
     code,
     code_verifier: verifier,
     grant_type: 'authorization_code',
@@ -110,8 +112,10 @@ export function isGmailConnected(): boolean {
 }
 
 async function refreshAccessToken(clientId: string, refreshToken: string): Promise<GmailTokens> {
+  const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET;
   const body = new URLSearchParams({
     client_id: clientId,
+    ...(clientSecret ? { client_secret: clientSecret } : {}),
     refresh_token: refreshToken,
     grant_type: 'refresh_token',
   });
