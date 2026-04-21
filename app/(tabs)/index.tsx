@@ -16,6 +16,7 @@ import { LifeBalanceDashboard } from '@/components/shared/LifeBalanceDashboard';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
 import { ProfileSidebar } from '@/components/shared/ProfileSidebar';
 import { useUserStore } from '@/store/useUserStore';
+import { useGameStore } from '@/store/useGameStore';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
@@ -23,6 +24,9 @@ import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour
 export default function TodayScreen() {
   const c = useColors();
   const { userId, name } = useUserStore();
+  const loadGame = useGameStore((s) => s.loadFromDB);
+  const streaks = useGameStore((s) => s.streaks);
+  const totalXP = useGameStore((s) => s.totalXP);
   const today = format(new Date(), 'yyyy-MM-dd');
   const [blocks, setBlocks] = useState<ReturnType<typeof getRoutineBlocksByDate>>([]);
   const [domainScores, setDomainScores] = useState({
@@ -37,9 +41,15 @@ export default function TodayScreen() {
     if (userId) {
       const game = getOrCreateGamification(userId);
       try { setDomainScores(JSON.parse(game.domainScores)); } catch { /* keep defaults */ }
+      loadGame(userId);
     }
     setWeeklyInsight(generateWeeklyInsight());
-  }, [today, userId]);
+  }, [today, userId, loadGame]);
+
+  const topStreak = useMemo(
+    () => Math.max(0, ...Object.values(streaks).map((s) => s.count)),
+    [streaks],
+  );
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
@@ -89,7 +99,18 @@ export default function TodayScreen() {
               <Caption style={{ color: c.textSecondary }}>{format(new Date(), 'EEEE, MMMM d')}</Caption>
             </View>
 
-            <StreakCounter count={0} />
+            <View style={styles.gameRow}>
+              {topStreak > 0 && (
+                <View style={styles.streakChip}>
+                  <Ionicons name="flame" size={14} color={c.streak} />
+                  <Label style={{ color: c.streak, fontSize: fontSizes.xs }}>{topStreak}d</Label>
+                </View>
+              )}
+              <View style={styles.xpChip}>
+                <Ionicons name="flash" size={12} color={c.xp} />
+                <Label style={{ color: c.xp, fontSize: fontSizes.xs }}>{totalXP} XP</Label>
+              </View>
+            </View>
           </View>
 
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
@@ -192,6 +213,29 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     headerCenter: {
       flex: 1,
+    },
+    gameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    streakChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: c.streak + '22',
+    },
+    xpChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: c.xp + '22',
     },
     insightCard: {
       gap: spacing.sm,

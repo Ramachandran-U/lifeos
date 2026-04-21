@@ -175,6 +175,57 @@ export interface FinanceInsightInput {
   monthsRemaining: number;
 }
 
+// --- Transaction Categorization ---
+
+export const TRANSACTION_CATEGORIES = [
+  'food_delivery',
+  'groceries',
+  'dining_out',
+  'transport',
+  'fuel',
+  'shopping',
+  'subscriptions',
+  'utilities',
+  'rent',
+  'entertainment',
+  'health',
+  'education',
+  'travel',
+  'investments',
+  'insurance',
+  'debt_repayment',
+  'transfers',
+  'income',
+  'gifts',
+  'charity',
+  'cash_withdrawal',
+  'fees_charges',
+  'personal_care',
+  'other',
+] as const;
+
+export type TransactionCategory = (typeof TRANSACTION_CATEGORIES)[number];
+
+export const CategorizeMerchantSchema = z.object({
+  category: z.enum(TRANSACTION_CATEGORIES),
+  confidence: z.number().min(0).max(1),
+});
+
+export type CategorizeMerchantResult = z.infer<typeof CategorizeMerchantSchema>;
+
+export interface ParsedTransaction {
+  id: string;
+  date: string;
+  amount: number;
+  direction: 'debit' | 'credit';
+  merchant: string;
+  category: TransactionCategory;
+  source: 'hdfc' | 'icici' | 'axis' | 'manual';
+  rawEmailId: string;
+  confidence: number;
+  userCorrected: boolean;
+}
+
 // --- Food Recognition Types ---
 
 export const FoodRecognitionSchema = z.object({
