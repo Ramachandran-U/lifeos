@@ -126,6 +126,7 @@ export const contactInteractions = sqliteTable('contact_interactions', {
 // --- Interests ---
 export const interests = sqliteTable('interests', {
   id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
   name: text('name').notNull(),
   category: text('category').notNull(), // arts | science | tech | sports | music | writing | language | philosophy | other
   weeklyMinutesTarget: integer('weekly_minutes_target').notNull(),

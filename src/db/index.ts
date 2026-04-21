@@ -176,6 +176,7 @@ export async function initDatabase() {
 
     CREATE TABLE IF NOT EXISTS interests (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT '',
       name TEXT NOT NULL,
       category TEXT NOT NULL,
       weekly_minutes_target INTEGER NOT NULL,
@@ -296,4 +297,16 @@ export async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Lightweight migrations for columns added after initial release.
+  // SQLite throws on duplicate ADD COLUMN — swallow that specific error.
+  const safeAlter = async (sqlStmt: string) => {
+    try {
+      await expo.execAsync(sqlStmt);
+    } catch (err) {
+      const msg = String(err);
+      if (!/duplicate column name/i.test(msg)) throw err;
+    }
+  };
+  await safeAlter(`ALTER TABLE interests ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`);
 }

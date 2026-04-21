@@ -8,7 +8,7 @@
 
 **Target User:** Ambitious individuals who want to optimize multiple life domains simultaneously — not just productivity, but holistic life management.
 
-**Current Phase:** Phase 1 (local-only, no cloud sync). Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. Social and Polymath modules are WIP.
+**Current Phase:** Phase 1 (local-only, no cloud sync). Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. The Polymath (Explore) module now ships: interests CRUD, weekly-target tracking, exploration log with minute chips, and gamification hooks (XP + learning streak + mind domain score). Social module is still WIP.
 
 ---
 
