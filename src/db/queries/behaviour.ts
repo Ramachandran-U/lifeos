@@ -1,12 +1,20 @@
-import { eq, sql, and, gte } from 'drizzle-orm';
+import { Platform } from 'react-native';
+import { gte } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '../index';
 import { behaviourEvents } from '../schema';
 import { subDays, format } from 'date-fns';
+import {
+  webInsertBehaviourEvent,
+  webGetBehaviourEventsLastNDays,
+  type WebBehaviourEvent,
+} from '../webStorage';
+
+const isWeb = Platform.OS === 'web';
 
 export function logBehaviourEvent(eventType: string, module: string, metadata?: Record<string, unknown>) {
   const now = new Date();
-  db.insert(behaviourEvents).values({
+  const record: WebBehaviourEvent = {
     id: nanoid(),
     eventType,
     module,
@@ -14,14 +22,20 @@ export function logBehaviourEvent(eventType: string, module: string, metadata?: 
     hour: now.getHours(),
     dayOfWeek: now.getDay(),
     createdAt: now.toISOString(),
-  }).run();
+  };
+  if (isWeb) {
+    webInsertBehaviourEvent(record);
+    return;
+  }
+  db.insert(behaviourEvents).values(record).run();
 }
 
-export function getEventsLastNDays(days: number) {
+export function getEventsLastNDays(days: number): WebBehaviourEvent[] {
+  if (isWeb) return webGetBehaviourEventsLastNDays(days);
   const cutoff = format(subDays(new Date(), days), 'yyyy-MM-dd');
   return db.select().from(behaviourEvents)
     .where(gte(behaviourEvents.createdAt, cutoff))
-    .all();
+    .all() as unknown as WebBehaviourEvent[];
 }
 
 export function getEventCountsByHour(days: number = 30) {
