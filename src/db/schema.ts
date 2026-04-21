@@ -9,6 +9,7 @@ export const users = sqliteTable('users', {
   passwordSalt: text('password_salt').notNull(),
   name: text('name').notNull(),
   age: integer('age'),
+  heightCm: real('height_cm'),
   visionStatement: text('vision_statement'),
   wakeTime: text('wake_time'),
   sleepTime: text('sleep_time'),
@@ -35,9 +36,19 @@ export const goals = sqliteTable('goals', {
   energyLevel: text('energy_level'), // low | medium | high
   aiGenerated: integer('ai_generated', { mode: 'boolean' }).default(false),
   metadata: text('metadata'), // JSON
+  priority: integer('priority').notNull().default(0), // 0 = default; lower = higher priority
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
   deletedAt: text('deleted_at'),
+});
+
+// --- Goal Comments ---
+export const goalComments = sqliteTable('goal_comments', {
+  id: text('id').primaryKey(),
+  goalId: text('goal_id').notNull(),
+  userId: text('user_id').notNull(),
+  body: text('body').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
 // --- Routine Blocks ---
@@ -126,6 +137,7 @@ export const contactInteractions = sqliteTable('contact_interactions', {
 // --- Interests ---
 export const interests = sqliteTable('interests', {
   id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
   name: text('name').notNull(),
   category: text('category').notNull(), // arts | science | tech | sports | music | writing | language | philosophy | other
   weeklyMinutesTarget: integer('weekly_minutes_target').notNull(),

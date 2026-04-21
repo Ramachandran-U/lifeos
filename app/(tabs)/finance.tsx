@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
@@ -18,8 +18,21 @@ import { MilestoneTracker } from '@/components/modules/finance/MilestoneTracker'
 import { WeeklyInsightCard } from '@/components/modules/finance/WeeklyInsightCard';
 import { useAI } from '@/hooks/useAI';
 import { generateFinancialPlan, getWeeklyFinanceInsight } from '@/ai/functions';
-import { getFinancialGoals, createFinancialGoal, createMilestone, getMilestonesByGoal, completeMilestone } from '@/db/queries/finance';
-import type { FinancialPlan, WeeklyFinanceInsight } from '@/ai/types';
+import {
+  getFinancialGoals,
+  createFinancialGoal,
+  createMilestone,
+  getMilestonesByGoal,
+  completeMilestone,
+} from '@/db/queries/finance';
+import type { FinancialPlan, WeeklyFinanceInsight, TransactionCategory } from '@/ai/types';
+import { TRANSACTION_CATEGORIES } from '@/ai/types';
+import { useTransactionStore } from '@/finance/store/useTransactionStore';
+import { startGmailOAuth } from '@/finance/gmail/oauth';
+import { runAllDetectors, type Insight } from '@/finance/insights';
+import type { TxRecord } from '@/finance/db/transactionDb';
+import { useUserStore } from '@/store/useUserStore';
+import { useGameStore } from '@/store/useGameStore';
 
 const GOAL_TYPES = [
   { value: 'home', label: 'Home Down Payment', icon: 'home' },
@@ -45,23 +58,104 @@ const RISK_PROFILES = [
   { value: 'aggressive', label: 'Aggressive', desc: 'Maximum growth' },
 ];
 
+type FinanceTab = 'overview' | 'transactions' | 'goals';
 type SetupStep = 'type' | 'details' | 'generating' | null;
 
+const CATEGORY_COLORS: Record<TransactionCategory, string> = {
+  food_delivery: '#FF6B35',
+  groceries: '#00C896',
+  dining_out: '#F0B429',
+  transport: '#00B4D8',
+  fuel: '#FF4D8B',
+  shopping: '#A855F7',
+  subscriptions: '#5B4FE8',
+  utilities: '#6B6B88',
+  rent: '#F0B429',
+  entertainment: '#FF4D8B',
+  health: '#00C896',
+  education: '#5B4FE8',
+  travel: '#00B4D8',
+  investments: '#F0B429',
+  insurance: '#6B6B88',
+  debt_repayment: '#FF4444',
+  transfers: '#A8A8C0',
+  income: '#00C896',
+  gifts: '#FF4D8B',
+  charity: '#A855F7',
+  cash_withdrawal: '#F0B429',
+  fees_charges: '#FF4444',
+  personal_care: '#FF4D8B',
+  other: '#6B6B88',
+};
+
+function formatInr(paise: number): string {
+  const r = paise / 100;
+  return `₹${r.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return 'never';
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
+
 export default function FinanceScreen() {
+  const c = useColors();
   const { call, loading } = useAI();
+  const { userId } = useUserStore();
+  const addXP = useGameStore((s) => s.addXP);
+  const styles = makeStyles(c);
+
+  const [tab, setTab] = useState<FinanceTab>('overview');
+
+  // Gmail / transactions
+  const {
+    transactions,
+    gmailConnected,
+    lastSyncedAt,
+    syncing,
+    syncError,
+    ingestedCount,
+    skippedCount,
+    load,
+    refreshConnection,
+    sync,
+    setCategory,
+    disconnect,
+  } = useTransactionStore();
+
+  // Goals
   const [setupStep, setSetupStep] = useState<SetupStep>(null);
   const [hasGoal, setHasGoal] = useState(false);
   const [goalId, setGoalId] = useState<string | null>(null);
   const [plan, setPlan] = useState<FinancialPlan | null>(null);
-  const [insight, setInsight] = useState<WeeklyFinanceInsight | null>(null);
+  const [insightText, setInsightText] = useState<WeeklyFinanceInsight | null>(null);
   const [milestones, setMilestones] = useState<Array<{ id: string; title: string; targetAmount: number; targetDate: string; completedAt: string | null }>>([]);
 
-  // Setup form state
   const [selectedType, setSelectedType] = useState('');
   const [targetAmount, setTargetAmount] = useState('75000');
   const [monthlySavings, setMonthlySavings] = useState('2000');
   const [incomeBracket, setIncomeBracket] = useState('75k_100k');
   const [riskProfile, setRiskProfile] = useState('moderate');
+
+  // Dismissed insights
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  // Category edit modal
+  const [editTx, setEditTx] = useState<TxRecord | null>(null);
+
+  const awardXp = useCallback(
+    (amount: number) => {
+      if (userId) addXP(userId, amount);
+    },
+    [userId, addXP],
+  );
 
   const loadExistingGoal = useCallback(() => {
     const goals = getFinancialGoals();
@@ -70,6 +164,8 @@ export default function FinanceScreen() {
       setHasGoal(true);
       setGoalId(g.id);
       setSelectedType(g.goalType);
+      setTargetAmount(String(g.targetAmount ?? 75000));
+      setMonthlySavings(String(g.monthlySavings ?? 2000));
       const ms = getMilestonesByGoal(g.id);
       setMilestones(ms);
     }
@@ -78,8 +174,56 @@ export default function FinanceScreen() {
   useFocusEffect(
     useCallback(() => {
       loadExistingGoal();
-    }, [loadExistingGoal])
+      load();
+      refreshConnection();
+    }, [loadExistingGoal, load, refreshConnection]),
   );
+
+  // Insights — memoised from current transactions + active plan
+  const insights: Insight[] = useMemo(() => {
+    const savingsPlan = hasGoal && Number(monthlySavings) > 0
+      ? { monthlyTarget: Number(monthlySavings) }
+      : null;
+    return runAllDetectors(transactions, savingsPlan).filter((i) => !dismissed.has(i.id));
+  }, [transactions, hasGoal, monthlySavings, dismissed]);
+
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
+  // ─── Gmail handlers ────────────────────────────────────────────────────────
+
+  const handleConnect = async () => {
+    if (!clientId) {
+      alert('EXPO_PUBLIC_GOOGLE_CLIENT_ID is not configured.');
+      return;
+    }
+    await startGmailOAuth(clientId);
+  };
+
+  const handleSync = async () => {
+    if (!clientId) return;
+    const wasConnected = gmailConnected;
+    const inserted = await sync(clientId);
+    if (inserted > 0) {
+      awardXp(wasConnected ? 25 : 75); // first connect gets 50 + first sync 25
+    }
+  };
+
+  const handleDismissInsight = (id: string) => {
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+    awardXp(3);
+  };
+
+  const handleSetCategory = async (tx: TxRecord, category: TransactionCategory) => {
+    await setCategory(tx.id, category);
+    setEditTx(null);
+    awardXp(5);
+  };
+
+  // ─── Plan generation ───────────────────────────────────────────────────────
 
   const handleGeneratePlan = async () => {
     setSetupStep('generating');
@@ -91,13 +235,13 @@ export default function FinanceScreen() {
         monthlySavings: Number(monthlySavings),
         incomeBracket,
         riskProfile,
-      })
+      }),
     );
 
     if (result) {
       setPlan(result);
       const id = createFinancialGoal({
-        title: GOAL_TYPES.find(t => t.value === selectedType)?.label ?? selectedType,
+        title: GOAL_TYPES.find((t) => t.value === selectedType)?.label ?? selectedType,
         goalType: selectedType,
         targetAmount: Number(targetAmount),
         monthlySavings: Number(monthlySavings),
@@ -110,7 +254,13 @@ export default function FinanceScreen() {
       const createdMilestones: typeof milestones = [];
       for (const m of result.milestones) {
         const mId = createMilestone(id, m.title, m.targetAmount, m.targetDate);
-        createdMilestones.push({ id: mId, title: m.title, targetAmount: m.targetAmount, targetDate: m.targetDate, completedAt: null });
+        createdMilestones.push({
+          id: mId,
+          title: m.title,
+          targetAmount: m.targetAmount,
+          targetDate: m.targetDate,
+          completedAt: null,
+        });
       }
       setMilestones(createdMilestones);
       setHasGoal(true);
@@ -122,35 +272,37 @@ export default function FinanceScreen() {
 
   const handleCompleteMilestone = (id: string) => {
     completeMilestone(id);
-    setMilestones(prev => prev.map(m => m.id === id ? { ...m, completedAt: new Date().toISOString() } : m));
+    setMilestones((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, completedAt: new Date().toISOString() } : m)),
+    );
+    awardXp(100);
   };
 
   const handleGetInsight = async () => {
-    const completedAmount = milestones
-      .filter(m => m.completedAt)
-      .reduce((sum, m) => sum + m.targetAmount, 0);
+    const completedAmount = milestones.filter((m) => m.completedAt).reduce((sum, m) => sum + m.targetAmount, 0);
     const result = await call(() =>
       getWeeklyFinanceInsight({
-        goalTitle: GOAL_TYPES.find(t => t.value === selectedType)?.label ?? selectedType,
+        goalTitle: GOAL_TYPES.find((t) => t.value === selectedType)?.label ?? selectedType,
         targetAmount: Number(targetAmount),
         currentSaved: completedAmount,
         monthlySavings: Number(monthlySavings),
         monthsRemaining: 24,
-      })
+      }),
     );
-    if (result) setInsight(result);
+    if (result) setInsightText(result);
   };
 
-  // --- Setup Flow ---
+  // ─── Setup flow (unchanged) ────────────────────────────────────────────────
+
   if (!hasGoal && setupStep !== null) {
     if (setupStep === 'type') {
       return (
         <SafeAreaView style={styles.container}>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-            <ModuleHeader title="Finance" icon="wallet" color={colors.finance} />
+            <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
             <Heading style={styles.setupTitle}>What are you saving for?</Heading>
             <View style={styles.typeGrid}>
-              {GOAL_TYPES.map(t => (
+              {GOAL_TYPES.map((t) => (
                 <Pressable
                   key={t.value}
                   style={[styles.typeCard, selectedType === t.value && styles.typeCardSelected]}
@@ -162,7 +314,7 @@ export default function FinanceScreen() {
                   <Ionicons
                     name={t.icon as keyof typeof Ionicons.glyphMap}
                     size={28}
-                    color={selectedType === t.value ? colors.finance : colors.textSecondary}
+                    color={selectedType === t.value ? c.finance : c.textSecondary}
                   />
                   <Caption style={selectedType === t.value ? styles.typeTextSelected : undefined}>
                     {t.label}
@@ -182,12 +334,12 @@ export default function FinanceScreen() {
       return (
         <SafeAreaView style={styles.container}>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-            <ModuleHeader title="Finance" icon="wallet" color={colors.finance} />
+            <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
             <Heading style={styles.setupTitle}>Your financial details</Heading>
 
             <Label>Target amount ($)</Label>
             <View style={styles.inputRow}>
-              {['25000', '50000', '75000', '100000', '200000'].map(v => (
+              {['25000', '50000', '75000', '100000', '200000'].map((v) => (
                 <Pressable
                   key={v}
                   style={[styles.chip, targetAmount === v && styles.chipSelected]}
@@ -202,7 +354,7 @@ export default function FinanceScreen() {
 
             <Label style={styles.labelSpaced}>Monthly savings ($)</Label>
             <View style={styles.inputRow}>
-              {['500', '1000', '2000', '3000', '5000'].map(v => (
+              {['500', '1000', '2000', '3000', '5000'].map((v) => (
                 <Pressable
                   key={v}
                   style={[styles.chip, monthlySavings === v && styles.chipSelected]}
@@ -217,7 +369,7 @@ export default function FinanceScreen() {
 
             <Label style={styles.labelSpaced}>Income bracket</Label>
             <View style={styles.inputRow}>
-              {INCOME_BRACKETS.map(b => (
+              {INCOME_BRACKETS.map((b) => (
                 <Pressable
                   key={b.value}
                   style={[styles.chip, incomeBracket === b.value && styles.chipSelected]}
@@ -232,7 +384,7 @@ export default function FinanceScreen() {
 
             <Label style={styles.labelSpaced}>Risk profile</Label>
             <View style={styles.riskRow}>
-              {RISK_PROFILES.map(r => (
+              {RISK_PROFILES.map((r) => (
                 <Pressable
                   key={r.value}
                   style={[styles.riskCard, riskProfile === r.value && styles.riskCardSelected]}
@@ -264,272 +416,875 @@ export default function FinanceScreen() {
     }
   }
 
-  // --- Empty State ---
-  if (!hasGoal) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-          <ModuleHeader title="Finance" icon="wallet" color={colors.finance} />
-          <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="wallet-outline" size={48} color={colors.finance} />
-            </View>
-            <Heading style={styles.emptyTitle}>Take control of your finances</Heading>
-            <Body style={styles.emptyBody}>
-              Set a financial goal and get an AI-powered savings plan with milestones, strategies, and weekly insights.
-            </Body>
-            <Button
-              title="Set up my financial goal"
-              onPress={() => setSetupStep('type')}
-              style={styles.setupButton}
-            />
-          </Animated.View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
+  // ─── Main screen ───────────────────────────────────────────────────────────
 
-  // --- Finance Hub (has goal) ---
   const completedAmount = milestones
-    .filter(m => m.completedAt)
+    .filter((m) => m.completedAt)
     .reduce((sum, m) => sum + m.targetAmount, 0);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <ModuleHeader title="Finance" icon="wallet" color={colors.finance} />
+        <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
 
-        <Animated.View entering={FadeInDown.duration(400)}>
-          <FinanceGoalCard
-            title={GOAL_TYPES.find(t => t.value === selectedType)?.label ?? selectedType}
-            goalType={selectedType}
-            targetAmount={Number(targetAmount)}
-            currentSaved={completedAmount}
-            monthlyTarget={Number(monthlySavings)}
-            targetDate="2028-06-01"
+        {/* Tab switcher */}
+        <View style={styles.tabBar}>
+          {(['overview', 'transactions', 'goals'] as FinanceTab[]).map((t) => (
+            <Pressable
+              key={t}
+              style={[styles.tabPill, tab === t && styles.tabPillActive]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setTab(t);
+              }}
+            >
+              <Label style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
+                {t === 'overview' ? 'Overview' : t === 'transactions' ? 'Transactions' : 'Goals'}
+              </Label>
+            </Pressable>
+          ))}
+        </View>
+
+        {tab === 'overview' && (
+          <OverviewTab
+            c={c}
+            styles={styles}
+            transactions={transactions}
+            insights={insights}
+            gmailConnected={gmailConnected}
+            lastSyncedAt={lastSyncedAt}
+            syncing={syncing}
+            syncError={syncError}
+            ingestedCount={ingestedCount}
+            skippedCount={skippedCount}
+            onConnect={handleConnect}
+            onSync={handleSync}
+            onDismissInsight={handleDismissInsight}
+            onDisconnect={disconnect}
           />
-        </Animated.View>
-
-        {plan && (
-          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <Card style={styles.strategyCard}>
-              <Label color={colors.finance}>STRATEGY</Label>
-              {plan.strategy.map((s, i) => (
-                <View key={i} style={styles.strategyRow}>
-                  <View style={styles.strategyDot} />
-                  <View style={styles.strategyContent}>
-                    <Body style={styles.strategyAction}>{s.action}</Body>
-                    <Caption>+${s.monthlyImpact.toLocaleString()}/mo</Caption>
-                  </View>
-                </View>
-              ))}
-            </Card>
-          </Animated.View>
         )}
 
-        {milestones.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <MilestoneTracker milestones={milestones} onComplete={handleCompleteMilestone} />
-          </Animated.View>
+        {tab === 'transactions' && (
+          <TransactionsTab
+            c={c}
+            styles={styles}
+            transactions={transactions}
+            gmailConnected={gmailConnected}
+            onConnect={handleConnect}
+            onEditTx={setEditTx}
+          />
         )}
 
-        {plan && (
-          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-            <Card style={styles.tipsCard}>
-              <Label color={colors.finance}>WEEKLY TIPS</Label>
-              {plan.weeklyTips.map((tip, i) => (
-                <View key={i} style={styles.tipRow}>
-                  <Ionicons name="bulb-outline" size={16} color={colors.finance} />
-                  <Caption style={styles.tipText}>{tip}</Caption>
-                </View>
-              ))}
-            </Card>
-          </Animated.View>
-        )}
-
-        {insight ? (
-          <Animated.View entering={FadeInDown.delay(400).duration(400)}>
-            <WeeklyInsightCard insight={insight} />
-          </Animated.View>
-        ) : (
-          <Button
-            title={loading ? 'Loading...' : 'Get weekly insight'}
-            variant="secondary"
-            onPress={handleGetInsight}
-            disabled={loading}
-            style={styles.insightButton}
+        {tab === 'goals' && (
+          <GoalsTab
+            c={c}
+            styles={styles}
+            hasGoal={hasGoal}
+            setupStart={() => setSetupStep('type')}
+            selectedType={selectedType}
+            targetAmount={Number(targetAmount)}
+            completedAmount={completedAmount}
+            monthlySavings={Number(monthlySavings)}
+            plan={plan}
+            milestones={milestones}
+            onCompleteMilestone={handleCompleteMilestone}
+            insightText={insightText}
+            onGetInsight={handleGetInsight}
+            loadingInsight={loading}
+            transactions={transactions}
           />
         )}
       </ScrollView>
+
+      {/* Category edit modal */}
+      <CategoryPickerModal
+        tx={editTx}
+        c={c}
+        onClose={() => setEditTx(null)}
+        onPick={(cat) => editTx && handleSetCategory(editTx, cat)}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+// ─── Overview tab ─────────────────────────────────────────────────────────────
+
+function OverviewTab({
+  c,
+  styles,
+  transactions,
+  insights,
+  gmailConnected,
+  lastSyncedAt,
+  syncing,
+  syncError,
+  ingestedCount,
+  skippedCount,
+  onConnect,
+  onSync,
+  onDismissInsight,
+  onDisconnect,
+}: {
+  c: ReturnType<typeof useColors>;
+  styles: ReturnType<typeof makeStyles>;
+  transactions: TxRecord[];
+  insights: Insight[];
+  gmailConnected: boolean;
+  lastSyncedAt: string | null;
+  syncing: boolean;
+  syncError: string | null;
+  ingestedCount: number;
+  skippedCount: number;
+  onConnect: () => void;
+  onSync: () => void;
+  onDismissInsight: (id: string) => void;
+  onDisconnect: () => void;
+}) {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+
+  const thisMonthDebits = transactions.filter(
+    (t) => t.direction === 'debit' && t.date >= monthStart,
+  );
+  const lastMonthDebits = transactions.filter(
+    (t) => t.direction === 'debit' && t.date >= prevMonthStart && t.date <= prevMonthEnd,
+  );
+
+  const thisMonthSpend = thisMonthDebits.reduce((s, t) => s + t.amount, 0);
+  const lastMonthSpend = lastMonthDebits.reduce((s, t) => s + t.amount, 0);
+  const delta = lastMonthSpend > 0 ? ((thisMonthSpend - lastMonthSpend) / lastMonthSpend) * 100 : 0;
+
+  // Top 5 categories this month
+  const byCategory = new Map<string, number>();
+  for (const t of thisMonthDebits) {
+    byCategory.set(t.category, (byCategory.get(t.category) ?? 0) + t.amount);
+  }
+  const topCategories = Array.from(byCategory.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  if (Platform.OS !== 'web') {
+    return (
+      <Animated.View entering={FadeInDown.duration(400)}>
+        <Card style={styles.connectCard}>
+          <Ionicons name="information-circle-outline" size={28} color={c.textSecondary} />
+          <Body style={styles.connectTitle}>Web-only feature</Body>
+          <Caption style={styles.connectBody}>
+            Gmail-powered transaction sync is currently available on the web build. Open the app at localhost:8081 to connect your inbox.
+          </Caption>
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  if (!gmailConnected) {
+    return (
+      <Animated.View entering={FadeInDown.duration(400)}>
+        <Card style={styles.connectCard}>
+          <View style={[styles.connectIcon, { backgroundColor: c.finance + '20' }]}>
+            <Ionicons name="mail-outline" size={28} color={c.finance} />
+          </View>
+          <Body style={styles.connectTitle}>Connect your inbox</Body>
+          <Caption style={styles.connectBody}>
+            LifeOS reads HDFC, ICICI, and Axis bank alert emails to categorise spending and surface behavioural insights. Only transaction emails are scanned — nothing is uploaded.
+          </Caption>
+          <Button title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} />
+        </Card>
+      </Animated.View>
+    );
+  }
+
+  return (
+    <>
+      {/* Sync status */}
+      <Animated.View entering={FadeInDown.duration(400)}>
+        <Card style={styles.syncCard}>
+          <View style={styles.syncRow}>
+            <View style={{ flex: 1 }}>
+              <Label color={c.finance}>GMAIL CONNECTED</Label>
+              <Caption style={{ color: c.textMuted }}>
+                Last synced {formatRelative(lastSyncedAt)}
+                {ingestedCount > 0 && ` — ${ingestedCount} new`}
+                {skippedCount > 0 && ` · ${skippedCount} skipped`}
+              </Caption>
+            </View>
+            <Pressable
+              onPress={onSync}
+              disabled={syncing}
+              style={[styles.syncBtn, { borderColor: c.finance }]}
+            >
+              {syncing ? (
+                <LoadingDots />
+              ) : (
+                <>
+                  <Ionicons name="refresh" size={14} color={c.finance} />
+                  <Caption style={{ color: c.finance, fontWeight: '700' }}>Sync now</Caption>
+                </>
+              )}
+            </Pressable>
+          </View>
+          {syncError && (
+            <Caption style={{ color: c.error, marginTop: spacing.xs }}>{syncError}</Caption>
+          )}
+          <Pressable onPress={onDisconnect} hitSlop={6}>
+            <Caption style={{ color: c.textMuted, marginTop: spacing.xs }}>Disconnect Gmail</Caption>
+          </Pressable>
+        </Card>
+      </Animated.View>
+
+      {/* Spend summary */}
+      <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+        <Card style={styles.spendCard}>
+          <Label color={c.finance}>THIS MONTH</Label>
+          <Heading style={{ color: c.textPrimary, fontSize: fontSizes.xxxl }}>
+            {formatInr(thisMonthSpend)}
+          </Heading>
+          {lastMonthSpend > 0 && (
+            <View style={styles.deltaRow}>
+              <Ionicons
+                name={delta >= 0 ? 'trending-up' : 'trending-down'}
+                size={14}
+                color={delta >= 0 ? c.error : c.success}
+              />
+              <Caption style={{ color: delta >= 0 ? c.error : c.success }}>
+                {delta >= 0 ? '+' : ''}
+                {delta.toFixed(1)}% vs last month ({formatInr(lastMonthSpend)})
+              </Caption>
+            </View>
+          )}
+        </Card>
+      </Animated.View>
+
+      {/* Top categories */}
+      {topCategories.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+          <Card style={styles.catCard}>
+            <Label color={c.finance}>TOP CATEGORIES</Label>
+            {topCategories.map(([cat, amt], i) => {
+              const share = thisMonthSpend > 0 ? amt / thisMonthSpend : 0;
+              const col = CATEGORY_COLORS[cat as TransactionCategory] ?? c.textSecondary;
+              return (
+                <View key={cat} style={styles.catRow}>
+                  <View style={[styles.catDot, { backgroundColor: col }]} />
+                  <View style={{ flex: 1 }}>
+                    <Body style={styles.catLabel}>{prettyCategory(cat as TransactionCategory)}</Body>
+                    <View style={styles.catBarTrack}>
+                      <View
+                        style={[
+                          styles.catBarFill,
+                          { width: `${Math.max(share * 100, 4)}%`, backgroundColor: col },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                  <Caption style={{ color: c.textPrimary, fontWeight: '700' }}>
+                    {formatInr(amt)}
+                  </Caption>
+                </View>
+              );
+            })}
+          </Card>
+        </Animated.View>
+      )}
+
+      {/* Insights */}
+      {insights.map((ins, i) => (
+        <Animated.View key={ins.id} entering={FadeInDown.delay(200 + i * 80).duration(400)}>
+          <Card style={StyleSheet.flatten([styles.insightCard, { borderLeftWidth: 4, borderLeftColor: severityColor(ins.severity, c) }])}>
+            <View style={styles.insightHeader}>
+              <Ionicons
+                name={severityIcon(ins.severity)}
+                size={18}
+                color={severityColor(ins.severity, c)}
+              />
+              <Label style={{ color: severityColor(ins.severity, c), flex: 1 }}>{ins.title}</Label>
+              <Pressable onPress={() => onDismissInsight(ins.id)} hitSlop={10}>
+                <Ionicons name="close" size={16} color={c.textMuted} />
+              </Pressable>
+            </View>
+            <Caption style={{ color: c.textSecondary, lineHeight: 20 }}>{ins.body}</Caption>
+          </Card>
+        </Animated.View>
+      ))}
+
+      {transactions.length === 0 && (
+        <Caption style={{ color: c.textMuted, textAlign: 'center', paddingTop: spacing.lg }}>
+          No transactions yet. Tap Sync now after connecting an inbox with bank alert emails.
+        </Caption>
+      )}
+    </>
+  );
+}
+
+// ─── Transactions tab ─────────────────────────────────────────────────────────
+
+type TxFilter = 'all' | 'debit' | 'credit';
+
+function TransactionsTab({
+  c,
+  styles,
+  transactions,
+  gmailConnected,
+  onConnect,
+  onEditTx,
+}: {
+  c: ReturnType<typeof useColors>;
+  styles: ReturnType<typeof makeStyles>;
+  transactions: TxRecord[];
+  gmailConnected: boolean;
+  onConnect: () => void;
+  onEditTx: (tx: TxRecord) => void;
+}) {
+  const [filter, setFilter] = useState<TxFilter>('all');
+
+  if (!gmailConnected && transactions.length === 0) {
+    return (
+      <Card style={styles.connectCard}>
+        <Ionicons name="receipt-outline" size={28} color={c.textSecondary} />
+        <Body style={styles.connectTitle}>No transactions yet</Body>
+        <Caption style={styles.connectBody}>
+          Connect Gmail on the Overview tab to start ingesting bank alert emails.
+        </Caption>
+        {Platform.OS === 'web' && (
+          <Button title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} />
+        )}
+      </Card>
+    );
+  }
+
+  const filtered = transactions.filter((t) => filter === 'all' || t.direction === filter);
+
+  // Group by date
+  const groups = new Map<string, TxRecord[]>();
+  for (const t of filtered) {
+    const list = groups.get(t.date) ?? [];
+    list.push(t);
+    groups.set(t.date, list);
+  }
+  const sortedDates = Array.from(groups.keys()).sort((a, b) => b.localeCompare(a));
+
+  return (
+    <>
+      <View style={styles.filterRow}>
+        {(['all', 'debit', 'credit'] as TxFilter[]).map((f) => (
+          <Pressable
+            key={f}
+            style={[styles.filterChip, filter === f && styles.filterChipActive]}
+            onPress={() => setFilter(f)}
+          >
+            <Caption style={filter === f ? styles.filterTextActive : undefined}>
+              {f === 'all' ? 'All' : f === 'debit' ? 'Spend' : 'Income'}
+            </Caption>
+          </Pressable>
+        ))}
+      </View>
+
+      {filtered.length === 0 ? (
+        <Caption style={{ color: c.textMuted, textAlign: 'center', paddingTop: spacing.lg }}>
+          No transactions match this filter.
+        </Caption>
+      ) : (
+        sortedDates.map((date) => (
+          <View key={date} style={styles.dateGroup}>
+            <Caption style={{ color: c.textMuted, paddingHorizontal: spacing.xs }}>{formatDateHeader(date)}</Caption>
+            {groups.get(date)!.map((t) => (
+              <Pressable
+                key={t.id}
+                style={[styles.txRow, { backgroundColor: c.card, borderColor: c.border }]}
+                onPress={() => onEditTx(t)}
+              >
+                <View
+                  style={[
+                    styles.txBadge,
+                    { backgroundColor: (CATEGORY_COLORS[t.category as TransactionCategory] ?? c.textSecondary) + '22' },
+                  ]}
+                >
+                  <Ionicons
+                    name={t.direction === 'debit' ? 'arrow-up' : 'arrow-down'}
+                    size={14}
+                    color={CATEGORY_COLORS[t.category as TransactionCategory] ?? c.textSecondary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Body style={styles.txMerchant}>{t.merchant}</Body>
+                  <Caption style={{ color: c.textMuted }}>
+                    {prettyCategory(t.category as TransactionCategory)} · {t.source.toUpperCase()}
+                  </Caption>
+                </View>
+                <Body
+                  style={{
+                    color: t.direction === 'debit' ? c.error : c.success,
+                    fontFamily: fonts.bodyMedium,
+                  }}
+                >
+                  {t.direction === 'debit' ? '-' : '+'}
+                  {formatInr(t.amount)}
+                </Body>
+              </Pressable>
+            ))}
+          </View>
+        ))
+      )}
+    </>
+  );
+}
+
+// ─── Goals tab ────────────────────────────────────────────────────────────────
+
+function GoalsTab({
+  c,
+  styles,
+  hasGoal,
+  setupStart,
+  selectedType,
+  targetAmount,
+  completedAmount,
+  monthlySavings,
+  plan,
+  milestones,
+  onCompleteMilestone,
+  insightText,
+  onGetInsight,
+  loadingInsight,
+  transactions,
+}: {
+  c: ReturnType<typeof useColors>;
+  styles: ReturnType<typeof makeStyles>;
+  hasGoal: boolean;
+  setupStart: () => void;
+  selectedType: string;
+  targetAmount: number;
+  completedAmount: number;
+  monthlySavings: number;
+  plan: FinancialPlan | null;
+  milestones: Array<{ id: string; title: string; targetAmount: number; targetDate: string; completedAt: string | null }>;
+  onCompleteMilestone: (id: string) => void;
+  insightText: WeeklyFinanceInsight | null;
+  onGetInsight: () => void;
+  loadingInsight: boolean;
+  transactions: TxRecord[];
+}) {
+  // True savings rate from transactions (if available)
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const thisMonth = transactions.filter((t) => t.date >= monthStart);
+  const credits = thisMonth.filter((t) => t.direction === 'credit').reduce((s, t) => s + t.amount, 0);
+  const debits = thisMonth.filter((t) => t.direction === 'debit').reduce((s, t) => s + t.amount, 0);
+  const netPaise = credits - debits;
+
+  if (!hasGoal) {
+    return (
+      <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
+        <View style={[styles.emptyIcon, { backgroundColor: c.finance + '20' }]}>
+          <Ionicons name="wallet-outline" size={48} color={c.finance} />
+        </View>
+        <Heading style={styles.emptyTitle}>Take control of your finances</Heading>
+        <Body style={styles.emptyBody}>
+          Set a financial goal and get an AI-powered savings plan with milestones, strategies, and weekly insights.
+        </Body>
+        <Button title="Set up my financial goal" onPress={setupStart} style={styles.setupButton} />
+      </Animated.View>
+    );
+  }
+
+  return (
+    <>
+      <Animated.View entering={FadeInDown.duration(400)}>
+        <FinanceGoalCard
+          title={GOAL_TYPES.find((t) => t.value === selectedType)?.label ?? selectedType}
+          goalType={selectedType}
+          targetAmount={targetAmount}
+          currentSaved={completedAmount}
+          monthlyTarget={monthlySavings}
+          targetDate="2028-06-01"
+        />
+      </Animated.View>
+
+      {transactions.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+          <Card style={styles.rateCard}>
+            <Label color={c.finance}>TRUE SAVINGS RATE — THIS MONTH</Label>
+            <Heading style={{ color: netPaise >= 0 ? c.success : c.error, fontSize: fontSizes.xxxl }}>
+              {netPaise >= 0 ? '+' : '-'}
+              {formatInr(Math.abs(netPaise))}
+            </Heading>
+            <Caption style={{ color: c.textMuted }}>
+              From real transactions: {formatInr(credits)} in, {formatInr(debits)} out.
+            </Caption>
+          </Card>
+        </Animated.View>
+      )}
+
+      {plan && (
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+          <Card style={styles.strategyCard}>
+            <Label color={c.finance}>STRATEGY</Label>
+            {plan.strategy.map((s, i) => (
+              <View key={i} style={styles.strategyRow}>
+                <View style={[styles.strategyDot, { backgroundColor: c.finance }]} />
+                <View style={styles.strategyContent}>
+                  <Body style={styles.strategyAction}>{s.action}</Body>
+                  <Caption>+${s.monthlyImpact.toLocaleString()}/mo</Caption>
+                </View>
+              </View>
+            ))}
+          </Card>
+        </Animated.View>
+      )}
+
+      {milestones.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+          <MilestoneTracker milestones={milestones} onComplete={onCompleteMilestone} />
+        </Animated.View>
+      )}
+
+      {plan && (
+        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+          <Card style={styles.tipsCard}>
+            <Label color={c.finance}>WEEKLY TIPS</Label>
+            {plan.weeklyTips.map((tip, i) => (
+              <View key={i} style={styles.tipRow}>
+                <Ionicons name="bulb-outline" size={16} color={c.finance} />
+                <Caption style={styles.tipText}>{tip}</Caption>
+              </View>
+            ))}
+          </Card>
+        </Animated.View>
+      )}
+
+      {insightText ? (
+        <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+          <WeeklyInsightCard insight={insightText} />
+        </Animated.View>
+      ) : (
+        <Button
+          title={loadingInsight ? 'Loading...' : 'Get weekly insight'}
+          variant="secondary"
+          onPress={onGetInsight}
+          disabled={loadingInsight}
+          style={styles.insightButton}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── Category picker modal ────────────────────────────────────────────────────
+
+function CategoryPickerModal({
+  tx,
+  c,
+  onClose,
+  onPick,
+}: {
+  tx: TxRecord | null;
+  c: ReturnType<typeof useColors>;
+  onClose: () => void;
+  onPick: (cat: TransactionCategory) => void;
+}) {
+  if (!tx) return null;
+  return (
+    <Modal visible={!!tx} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={[modalStyles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
+        <Pressable style={[modalStyles.sheet, { backgroundColor: c.card, borderColor: c.border }]}>
+          <Label color={c.finance}>RECATEGORISE</Label>
+          <Body style={{ color: c.textPrimary, marginVertical: spacing.xs }}>{tx.merchant}</Body>
+          <Caption style={{ color: c.textMuted }}>
+            Currently: {prettyCategory(tx.category as TransactionCategory)}
+          </Caption>
+          <ScrollView style={modalStyles.catList} contentContainerStyle={modalStyles.catListContent}>
+            {TRANSACTION_CATEGORIES.map((cat) => {
+              const isActive = cat === tx.category;
+              const col = CATEGORY_COLORS[cat];
+              return (
+                <Pressable
+                  key={cat}
+                  style={[
+                    modalStyles.catChip,
+                    {
+                      borderColor: isActive ? col : c.border,
+                      backgroundColor: isActive ? col + '22' : c.surface,
+                    },
+                  ]}
+                  onPress={() => onPick(cat)}
+                >
+                  <View style={[modalStyles.catChipDot, { backgroundColor: col }]} />
+                  <Caption style={{ color: isActive ? col : c.textPrimary, fontWeight: '600' }}>
+                    {prettyCategory(cat)}
+                  </Caption>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function prettyCategory(cat: TransactionCategory): string {
+  return cat
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function severityColor(s: Insight['severity'], c: ReturnType<typeof useColors>): string {
+  switch (s) {
+    case 'alert':
+      return c.error;
+    case 'warning':
+      return c.warning;
+    case 'notice':
+      return c.finance;
+    default:
+      return c.primary;
+  }
+}
+
+function severityIcon(s: Insight['severity']): keyof typeof Ionicons.glyphMap {
+  switch (s) {
+    case 'alert':
+      return 'alert-circle';
+    case 'warning':
+      return 'warning';
+    case 'notice':
+      return 'notifications';
+    default:
+      return 'information-circle';
+  }
+}
+
+function formatDateHeader(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yest = new Date(Date.now() - 86400_000);
+  if (iso === today.toISOString().slice(0, 10)) return 'Today';
+  if (iso === yest.toISOString().slice(0, 10)) return 'Yesterday';
+  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+function makeStyles(c: ReturnType<typeof useColors>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    flex: { flex: 1 },
+    scroll: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.xxxl,
+      gap: spacing.md,
+    },
+    // Tabs
+    tabBar: {
+      flexDirection: 'row',
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: 4,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    tabPill: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      borderRadius: 10,
+    },
+    tabPillActive: {
+      backgroundColor: c.finance + '22',
+    },
+    tabLabel: {
+      color: c.textSecondary,
+      fontSize: fontSizes.sm,
+    },
+    tabLabelActive: {
+      color: c.finance,
+      fontWeight: '700',
+    },
+    // Setup
+    setupTitle: { fontSize: fontSizes.xxl, marginBottom: spacing.md },
+    typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    typeCard: {
+      width: '47%',
+      backgroundColor: c.card,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      padding: spacing.md,
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    typeCardSelected: {
+      borderColor: c.finance,
+      backgroundColor: c.finance + '15',
+    },
+    typeTextSelected: { color: c.finance },
+    continueBtn: { marginTop: spacing.lg },
+    inputRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+    chip: {
+      backgroundColor: c.card,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    chipSelected: { borderColor: c.finance, backgroundColor: c.finance + '15' },
+    chipTextSelected: { color: c.finance },
+    labelSpaced: { marginTop: spacing.md },
+    riskRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+    riskCard: {
+      flex: 1,
+      backgroundColor: c.card,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      padding: spacing.sm,
+      alignItems: 'center',
+      gap: 2,
+    },
+    riskCardSelected: { borderColor: c.finance, backgroundColor: c.finance + '15' },
+    riskLabel: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm },
+    riskLabelSelected: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm, color: c.finance },
+    // Empty goals state
+    emptyState: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.md },
+    emptyIcon: {
+      width: 80, height: 80, borderRadius: 40,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    emptyTitle: { textAlign: 'center' },
+    emptyBody: { textAlign: 'center', color: c.textSecondary, paddingHorizontal: spacing.lg },
+    setupButton: { marginTop: spacing.sm, width: '100%' },
+    // Connect card
+    connectCard: { alignItems: 'center', gap: spacing.sm, padding: spacing.lg },
+    connectIcon: {
+      width: 60, height: 60, borderRadius: 30,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    connectTitle: { fontFamily: fonts.heading, fontSize: fontSizes.lg, color: c.textPrimary },
+    connectBody: { textAlign: 'center', color: c.textSecondary, paddingHorizontal: spacing.sm },
+    connectBtn: { marginTop: spacing.sm, width: '100%' },
+    // Sync card
+    syncCard: { gap: spacing.xs },
+    syncRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    syncBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      minWidth: 110,
+      justifyContent: 'center',
+    },
+    // Spend summary
+    spendCard: { gap: spacing.xs },
+    deltaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    // Categories
+    catCard: { gap: spacing.sm },
+    catRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    catDot: { width: 10, height: 10, borderRadius: 5 },
+    catLabel: { fontSize: fontSizes.sm, color: c.textPrimary },
+    catBarTrack: {
+      height: 6,
+      backgroundColor: c.surface,
+      borderRadius: 3,
+      overflow: 'hidden',
+      marginTop: 4,
+    },
+    catBarFill: { height: '100%', borderRadius: 3 },
+    // Insight card
+    insightCard: { gap: spacing.xs },
+    insightHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    // Transactions
+    filterRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    filterChip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.card,
+    },
+    filterChipActive: {
+      backgroundColor: c.finance + '22',
+      borderColor: c.finance,
+    },
+    filterTextActive: { color: c.finance, fontWeight: '700' },
+    dateGroup: { gap: spacing.xs },
+    txRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      padding: spacing.sm,
+      borderRadius: 14,
+      borderWidth: 1,
+    },
+    txBadge: {
+      width: 34, height: 34, borderRadius: 17,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    txMerchant: { fontSize: fontSizes.sm, color: c.textPrimary, fontFamily: fonts.bodyMedium },
+    // True savings rate
+    rateCard: { gap: spacing.xs },
+    // Strategy (reused)
+    strategyCard: { gap: spacing.sm },
+    strategyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    strategyDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+    strategyContent: { flex: 1 },
+    strategyAction: { fontSize: fontSizes.sm },
+    tipsCard: { gap: spacing.sm },
+    tipRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    tipText: { flex: 1, color: c.textSecondary },
+    insightButton: { marginTop: spacing.sm },
+    loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+    loadingText: { color: c.textSecondary },
+  });
+}
+
+const modalStyles = StyleSheet.create({
+  backdrop: {
     flex: 1,
-    backgroundColor: colors.background,
+    justifyContent: 'flex-end',
   },
-  flex: {
-    flex: 1,
-  },
-  scroll: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxxl,
-    gap: spacing.md,
-  },
-  // Setup flow
-  setupTitle: {
-    fontSize: fontSizes.xxl,
-    marginBottom: spacing.md,
-  },
-  typeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  typeCard: {
-    width: '47%',
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    padding: spacing.md,
-    alignItems: 'center',
+  sheet: {
+    padding: spacing.lg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    maxHeight: '70%',
     gap: spacing.xs,
   },
-  typeCardSelected: {
-    borderColor: colors.finance,
-    backgroundColor: colors.finance + '15',
+  catList: {
+    marginTop: spacing.sm,
   },
-  typeTextSelected: {
-    color: colors.finance,
-  },
-  continueBtn: {
-    marginTop: spacing.lg,
-  },
-  inputRow: {
+  catListContent: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+    gap: spacing.xs,
   },
-  chip: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
+  catChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
   },
-  chipSelected: {
-    borderColor: colors.finance,
-    backgroundColor: colors.finance + '15',
-  },
-  chipTextSelected: {
-    color: colors.finance,
-  },
-  labelSpaced: {
-    marginTop: spacing.md,
-  },
-  riskRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  riskCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    padding: spacing.sm,
-    alignItems: 'center',
-    gap: 2,
-  },
-  riskCardSelected: {
-    borderColor: colors.finance,
-    backgroundColor: colors.finance + '15',
-  },
-  riskLabel: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.sm,
-  },
-  riskLabelSelected: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.sm,
-    color: colors.finance,
-  },
-  // Empty state
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl,
-    gap: spacing.md,
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.finance + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    textAlign: 'center',
-  },
-  emptyBody: {
-    textAlign: 'center',
-    color: colors.textSecondary,
-    paddingHorizontal: spacing.lg,
-  },
-  setupButton: {
-    marginTop: spacing.sm,
-    width: '100%',
-  },
-  // Hub
-  strategyCard: {
-    gap: spacing.sm,
-  },
-  strategyRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  strategyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.finance,
-    marginTop: 6,
-  },
-  strategyContent: {
-    flex: 1,
-  },
-  strategyAction: {
-    fontSize: fontSizes.sm,
-  },
-  tipsCard: {
-    gap: spacing.sm,
-  },
-  tipRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  tipText: {
-    flex: 1,
-    color: colors.textSecondary,
-  },
-  insightButton: {
-    marginTop: spacing.sm,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  loadingText: {
-    color: colors.textSecondary,
+  catChipDot: {
+    width: 8, height: 8, borderRadius: 4,
   },
 });

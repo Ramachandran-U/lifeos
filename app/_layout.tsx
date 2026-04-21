@@ -11,6 +11,8 @@ import { initDatabase } from '@/db';
 import { getUser, setWebSession } from '@/db/queries/users';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { AchievementToast } from '@/components/shared/AchievementToast';
+import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
+import { useGameStore } from '@/store/useGameStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,7 +23,9 @@ export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
   const router = useRouter();
   const segments = useSegments();
-  const { userId, onboardingStage, setUser } = useUserStore();
+  const { userId, onboardingStage, name, setUser } = useUserStore();
+  const pendingLevelUp = useGameStore((s) => s.pendingLevelUp);
+  const dismissLevelUp = useGameStore((s) => s.dismissLevelUp);
 
   useEffect(() => {
     async function init() {
@@ -68,6 +72,7 @@ export default function RootLayout() {
           }}
         />
         <AchievementToast />
+        <LevelUpOverlay level={pendingLevelUp} userName={name ?? undefined} onClose={dismissLevelUp} />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

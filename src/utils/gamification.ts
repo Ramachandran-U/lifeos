@@ -119,6 +119,29 @@ export function checkBadges(
   return newBadges;
 }
 
+export function xpForLevel(n: number): number {
+  return (100 * n * (n + 1)) / 2;
+}
+
+export function levelFromXP(xp: number): number {
+  let n = 1;
+  while (xpForLevel(n + 1) <= xp) n++;
+  return n;
+}
+
+export function xpProgressInLevel(xp: number): {
+  level: number;
+  current: number;
+  needed: number;
+  pct: number;
+} {
+  const level = levelFromXP(xp);
+  const start = xpForLevel(level);
+  const end = xpForLevel(level + 1);
+  const pct = Math.min(1, (xp - start) / (end - start));
+  return { level, current: xp - start, needed: end - start, pct };
+}
+
 export const XP_VALUES = {
   completeBlock: 10,
   completeGoalTask: 15,

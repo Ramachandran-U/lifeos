@@ -47,6 +47,17 @@ export interface GoalInput {
   age?: number;
 }
 
+export const GoalDescriptionSchema = z.object({
+  description: z.string().min(1),
+});
+export type GoalDescription = z.infer<typeof GoalDescriptionSchema>;
+
+export interface GoalDescriptionInput {
+  title: string;
+  goalType: string;
+  level?: string;
+}
+
 // --- Health Types ---
 
 export const MealSuggestionSchema = z.object({
@@ -100,6 +111,64 @@ export interface CareerInput {
   targetRole: string;
   timelineMonths: number;
   currentSkills: string[];
+}
+
+// --- Career Strategy (Elite Strategist output) ---
+
+export const CareerStrategySchema = z.object({
+  realityCheck: z.string(),
+  skillGaps: z.array(z.object({
+    skill: z.string(),
+    currentLevel: z.string(),
+    requiredLevel: z.string(),
+    priority: z.enum(['must', 'should', 'nice']),
+  })),
+  phases: z.array(z.object({
+    name: z.enum(['Foundation', 'Build', 'Proof']),
+    weeks: z.string(),
+    focus: z.string(),
+    milestones: z.array(z.string()),
+  })).length(3),
+  dailyPlan: z.object({
+    deepWork: z.array(z.string()),
+    build: z.array(z.string()),
+    review: z.array(z.string()),
+  }),
+  weeklyOutput: z.array(z.object({
+    week: z.number(),
+    artifact: z.string(),
+    description: z.string(),
+  })),
+  failurePoints: z.array(z.string()),
+  mvs: z.object({
+    metric: z.string(),
+    outcome: z.string(),
+  }),
+});
+
+export type CareerStrategy = z.infer<typeof CareerStrategySchema>;
+
+export interface CareerStrategyInput {
+  currentRole: string;
+  targetRole: string;
+  currentSkills: string[];
+  timeframeWeeks: number;
+  weeklyHours: number;
+  constraints?: string;
+}
+
+// --- Motivation (contextual quote + tip) ---
+
+export const MotivationSchema = z.object({
+  quote: z.string(),
+  microTip: z.string(),
+});
+
+export type Motivation = z.infer<typeof MotivationSchema>;
+
+export interface MotivationInput {
+  module: 'goals' | 'career' | 'health' | 'finance' | 'social' | 'polymath';
+  context: string; // free-text summary of relevant user state
 }
 
 // --- Routine Types ---
@@ -173,6 +242,57 @@ export interface FinanceInsightInput {
   currentSaved: number;
   monthlySavings: number;
   monthsRemaining: number;
+}
+
+// --- Transaction Categorization ---
+
+export const TRANSACTION_CATEGORIES = [
+  'food_delivery',
+  'groceries',
+  'dining_out',
+  'transport',
+  'fuel',
+  'shopping',
+  'subscriptions',
+  'utilities',
+  'rent',
+  'entertainment',
+  'health',
+  'education',
+  'travel',
+  'investments',
+  'insurance',
+  'debt_repayment',
+  'transfers',
+  'income',
+  'gifts',
+  'charity',
+  'cash_withdrawal',
+  'fees_charges',
+  'personal_care',
+  'other',
+] as const;
+
+export type TransactionCategory = (typeof TRANSACTION_CATEGORIES)[number];
+
+export const CategorizeMerchantSchema = z.object({
+  category: z.enum(TRANSACTION_CATEGORIES),
+  confidence: z.number().min(0).max(1),
+});
+
+export type CategorizeMerchantResult = z.infer<typeof CategorizeMerchantSchema>;
+
+export interface ParsedTransaction {
+  id: string;
+  date: string;
+  amount: number;
+  direction: 'debit' | 'credit';
+  merchant: string;
+  category: TransactionCategory;
+  source: 'hdfc' | 'icici' | 'axis' | 'manual';
+  rawEmailId: string;
+  confidence: number;
+  userCorrected: boolean;
 }
 
 // --- Food Recognition Types ---

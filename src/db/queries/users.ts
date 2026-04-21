@@ -86,6 +86,7 @@ export function updateUser(
   data: Partial<{
     name: string;
     age: number;
+    heightCm: number;
     visionStatement: string;
     wakeTime: string;
     sleepTime: string;

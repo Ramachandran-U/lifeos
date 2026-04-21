@@ -1,55 +1,68 @@
-import { View, StyleSheet } from 'react-native';
-import { colors } from '@/theme/colors';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Body, Label, Caption } from '@/components/ui/Typography';
+import { useGoalTypeColor } from '@/utils/goalTypeColor';
 
 interface GoalCardProps {
   title: string;
   level: string;
   status: string;
   progress: number;
+  goalType?: string;
+  commentCount?: number;
   isPrimary?: boolean;
+  onPress?: () => void;
 }
 
-export function GoalCard({ title, level, status, progress, isPrimary }: GoalCardProps) {
-  return (
-    <Card moduleColor={colors.goal} style={isPrimary ? styles.primaryCard : styles.card}>
+export function GoalCard({
+  title, level, status, progress, goalType = 'personal', commentCount = 0, isPrimary, onPress,
+}: GoalCardProps) {
+  const c = useColors();
+  const typeColor = useGoalTypeColor()(goalType);
+
+  const content = (
+    <Card moduleColor={typeColor.color} style={isPrimary ? styles.primaryCard : styles.card}>
       <View style={styles.header}>
-        <Label color={colors.goal}>{level.toUpperCase()}</Label>
-        <Caption>{status}</Caption>
+        <View style={styles.headerLeft}>
+          <Label color={typeColor.color}>{typeColor.label.toUpperCase()}</Label>
+          <Caption style={{ color: c.textMuted }}>· {level}</Caption>
+        </View>
+        <Caption style={{ color: c.textSecondary }}>{status}</Caption>
       </View>
-      <Body style={[styles.title, isPrimary && styles.primaryTitle]}>{title}</Body>
-      <ProgressBar value={progress} color={colors.goal} height={isPrimary ? 8 : 6} />
-      <Caption style={styles.progressText}>{Math.round(progress)}% complete</Caption>
+      <Body style={[styles.title, isPrimary && styles.primaryTitle, { color: c.textPrimary }]}>
+        {title}
+      </Body>
+      <ProgressBar value={progress} color={typeColor.color} height={isPrimary ? 8 : 6} />
+      <View style={styles.footer}>
+        <Caption style={{ color: c.textSecondary }}>{Math.round(progress)}% complete</Caption>
+        {commentCount > 0 && (
+          <View style={styles.commentBadge}>
+            <Ionicons name="chatbubble-outline" size={12} color={c.textSecondary} />
+            <Caption style={{ color: c.textSecondary }}>{commentCount}</Caption>
+          </View>
+        )}
+      </View>
     </Card>
   );
+
+  if (onPress) {
+    return <Pressable onPress={onPress}>{content}</Pressable>;
+  }
+  return content;
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: spacing.sm,
-  },
-  primaryCard: {
-    gap: spacing.sm,
-    padding: spacing.lg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: fontSizes.md,
-  },
-  primaryTitle: {
-    fontFamily: fonts.heading,
-    fontSize: fontSizes.xl,
-  },
-  progressText: {
-    textAlign: 'right',
-  },
+  card: { gap: spacing.sm },
+  primaryCard: { gap: spacing.sm, padding: spacing.lg },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  title: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.md },
+  primaryTitle: { fontFamily: fonts.heading, fontSize: fontSizes.xl },
+  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  commentBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 });
