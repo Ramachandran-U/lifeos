@@ -20,6 +20,7 @@ const FINANCE_MILESTONES_KEY = 'lifeos_finance_milestones';
 const INTERESTS_KEY = 'lifeos_interests';
 const EXPLORATION_LOG_KEY = 'lifeos_exploration_log';
 const GOAL_COMMENTS_KEY = 'lifeos_goal_comments';
+const REFLECTIONS_KEY = 'lifeos_daily_reflections';
 
 function load<T>(key: string): T[] {
   try {
@@ -49,6 +50,8 @@ export interface WebUser {
   workStartTime?: string;
   workEndTime?: string;
   onboardingStage: number;
+  primaryDomains?: string[];
+  activatedModules?: string[];
   installDate: string;
   createdAt: string;
   updatedAt: string;
@@ -137,6 +140,14 @@ export function webDeleteRoutineBlocksByDate(date: string): void {
   save(ROUTINE_KEY, all);
 }
 
+export function webUpdateRoutineBlock(id: string, data: Partial<WebRoutineBlock>): void {
+  const all = load<WebRoutineBlock>(ROUTINE_KEY);
+  const idx = all.findIndex((b) => b.id === id);
+  if (idx === -1) return;
+  all[idx] = { ...all[idx], ...data, updatedAt: new Date().toISOString() };
+  save(ROUTINE_KEY, all);
+}
+
 export function webSetRoutineBlockCalendarEventId(id: string, calendarEventId: string | null): void {
   const all = load<WebRoutineBlock>(ROUTINE_KEY);
   const idx = all.findIndex((b) => b.id === id);
@@ -207,6 +218,38 @@ export function webInsertBehaviourEvent(event: WebBehaviourEvent): void {
 export function webGetBehaviourEventsLastNDays(days: number): WebBehaviourEvent[] {
   const cutoff = format(subDays(new Date(), days), 'yyyy-MM-dd');
   return load<WebBehaviourEvent>(BEHAVIOUR_KEY).filter((e) => e.createdAt >= cutoff);
+}
+
+// ─── Daily Reflections ───────────────────────────────────────────────────────
+
+export interface WebDailyReflection {
+  id: string;
+  date: string;
+  mood: number | null;
+  blockReviews: string; // JSON
+  tweakAccepted: boolean | null;
+  tweakPayload: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export function webUpsertReflection(r: WebDailyReflection): void {
+  const all = load<WebDailyReflection>(REFLECTIONS_KEY);
+  const idx = all.findIndex((x) => x.date === r.date);
+  if (idx === -1) all.push(r);
+  else all[idx] = r;
+  save(REFLECTIONS_KEY, all);
+}
+
+export function webGetReflectionByDate(date: string): WebDailyReflection | undefined {
+  return load<WebDailyReflection>(REFLECTIONS_KEY).find((r) => r.date === date);
+}
+
+export function webGetRecentReflections(days: number): WebDailyReflection[] {
+  const cutoff = format(subDays(new Date(), days), 'yyyy-MM-dd');
+  return load<WebDailyReflection>(REFLECTIONS_KEY)
+    .filter((r) => r.date >= cutoff)
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 // ─── Goals ───────────────────────────────────────────────────────────────────

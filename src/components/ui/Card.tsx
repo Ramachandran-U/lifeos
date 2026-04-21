@@ -1,11 +1,11 @@
-import { View, ViewProps, StyleSheet, ViewStyle } from 'react-native';
+import { View, ViewProps, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { shadows } from '@/theme/shadows';
 
 interface CardProps extends ViewProps {
   moduleColor?: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Card({ moduleColor, style, children, ...props }: CardProps) {

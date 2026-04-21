@@ -7,6 +7,7 @@ import {
   webInsertRoutineBlock,
   webGetRoutineBlocksByDate,
   webUpdateRoutineBlockStatus,
+  webUpdateRoutineBlock,
   webDeleteRoutineBlocksByDate,
   webSetRoutineBlockCalendarEventId,
   type WebRoutineBlock,
@@ -90,6 +91,22 @@ export function updateRoutineBlockStatus(id: string, status: string) {
   }
   db.update(routineBlocks)
     .set({ status, updatedAt: new Date().toISOString() })
+    .where(eq(routineBlocks.id, id))
+    .run();
+}
+
+export function updateRoutineBlock(id: string, patch: {
+  startTime?: string;
+  endTime?: string;
+  title?: string;
+  module?: string;
+}) {
+  if (isWeb) {
+    webUpdateRoutineBlock(id, patch);
+    return;
+  }
+  db.update(routineBlocks)
+    .set({ ...patch, updatedAt: new Date().toISOString() })
     .where(eq(routineBlocks.id, id))
     .run();
 }

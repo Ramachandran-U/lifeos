@@ -48,7 +48,8 @@ export default function GoogleAuthCallbackScreen() {
         const user = getUserByEmail(profile.email);
         if (user) setUser(user.id, user.name, user.email, user.onboardingStage);
         setStatus('ok');
-        setTimeout(() => router.replace('/(tabs)'), 400);
+        const dest = user && user.onboardingStage === 0 ? '/welcome-intent' : '/(tabs)';
+        setTimeout(() => router.replace(dest), 400);
       } catch (e) {
         setStatus('error');
         setError(e instanceof Error ? e.message : String(e));

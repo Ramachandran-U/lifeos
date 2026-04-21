@@ -93,16 +93,19 @@ export function updateUser(
     workStartTime: string;
     workEndTime: string;
     onboardingStage: number;
+    primaryDomains: string[];
+    activatedModules: string[];
   }>,
 ): void {
   if (isWeb) {
     webUpdateUser(id, data);
     return;
   }
-  db.update(users)
-    .set({ ...data, updatedAt: new Date().toISOString() })
-    .where(eq(users.id, id))
-    .run();
+  const { primaryDomains, activatedModules, ...rest } = data;
+  const native: Record<string, unknown> = { ...rest, updatedAt: new Date().toISOString() };
+  if (primaryDomains !== undefined) native.primaryDomains = JSON.stringify(primaryDomains);
+  if (activatedModules !== undefined) native.activatedModules = JSON.stringify(activatedModules);
+  db.update(users).set(native).where(eq(users.id, id)).run();
 }
 
 export function getUserOnboardingStage(): number | undefined {
