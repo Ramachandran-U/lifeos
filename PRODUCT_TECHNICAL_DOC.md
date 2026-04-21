@@ -8,7 +8,7 @@
 
 **Target User:** Ambitious individuals who want to optimize multiple life domains simultaneously — not just productivity, but holistic life management.
 
-**Current Phase:** Phase 1 (local-only, no cloud sync). Core onboarding, goals, health, finance, career, and routine engines are implemented. Social and Polymath modules are WIP.
+**Current Phase:** Phase 1 (local-only, no cloud sync). Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. Social and Polymath modules are WIP.
 
 ---
 
@@ -29,7 +29,7 @@
 | **Notifications** | expo-notifications |
 | **Auth** | localStorage-backed email/password with expo-crypto SHA-256 hashing + per-user salt |
 | **Theme** | Zustand store (`useThemeStore`) + `useColors()` reactive hook; dark/light persisted to localStorage |
-| **Charts** | `react-native-svg` — used by the hexagonal radar Life Balance chart |
+| **Charts & Gamification Visuals** | `react-native-svg` — HexRadar (Life Balance), LevelRing / AvatarRing (progress rings), Sparkline (XP history). All animated via Reanimated. |
 
 **Architecture pattern:** Fully client-side. No backend server. All data persists in on-device SQLite. AI calls go directly to Anthropic's API (or use mock responses in dev). Zustand stores sync state between UI and DB.
 
@@ -46,13 +46,14 @@ lifeos/
 │   │   ├── day1-vision.tsx        # Vision → AI goal decomposition
 │   │   ├── day1-career.tsx        # Career → AI skill gap analysis
 │   │   └── day1-routine.tsx       # Schedule → AI routine generation
-│   ├── (tabs)/                    # Main app (6 tabs)
-│   │   ├── index.tsx              # Today: routine + briefing + scores
+│   ├── (tabs)/                    # Main app (7 tabs)
+│   │   ├── index.tsx              # Today: AvatarRing + HexRadar + streaks + quests + routine
 │   │   ├── goals.tsx              # Goal hierarchy & daily tasks
 │   │   ├── health.tsx             # Calories, weight, blood reports
 │   │   ├── finance.tsx            # Transactions + goals (Gmail-integrated)
 │   │   ├── career.tsx             # Skill gaps & learning resources
-│   │   └── explore.tsx            # Polymath (WIP)
+│   │   ├── explore.tsx            # Polymath (WIP)
+│   │   └── rewards.tsx            # Gamification: LevelRing, ladder, badges, streaks, quests
 │   ├── gmail-callback.tsx         # OAuth redirect handler (finance)
 │   ├── settings.tsx
 │   └── _layout.tsx                # Root: font loading, DB init, auth routing, session restore
