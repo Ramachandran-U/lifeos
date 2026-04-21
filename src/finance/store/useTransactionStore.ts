@@ -9,8 +9,8 @@ import {
 } from '@/finance/db/transactionDb';
 import { isGmailConnected, clearGmailTokens } from '@/finance/gmail/oauth';
 import { syncRecentEmails } from '@/finance/gmail/fetcher';
-import { parseTransactionEmail } from '@/finance/parsers/emailParsers';
-import { categorizeBatch } from '@/finance/categorizer';
+import { parseTransactionEmail, normalizeUpiMerchant } from '@/finance/parsers/emailParsers';
+import { categorizeBatch, categorizeByRule } from '@/finance/categorizer';
 import type { TransactionCategory } from '@/ai/types';
 
 interface TransactionState {
@@ -30,6 +30,45 @@ interface TransactionState {
 }
 
 const LAST_SYNC_KEY = 'lifeos_last_sync';
+const UPI_MIGRATION_KEY = 'lifeos_upi_migration_v1';
+
+/**
+ * Legacy transactions stored `UPI/P2A/<refId>/NAME` as the merchant, making
+ * every row look unique. This one-time pass rewrites them to the clean name
+ * and downgrades P2A rows from `other` → `transfers`.
+ */
+async function migrateLegacyUpiMerchants(records: TxRecord[]): Promise<TxRecord[]> {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return records;
+  try {
+    if (localStorage.getItem(UPI_MIGRATION_KEY)) return records;
+  } catch {
+    return records;
+  }
+
+  const needsFix = records.filter((r) => !r.userCorrected && /^UPI\/P2[AM]\//i.test(r.merchant));
+  if (needsFix.length === 0) {
+    try { localStorage.setItem(UPI_MIGRATION_KEY, '1'); } catch {}
+    return records;
+  }
+
+  const updates: TxRecord[] = needsFix.map((r) => {
+    const { merchant, channel } = normalizeUpiMerchant(r.merchant);
+    let category = r.category;
+    if (r.category === 'other') {
+      if (channel === 'p2a') category = 'transfers';
+      else {
+        const rule = categorizeByRule(merchant);
+        if (rule) category = rule;
+      }
+    }
+    return { ...r, merchant, category };
+  });
+
+  await financeDb.transactions.bulkPut(updates);
+  try { localStorage.setItem(UPI_MIGRATION_KEY, '1'); } catch {}
+  return getAllTransactions();
+}
+
 
 function readLastSync(): string | null {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
@@ -64,7 +103,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       return;
     }
     const all = await getAllTransactions();
-    set({ transactions: all });
+    const migrated = await migrateLegacyUpiMerchants(all);
+    set({ transactions: migrated });
   },
 
   refreshConnection: () => {
@@ -101,8 +141,8 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       }
 
       const categories = await categorizeBatch(
-        parsed.map(({ tx }) => ({ merchant: tx.merchant, amount: tx.amount, direction: tx.direction })),
-        { maxAiCalls: 5 },
+        parsed.map(({ tx }) => ({ merchant: tx.merchant, amount: tx.amount, direction: tx.direction, channel: tx.channel })),
+        { maxAiCalls: 25 },
       );
 
       const records: TxRecord[] = parsed.map(({ message, tx }, i) => ({

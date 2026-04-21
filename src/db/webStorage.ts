@@ -137,6 +137,18 @@ export function webDeleteRoutineBlocksByDate(date: string): void {
   save(ROUTINE_KEY, all);
 }
 
+export function webSetRoutineBlockCalendarEventId(id: string, calendarEventId: string | null): void {
+  const all = load<WebRoutineBlock>(ROUTINE_KEY);
+  const idx = all.findIndex((b) => b.id === id);
+  if (idx === -1) return;
+  all[idx] = {
+    ...all[idx],
+    calendarEventId: calendarEventId ?? undefined,
+    updatedAt: new Date().toISOString(),
+  };
+  save(ROUTINE_KEY, all);
+}
+
 // ─── Gamification ────────────────────────────────────────────────────────────
 
 export interface WebGamification {
@@ -456,6 +468,11 @@ export function webCompleteMilestone(id: string): void {
   if (idx === -1) return;
   all[idx] = { ...all[idx], completedAt: new Date().toISOString() };
   save(FINANCE_MILESTONES_KEY, all);
+}
+
+export function webDeleteMilestonesByGoal(goalId: string): void {
+  const all = load<WebFinanceMilestone>(FINANCE_MILESTONES_KEY);
+  save(FINANCE_MILESTONES_KEY, all.filter((m) => m.goalId !== goalId));
 }
 
 // ─── Interests ───────────────────────────────────────────────────────────────

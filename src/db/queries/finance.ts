@@ -11,6 +11,7 @@ import {
   webInsertMilestone,
   webGetMilestonesByGoal,
   webCompleteMilestone,
+  webDeleteMilestonesByGoal,
   type WebFinancialGoal,
   type WebFinanceMilestone,
 } from '../webStorage';
@@ -114,6 +115,14 @@ export function getMilestonesByGoal(goalId: string) {
   return db.select().from(financeMilestones)
     .where(eq(financeMilestones.goalId, goalId))
     .all();
+}
+
+export function deleteMilestonesByGoal(goalId: string) {
+  if (isWeb) {
+    webDeleteMilestonesByGoal(goalId);
+    return;
+  }
+  db.delete(financeMilestones).where(eq(financeMilestones.goalId, goalId)).run();
 }
 
 export function completeMilestone(id: string) {

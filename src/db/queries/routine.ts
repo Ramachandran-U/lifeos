@@ -8,6 +8,7 @@ import {
   webGetRoutineBlocksByDate,
   webUpdateRoutineBlockStatus,
   webDeleteRoutineBlocksByDate,
+  webSetRoutineBlockCalendarEventId,
   type WebRoutineBlock,
 } from '../webStorage';
 
@@ -89,6 +90,17 @@ export function updateRoutineBlockStatus(id: string, status: string) {
   }
   db.update(routineBlocks)
     .set({ status, updatedAt: new Date().toISOString() })
+    .where(eq(routineBlocks.id, id))
+    .run();
+}
+
+export function setRoutineBlockCalendarEventId(id: string, calendarEventId: string | null) {
+  if (isWeb) {
+    webSetRoutineBlockCalendarEventId(id, calendarEventId);
+    return;
+  }
+  db.update(routineBlocks)
+    .set({ calendarEventId: calendarEventId ?? null, updatedAt: new Date().toISOString() })
     .where(eq(routineBlocks.id, id))
     .run();
 }

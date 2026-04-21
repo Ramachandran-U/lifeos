@@ -35,6 +35,13 @@ import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import type { BloodReportResult } from '@/ai/types';
+import {
+  isFitConnected,
+  startFitOAuth,
+  clearFitTokens,
+} from '@/integrations/googleFit/oauth';
+import { syncFitDailyData, type DailyFitPoint, type WorkoutSession } from '@/integrations/googleFit/client';
+import { FitDashboard } from '@/components/modules/health/FitDashboard';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Section = 'calories' | 'blood';
@@ -51,6 +58,11 @@ export default function HealthScreen() {
   const [showEditVitals, setShowEditVitals] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('breakfast');
   const [openSection, setOpenSection] = useState<Section | null>(null);
+  const [fitConnected, setFitConnected] = useState(false);
+  const [fitSyncing, setFitSyncing] = useState(false);
+  const [fitStatus, setFitStatus] = useState<string | null>(null);
+  const [fitDays, setFitDays] = useState<DailyFitPoint[]>([]);
+  const [fitWorkouts, setFitWorkouts] = useState<WorkoutSession[]>([]);
   const { call, loading } = useAI();
   const { userId } = useUserStore();
   const { awardBadge, addXP } = useGameStore();
@@ -81,7 +93,53 @@ export default function HealthScreen() {
     }
   }, [today]);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    loadData();
+    setFitConnected(isFitConnected());
+  }, [loadData]));
+
+  const handleFitConnect = async () => {
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setFitStatus('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID — see .env.example.');
+      return;
+    }
+    await startFitOAuth(clientId);
+  };
+
+  const handleFitDisconnect = () => {
+    clearFitTokens();
+    setFitConnected(false);
+    setFitDays([]);
+    setFitWorkouts([]);
+    setFitStatus('Disconnected.');
+  };
+
+  const handleFitSync = async () => {
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) { setFitStatus('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID.'); return; }
+    setFitSyncing(true);
+    setFitStatus(null);
+    try {
+      const result = await syncFitDailyData(clientId, 14);
+      setFitDays(result.days);
+      setFitWorkouts(result.workouts);
+      const today = result.days[result.days.length - 1];
+      if (today && today.weightKg && today.weightKg > 0) {
+        createHealthLog({ date: today.date, weight: today.weightKg });
+      }
+      const totalSteps = result.days.reduce((s, d) => s + d.steps, 0);
+      setFitStatus(
+        `Synced 14 days · ${totalSteps.toLocaleString()} steps · ${result.workouts.length} workouts` +
+        (result.errors.length ? ` · ${result.errors.length} errors` : ''),
+      );
+      loadData();
+    } catch (err) {
+      setFitStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setFitSyncing(false);
+    }
+  };
 
   const trend = useMemo(() => weightTrend(weightLogs), [weightLogs]);
   const summary = useMemo(
@@ -166,6 +224,53 @@ export default function HealthScreen() {
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <WeightChart entries={weightLogs.slice(0, 7)} />
           </Animated.View>
+        )}
+
+        <Card style={styles.fitCard}>
+          <View style={styles.fitHeader}>
+            <Ionicons name="fitness" size={18} color={colors.health} />
+            <Label>GOOGLE FIT</Label>
+          </View>
+          {fitConnected ? (
+            <>
+              <Caption style={{ color: colors.textSecondary }}>
+                Pulls the last 7 days of steps, heart rate, sleep, and weight.
+              </Caption>
+              <View style={styles.fitActions}>
+                <Pressable
+                  style={[styles.fitPrimary, { backgroundColor: colors.health }, fitSyncing && { opacity: 0.6 }]}
+                  onPress={handleFitSync}
+                  disabled={fitSyncing}
+                >
+                  <Ionicons name="sync" size={14} color="#fff" />
+                  <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>
+                    {fitSyncing ? 'Syncing…' : 'Sync last 7 days'}
+                  </Caption>
+                </Pressable>
+                <Pressable style={styles.fitSecondary} onPress={handleFitDisconnect}>
+                  <Caption style={{ color: colors.textMuted }}>Disconnect</Caption>
+                </Pressable>
+              </View>
+            </>
+          ) : (
+            <>
+              <Caption style={{ color: colors.textSecondary }}>
+                Connect Google Fit to pull steps, heart rate, sleep, and weight automatically.
+              </Caption>
+              <Pressable
+                style={[styles.fitPrimary, { backgroundColor: colors.health, alignSelf: 'flex-start' }]}
+                onPress={handleFitConnect}
+              >
+                <Ionicons name="link" size={14} color="#fff" />
+                <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Connect Google Fit</Caption>
+              </Pressable>
+            </>
+          )}
+          {fitStatus && <Caption style={{ color: colors.textMuted }}>{fitStatus}</Caption>}
+        </Card>
+
+        {fitConnected && fitDays.length > 0 && (
+          <FitDashboard days={fitDays} workouts={fitWorkouts} />
         )}
 
         {/* Calorie Tracking — collapsible sub-section */}
@@ -324,4 +429,12 @@ const styles = StyleSheet.create({
   uploadDesc: { marginTop: spacing.xs },
   loadingContainer: { alignItems: 'center', paddingVertical: spacing.md, gap: spacing.sm },
   loadingText: { color: colors.textSecondary },
+  fitCard: { gap: spacing.sm },
+  fitHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  fitActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  fitPrimary: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12,
+  },
+  fitSecondary: { paddingVertical: 10, paddingHorizontal: 10 },
 });

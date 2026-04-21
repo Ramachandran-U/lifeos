@@ -12,6 +12,30 @@ export interface ParsedTx {
   merchant: string;
   refId?: string;
   confidence: number;
+  /** UPI channel hint extracted from `Info:` strings — lets categorizer route
+   *  person-to-account transfers to `transfers` without needing a rule. */
+  channel?: 'p2a' | 'p2m';
+}
+
+const UPI_BOILERPLATE = /\s*If this transaction was not initiated by you[\s\S]*$/i;
+
+/**
+ * Axis/HDFC UPI `Info:` strings look like:
+ *   UPI/P2A/812943987621/ANJALI HARI
+ *   UPI/P2M/647451728232/TONI AND GUY
+ *   UPI/P2M/138042056437/RAMESH TALAWAR If this transaction was not initiated by you...
+ *
+ * The 12-digit RRN in the middle is unique per transaction, so using the raw
+ * string as the merchant breaks the categorizer cache. Extract the tail name
+ * and capture the channel.
+ */
+export function normalizeUpiMerchant(raw: string): { merchant: string; channel?: 'p2a' | 'p2m' } {
+  const stripped = raw.replace(UPI_BOILERPLATE, '').trim();
+  const upi = stripped.match(/^UPI\/(P2[AM])\/[A-Z0-9]+\/(.+)$/i);
+  if (upi) {
+    return { channel: upi[1].toLowerCase() as 'p2a' | 'p2m', merchant: cleanMerchant(upi[2]) };
+  }
+  return { merchant: cleanMerchant(stripped) };
 }
 
 function toPaise(amountStr: string): number {
@@ -107,10 +131,13 @@ export function parseAxis(body: string): ParsedTx | null {
   const merchMatch = candidates.find((m): m is RegExpMatchArray => !!m) ?? null;
   const refMatch = body.match(/(?:Transaction ID|UTR|Ref(?:\s*No\.?)?)\s*:?\s*([A-Z0-9]+)/i);
 
+  const normalized = merchMatch ? normalizeUpiMerchant(merchMatch[1]) : { merchant: 'Unknown' };
+
   return {
     amount: toPaise(amt[1]),
     direction: amt[2].toLowerCase() === 'debited' ? 'debit' : 'credit',
-    merchant: merchMatch ? cleanMerchant(merchMatch[1]) : 'Unknown',
+    merchant: normalized.merchant,
+    channel: normalized.channel,
     refId: refMatch?.[1],
     confidence: merchMatch ? 0.75 : 0.5,
   };

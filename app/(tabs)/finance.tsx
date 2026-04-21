@@ -1,5 +1,13 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Platform, Modal } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Platform, Modal, TextInput } from 'react-native';
+import {
+  ACTIVE_CURRENCY,
+  getCurrency,
+  formatMoney,
+  formatMoneyCompact,
+  parseMoneyInput,
+  formatIncomeBracketLabel,
+} from '@/utils/currency';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -24,7 +32,9 @@ import {
   createMilestone,
   getMilestonesByGoal,
   completeMilestone,
+  deleteMilestonesByGoal,
 } from '@/db/queries/finance';
+import { buildMockFinancialPlan } from '@/ai/mocks/finance';
 import type { FinancialPlan, WeeklyFinanceInsight, TransactionCategory } from '@/ai/types';
 import { TRANSACTION_CATEGORIES } from '@/ai/types';
 import { useTransactionStore } from '@/finance/store/useTransactionStore';
@@ -43,14 +53,13 @@ const GOAL_TYPES = [
   { value: 'business', label: 'Start a Business', icon: 'storefront' },
 ] as const;
 
-const INCOME_BRACKETS = [
-  { value: 'under_30k', label: 'Under $30K' },
-  { value: '30k_50k', label: '$30K – $50K' },
-  { value: '50k_75k', label: '$50K – $75K' },
-  { value: '75k_100k', label: '$75K – $100K' },
-  { value: '100k_150k', label: '$100K – $150K' },
-  { value: '150k_plus', label: '$150K+' },
-];
+const INCOME_BRACKETS = getCurrency().incomeBrackets.map((b) => ({
+  value: b.value,
+  label: formatIncomeBracketLabel(b),
+}));
+
+const TARGET_PRESETS = getCurrency().targetPresets;
+const SAVINGS_PRESETS = getCurrency().savingsPresets;
 
 const RISK_PROFILES = [
   { value: 'conservative', label: 'Conservative', desc: 'Steady and safe' },
@@ -139,9 +148,9 @@ export default function FinanceScreen() {
   const [milestones, setMilestones] = useState<Array<{ id: string; title: string; targetAmount: number; targetDate: string; completedAt: string | null }>>([]);
 
   const [selectedType, setSelectedType] = useState('');
-  const [targetAmount, setTargetAmount] = useState('75000');
-  const [monthlySavings, setMonthlySavings] = useState('2000');
-  const [incomeBracket, setIncomeBracket] = useState('75k_100k');
+  const [targetAmount, setTargetAmount] = useState(String(TARGET_PRESETS[2]));
+  const [monthlySavings, setMonthlySavings] = useState(String(SAVINGS_PRESETS[2]));
+  const [incomeBracket, setIncomeBracket] = useState(INCOME_BRACKETS[2]?.value ?? '');
   const [riskProfile, setRiskProfile] = useState('moderate');
 
   // Dismissed insights
@@ -164,9 +173,33 @@ export default function FinanceScreen() {
       setHasGoal(true);
       setGoalId(g.id);
       setSelectedType(g.goalType);
-      setTargetAmount(String(g.targetAmount ?? 75000));
-      setMonthlySavings(String(g.monthlySavings ?? 2000));
-      const ms = getMilestonesByGoal(g.id);
+      setTargetAmount(String(g.targetAmount ?? TARGET_PRESETS[2]));
+      setMonthlySavings(String(g.monthlySavings ?? SAVINGS_PRESETS[2]));
+      let ms = getMilestonesByGoal(g.id);
+
+      // Migration: earlier versions persisted milestones from a static mock
+      // that didn't scale to the user's target — some overshot the goal and
+      // some had '$' in their titles. Rebuild them deterministically.
+      const overshoot = (g.targetAmount ?? 0) > 0 && ms.some((m) => m.targetAmount > (g.targetAmount ?? 0));
+      const staleCurrency = ms.some((m) => m.title.includes('$'));
+      if (overshoot || staleCurrency) {
+        deleteMilestonesByGoal(g.id);
+        const fresh = buildMockFinancialPlan({
+          goalType: g.goalType,
+          targetAmount: g.targetAmount ?? TARGET_PRESETS[2],
+          targetDate: g.targetDate ?? '2028-06-01',
+          monthlySavings: g.monthlySavings ?? SAVINGS_PRESETS[2],
+          incomeBracket: g.incomeBracket ?? '',
+          riskProfile: g.riskProfile ?? 'moderate',
+          currency: ACTIVE_CURRENCY,
+        });
+        const rebuilt: typeof milestones = [];
+        for (const m of fresh.milestones) {
+          const mId = createMilestone(g.id, m.title, m.targetAmount, m.targetDate);
+          rebuilt.push({ id: mId, title: m.title, targetAmount: m.targetAmount, targetDate: m.targetDate, completedAt: null });
+        }
+        ms = rebuilt;
+      }
       setMilestones(ms);
     }
   }, []);
@@ -235,6 +268,7 @@ export default function FinanceScreen() {
         monthlySavings: Number(monthlySavings),
         incomeBracket,
         riskProfile,
+        currency: ACTIVE_CURRENCY,
       }),
     );
 
@@ -337,31 +371,59 @@ export default function FinanceScreen() {
             <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
             <Heading style={styles.setupTitle}>Your financial details</Heading>
 
-            <Label>Target amount ($)</Label>
+            <Label>Target amount ({getCurrency().symbol})</Label>
+            <View style={styles.amountInputRow}>
+              <Body style={styles.amountPrefix}>{getCurrency().symbol}</Body>
+              <TextInput
+                style={styles.amountInput}
+                value={targetAmount === '0' ? '' : targetAmount}
+                onChangeText={(t) => setTargetAmount(String(parseMoneyInput(t)))}
+                keyboardType="numeric"
+                placeholder="Enter amount"
+                placeholderTextColor={c.textMuted}
+              />
+              <Caption style={styles.amountHint}>
+                {Number(targetAmount) > 0 ? formatMoneyCompact(Number(targetAmount)) : ''}
+              </Caption>
+            </View>
             <View style={styles.inputRow}>
-              {['25000', '50000', '75000', '100000', '200000'].map((v) => (
+              {TARGET_PRESETS.map((v) => (
                 <Pressable
                   key={v}
-                  style={[styles.chip, targetAmount === v && styles.chipSelected]}
-                  onPress={() => setTargetAmount(v)}
+                  style={[styles.chip, Number(targetAmount) === v && styles.chipSelected]}
+                  onPress={() => setTargetAmount(String(v))}
                 >
-                  <Caption style={targetAmount === v ? styles.chipTextSelected : undefined}>
-                    ${Number(v).toLocaleString()}
+                  <Caption style={Number(targetAmount) === v ? styles.chipTextSelected : undefined}>
+                    {formatMoneyCompact(v)}
                   </Caption>
                 </Pressable>
               ))}
             </View>
 
-            <Label style={styles.labelSpaced}>Monthly savings ($)</Label>
+            <Label style={styles.labelSpaced}>Monthly savings ({getCurrency().symbol})</Label>
+            <View style={styles.amountInputRow}>
+              <Body style={styles.amountPrefix}>{getCurrency().symbol}</Body>
+              <TextInput
+                style={styles.amountInput}
+                value={monthlySavings === '0' ? '' : monthlySavings}
+                onChangeText={(t) => setMonthlySavings(String(parseMoneyInput(t)))}
+                keyboardType="numeric"
+                placeholder="Enter amount"
+                placeholderTextColor={c.textMuted}
+              />
+              <Caption style={styles.amountHint}>
+                {Number(monthlySavings) > 0 ? formatMoneyCompact(Number(monthlySavings)) : ''}
+              </Caption>
+            </View>
             <View style={styles.inputRow}>
-              {['500', '1000', '2000', '3000', '5000'].map((v) => (
+              {SAVINGS_PRESETS.map((v) => (
                 <Pressable
                   key={v}
-                  style={[styles.chip, monthlySavings === v && styles.chipSelected]}
-                  onPress={() => setMonthlySavings(v)}
+                  style={[styles.chip, Number(monthlySavings) === v && styles.chipSelected]}
+                  onPress={() => setMonthlySavings(String(v))}
                 >
-                  <Caption style={monthlySavings === v ? styles.chipTextSelected : undefined}>
-                    ${Number(v).toLocaleString()}
+                  <Caption style={Number(monthlySavings) === v ? styles.chipTextSelected : undefined}>
+                    {formatMoneyCompact(v)}
                   </Caption>
                 </Pressable>
               ))}
@@ -926,7 +988,7 @@ function GoalsTab({
                 <View style={[styles.strategyDot, { backgroundColor: c.finance }]} />
                 <View style={styles.strategyContent}>
                   <Body style={styles.strategyAction}>{s.action}</Body>
-                  <Caption>+${s.monthlyImpact.toLocaleString()}/mo</Caption>
+                  <Caption>+{formatMoney(s.monthlyImpact)}/mo</Caption>
                 </View>
               </View>
             ))}
@@ -1125,6 +1187,28 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     typeTextSelected: { color: c.finance },
     continueBtn: { marginTop: spacing.lg },
     inputRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+    amountInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginTop: spacing.xs,
+      gap: spacing.sm,
+    },
+    amountPrefix: { color: c.textSecondary, fontSize: fontSizes.lg },
+    amountInput: {
+      flex: 1,
+      color: c.textPrimary,
+      fontFamily: fonts.body,
+      fontSize: fontSizes.lg,
+      paddingVertical: 0,
+      ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
+    },
+    amountHint: { color: c.textMuted },
     chip: {
       backgroundColor: c.card,
       borderRadius: 12,

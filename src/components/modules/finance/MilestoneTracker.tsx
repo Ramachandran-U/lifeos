@@ -6,6 +6,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { Body, Label, Caption } from '@/components/ui/Typography';
+import { formatMoney } from '@/utils/currency';
 
 interface Milestone {
   id: string;
@@ -62,7 +63,7 @@ export function MilestoneTracker({ milestones, onComplete }: MilestoneTrackerPro
                 {m.title}
               </Body>
               <Caption>
-                ${m.targetAmount.toLocaleString()} by {m.targetDate}
+                {formatMoney(m.targetAmount)} by {m.targetDate}
               </Caption>
             </View>
 

@@ -48,7 +48,7 @@ import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals'
 import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
 import { MOCK_ROUTINE } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
-import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT } from './mocks/finance';
+import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
 
 const isMock = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
 
@@ -138,7 +138,7 @@ export async function suggestMeals(context: string): Promise<MealSuggestion> {
 }
 
 export async function generateFinancialPlan(input: FinanceInput): Promise<FinancialPlan> {
-  if (isMock) return MOCK_FINANCIAL_PLAN;
+  if (isMock) return buildMockFinancialPlan(input);
 
   const response = await callAI({
     system: FINANCIAL_PLAN_PROMPT,
