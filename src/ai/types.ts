@@ -311,4 +311,41 @@ export const FoodRecognitionSchema = z.object({
   })),
 });
 
+// --- Tomorrow Tweak (evening reflect) ---
+
+export const TomorrowTweakModuleEnum = z.enum(['goal', 'health', 'finance', 'career', 'social', 'polymath', 'rest', 'work', 'meal']);
+
+export const TomorrowTweakSchema = z.object({
+  kind: z.enum(['move', 'resize', 'swap', 'add']),
+  blockId: z.string().nullable(),
+  patch: z.object({
+    startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    title: z.string().optional(),
+    module: TomorrowTweakModuleEnum.optional(),
+  }),
+  rationale: z.string().max(200),
+});
+
+export type TomorrowTweak = z.infer<typeof TomorrowTweakSchema>;
+
+export interface TomorrowTweakInput {
+  today: {
+    date: string;
+    mood: number | null;
+    blockReviews: Record<string, 'did' | 'skipped' | 'rescheduled'>;
+  };
+  tomorrow: {
+    date: string;
+    blocks: Array<{
+      id: string;
+      startTime: string;
+      endTime: string;
+      title: string;
+      module: string;
+    }>;
+  };
+  primaryDomains: string[];
+}
+
 export type FoodRecognition = z.infer<typeof FoodRecognitionSchema>;

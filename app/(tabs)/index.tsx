@@ -1,16 +1,25 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
 import { ProfileSidebar } from '@/components/shared/ProfileSidebar';
 import { useUserStore } from '@/store/useUserStore';
@@ -33,6 +42,8 @@ export default function TodayScreen() {
   const c = useColors();
   const router = useRouter();
   const { userId, name } = useUserStore();
+  const activatedModules = useUserStore((s) => s.activatedModules);
+  const primaryDomains = useUserStore((s) => s.primaryDomains);
   const setOnboardingStage = useUserStore((s) => s.setOnboardingStage);
 
   const startOnboarding = useCallback(() => {
@@ -51,6 +62,7 @@ export default function TodayScreen() {
     goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0,
   });
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
+  const [hasReflectedToday, setHasReflectedToday] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [calConnected, setCalConnected] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
@@ -112,6 +124,7 @@ export default function TodayScreen() {
       loadGame(userId);
     }
     setWeeklyInsight(generateWeeklyInsight());
+    setHasReflectedToday(getReflectionByDate(today) !== undefined);
   }, [today, userId, loadGame]);
 
   const topStreaks = useMemo(() => {
@@ -153,10 +166,53 @@ export default function TodayScreen() {
 
   const styles = makeStyles(c);
 
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const heroStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 140], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      { scale: interpolate(scrollY.value, [0, 220], [1, 0.78], Extrapolation.CLAMP) },
+      { translateY: interpolate(scrollY.value, [0, 220], [0, -40], Extrapolation.CLAMP) },
+    ],
+  }));
+  const chipStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [120, 200], [0, 1], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, [120, 200], [-16, 0], Extrapolation.CLAMP) }],
+  }));
+  const radarScores = gameDomainScores.goals !== undefined ? gameDomainScores : domainScores;
+  const avgScore = Math.round(
+    (radarScores.goals + radarScores.health + radarScores.finance +
+      radarScores.career + radarScores.social + radarScores.mind) / 6,
+  );
+
   return (
     <View style={styles.root}>
+      <AuroraBackground />
       <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
+        {/* Collapsed header chip — fades in on scroll */}
+        <Animated.View pointerEvents="none" style={[styles.collapsedHeader, chipStyle]}>
+          <View style={[styles.collapsedChip, { borderColor: c.border, backgroundColor: c.surface + 'EE' }]}>
+            <HexRadar scores={radarScores} size={36} />
+            <View>
+              <Caption style={{ color: c.textMuted, letterSpacing: 1, fontSize: 9 }}>LIFE</Caption>
+              <Body style={{ fontFamily: fonts.heading, color: c.textPrimary, fontSize: 16 }}>{avgScore}</Body>
+            </View>
+          </View>
+        </Animated.View>
+
+        <Animated.ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scroll}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+        >
+          {/* Hex radar hero */}
+          <Animated.View style={[styles.heroWrap, heroStyle]}>
+            <HexRadar scores={radarScores} size={340} />
+          </Animated.View>
+
           {/* Header */}
           <View style={styles.header}>
             <Pressable onPress={() => setSidebarOpen(true)} hitSlop={8}>
@@ -175,11 +231,6 @@ export default function TodayScreen() {
               </View>
             </View>
           </View>
-
-          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.radarWrap}>
-            <Body style={styles.sectionLabel}>LIFE BALANCE</Body>
-            <HexRadar scores={gameDomainScores.goals !== undefined ? gameDomainScores : domainScores} size={340} />
-          </Animated.View>
 
           {/* Top Streaks */}
           {topStreaks.some((s) => (s.count ?? 0) > 0) && (
@@ -218,6 +269,37 @@ export default function TodayScreen() {
             </View>
           )}
 
+          {blocks.length > 0 && new Date().getHours() >= 18 && !hasReflectedToday && (
+            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+              <Pressable onPress={() => router.push('/evening-reflect')}>
+                <Card style={[styles.reflectCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
+                  <View style={styles.reflectRow}>
+                    <Ionicons name="moon" size={22} color={c.primaryLight} />
+                    <View style={{ flex: 1 }}>
+                      <Label color={c.primaryLight}>WRAP UP TODAY</Label>
+                      <Body style={{ color: c.textSecondary, fontSize: fontSizes.sm, marginTop: 2 }}>
+                        60 seconds to reflect and preview tomorrow
+                      </Body>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={c.textMuted} />
+                  </View>
+                </Card>
+              </Pressable>
+            </Animated.View>
+          )}
+          {hasReflectedToday && (
+            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+              <Card style={styles.reflectCard}>
+                <View style={styles.reflectRow}>
+                  <Ionicons name="checkmark-circle" size={22} color={c.success} />
+                  <Body style={{ color: c.textSecondary, flex: 1 }}>
+                    Reflection logged. Tomorrow is ready.
+                  </Body>
+                </View>
+              </Card>
+            </Animated.View>
+          )}
+
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <DailyBriefing
               text={blocks.length > 0
@@ -237,6 +319,20 @@ export default function TodayScreen() {
                   <Label color={c.primary}>WEEKLY INSIGHT</Label>
                 </View>
                 <Body style={styles.insightText}>{weeklyInsight}</Body>
+              </Card>
+            </Animated.View>
+          )}
+
+          {blocks.length > 0 && primaryDomains.length > 0 && activatedModules.length === 0 && (
+            <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+              <Card style={[styles.insightCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
+                <View style={styles.insightHeader}>
+                  <Ionicons name="sparkles" size={18} color={c.primary} />
+                  <Label color={c.primary}>YOUR STARTER DAY</Label>
+                </View>
+                <Body style={styles.insightText}>
+                  This is a seeded routine. Tap any block to make it yours — or keep it as-is for today.
+                </Body>
               </Card>
             </Animated.View>
           )}
@@ -320,7 +416,7 @@ export default function TodayScreen() {
               <Caption style={{ color: c.textMuted }}>Complete onboarding to get started</Caption>
             </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
 
       {/* Sidebar — rendered outside ScrollView so it overlays the full screen */}
@@ -355,6 +451,28 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     headerCenter: { flex: 1, gap: 4 },
     xpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
     radarWrap: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+    heroWrap: {
+      alignItems: 'center',
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    collapsedHeader: {
+      position: 'absolute',
+      top: spacing.md,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    collapsedChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
     sectionLabel: {
       fontFamily: fonts.heading,
       fontSize: 13,
@@ -446,6 +564,14 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     calSecondary: {
       paddingVertical: 10,
       paddingHorizontal: 10,
+    },
+    reflectCard: {
+      gap: 0,
+    },
+    reflectRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
   });
 }

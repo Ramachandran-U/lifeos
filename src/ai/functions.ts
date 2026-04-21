@@ -34,7 +34,12 @@ import {
   GoalDescription,
   GoalDescriptionSchema,
   GoalDescriptionInput,
+  TomorrowTweak,
+  TomorrowTweakSchema,
+  TomorrowTweakInput,
 } from './types';
+import { TOMORROW_TWEAK_PROMPT } from './prompts/reflection';
+import { buildMockTomorrowTweak } from './mocks/reflection';
 import { GOAL_DECOMPOSITION_PROMPT, GOAL_DESCRIPTION_PROMPT } from './prompts/goals';
 import { SKILL_GAP_PROMPT, CAREER_STRATEGY_PROMPT, MOTIVATION_PROMPT } from './prompts/career';
 import { ROUTINE_GENERATION_PROMPT } from './prompts/routine';
@@ -263,5 +268,23 @@ export async function generateMotivation(input: MotivationInput): Promise<Motiva
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     throw new Error('AI returned invalid motivation: ' + detail.slice(0, 120));
+  }
+}
+
+
+export async function suggestTomorrowTweak(input: TomorrowTweakInput): Promise<TomorrowTweak> {
+  if (isMock) return buildMockTomorrowTweak(input);
+
+  const response = await callAI({
+    system: TOMORROW_TWEAK_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    maxTokens: 400,
+  });
+
+  try {
+    return TomorrowTweakSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error('AI returned invalid tomorrow tweak: ' + detail.slice(0, 120));
   }
 }

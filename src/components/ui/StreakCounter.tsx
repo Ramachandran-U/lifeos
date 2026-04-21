@@ -3,12 +3,13 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withTiming,
+  withSpring,
 } from 'react-native-reanimated';
 import { useEffect, useRef } from 'react';
 import { colors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { SPRING } from '@/theme/motion';
 import { Body } from './Typography';
 
 interface StreakCounterProps {
@@ -22,8 +23,8 @@ export function StreakCounter({ count }: StreakCounterProps) {
   useEffect(() => {
     if (count > prevCount.current) {
       scale.value = withSequence(
-        withTiming(1.3, { duration: 150 }),
-        withTiming(1, { duration: 150 }),
+        withSpring(1.3, SPRING.snappy),
+        withSpring(1, SPRING.standard),
       );
     }
     prevCount.current = count;

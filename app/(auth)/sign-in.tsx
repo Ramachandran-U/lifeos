@@ -10,9 +10,11 @@ import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
-import { getUserByEmail, setWebSession } from '@/db/queries/users';
+import { getUserByEmail, setWebSession, GOOGLE_SSO_HASH } from '@/db/queries/users';
 import { verifyPassword } from '@/utils/auth';
 import { useUserStore } from '@/store/useUserStore';
+import { startGoogleAuthOAuth } from '@/integrations/googleAuth/oauth';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -22,6 +24,20 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setError('Google sign-in not configured. Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID.');
+      return;
+    }
+    try {
+      await startGoogleAuthOAuth(clientId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to start Google sign-in.');
+    }
+  };
 
   const handleSignIn = async () => {
     setError('');
@@ -37,6 +53,10 @@ export default function SignInScreen() {
       const user = getUserByEmail(trimmedEmail);
       if (!user) {
         setError('No account found with that email. Please register first.');
+        return;
+      }
+      if (user.passwordHash === GOOGLE_SSO_HASH) {
+        setError('This account uses Google sign-in. Tap "Continue with Google" below.');
         return;
       }
 
@@ -103,6 +123,17 @@ export default function SignInScreen() {
               disabled={loading}
             />
 
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Caption style={styles.dividerText}>or</Caption>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable style={styles.googleBtn} onPress={handleGoogleSignIn}>
+              <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
+              <Body style={styles.googleBtnLabel}>Continue with Google</Body>
+            </Pressable>
+
             <View style={styles.registerRow}>
               <Caption style={styles.registerPrompt}>Don't have an account? </Caption>
               <Pressable onPress={() => router.push('/(auth)/sign-up')}>
@@ -162,6 +193,29 @@ const styles = StyleSheet.create({
   },
   registerLink: {
     color: colors.primary,
+    fontFamily: fonts.bodyMedium,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginVertical: spacing.xs,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { color: colors.textMuted },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  googleBtnLabel: {
+    color: colors.textPrimary,
     fontFamily: fonts.bodyMedium,
   },
 });

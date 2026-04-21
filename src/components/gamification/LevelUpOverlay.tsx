@@ -1,4 +1,4 @@
-import { Modal, View, Text, StyleSheet, Pressable } from 'react-native';
+import { Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import Animated, { FadeIn, ZoomIn, FadeInUp } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -16,6 +16,19 @@ export function LevelUpOverlay({ level, userName, onClose }: Props) {
   const perks = LEVEL_PERKS[level] ?? ['New features unlocked', 'Keep going!'];
   const firstName = (userName ?? 'Friend').split(' ')[0];
 
+  const auroraBg = Platform.OS === 'web'
+    ? ({
+        backgroundImage: `
+          radial-gradient(50% 40% at 50% 20%, ${c.primary}44, transparent 70%),
+          radial-gradient(40% 30% at 80% 80%, #FF99C533, transparent 70%),
+          radial-gradient(40% 30% at 20% 90%, #7FB8FF33, transparent 70%)
+        `,
+      } as unknown as object)
+    : undefined;
+  const levelGlow = Platform.OS === 'web'
+    ? ({ textShadow: `0 0 32px ${c.primary}, 0 0 8px ${c.primaryLight}` } as unknown as object)
+    : undefined;
+
   return (
     <Modal transparent animationType="none" visible={level !== null} onRequestClose={onClose}>
       <Animated.View
@@ -25,13 +38,13 @@ export function LevelUpOverlay({ level, userName, onClose }: Props) {
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <Animated.View
           entering={ZoomIn.duration(600).springify().damping(14)}
-          style={[styles.modal, { backgroundColor: c.card, borderColor: c.primary + '44' }]}
+          style={[styles.modal, { backgroundColor: c.surface, borderColor: c.primary + '55' }, auroraBg as object]}
         >
           <Pressable style={styles.close} onPress={onClose} hitSlop={8}>
             <Text style={{ color: c.textMuted, fontSize: 18 }}>✕</Text>
           </Pressable>
 
-          <Text style={[styles.levelNum, { color: c.primary }]}>{level}</Text>
+          <Text style={[styles.levelNum, { color: c.primaryLight }, levelGlow as object]}>{level}</Text>
           <Text style={{ fontFamily: fonts.heading, fontSize: 12, color: c.textMuted, letterSpacing: 2, marginBottom: 6 }}>
             LEVEL UP
           </Text>

@@ -16,6 +16,8 @@ export const users = sqliteTable('users', {
   workStartTime: text('work_start_time'),
   workEndTime: text('work_end_time'),
   onboardingStage: integer('onboarding_stage').notNull().default(0),
+  primaryDomains: text('primary_domains'), // JSON string[] — user's chosen focus domains from welcome-intent
+  activatedModules: text('activated_modules'), // JSON string[] — modules user has supplied data for
   installDate: text('install_date'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
@@ -254,6 +256,18 @@ export const gamification = sqliteTable('gamification', {
   weeklyXP: integer('weekly_xp').notNull().default(0),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Daily Reflections ---
+export const dailyReflections = sqliteTable('daily_reflections', {
+  id: text('id').primaryKey(),
+  date: text('date').notNull(), // YYYY-MM-DD — one reflection per user per day
+  mood: integer('mood'), // 1-5
+  blockReviews: text('block_reviews').notNull(), // JSON: Record<blockId, 'did' | 'skipped' | 'rescheduled'>
+  tweakAccepted: integer('tweak_accepted', { mode: 'boolean' }),
+  tweakPayload: text('tweak_payload'), // JSON: the AI suggestion offered
+  notes: text('notes'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
 // --- Behaviour Events ---

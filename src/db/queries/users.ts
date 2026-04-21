@@ -93,22 +93,56 @@ export function updateUser(
     workStartTime: string;
     workEndTime: string;
     onboardingStage: number;
+    primaryDomains: string[];
+    activatedModules: string[];
   }>,
 ): void {
   if (isWeb) {
     webUpdateUser(id, data);
     return;
   }
-  db.update(users)
-    .set({ ...data, updatedAt: new Date().toISOString() })
-    .where(eq(users.id, id))
-    .run();
+  const { primaryDomains, activatedModules, ...rest } = data;
+  const native: Record<string, unknown> = { ...rest, updatedAt: new Date().toISOString() };
+  if (primaryDomains !== undefined) native.primaryDomains = JSON.stringify(primaryDomains);
+  if (activatedModules !== undefined) native.activatedModules = JSON.stringify(activatedModules);
+  db.update(users).set(native).where(eq(users.id, id)).run();
 }
 
 export function getUserOnboardingStage(): number | undefined {
   if (isWeb) return webGetUser()?.onboardingStage;
   const user = db.select({ onboardingStage: users.onboardingStage }).from(users).limit(1).get();
   return user?.onboardingStage;
+}
+
+/**
+ * Sentinel stored in passwordHash for accounts that only authenticate via Google.
+ * Password sign-in paths must check for this and redirect to Google sign-in.
+ */
+export const GOOGLE_SSO_HASH = '__GOOGLE_SSO__';
+
+/**
+ * Upsert a user from a Google profile. Returns the user id. If an account with
+ * the same email already exists (whether password or Google), reuses it; no
+ * account linking prompt yet — we trust Google's verified email.
+ */
+export async function upsertGoogleUser(profile: {
+  email: string;
+  name?: string;
+}): Promise<string> {
+  const existing = getUserByEmail(profile.email);
+  if (existing) {
+    if (profile.name && profile.name !== existing.name) {
+      updateUser(existing.id, { name: profile.name });
+    }
+    return existing.id;
+  }
+  const id = await createUser({
+    email: profile.email,
+    passwordHash: GOOGLE_SSO_HASH,
+    passwordSalt: '',
+    name: profile.name || profile.email.split('@')[0],
+  });
+  return id;
 }
 
 export function deleteAllUsers(): void {
