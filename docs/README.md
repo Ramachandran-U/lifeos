@@ -10,6 +10,7 @@ Context docs to help re-enter the project quickly. Start here, then open the spe
 | [`FINANCE_PIPELINE.md`](FINANCE_PIPELINE.md) | Gmail OAuth → parsers → Dexie → categorizer → insights |
 | [`WEB_VS_NATIVE.md`](WEB_VS_NATIVE.md) | The `Platform.OS === 'web'` storage branching pattern |
 | [`AI_FUNCTIONS.md`](AI_FUNCTIONS.md) | Every AI function: input, output, Zod schema, mock path |
+| [`TESTING.md`](TESTING.md) | Jest setup, how to run, what's covered, next steps |
 | [`../claude-design-prompt-web.md`](../claude-design-prompt-web.md) | Web design prompt (artifact-driven UI) |
 | [`../claude-design-prompt-mobile.md`](../claude-design-prompt-mobile.md) | Mobile design prompt |
 

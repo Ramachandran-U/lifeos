@@ -1,12 +1,16 @@
 import { AIRequest } from './types';
 
+const API_KEY =
+  process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY;
+
 async function callViaAPI(request: AIRequest): Promise<string> {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
+      'x-api-key': API_KEY!,
       'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
@@ -17,7 +21,8 @@ async function callViaAPI(request: AIRequest): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+    const body = await response.text().catch(() => '');
+    throw new Error(`Claude API ${response.status}: ${body.slice(0, 200)}`);
   }
 
   const data = await response.json();
@@ -25,8 +30,10 @@ async function callViaAPI(request: AIRequest): Promise<string> {
 }
 
 export async function callAI(request: AIRequest): Promise<string> {
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (API_KEY) {
     return callViaAPI(request);
   }
-  throw new Error('No AI backend available. Set ANTHROPIC_API_KEY or enable USE_AI_MOCK.');
+  throw new Error(
+    'No AI backend available. Set EXPO_PUBLIC_ANTHROPIC_API_KEY in .env, or set EXPO_PUBLIC_USE_AI_MOCK=true for mock responses.',
+  );
 }

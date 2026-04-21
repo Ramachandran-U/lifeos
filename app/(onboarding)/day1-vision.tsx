@@ -15,6 +15,8 @@ import { useAI } from '@/hooks/useAI';
 import { decomposeGoal } from '@/ai/functions';
 import { useUserStore } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
+import { createGoal } from '@/db/queries/goals';
+import { persistHierarchy } from '@/utils/persistHierarchy';
 import type { GoalHierarchy } from '@/ai/types';
 
 export default function Day1VisionScreen() {
@@ -41,6 +43,9 @@ export default function Day1VisionScreen() {
   };
 
   const handleConfirm = () => {
+    if (userId && hierarchy) {
+      persistHierarchy(userId, hierarchy, createGoal);
+    }
     router.push('/(onboarding)/day1-career');
   };
 
