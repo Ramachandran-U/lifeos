@@ -8,7 +8,9 @@ import {
   calculateDomainScore,
   checkBadges,
   XP_VALUES,
+  levelFromXP,
 } from '@/utils/gamification';
+import { DEFAULT_QUESTS, type Quest } from '@/constants/gamification';
 
 interface GameState {
   domainScores: DomainScores;
@@ -17,6 +19,9 @@ interface GameState {
   totalXP: number;
   weeklyXP: number;
   pendingBadges: BadgeId[];
+  quests: Quest[];
+  pendingLevelUp: number | null;
+  lastKnownLevel: number;
 
   loadFromDB: (userId: string) => void;
   completeBlock: (userId: string, module: string, completedCount: number, totalCount: number) => void;
@@ -24,6 +29,8 @@ interface GameState {
   triggerStreak: (userId: string, streakType: keyof Streaks) => void;
   awardBadge: (userId: string, badgeId: BadgeId) => void;
   popBadge: () => BadgeId | undefined;
+  advanceQuest: (id: string, delta?: number) => void;
+  dismissLevelUp: () => void;
 }
 
 const DEFAULT_STREAKS: Streaks = {
@@ -54,6 +61,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   totalXP: 0,
   weeklyXP: 0,
   pendingBadges: [],
+  quests: DEFAULT_QUESTS.map((q) => ({ ...q })),
+  pendingLevelUp: null,
+  lastKnownLevel: 1,
 
   loadFromDB: (userId) => {
     const game = getOrCreateGamification(userId);
@@ -70,6 +80,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       badges,
       totalXP: game.totalXP,
       weeklyXP: game.weeklyXP,
+      lastKnownLevel: levelFromXP(game.totalXP),
     });
   },
 
@@ -104,11 +115,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   addXP: (userId, amount) => {
-    const { totalXP, weeklyXP } = get();
+    const { totalXP, weeklyXP, lastKnownLevel } = get();
     const newTotal = totalXP + amount;
     const newWeekly = weeklyXP + amount;
+    const newLevel = levelFromXP(newTotal);
     updateGamification(userId, { totalXP: newTotal, weeklyXP: newWeekly });
-    set({ totalXP: newTotal, weeklyXP: newWeekly });
+    set({
+      totalXP: newTotal,
+      weeklyXP: newWeekly,
+      lastKnownLevel: newLevel,
+      pendingLevelUp: newLevel > lastKnownLevel ? newLevel : get().pendingLevelUp,
+    });
   },
 
   triggerStreak: (userId, streakType) => {
@@ -150,4 +167,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ pendingBadges: rest });
     return first;
   },
+
+  advanceQuest: (id, delta = 1) => {
+    const { quests } = get();
+    set({
+      quests: quests.map((q) =>
+        q.id === id ? { ...q, progress: Math.min(q.total, q.progress + delta) } : q,
+      ),
+    });
+  },
+
+  dismissLevelUp: () => set({ pendingLevelUp: null }),
 }));

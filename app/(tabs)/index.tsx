@@ -10,13 +10,18 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
-import { StreakCounter } from '@/components/ui/StreakCounter';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
-import { LifeBalanceDashboard } from '@/components/shared/LifeBalanceDashboard';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
 import { ProfileSidebar } from '@/components/shared/ProfileSidebar';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
+import { AvatarRing } from '@/components/gamification/AvatarRing';
+import { HexRadar } from '@/components/gamification/HexRadar';
+import { XpBar } from '@/components/gamification/XpBar';
+import { StreakFlame } from '@/components/gamification/StreakFlame';
+import { QuestCard } from '@/components/gamification/QuestCard';
+import { STREAK_META, type StreakKey } from '@/constants/gamification';
+import { xpProgressInLevel } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
@@ -27,6 +32,8 @@ export default function TodayScreen() {
   const loadGame = useGameStore((s) => s.loadFromDB);
   const streaks = useGameStore((s) => s.streaks);
   const totalXP = useGameStore((s) => s.totalXP);
+  const quests = useGameStore((s) => s.quests);
+  const gameDomainScores = useGameStore((s) => s.domainScores);
   const today = format(new Date(), 'yyyy-MM-dd');
   const [blocks, setBlocks] = useState<ReturnType<typeof getRoutineBlocksByDate>>([]);
   const [domainScores, setDomainScores] = useState({
@@ -46,10 +53,14 @@ export default function TodayScreen() {
     setWeeklyInsight(generateWeeklyInsight());
   }, [today, userId, loadGame]);
 
-  const topStreak = useMemo(
-    () => Math.max(0, ...Object.values(streaks).map((s) => s.count)),
-    [streaks],
-  );
+  const topStreaks = useMemo(() => {
+    return (Object.keys(STREAK_META) as StreakKey[])
+      .map((k) => ({ key: k, ...streaks[k] }))
+      .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+      .slice(0, 3);
+  }, [streaks]);
+
+  const prog = useMemo(() => xpProgressInLevel(totalXP), [totalXP]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
@@ -84,38 +95,64 @@ export default function TodayScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
           {/* Header */}
           <View style={styles.header}>
-            <Pressable
-              style={styles.avatarBtn}
-              onPress={() => setSidebarOpen(true)}
-              hitSlop={8}
-            >
-              <View style={styles.avatar}>
-                <Body style={styles.avatarText}>{initials}</Body>
-              </View>
+            <Pressable onPress={() => setSidebarOpen(true)} hitSlop={8}>
+              <AvatarRing xp={totalXP} initials={initials || 'U'} size={64} />
             </Pressable>
-
             <View style={styles.headerCenter}>
               <Heading style={{ color: c.textPrimary }}>{greeting}, {name || 'there'}</Heading>
               <Caption style={{ color: c.textSecondary }}>{format(new Date(), 'EEEE, MMMM d')}</Caption>
-            </View>
-
-            <View style={styles.gameRow}>
-              {topStreak > 0 && (
-                <View style={styles.streakChip}>
-                  <Ionicons name="flame" size={14} color={c.streak} />
-                  <Label style={{ color: c.streak, fontSize: fontSizes.xs }}>{topStreak}d</Label>
+              <View style={styles.xpRow}>
+                <View style={{ flex: 1 }}>
+                  <XpBar pct={prog.pct} color={c.primary} height={6} />
                 </View>
-              )}
-              <View style={styles.xpChip}>
-                <Ionicons name="flash" size={12} color={c.xp} />
-                <Label style={{ color: c.xp, fontSize: fontSizes.xs }}>{totalXP} XP</Label>
+                <Caption style={{ color: c.textMuted }}>
+                  {prog.current}/{prog.needed} XP
+                </Caption>
               </View>
             </View>
           </View>
 
-          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <LifeBalanceDashboard scores={domainScores} />
+          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.radarWrap}>
+            <Body style={styles.sectionLabel}>LIFE BALANCE</Body>
+            <HexRadar scores={gameDomainScores.goals !== undefined ? gameDomainScores : domainScores} size={340} />
           </Animated.View>
+
+          {/* Top Streaks */}
+          {topStreaks.some((s) => (s.count ?? 0) > 0) && (
+            <View style={styles.streaksSection}>
+              <Body style={styles.sectionLabel}>TOP STREAKS</Body>
+              <View style={styles.streakList}>
+                {topStreaks.map((s) => {
+                  const meta = STREAK_META[s.key];
+                  const color = c[meta.colorKey];
+                  return (
+                    <View
+                      key={s.key}
+                      style={[styles.streakCard, { backgroundColor: c.card, borderColor: color + '33', borderLeftColor: color }]}
+                    >
+                      <View style={styles.streakLeft}>
+                        <Body style={{ fontSize: 16 }}>{meta.emoji}</Body>
+                        <Caption style={{ color: c.textSecondary, fontSize: fontSizes.sm }}>{meta.label}</Caption>
+                      </View>
+                      <StreakFlame count={s.count ?? 0} graceUsed={s.graceUsed ?? false} size="sm" />
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Active Quests */}
+          {quests.length > 0 && (
+            <View style={styles.questsSection}>
+              <Body style={styles.sectionLabel}>ACTIVE QUESTS</Body>
+              <View style={styles.questList}>
+                {quests.slice(0, 3).map((q) => (
+                  <QuestCard key={q.id} quest={q} compact />
+                ))}
+              </View>
+            </View>
+          )}
 
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <DailyBriefing
@@ -193,50 +230,32 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingTop: spacing.md,
-      gap: spacing.sm,
+      gap: spacing.md,
     },
-    avatarBtn: {
-      marginRight: spacing.xs,
-    },
-    avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: c.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarText: {
-      color: '#FFF',
+    headerCenter: { flex: 1, gap: 4 },
+    xpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+    radarWrap: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+    sectionLabel: {
       fontFamily: fonts.heading,
-      fontSize: fontSizes.sm,
+      fontSize: 13,
+      color: c.textSecondary,
+      letterSpacing: 0.5,
+      alignSelf: 'flex-start',
     },
-    headerCenter: {
-      flex: 1,
-    },
-    gameRow: {
+    streaksSection: { gap: spacing.sm },
+    streakList: { gap: 8 },
+    streakCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      justifyContent: 'space-between',
+      padding: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderLeftWidth: 3,
     },
-    streakChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 3,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 999,
-      backgroundColor: c.streak + '22',
-    },
-    xpChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 3,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 999,
-      backgroundColor: c.xp + '22',
-    },
+    streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    questsSection: { gap: spacing.sm },
+    questList: { gap: 8 },
     insightCard: {
       gap: spacing.sm,
     },
