@@ -109,6 +109,7 @@ Routing logic in `app/_layout.tsx`: no user → auth, stage < 100 → onboarding
 - **Daily Briefing** — AI-generated text from behavior analytics
 - **Weekly Insight** — computed from `behaviourEvents` (peak hours, completion rate)
 - **Routine Blocks** — time-sorted, tap to complete → logs event + awards XP + checks badges
+- **Google Calendar card** — `Connect Google Calendar` button triggers OAuth; once connected, `Sync N blocks` pushes today's routine to the primary calendar as events with a 10-minute popup reminder (no `expo-notifications` needed — Google delivers the native push). Event IDs persist on each routine block via `setRoutineBlockCalendarEventId()` so subsequent syncs update in place rather than duplicate.
 
 ### 3.3 Goals (`app/(tabs)/goals.tsx`)
 
@@ -122,11 +123,22 @@ Routing logic in `app/_layout.tsx`: no user → auth, stage < 100 → onboarding
 - **Food Entry** — manual or **AI photo recognition** (`recogniseFood()` with base64 image)
 - **Weight Chart** — 7-day trend via `src/components/modules/health/WeightChart.tsx`
 - **Blood Reports** — upload → `parseBloodReport()` AI → markers, summary, suggestions
+- **Google Fit dashboard** — after Connect + Sync, renders `src/components/modules/health/FitDashboard.tsx` with:
+  - Hero step-goal ring (today vs 8K target + weekly hit rate)
+  - 6-tile stat grid (steps, active minutes, heart points, calories burned, distance, avg HR) with 7-day sparklines + week-over-week trend arrows
+  - Sleep block (deep/REM/light breakdown + 7-day sparkline)
+  - Vitals tiles: SpO2, body fat %, blood pressure (render only when samples exist)
+  - Workouts list with activity-type icons mapped by `ACTIVITY_LABELS`
+  - Rule-based insight cards via `src/utils/fitInsights.ts` (no AI call) — e.g. "You sleep 28min more on active days", "Resting HR down 5% this week"
 
 ### 3.5 Finance (`app/(tabs)/finance.tsx`)
 
 - Setup: goal type + amount + savings + income + risk profile
-- AI generates plan via `generateFinancialPlan()` → strategies + milestones
+- **INR-native with multi-currency scaffolding** — all amounts denominated in `ACTIVE_CURRENCY` from `src/utils/currency.ts`. Preset chips are scaled to INR (₹5L/₹10L/₹25L target, ₹10K/₹25K/₹50K savings, LPA income brackets). Free-form amount input accepts typing; `parseMoneyInput()` handles lakhs/crores suffixes. Swapping the currency is a one-line change.
+- AI generates plan via `generateFinancialPlan(input)` — input carries `currency` so the prompt emits INR-scaled amounts and uses "lakhs/crores" in prose fields.
+- `src/ai/mocks/finance.ts` scales milestones off `input.targetAmount` (fractions 0.1/0.25/0.5/0.75/1.0) so values never overshoot the target — locked with 9 invariant tests in `src/ai/__tests__/financialPlan.test.ts`.
+- One-time migration in `loadExistingGoal()` detects stale `$`-prefixed titles or milestones > target and rebuilds via `deleteMilestonesByGoal()` + mock plan.
+- Gmail transaction ingestion: UPI merchants normalized via `normalizeUpiMerchant()` so `UPI/P2A/<refId>/NAME` collapses to `{merchant: 'NAME', channel: 'p2a'}`; p2a transactions route deterministically to the `transfers` category. Migration guarded by `lifeos_upi_migration_v1` localStorage flag.
 - Track milestone completion, get weekly AI insights
 
 ### 3.6 Career (`app/(tabs)/career.tsx`)
@@ -186,6 +198,25 @@ export function getUser() {
 - Daily routine reminder at wake time
 - Goal reminder at 3 PM, streak-at-risk at 8 PM
 - Weight reminder 21 days after last log
+
+### 3.11 Third-party Integrations (`src/integrations/`)
+
+All three Google integrations share a single PKCE OAuth driver at `src/integrations/google/oauth.ts` — parametrised by scopes, localStorage token key, sessionStorage verifier key, and redirect path. Adding a new Google product is ~40 lines of wrapper.
+
+| Integration | Scope(s) | Redirect | Module | Callback screen |
+|-------------|----------|----------|--------|------------------|
+| Gmail (finance sync) | `gmail.readonly` | `/gmail-callback` | `src/finance/gmail/` | `app/gmail-callback.tsx` |
+| Google Calendar (routine blocks) | `calendar.events` | `/calendar-callback` | `src/integrations/googleCalendar/` | `app/calendar-callback.tsx` |
+| Google Fit (health metrics) | `fitness.activity.read`, `fitness.heart_rate.read`, `fitness.sleep.read`, `fitness.body.read`, `fitness.location.read`, `fitness.oxygen_saturation.read`, `fitness.blood_pressure.read` | `/fit-callback` | `src/integrations/googleFit/` | `app/fit-callback.tsx` |
+
+**Google Calendar** — `syncBlocksToCalendar()` in `client.ts` creates new events for routine blocks missing a `calendarEventId`, updates the rest in place. 10-minute popup reminder is set via `reminders.overrides` so native push notifications come directly from Google's infra.
+
+**Google Fit** — `syncFitDailyData(clientId, days=14)` pulls everything via two aggregate calls + one sessions call:
+- Core aggregate: steps, active minutes, heart points, calories, distance, HR (avg/max/min), weight, body fat %, SpO2, blood pressure
+- Sleep aggregate: `com.google.sleep.segment` → minutes per stage (deep/REM/light/awake)
+- Sessions API: non-sleep workouts mapped to display names via `ACTIVITY_LABELS`
+
+Setup: both Calendar and Fit require (a) enabling the respective API in Google Cloud Console, (b) adding the callback URL to Authorized redirect URIs, (c) providing `EXPO_PUBLIC_GOOGLE_CLIENT_ID` + `EXPO_PUBLIC_GOOGLE_CLIENT_SECRET` in `.env` (web-type OAuth clients still require the secret even with PKCE).
 
 ---
 

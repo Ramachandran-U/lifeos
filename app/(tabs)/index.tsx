@@ -22,7 +22,9 @@ import { StreakFlame } from '@/components/gamification/StreakFlame';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
 import { xpProgressInLevel } from '@/utils/gamification';
-import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
+import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
+import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
+import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
 import { updateUser } from '@/db/queries/users';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
@@ -50,6 +52,56 @@ export default function TodayScreen() {
   });
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [calConnected, setCalConnected] = useState(false);
+  const [calSyncing, setCalSyncing] = useState(false);
+  const [calStatus, setCalStatus] = useState<string | null>(null);
+
+  const handleCalendarConnect = async () => {
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setCalStatus('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID — see .env.example.');
+      return;
+    }
+    await startCalendarOAuth(clientId);
+  };
+
+  const handleCalendarDisconnect = () => {
+    clearCalendarTokens();
+    setCalConnected(false);
+    setCalStatus('Disconnected.');
+  };
+
+  const handleCalendarSync = async () => {
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) { setCalStatus('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID.'); return; }
+    if (blocks.length === 0) { setCalStatus('No routine blocks to sync.'); return; }
+    setCalSyncing(true);
+    setCalStatus(null);
+    try {
+      const result = await syncBlocksToCalendar(clientId, blocks.map((b) => ({
+        id: b.id,
+        date: b.date,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        title: b.title,
+        module: b.module,
+        notes: b.notes ?? undefined,
+        calendarEventId: b.calendarEventId ?? undefined,
+      })));
+      for (const [blockId, eventId] of Object.entries(result.eventIds)) {
+        setRoutineBlockCalendarEventId(blockId, eventId);
+      }
+      setCalStatus(
+        `Synced · ${result.created} added, ${result.updated} updated` +
+        (result.failed > 0 ? `, ${result.failed} failed` : ''),
+      );
+      loadData();
+    } catch (err) {
+      setCalStatus(err instanceof Error ? err.message : 'Sync failed');
+    } finally {
+      setCalSyncing(false);
+    }
+  };
 
   const loadData = useCallback(() => {
     const todayBlocks = getRoutineBlocksByDate(today);
@@ -71,7 +123,10 @@ export default function TodayScreen() {
 
   const prog = useMemo(() => xpProgressInLevel(totalXP), [totalXP]);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    loadData();
+    setCalConnected(isCalendarConnected());
+  }, [loadData]));
 
   const handleComplete = (blockId: string) => {
     const block = blocks.find(b => b.id === blockId);
@@ -199,6 +254,50 @@ export default function TodayScreen() {
                   <Caption style={{ color: c.primary, fontFamily: fonts.heading }}>Edit routine</Caption>
                 </Pressable>
               </View>
+
+              <Card style={styles.calCard}>
+                <View style={styles.calHeader}>
+                  <Ionicons name="calendar" size={18} color={c.primary} />
+                  <Label color={c.primary}>GOOGLE CALENDAR</Label>
+                </View>
+                {calConnected ? (
+                  <>
+                    <Caption style={{ color: c.textSecondary }}>
+                      Push today's routine as events with a 10-minute popup reminder on each.
+                    </Caption>
+                    <View style={styles.calActions}>
+                      <Pressable
+                        style={[styles.calPrimary, { backgroundColor: c.primary }, calSyncing && { opacity: 0.6 }]}
+                        onPress={handleCalendarSync}
+                        disabled={calSyncing}
+                      >
+                        <Ionicons name="sync" size={14} color="#fff" />
+                        <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>
+                          {calSyncing ? 'Syncing…' : `Sync ${blocks.length} block${blocks.length === 1 ? '' : 's'}`}
+                        </Caption>
+                      </Pressable>
+                      <Pressable style={styles.calSecondary} onPress={handleCalendarDisconnect}>
+                        <Caption style={{ color: c.textMuted }}>Disconnect</Caption>
+                      </Pressable>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Caption style={{ color: c.textSecondary }}>
+                      Block time for your routine on your calendar and get popup reminders before each block.
+                    </Caption>
+                    <Pressable
+                      style={[styles.calPrimary, { backgroundColor: c.primary, alignSelf: 'flex-start' }]}
+                      onPress={handleCalendarConnect}
+                    >
+                      <Ionicons name="link" size={14} color="#fff" />
+                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Connect Google Calendar</Caption>
+                    </Pressable>
+                  </>
+                )}
+                {calStatus && <Caption style={{ color: c.textMuted }}>{calStatus}</Caption>}
+              </Card>
+
               {blocks
                 .sort((a, b) => a.startTime.localeCompare(b.startTime))
                 .map((block) => (
@@ -321,6 +420,32 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     emptyText: {
       fontSize: fontSizes.lg,
+    },
+    calCard: {
+      gap: spacing.sm,
+    },
+    calHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    calActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+    },
+    calPrimary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+    },
+    calSecondary: {
+      paddingVertical: 10,
+      paddingHorizontal: 10,
     },
   });
 }

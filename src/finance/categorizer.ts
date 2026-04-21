@@ -16,7 +16,8 @@ const RULES: Rule[] = [
   // Food & groceries
   { pattern: /swiggy|zomato|eatsure|dunzo daily|magicpin/i, category: 'food_delivery' },
   { pattern: /bigbasket|blinkit|grofers|zepto|dmart|big bazaar|reliance fresh|jiomart|instamart/i, category: 'groceries' },
-  { pattern: /starbucks|cafe|dominos|pizza|kfc|mcdonald|burger king|subway|barbeque|cafe coffee/i, category: 'dining_out' },
+  { pattern: /starbucks|cafe|dominos|pizza|kfc|mcdonald|burger king|subway|barbeque|cafe coffee|resto|restaurant|hotel|kitchen|bakes|bakery|bar and rest|biriyani|biryani|dosa|tiffin|mess/i, category: 'dining_out' },
+  { pattern: /freshop|veg plaza|mothers|azad group|imperial kitchen|little resto|bee hut|al taza|nikunjam|kl bakes|vijaya bar/i, category: 'dining_out' },
 
   // Transport & fuel
   { pattern: /ola|uber|rapido|meru|blu smart|redbus/i, category: 'transport' },
@@ -60,7 +61,7 @@ const RULES: Rule[] = [
   { pattern: /fee|charge|gst|service charge/i, category: 'fees_charges' },
 
   // Personal care
-  { pattern: /lakme|urban company|salon|barber|spa/i, category: 'personal_care' },
+  { pattern: /lakme|urban company|salon|barber|spa|toni and guy|toni\s*&\s*guy/i, category: 'personal_care' },
 ];
 
 export function categorizeByRule(merchant: string): TransactionCategory | null {
@@ -79,7 +80,7 @@ interface CategorizeOpts {
  * Tier 1 uses rules. Tier 2 calls Claude, capped at `maxAiCalls` per invocation.
  */
 export async function categorizeBatch(
-  items: Array<{ merchant: string; amount: number; direction: 'debit' | 'credit' }>,
+  items: Array<{ merchant: string; amount: number; direction: 'debit' | 'credit'; channel?: 'p2a' | 'p2m' }>,
   opts: CategorizeOpts = {},
 ): Promise<TransactionCategory[]> {
   const maxAi = opts.maxAiCalls ?? 5;
@@ -90,6 +91,12 @@ export async function categorizeBatch(
     const it = items[i];
     if (it.direction === 'credit') {
       results[i] = categorizeByRule(it.merchant) ?? 'income';
+      continue;
+    }
+    // UPI person-to-account is almost always a personal transfer, not a merchant purchase.
+    // Route deterministically before hitting rules/AI.
+    if (it.channel === 'p2a') {
+      results[i] = 'transfers';
       continue;
     }
     const ruleHit = categorizeByRule(it.merchant);

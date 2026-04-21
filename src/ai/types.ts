@@ -234,6 +234,8 @@ export interface FinanceInput {
   monthlySavings: number;
   incomeBracket: string;
   riskProfile: string;
+  /** ISO 4217 code (e.g. 'INR'). Defaults to 'INR' when omitted. */
+  currency?: string;
 }
 
 export interface FinanceInsightInput {

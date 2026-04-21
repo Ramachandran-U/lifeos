@@ -6,6 +6,7 @@ import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Display, Body, Label, Caption } from '@/components/ui/Typography';
+import { formatMoney } from '@/utils/currency';
 
 interface FinanceGoalCardProps {
   title: string;
@@ -36,8 +37,8 @@ export function FinanceGoalCard({
 }: FinanceGoalCardProps) {
   const progress = targetAmount > 0 ? (currentSaved / targetAmount) * 100 : 0;
   const icon = GOAL_TYPE_ICONS[goalType] ?? 'cash';
-  const formattedTarget = `$${targetAmount.toLocaleString()}`;
-  const formattedSaved = `$${currentSaved.toLocaleString()}`;
+  const formattedTarget = formatMoney(targetAmount);
+  const formattedSaved = formatMoney(currentSaved);
 
   return (
     <Card moduleColor={colors.finance} style={styles.card}>
@@ -60,7 +61,7 @@ export function FinanceGoalCard({
 
       <View style={styles.footer}>
         <Caption>{Math.round(progress)}% complete</Caption>
-        <Caption>Target: ${monthlyTarget.toLocaleString()}/mo</Caption>
+        <Caption>Target: {formatMoney(monthlyTarget)}/mo</Caption>
       </View>
     </Card>
   );
