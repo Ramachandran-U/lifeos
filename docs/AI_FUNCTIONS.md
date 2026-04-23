@@ -21,6 +21,8 @@ All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → Claude Son
 | `getWeeklyFinanceInsight` | progress snapshot | `WeeklyFinanceInsight` | Finance weekly refresh |
 | `categorizeMerchant` | merchant string | `{ category }` | Finance categorizer fallback |
 | `recogniseFood` | `(base64, mediaType)` | `FoodRecognition` (items + macros) | Health photo food |
+| `suggestTomorrowTweak` | `{ today, tomorrow, primaryDomains }` | `TomorrowTweak` (move/resize/swap/add + rationale) | Evening reflect — one-tap tweak for tomorrow's plan |
+| `extractDiscoveryProfile` | raw Discovery Prompt paste (string) | `DiscoveryExtraction` (identity, goals, health, finance, career, relationships, curiosity, values, workingStyle, communication, struggles, triedAlready, asks + per-section confidence) | Welcome-intent → `(onboarding)/discovery-paste`: import a ChatGPT/Claude self-description, extract into strict JSON, stash raw in `discovery_imports`, preview on `discovery-confirm` |
 
 ## Conventions
 

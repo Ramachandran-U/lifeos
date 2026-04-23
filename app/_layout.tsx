@@ -67,7 +67,7 @@ export default function RootLayout() {
       if (!inAuth && !inGoogleCallback) router.replace('/(auth)/sign-in');
     } else if (onboardingStage === 0) {
       // New flow: stage 0 = no intent captured → short welcome screen
-      if (!inWelcomeIntent) router.replace('/welcome-intent');
+      if (!inWelcomeIntent && !inOnboarding) router.replace('/welcome-intent');
     } else if (onboardingStage < ONBOARDING_COMPLETE) {
       // Legacy flow: existing users mid-onboarding keep the old screens
       if (!inOnboarding) router.replace('/(onboarding)/day1-vision');
