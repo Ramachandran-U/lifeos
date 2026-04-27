@@ -8,7 +8,8 @@ import { StyleSheet, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAppFonts } from '@/theme/typography';
 import { initDatabase } from '@/db';
-import { getUser, setWebSession } from '@/db/queries/users';
+import { getUser, setWebSession, ensureLocalUserFromAuth } from '@/db/queries/users';
+import { supabase } from '@/integrations/supabase/client';
 import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUserStore';
 import { AchievementToast } from '@/components/shared/AchievementToast';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
@@ -32,6 +33,22 @@ export default function RootLayout() {
   useEffect(() => {
     async function init() {
       await initDatabase();
+
+      // Hydrate local user row from any persisted Supabase session so existing
+      // SQLite-backed queries stay the source of truth across the app.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authUser = sessionData.session?.user;
+      if (authUser?.email) {
+        await ensureLocalUserFromAuth({
+          userId: authUser.id,
+          email: authUser.email,
+          name:
+            (authUser.user_metadata?.name as string | undefined) ||
+            authUser.email.split('@')[0],
+        });
+        setWebSession(authUser.id);
+      }
+
       const user = getUser();
       if (user) {
         setUser(user.id, user.name, user.email, user.onboardingStage);
@@ -50,7 +67,15 @@ export default function RootLayout() {
       setDbReady(true);
     }
     init();
-  }, [setUser]);
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setWebSession(null);
+        useUserStore.getState().reset();
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [setUser, setPrimaryDomains, markModuleActivated]);
 
   useEffect(() => {
     if (!fontsLoaded || !dbReady) return;

@@ -12,14 +12,27 @@
       "resizeMode": "contain",
       "backgroundColor": "#0D0D0D"
     },
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      ["expo-notifications", { "icon": "./assets/notification-icon.png" }],
-["expo-calendar", {
-        "calendarPermission": "LifeOS syncs your routine to your calendar."
-      }]
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png"
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "LifeOS syncs your routine to your calendar."
+        }
+      ],
+      "expo-web-browser"
     ],
     "ios": {
       "bundleIdentifier": "com.lifeos.app",

@@ -15,6 +15,7 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type CreateUserData = {
+  id?: string;
   email: string;
   passwordHash: string;
   passwordSalt: string;
@@ -30,7 +31,7 @@ const isWeb = Platform.OS === 'web';
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function createUser(data: CreateUserData): Promise<string> {
-  const id = nanoid();
+  const id = data.id ?? nanoid();
   const now = new Date().toISOString();
 
   if (isWeb) {
@@ -144,6 +145,43 @@ export async function upsertGoogleUser(profile: {
   });
   return id;
 }
+
+/**
+ * Create-or-update a local user row keyed on a Supabase auth user id. Existing
+ * queries read from this table so the rest of the app does not need to know
+ * where the id originated.
+ */
+export async function ensureLocalUserFromAuth(params: {
+  userId: string;
+  email: string;
+  name: string;
+}): Promise<void> {
+  const existing = getUserByEmail(params.email) ?? (isWeb ? webGetUser() : db.select().from(users).where(eq(users.id, params.userId)).get());
+  if (existing) {
+    if (existing.id === params.userId) {
+      if (params.name && params.name !== existing.name) {
+        updateUser(existing.id, { name: params.name });
+      }
+      return;
+    }
+    // Email exists under a different id (legacy local account). Update its id.
+    if (isWeb) {
+      webUpdateUser(existing.id, { id: params.userId, name: params.name } as Partial<WebUser>);
+      return;
+    }
+    db.update(users).set({ id: params.userId, name: params.name }).where(eq(users.id, existing.id)).run();
+    return;
+  }
+  await createUser({
+    id: params.userId,
+    email: params.email,
+    name: params.name,
+    passwordHash: SUPABASE_AUTH_HASH,
+    passwordSalt: '',
+  });
+}
+
+export const SUPABASE_AUTH_HASH = '__SUPABASE_AUTH__';
 
 export function deleteAllUsers(): void {
   if (isWeb) {

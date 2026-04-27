@@ -10,11 +10,12 @@ import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
-import { createUser, getUserByEmail } from '@/db/queries/users';
-import { generateSalt, hashPassword } from '@/utils/auth';
+import { ensureLocalUserFromAuth, setWebSession } from '@/db/queries/users';
 import { useUserStore } from '@/store/useUserStore';
+import { signUpWithEmail, signInWithApple } from '@/integrations/supabase/auth';
 import { startGoogleAuthOAuth } from '@/integrations/googleAuth/oauth';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -67,27 +68,40 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      const existing = getUserByEmail(trimmedEmail);
-      if (existing) {
-        setError('An account with this email already exists. Please sign in.');
-        return;
-      }
-
-      const salt = await generateSalt();
-      const hash = await hashPassword(password, salt);
-      const userId = await createUser({
-        email: trimmedEmail,
-        passwordHash: hash,
-        passwordSalt: salt,
-        name: trimmedName,
-      });
-
+      const result = await signUpWithEmail(trimmedEmail, password, trimmedName);
+      await ensureLocalUserFromAuth(result);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setUser(userId, trimmedName, trimmedEmail, 0);
-    } catch {
-      setError('Something went wrong. Please try again.');
+      setWebSession(result.userId);
+      setUser(result.userId, result.name, result.email, 0);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong.';
+      if (/already registered|user already exists/i.test(msg)) {
+        setError('An account with this email already exists. Please sign in.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAppleSignUp = async () => {
+    setError('');
+    try {
+      const result = await signInWithApple();
+      await ensureLocalUserFromAuth(result);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setWebSession(result.userId);
+      setUser(result.userId, result.name, result.email, 0);
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        'code' in e &&
+        (e as { code?: string }).code === 'ERR_REQUEST_CANCELED'
+      ) {
+        return;
+      }
+      setError(e instanceof Error ? e.message : 'Apple sign-in failed.');
     }
   };
 
@@ -166,6 +180,16 @@ export default function SignUpScreen() {
               <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
               <Body style={styles.googleBtnLabel}>Continue with Google</Body>
             </Pressable>
+
+            {Platform.OS === 'ios' && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={16}
+                style={styles.appleBtn}
+                onPress={handleAppleSignUp}
+              />
+            )}
 
             <View style={styles.signInRow}>
               <Caption style={styles.signInPrompt}>Already have an account? </Caption>
@@ -250,5 +274,9 @@ const styles = StyleSheet.create({
   googleBtnLabel: {
     color: colors.textPrimary,
     fontFamily: fonts.bodyMedium,
+  },
+  appleBtn: {
+    width: '100%',
+    minHeight: 56,
   },
 });

@@ -10,11 +10,12 @@ import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
-import { getUserByEmail, setWebSession, GOOGLE_SSO_HASH } from '@/db/queries/users';
-import { verifyPassword } from '@/utils/auth';
+import { ensureLocalUserFromAuth, getUserByEmail, setWebSession } from '@/db/queries/users';
 import { useUserStore } from '@/store/useUserStore';
+import { signInWithEmail, signInWithApple } from '@/integrations/supabase/auth';
 import { startGoogleAuthOAuth } from '@/integrations/googleAuth/oauth';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -50,29 +51,52 @@ export default function SignInScreen() {
 
     setLoading(true);
     try {
-      const user = getUserByEmail(trimmedEmail);
-      if (!user) {
-        setError('No account found with that email. Please register first.');
-        return;
-      }
-      if (user.passwordHash === GOOGLE_SSO_HASH) {
-        setError('This account uses Google sign-in. Tap "Continue with Google" below.');
-        return;
-      }
-
-      const valid = await verifyPassword(password, user.passwordSalt, user.passwordHash);
-      if (!valid) {
-        setError('Incorrect password. Please try again.');
-        return;
-      }
-
+      const result = await signInWithEmail(trimmedEmail, password);
+      await ensureLocalUserFromAuth(result);
+      const localUser = getUserByEmail(result.email) ?? null;
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setWebSession(user.id);
-      setUser(user.id, user.name, user.email, user.onboardingStage);
-    } catch {
-      setError('Something went wrong. Please try again.');
+      setWebSession(result.userId);
+      setUser(
+        result.userId,
+        result.name,
+        result.email,
+        localUser?.onboardingStage ?? 0,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong.';
+      if (/invalid login|invalid credentials/i.test(msg)) {
+        setError('Incorrect email or password.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError('');
+    try {
+      const result = await signInWithApple();
+      await ensureLocalUserFromAuth(result);
+      const localUser = getUserByEmail(result.email) ?? null;
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setWebSession(result.userId);
+      setUser(
+        result.userId,
+        result.name,
+        result.email,
+        localUser?.onboardingStage ?? 0,
+      );
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        'code' in e &&
+        (e as { code?: string }).code === 'ERR_REQUEST_CANCELED'
+      ) {
+        return;
+      }
+      setError(e instanceof Error ? e.message : 'Apple sign-in failed.');
     }
   };
 
@@ -133,6 +157,16 @@ export default function SignInScreen() {
               <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
               <Body style={styles.googleBtnLabel}>Continue with Google</Body>
             </Pressable>
+
+            {Platform.OS === 'ios' && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={16}
+                style={styles.appleBtn}
+                onPress={handleAppleSignIn}
+              />
+            )}
 
             <View style={styles.registerRow}>
               <Caption style={styles.registerPrompt}>Don't have an account? </Caption>
@@ -217,5 +251,9 @@ const styles = StyleSheet.create({
   googleBtnLabel: {
     color: colors.textPrimary,
     fontFamily: fonts.bodyMedium,
+  },
+  appleBtn: {
+    width: '100%',
+    minHeight: 56,
   },
 });
