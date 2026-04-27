@@ -21,7 +21,6 @@ import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
-import { ProfileSidebar } from '@/components/shared/ProfileSidebar';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -38,10 +37,12 @@ import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
 import { updateUser } from '@/db/queries/users';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
 
 export default function TodayScreen() {
   const c = useColors();
   const router = useRouter();
+  useScreenTracking('today');
   const { userId, name } = useUserStore();
   const activatedModules = useUserStore((s) => s.activatedModules);
   const primaryDomains = useUserStore((s) => s.primaryDomains);
@@ -64,7 +65,6 @@ export default function TodayScreen() {
   });
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
   const [hasReflectedToday, setHasReflectedToday] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [calConnected, setCalConnected] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
@@ -217,7 +217,7 @@ export default function TodayScreen() {
 
           {/* Header */}
           <View style={styles.header}>
-            <Pressable onPress={() => setSidebarOpen(true)} hitSlop={8}>
+            <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
               <AvatarRing xp={totalXP} initials={initials || 'U'} size={64} />
             </Pressable>
             <Pressable
@@ -429,8 +429,6 @@ export default function TodayScreen() {
         </Animated.ScrollView>
       </SafeAreaView>
 
-      {/* Sidebar — rendered outside ScrollView so it overlays the full screen */}
-      <ProfileSidebar visible={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <VoiceAssistantSheet
         visible={voiceOpen}
         onClose={() => setVoiceOpen(false)}

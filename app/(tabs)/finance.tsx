@@ -26,6 +26,7 @@ import { MilestoneTracker } from '@/components/modules/finance/MilestoneTracker'
 import { WeeklyInsightCard } from '@/components/modules/finance/WeeklyInsightCard';
 import { useAI } from '@/hooks/useAI';
 import { generateFinancialPlan, getWeeklyFinanceInsight } from '@/ai/functions';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
 import {
   getFinancialGoals,
   createFinancialGoal,
@@ -115,6 +116,7 @@ function formatRelative(iso: string | null): string {
 }
 
 export default function FinanceScreen() {
+  useScreenTracking('finance');
   const c = useColors();
   const { call, loading } = useAI();
   const { userId } = useUserStore();

@@ -92,6 +92,25 @@ export function webUpdateUser(
   save(USERS_KEY, users);
 }
 
+/**
+ * Migrate a local-only user row onto an authoritative auth-provider user id.
+ * Used when the email already exists locally but under a different id (e.g. a
+ * pre-Supabase install that just signed in). Behaviour-preserving: keeps email,
+ * password fields, and createdAt; rewrites id and bumps updatedAt.
+ */
+export function webRewriteUserId(oldId: string, newId: string, name?: string): void {
+  const users = load<WebUser>(USERS_KEY);
+  const idx = users.findIndex((u) => u.id === oldId);
+  if (idx === -1) return;
+  users[idx] = {
+    ...users[idx],
+    id: newId,
+    ...(name ? { name } : {}),
+    updatedAt: new Date().toISOString(),
+  };
+  save(USERS_KEY, users);
+}
+
 export function webSetSession(userId: string | null): void {
   if (userId) {
     localStorage.setItem(SESSION_KEY, userId);

@@ -7,6 +7,7 @@ import {
   webCreateUser,
   webGetUser,
   webGetUserByEmail,
+  webRewriteUserId,
   webUpdateUser,
   webSetSession,
   type WebUser,
@@ -121,6 +122,9 @@ export function getUserOnboardingStage(): number | undefined {
  */
 export const GOOGLE_SSO_HASH = '__GOOGLE_SSO__';
 
+/** Sentinel stored in passwordHash for Supabase-authenticated accounts. */
+export const SUPABASE_AUTH_HASH = '__SUPABASE_AUTH__';
+
 /**
  * Upsert a user from a Google profile. Returns the user id. If an account with
  * the same email already exists (whether password or Google), reuses it; no
@@ -164,9 +168,10 @@ export async function ensureLocalUserFromAuth(params: {
       }
       return;
     }
-    // Email exists under a different id (legacy local account). Update its id.
+    // Email exists under a different id (legacy local account). Rewrite its id
+    // so subsequent queries keyed on the Supabase user id resolve correctly.
     if (isWeb) {
-      webUpdateUser(existing.id, { id: params.userId, name: params.name } as Partial<WebUser>);
+      webRewriteUserId(existing.id, params.userId, params.name);
       return;
     }
     db.update(users).set({ id: params.userId, name: params.name }).where(eq(users.id, existing.id)).run();
@@ -180,8 +185,6 @@ export async function ensureLocalUserFromAuth(params: {
     passwordSalt: '',
   });
 }
-
-export const SUPABASE_AUTH_HASH = '__SUPABASE_AUTH__';
 
 export function deleteAllUsers(): void {
   if (isWeb) {

@@ -18,6 +18,7 @@ import { StreakRow } from '@/components/gamification/StreakRow';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { DomainMiniCard } from '@/components/gamification/DomainMiniCard';
 import type { BadgeId } from '@/utils/gamification';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
 
 type Section = 'overview' | 'badges' | 'streaks' | 'quests';
 
@@ -31,6 +32,7 @@ const SECTIONS: { id: Section; label: string }[] = [
 const MOCK_HISTORY = [180, 220, 95, 310, 270, 180, 340];
 
 export default function RewardsScreen() {
+  useScreenTracking('rewards');
   const c = useColors();
   const { userId } = useUserStore();
   const loadGame = useGameStore((s) => s.loadFromDB);

@@ -169,6 +169,8 @@ Email/password authentication, local-first — no backend.
 
 Routing in `app/_layout.tsx`: if no session, redirect to `(auth)/sign-in`; if session but `onboardingStage < 100`, redirect to `(onboarding)`; otherwise `(tabs)`.
 
+**Auth sentinels.** `src/db/queries/users.ts` declares two sentinel values for the `passwordHash` column at the top of the file: `GOOGLE_SSO_HASH = '__GOOGLE_SSO__'` (rows created by Google SSO) and `SUPABASE_AUTH_HASH = '__SUPABASE_AUTH__'` (rows created from a Supabase auth session). Login flows must skip password verification when they encounter either sentinel.
+
 ### 3.8 Web Storage Layer
 
 Web builds cannot use SQLite. A parallel localStorage-based layer mirrors the query API surface.
@@ -189,6 +191,8 @@ export function getUser() {
 }
 ```
 
+**ID migration helper.** `webUpdateUser(id, data)` treats `id`, `email`, `passwordHash`, `passwordSalt`, and `createdAt` as immutable. To migrate a legacy local-only user row onto an authoritative auth-provider id (typical case: an email that already exists locally signs in via Supabase for the first time), use `webRewriteUserId(oldId, newId, name?)` from `src/db/webStorage.ts`. It rewrites the `id` and bumps `updatedAt` while preserving email, password fields, and `createdAt`. `ensureLocalUserFromAuth` calls it whenever the local id and Supabase user id disagree.
+
 ### 3.9 Gamification (cross-cutting)
 
 - **XP** awards on every action (5-200 XP per action type)
@@ -205,7 +209,23 @@ export function getUser() {
 
 ### 3.11 Third-party Integrations (`src/integrations/`)
 
-All three Google integrations share a single PKCE OAuth driver at `src/integrations/google/oauth.ts` — parametrised by scopes, localStorage token key, sessionStorage verifier key, and redirect path. Adding a new Google product is ~40 lines of wrapper.
+All Google integrations share a single PKCE OAuth driver at `src/integrations/google/oauth.ts`. The driver exposes a `createGoogleOAuthClient(cfg)` factory; each integration (Auth/SSO, Fit, Calendar, Gmail) calls it once with its own `{ scopes, tokenKey, verifierKey, redirectPath }` and re-exports the bound surface — `start`, `complete`, `clear`, `isConnected`, `getAccessToken` — so per-module code never repeats the `cfg` argument or duplicates the handshake.
+
+```typescript
+// src/integrations/googleAuth/oauth.ts
+import { createGoogleOAuthClient } from '@/integrations/google/oauth';
+
+const client = createGoogleOAuthClient({
+  scopes: 'openid email profile',
+  tokenKey: 'lifeos_gauth_tokens',
+  verifierKey: 'lifeos_gauth_pkce_verifier',
+  redirectPath: '/google-auth-callback',
+});
+
+export const startGoogleAuthOAuth = client.start;
+export const handleGoogleAuthCallback = client.complete;
+export const getGoogleAuthAccessToken = client.getAccessToken;
+```
 
 | Integration | Scope(s) | Redirect | Module | Callback screen |
 |-------------|----------|----------|--------|------------------|
@@ -218,9 +238,27 @@ All three Google integrations share a single PKCE OAuth driver at `src/integrati
 **Google Fit** — `syncFitDailyData(clientId, days=14)` pulls everything via two aggregate calls + one sessions call:
 - Core aggregate: steps, active minutes, heart points, calories, distance, HR (avg/max/min), weight, body fat %, SpO2, blood pressure
 - Sleep aggregate: `com.google.sleep.segment` → minutes per stage (deep/REM/light/awake)
-- Sessions API: non-sleep workouts mapped to display names via `ACTIVITY_LABELS`
+- Sessions API: non-sleep workouts mapped to display names via `ACTIVITY_LABELS`. Each emitted workout's `iconName` is typed as `keyof typeof Ionicons.glyphMap`, not an arbitrary string, so the renderer is compile-time safe.
+
+The empty-state copy ("Hit Sync to pull the last 14 days") matches the `syncFitDailyData(clientId, days=14)` default — both should move together if the window is ever re-tuned.
 
 Setup: both Calendar and Fit require (a) enabling the respective API in Google Cloud Console, (b) adding the callback URL to Authorized redirect URIs, (c) providing `EXPO_PUBLIC_GOOGLE_CLIENT_ID` + `EXPO_PUBLIC_GOOGLE_CLIENT_SECRET` in `.env` (web-type OAuth clients still require the secret even with PKCE).
+
+**OAuth callback routes — shared view.** All four Google callback screens (`app/google-auth-callback.tsx`, `app/fit-callback.tsx`, `app/calendar-callback.tsx`, `app/gmail-callback.tsx`) are now ≈20-line wrappers around a single presentational component, `src/components/shared/OAuthCallbackView.tsx`. Each route file passes `exchange` (the bound `complete` from its integration's oauth module), an `onSuccess` follow-up (e.g. fetch profile + upsert user), and `redirectTo`. `OAuthCallbackView` owns the working/ok/error UI states, reads `code`/`error` from `window.location.search`, calls `exchange(code, clientId)` then `onSuccess(clientId)`, and finally `router.replace(await redirectTo())` after `redirectDelayMs`.
+
+Prop contract:
+
+| Prop | Type | Notes |
+|------|------|-------|
+| `workingTitle` | `string` | Shown while the handshake runs |
+| `okTitle` / `okSubtitle` | `string` | Shown after success, before redirect |
+| `errorTitle` | `string` | Shown on any failure |
+| `nativeUnsupportedMsg` | `string` | Web-only feature gate copy if hit on native |
+| `exchange` | `(code: string, clientId: string) => Promise<void>` | Token-exchange call (typically the bound `complete`) |
+| `onSuccess` | `(clientId: string) => Promise<void> \| void` (optional) | Post-exchange follow-up (profile fetch, user upsert, ...) |
+| `redirectTo` | `() => Promise<string> \| string` | Resolves the destination route; called after `onSuccess` |
+| `redirectDelayMs` | `number` (optional, default `500`) | Delay before `router.replace` |
+| `router` | `{ replace: (href: string) => void }` | Pass `useRouter()` from `expo-router` |
 
 ---
 
