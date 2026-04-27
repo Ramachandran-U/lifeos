@@ -349,3 +349,81 @@ export interface TomorrowTweakInput {
 }
 
 export type FoodRecognition = z.infer<typeof FoodRecognitionSchema>;
+
+// --- Discovery Extraction ---
+
+const ConfidenceEnum = z.enum(['high', 'medium', 'low']);
+
+export const DiscoveryExtractionSchema = z.object({
+  identity: z.object({
+    firstName: z.string().nullable(),
+    ageBand: z.string().nullable(),
+    location: z.string().nullable(),
+    seasonOfLife: z.string().nullable(),
+    confidence: ConfidenceEnum,
+  }),
+  goals: z.array(z.object({
+    title: z.string(),
+    domain: z.enum(['goals', 'health', 'finance', 'career', 'social', 'polymath']),
+    horizon: z.enum(['90d', '1y', '3y', 'lifetime']),
+    why: z.string().nullable(),
+    quote: z.string().nullable(),
+    confidence: ConfidenceEnum,
+  })).max(5),
+  health: z.object({
+    conditions: z.array(z.string()),
+    constraints: z.array(z.string()),
+    currentHabits: z.array(z.string()),
+    energyPattern: z.string().nullable(),
+    confidence: ConfidenceEnum,
+  }),
+  finance: z.object({
+    currency: z.string().nullable(),
+    monthlyIncomeBand: z.string().nullable(),
+    topGoals: z.array(z.string()),
+    anxieties: z.array(z.string()),
+    confidence: ConfidenceEnum,
+  }),
+  career: z.object({
+    role: z.string().nullable(),
+    seniority: z.string().nullable(),
+    aspirations: z.array(z.string()),
+    skillsLearning: z.array(z.string()),
+    confidence: ConfidenceEnum,
+  }),
+  relationships: z.object({
+    keyPeople: z.array(z.object({
+      firstName: z.string(),
+      role: z.string(),
+      cadence: z.string().nullable(),
+    })),
+    socialEnergy: z.enum(['introvert', 'ambivert', 'extrovert']).nullable(),
+    confidence: ConfidenceEnum,
+  }),
+  curiosity: z.object({
+    activeInterests: z.array(z.string()),
+    dormantInterests: z.array(z.string()),
+    confidence: ConfidenceEnum,
+  }),
+  values: z.array(z.string()).max(5),
+  workingStyle: z.object({
+    peakHours: z.string().nullable(),
+    focusBlocks: z.string().nullable(),
+    restNeeds: z.string().nullable(),
+    confidence: ConfidenceEnum,
+  }),
+  communication: z.object({
+    tone: z.enum(['direct', 'warm', 'playful', 'clinical']).nullable(),
+    avoid: z.array(z.string()),
+    confidence: ConfidenceEnum,
+  }),
+  struggles: z.array(z.object({
+    area: z.string(),
+    description: z.string(),
+    quote: z.string().nullable(),
+  })),
+  triedAlready: z.array(z.string()),
+  asks: z.array(z.string()),
+});
+
+export type DiscoveryExtraction = z.infer<typeof DiscoveryExtractionSchema>;

@@ -305,6 +305,25 @@ export async function initDatabase() {
       day_of_week INTEGER NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS daily_reflections (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      mood INTEGER,
+      block_reviews TEXT NOT NULL,
+      tweak_accepted INTEGER,
+      tweak_payload TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS discovery_imports (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      raw_text TEXT NOT NULL,
+      extracted TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Lightweight migrations for columns added after initial release.

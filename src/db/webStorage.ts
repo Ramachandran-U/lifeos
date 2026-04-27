@@ -21,6 +21,7 @@ const INTERESTS_KEY = 'lifeos_interests';
 const EXPLORATION_LOG_KEY = 'lifeos_exploration_log';
 const GOAL_COMMENTS_KEY = 'lifeos_goal_comments';
 const REFLECTIONS_KEY = 'lifeos_daily_reflections';
+const DISCOVERY_IMPORTS_KEY = 'lifeos_discovery_imports';
 
 function load<T>(key: string): T[] {
   try {
@@ -250,6 +251,28 @@ export function webGetRecentReflections(days: number): WebDailyReflection[] {
   return load<WebDailyReflection>(REFLECTIONS_KEY)
     .filter((r) => r.date >= cutoff)
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// ─── Discovery Imports ───────────────────────────────────────────────────────
+
+export interface WebDiscoveryImport {
+  id: string;
+  userId: string;
+  rawText: string;
+  extracted: string; // JSON
+  createdAt: string;
+}
+
+export function webInsertDiscoveryImport(r: WebDiscoveryImport): void {
+  const all = load<WebDiscoveryImport>(DISCOVERY_IMPORTS_KEY);
+  all.push(r);
+  save(DISCOVERY_IMPORTS_KEY, all);
+}
+
+export function webGetLatestDiscoveryImport(userId: string): WebDiscoveryImport | undefined {
+  return load<WebDiscoveryImport>(DISCOVERY_IMPORTS_KEY)
+    .filter((r) => r.userId === userId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
 // ─── Goals ───────────────────────────────────────────────────────────────────

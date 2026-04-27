@@ -1,0 +1,23 @@
+name = "lifeos-ai-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# KV namespace for per-user daily rate limit counters.
+# Create with: wrangler kv:namespace create RATE_LIMIT
+# Then replace the id below with the one printed.
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "REPLACE_ME_AFTER_WRANGLER_KV_CREATE"
+
+[vars]
+# Non-secret config. Update with your Supabase project ref before deploy.
+SUPABASE_JWKS_URL = "https://izojsgzlaehodwlqwyvf.supabase.co/auth/v1/.well-known/jwks.json"
+SUPABASE_PROJECT_REF = "izojsgzlaehodwlqwyvf"
+DAILY_AI_REQUEST_LIMIT = "200"
+DAILY_VOICE_MINUTES_LIMIT = "15"
+ALLOWED_ORIGIN = "*"
+
+# Secrets — set with:
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put GEMINI_API_KEY

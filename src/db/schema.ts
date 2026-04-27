@@ -270,6 +270,15 @@ export const dailyReflections = sqliteTable('daily_reflections', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- Discovery Imports ---
+export const discoveryImports = sqliteTable('discovery_imports', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  rawText: text('raw_text').notNull(),
+  extracted: text('extracted').notNull(), // JSON: DiscoveryExtraction
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),

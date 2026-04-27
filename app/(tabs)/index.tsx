@@ -22,6 +22,7 @@ import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
 import { ProfileSidebar } from '@/components/shared/ProfileSidebar';
+import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { AvatarRing } from '@/components/gamification/AvatarRing';
@@ -64,6 +65,7 @@ export default function TodayScreen() {
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
   const [hasReflectedToday, setHasReflectedToday] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [calConnected, setCalConnected] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
   const [calStatus, setCalStatus] = useState<string | null>(null);
@@ -217,6 +219,14 @@ export default function TodayScreen() {
           <View style={styles.header}>
             <Pressable onPress={() => setSidebarOpen(true)} hitSlop={8}>
               <AvatarRing xp={totalXP} initials={initials || 'U'} size={64} />
+            </Pressable>
+            <Pressable
+              onPress={() => setVoiceOpen(true)}
+              hitSlop={8}
+              style={[styles.voiceBtn, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}
+              testID="voice-open"
+            >
+              <Ionicons name="mic" size={20} color={c.primary} />
             </Pressable>
             <View style={styles.headerCenter}>
               <Heading style={{ color: c.textPrimary }}>{greeting}, {name || 'there'}</Heading>
@@ -421,6 +431,11 @@ export default function TodayScreen() {
 
       {/* Sidebar — rendered outside ScrollView so it overlays the full screen */}
       <ProfileSidebar visible={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <VoiceAssistantSheet
+        visible={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        systemInstruction="You are the LifeOS Daily Briefing assistant. Be concise and actionable."
+      />
     </View>
   );
 }
@@ -449,6 +464,14 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       gap: spacing.md,
     },
     headerCenter: { flex: 1, gap: 4 },
+    voiceBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+    },
     xpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
     radarWrap: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
     heroWrap: {

@@ -8,7 +8,7 @@
 
 **Target User:** Ambitious individuals who want to optimize multiple life domains simultaneously — not just productivity, but holistic life management.
 
-**Current Phase:** Phase 1 (local-only, no cloud sync). Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. The Polymath (Explore) module now ships: interests CRUD, weekly-target tracking, exploration log with minute chips, and gamification hooks (XP + learning streak + mind domain score). Social module is still WIP.
+**Current Phase:** Phase 1 (local-only, no cloud sync). Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. The Polymath (Explore) module now ships: interests CRUD, weekly-target tracking, exploration log with minute chips, and gamification hooks (XP + learning streak + mind domain score). The Aurora Glass redesign has shipped across Home/Welcome/Reflect with unified motion tokens (`SPRING`, `TIMING`) and a shared `AuroraBackground` component. Evening reflect — a nightly 60s ritual (review blocks → mood → AI-suggested tweak for tomorrow) — ships behind an 18:00 "Wrap up today" CTA on Home. Discovery Import lets users paste a ChatGPT/Claude self-description and have it extracted into a structured profile (raw stashed in `discovery_imports`, structured output surfaced on a confidence-scored preview screen — seeding the engines from that preview is next). Social module is still WIP.
 
 ---
 
@@ -42,10 +42,14 @@ lifeos/
 │   │   ├── welcome.tsx            # First-launch entry point
 │   │   ├── sign-in.tsx            # Email/password sign-in
 │   │   └── sign-up.tsx            # Email/password sign-up
-│   ├── (onboarding)/              # 3-screen progressive onboarding
+│   ├── welcome-intent.tsx         # New-flow entry: pick 1–3 domains that matter this season; "Import from ChatGPT/Claude" shortcut
+│   ├── evening-reflect.tsx        # Nightly 60s ritual: review today's blocks → mood → AI tweak for tomorrow
+│   ├── (onboarding)/              # 3-screen progressive onboarding (+ discovery import sub-flow)
 │   │   ├── day1-vision.tsx        # Vision → AI goal decomposition
 │   │   ├── day1-career.tsx        # Career → AI skill gap analysis
-│   │   └── day1-routine.tsx       # Schedule → AI routine generation
+│   │   ├── day1-routine.tsx       # Schedule → AI routine generation
+│   │   ├── discovery-paste.tsx    # Paste Discovery Prompt output from ChatGPT/Claude
+│   │   └── discovery-confirm.tsx  # Preview of extracted profile (grouped sections + confidence dots)
 │   ├── (tabs)/                    # Main app (7 tabs)
 │   │   ├── index.tsx              # Today: AvatarRing + HexRadar + streaks + quests + routine
 │   │   ├── goals.tsx              # Goal hierarchy & daily tasks
@@ -222,7 +226,7 @@ Setup: both Calendar and Fit require (a) enabling the respective API in Google C
 
 ## 4. Data Model
 
-**16 tables** defined in `src/db/schema.ts`. All use UUID primary keys (`expo-crypto`), `createdAt`/`updatedAt` timestamps, and soft deletes where applicable.
+**18 tables** defined in `src/db/schema.ts` (incl. `daily_reflections` and `discovery_imports`). All use UUID primary keys (`expo-crypto`), `createdAt`/`updatedAt` timestamps, and soft deletes where applicable.
 
 ### Entity Relationship Diagram
 

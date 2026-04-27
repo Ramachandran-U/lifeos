@@ -37,7 +37,11 @@ import {
   TomorrowTweak,
   TomorrowTweakSchema,
   TomorrowTweakInput,
+  DiscoveryExtraction,
+  DiscoveryExtractionSchema,
 } from './types';
+import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
+import { MOCK_DISCOVERY_EXTRACTION } from './mocks/discovery';
 import { TOMORROW_TWEAK_PROMPT } from './prompts/reflection';
 import { buildMockTomorrowTweak } from './mocks/reflection';
 import { GOAL_DECOMPOSITION_PROMPT, GOAL_DESCRIPTION_PROMPT } from './prompts/goals';
@@ -271,6 +275,23 @@ export async function generateMotivation(input: MotivationInput): Promise<Motiva
   }
 }
 
+
+export async function extractDiscoveryProfile(raw: string): Promise<DiscoveryExtraction> {
+  if (isMock) return MOCK_DISCOVERY_EXTRACTION;
+
+  const response = await callAI({
+    system: DISCOVERY_EXTRACTION_PROMPT,
+    messages: [{ role: 'user', content: raw }],
+    maxTokens: 4000,
+  });
+
+  try {
+    return DiscoveryExtractionSchema.parse(extractJson(response));
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error('AI returned invalid discovery profile: ' + detail.slice(0, 160));
+  }
+}
 
 export async function suggestTomorrowTweak(input: TomorrowTweakInput): Promise<TomorrowTweak> {
   if (isMock) return buildMockTomorrowTweak(input);

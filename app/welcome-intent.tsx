@@ -109,6 +109,18 @@ export default function WelcomeIntentScreen() {
             We'll seed a starter routine for today. Tap any block to make it yours.
           </Caption>
         </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(800).duration(600)} style={styles.importRow}>
+          <Pressable
+            onPress={() => router.push('/(onboarding)/discovery-paste')}
+            style={styles.importLink}
+            hitSlop={8}
+          >
+            <Caption style={styles.importText}>
+              Have a ChatGPT or Claude chat about yourself? <Caption style={styles.importTextAccent}>Import it →</Caption>
+            </Caption>
+          </Pressable>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -144,4 +156,8 @@ const styles = StyleSheet.create({
   chipLabel: { color: colors.textSecondary, fontSize: fontSizes.md },
   cta: { marginTop: spacing.xl, gap: spacing.sm },
   ctaHint: { color: colors.textMuted, textAlign: 'center' },
+  importRow: { marginTop: spacing.lg, alignItems: 'center' },
+  importLink: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+  importText: { color: colors.textSecondary, textAlign: 'center' },
+  importTextAccent: { color: colors.primary },
 });
