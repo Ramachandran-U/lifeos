@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Route } from 'next';
 import { redirect } from 'next/navigation';
 import { serverClient } from '@/lib/supabase-server';
 import { SignOutButton } from './SignOutButton';
@@ -24,7 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           {NAV.map((item) => (
             <Link
               key={item.label}
-              href={item.enabled ? item.href : '#'}
+              href={(item.enabled ? item.href : '#') as Route}
               style={{
                 padding: '8px 12px',
                 borderRadius: 8,
