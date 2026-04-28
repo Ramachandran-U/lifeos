@@ -8,7 +8,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "evals": "jest --testPathPatterns=evals --runInBand",
+    "evals:live": "EVAL_REAL=true jest --testPathPatterns=evals --runInBand"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
