@@ -18,11 +18,13 @@ import { useGoalStore } from '@/store/useGoalStore';
 import { updateGoalStatus } from '@/db/queries/goals';
 import { listGoalComments } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
 
 type GoalLike = ReturnType<typeof import('@/db/queries/goals').getGoalsByUser>[number];
 
 export default function GoalsScreen() {
   const c = useColors();
+  useScreenTracking('goals');
   const getTypeColor = useGoalTypeColor();
   const { userId } = useUserStore();
   const { goals, loadGoals } = useGoalStore();

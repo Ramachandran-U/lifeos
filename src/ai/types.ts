@@ -13,6 +13,13 @@ export interface AIRequest {
   system?: string;
   messages: AIMessage[];
   maxTokens?: number;
+  /** Override the proxy default model. See `src/ai/modelRouter.ts`. */
+  model?: string;
+  /** When true, the proxy wraps the system prompt with cache_control so it
+   *  hits Anthropic's prompt cache (only effective for system >= 1024 chars). */
+  cacheSystem?: boolean;
+  /** Tag used for cost-ledger attribution. */
+  task?: string;
 }
 
 // --- Goal Types ---

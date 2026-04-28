@@ -9,7 +9,10 @@
  * Sleep *stages* are a separate aggregate call against the sleep.segment type.
  */
 
+import type { Ionicons } from '@expo/vector-icons';
 import { getFitAccessToken } from './oauth';
+
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 const AGGREGATE_URL = 'https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate';
 const SESSIONS_URL = 'https://www.googleapis.com/fitness/v1/users/me/sessions';
@@ -45,7 +48,7 @@ export interface DailyFitPoint {
   weightKg: number | null;
 }
 
-const ACTIVITY_LABELS: Record<number, { name: string; icon: string }> = {
+const ACTIVITY_LABELS: Record<number, { name: string; icon: IoniconName }> = {
   1: { name: 'Cycling', icon: 'bicycle' },
   7: { name: 'Walking', icon: 'walk' },
   8: { name: 'Running', icon: 'pulse' },
@@ -70,7 +73,7 @@ export interface WorkoutSession {
   /** YYYY-MM-DD (start) */
   date: string;
   name: string;
-  iconName: string;
+  iconName: IoniconName;
   activityType: number;
   durationMinutes: number;
   startTimeMs: number;
@@ -264,7 +267,10 @@ async function fetchWorkouts(
       if (activityType === 72) continue; // sleep handled elsewhere
       const start = Number(s.startTimeMillis);
       const end = Number(s.endTimeMillis);
-      const meta = ACTIVITY_LABELS[activityType] ?? { name: s.name || 'Workout', icon: 'fitness' };
+      const meta = ACTIVITY_LABELS[activityType] ?? {
+        name: (s.name as string | undefined) || 'Workout',
+        icon: 'fitness' as IoniconName,
+      };
       out.push({
         id: s.id ?? `${activityType}-${start}`,
         date: dateKey(start),

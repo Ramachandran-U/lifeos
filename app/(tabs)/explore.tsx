@@ -19,8 +19,10 @@ import { useGameStore } from '@/store/useGameStore';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import { XP_VALUES } from '@/utils/gamification';
 import type { Interest } from '@/db/queries/interests';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
 
 export default function ExploreScreen() {
+  useScreenTracking('explore');
   const { userId } = useUserStore();
   const { interests, load, addInterest, removeInterest, addExploration, weeklyMinutes } =
     usePolymathStore();

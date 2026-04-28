@@ -10,13 +10,11 @@ type TabIcon = {
 
 function getTabConfig(c: ReturnType<typeof useColors>): Record<string, TabIcon> {
   return {
-    index:   { name: 'home',     activeColor: c.primary   },
-    goals:   { name: 'flag',     activeColor: c.goal      },
-    health:  { name: 'heart',    activeColor: c.health    },
-    finance: { name: 'wallet',   activeColor: c.finance   },
-    career:  { name: 'briefcase',activeColor: c.career    },
-    explore: { name: 'compass',  activeColor: c.polymath  },
-    rewards: { name: 'trophy',   activeColor: c.xp        },
+    index:   { name: 'home',           activeColor: c.primary  },
+    life:    { name: 'apps',           activeColor: c.primary  },
+    explore: { name: 'compass',        activeColor: c.polymath },
+    rewards: { name: 'trophy',         activeColor: c.xp       },
+    profile: { name: 'person-circle',  activeColor: c.primary  },
   };
 }
 
@@ -51,12 +49,16 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="index"   options={{ title: 'Today'   }} />
-      <Tabs.Screen name="goals"   options={{ title: 'Goals'   }} />
-      <Tabs.Screen name="health"  options={{ title: 'Health'  }} />
-      <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
-      <Tabs.Screen name="career"  options={{ title: 'Career'  }} />
+      <Tabs.Screen name="life"    options={{ title: 'Life'    }} />
       <Tabs.Screen name="explore" options={{ title: 'Explore' }} />
       <Tabs.Screen name="rewards" options={{ title: 'Rewards' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+
+      {/* Routable but hidden from tab bar — accessed via Life hub. */}
+      <Tabs.Screen name="goals"   options={{ href: null }} />
+      <Tabs.Screen name="health"  options={{ href: null }} />
+      <Tabs.Screen name="finance" options={{ href: null }} />
+      <Tabs.Screen name="career"  options={{ href: null }} />
     </Tabs>
   );
 }

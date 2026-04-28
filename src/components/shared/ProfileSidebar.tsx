@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   Switch,
   ScrollView,
   Linking,
+  Platform,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -23,6 +24,11 @@ import { Body, Caption, Label } from '@/components/ui/Typography';
 import { useUserStore } from '@/store/useUserStore';
 import { useThemeStore } from '@/store/useThemeStore';
 import { setWebSession } from '@/db/queries/users';
+import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
+import { isFitConnected, startFitOAuth, clearFitTokens } from '@/integrations/googleFit/oauth';
+import { isGmailConnected, startGmailOAuth, clearGmailTokens } from '@/finance/gmail/oauth';
+
+const FEEDBACK_EMAIL = 'projectm7sct+lifeos@gmail.com';
 
 const SIDEBAR_WIDTH = 300;
 const ANIM_DURATION = 260;
@@ -71,6 +77,64 @@ export function ProfileSidebar({ visible, onClose }: ProfileSidebarProps) {
 
   const translateX = useSharedValue(-SIDEBAR_WIDTH);
   const overlayOpacity = useSharedValue(0);
+
+  const isWeb = Platform.OS === 'web';
+  const [calConn, setCalConn] = useState(false);
+  const [fitConn, setFitConn] = useState(false);
+  const [gmailConn, setGmailConn] = useState(false);
+  const [connError, setConnError] = useState<string | null>(null);
+
+  const refreshConnections = useCallback(() => {
+    if (!isWeb) return;
+    setCalConn(isCalendarConnected());
+    setFitConn(isFitConnected());
+    setGmailConn(isGmailConnected());
+  }, [isWeb]);
+
+  useEffect(() => {
+    if (visible) refreshConnections();
+  }, [visible, refreshConnections]);
+
+  const toggleConnection = async (
+    kind: 'calendar' | 'fit' | 'gmail',
+    connected: boolean,
+  ) => {
+    if (!isWeb) {
+      setConnError('Google connections are available on the web build.');
+      return;
+    }
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    setConnError(null);
+    if (connected) {
+      if (kind === 'calendar') clearCalendarTokens();
+      if (kind === 'fit') clearFitTokens();
+      if (kind === 'gmail') clearGmailTokens();
+      refreshConnections();
+      return;
+    }
+    if (!clientId) {
+      setConnError('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID — see .env.example.');
+      return;
+    }
+    try {
+      if (kind === 'calendar') await startCalendarOAuth(clientId);
+      if (kind === 'fit') await startFitOAuth(clientId);
+      if (kind === 'gmail') await startGmailOAuth(clientId);
+    } catch (err) {
+      setConnError(err instanceof Error ? err.message : 'Connection failed.');
+    }
+  };
+
+  const handleAskLifeOS = () => { onClose(); router.push('/chat'); };
+  const handleHowItWorks = () => { onClose(); router.push('/how-it-works'); };
+  const handleTermsPrivacy = () => { onClose(); router.push('/terms-privacy'); };
+  const handleFeedback = () => {
+    const subject = encodeURIComponent('LifeOS feedback');
+    const body = encodeURIComponent(
+      `\n\n---\nLifeOS · ${Platform.OS}\nUser: ${name || 'Anonymous'}\n`,
+    );
+    Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
+  };
 
   useEffect(() => {
     if (visible) {
@@ -183,25 +247,66 @@ export function ProfileSidebar({ visible, onClose }: ProfileSidebarProps) {
           </Label>
 
           <SidebarRow
+            icon="sparkles-outline"
+            label="Ask LifeOS"
+            c={c}
+            onPress={handleAskLifeOS}
+          />
+
+          <SidebarRow
             icon="book-outline"
             label="How LifeOS works"
             c={c}
-            onPress={() => {}}
+            onPress={handleHowItWorks}
           />
 
           <SidebarRow
             icon="chatbubble-ellipses-outline"
             label="Send feedback"
             c={c}
-            onPress={() => Linking.openURL('mailto:support@lifeos.app')}
+            onPress={handleFeedback}
           />
 
           <SidebarRow
             icon="shield-checkmark-outline"
             label="Terms & Privacy"
             c={c}
-            onPress={() => {}}
+            onPress={handleTermsPrivacy}
           />
+
+          <View style={[styles.divider, { backgroundColor: c.border }]} />
+
+          {/* Connections section */}
+          <Label style={[styles.sectionLabel, { color: c.textMuted }]}>
+            CONNECTIONS
+          </Label>
+
+          <ConnectionRow
+            icon="calendar-outline"
+            label="Google Calendar"
+            connected={calConn}
+            c={c}
+            onPress={() => toggleConnection('calendar', calConn)}
+          />
+          <ConnectionRow
+            icon="fitness-outline"
+            label="Google Fit"
+            connected={fitConn}
+            c={c}
+            onPress={() => toggleConnection('fit', fitConn)}
+          />
+          <ConnectionRow
+            icon="mail-outline"
+            label="Gmail (finance)"
+            connected={gmailConn}
+            c={c}
+            onPress={() => toggleConnection('gmail', gmailConn)}
+          />
+          {connError ? (
+            <Caption style={{ color: c.error, paddingHorizontal: spacing.lg, paddingTop: 4 }}>
+              {connError}
+            </Caption>
+          ) : null}
 
           <View style={[styles.divider, { backgroundColor: c.border }]} />
 
@@ -253,6 +358,49 @@ function SidebarRow({ icon, label, c, onPress, right, labelColor, iconColor }: R
           ? <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
           : null
       )}
+    </Pressable>
+  );
+}
+
+function ConnectionRow({
+  icon,
+  label,
+  connected,
+  c,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  connected: boolean;
+  c: ReturnType<typeof useColors>;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: pressed ? c.surfaceAlt : 'transparent' },
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.rowLeft}>
+        <Ionicons name={icon} size={20} color={c.textSecondary} />
+        <Body style={[styles.rowLabel, { color: c.textPrimary }]}>{label}</Body>
+      </View>
+      <View
+        style={{
+          paddingHorizontal: spacing.sm,
+          paddingVertical: 4,
+          borderRadius: 999,
+          borderWidth: 1,
+          borderColor: connected ? c.success : c.border,
+          backgroundColor: connected ? c.success + '22' : 'transparent',
+        }}
+      >
+        <Caption style={{ color: connected ? c.success : c.textMuted, fontFamily: fonts.bodyMedium }}>
+          {connected ? 'Connected' : 'Connect'}
+        </Caption>
+      </View>
     </Pressable>
   );
 }

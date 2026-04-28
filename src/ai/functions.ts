@@ -1,5 +1,6 @@
 import { callAI } from './client';
 import { extractJson } from './extractJson';
+import { pickModel } from './modelRouter';
 import {
   GoalInput,
   GoalHierarchy,
@@ -41,6 +42,7 @@ import {
   DiscoveryExtractionSchema,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
+import { usePromptStore } from '@/store/usePromptStore';
 import { MOCK_DISCOVERY_EXTRACTION } from './mocks/discovery';
 import { TOMORROW_TWEAK_PROMPT } from './prompts/reflection';
 import { buildMockTomorrowTweak } from './mocks/reflection';
@@ -67,6 +69,9 @@ export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
   const response = await callAI({
     system: GOAL_DECOMPOSITION_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('decomposeGoal'),
+    cacheSystem: true,
+    task: 'decomposeGoal',
   });
 
   try {
@@ -84,6 +89,9 @@ export async function analyseSkillGap(input: CareerInput): Promise<SkillGapAnaly
   const response = await callAI({
     system: SKILL_GAP_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('analyseSkillGap'),
+    cacheSystem: true,
+    task: 'analyseSkillGap',
   });
 
   try {
@@ -101,6 +109,9 @@ export async function generateRoutine(input: RoutineInput): Promise<GeneratedRou
   const response = await callAI({
     system: ROUTINE_GENERATION_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateRoutine'),
+    cacheSystem: true,
+    task: 'generateRoutine',
   });
 
   try {
@@ -118,6 +129,9 @@ export async function parseBloodReport(reportText: string): Promise<BloodReportR
   const response = await callAI({
     system: BLOOD_REPORT_PROMPT,
     messages: [{ role: 'user', content: reportText }],
+    model: pickModel('parseBloodReport'),
+    cacheSystem: true,
+    task: 'parseBloodReport',
   });
 
   try {
@@ -135,6 +149,9 @@ export async function suggestMeals(context: string): Promise<MealSuggestion> {
   const response = await callAI({
     system: MEAL_SUGGESTION_PROMPT,
     messages: [{ role: 'user', content: context }],
+    model: pickModel('suggestMeals'),
+    cacheSystem: true,
+    task: 'suggestMeals',
   });
 
   try {
@@ -152,6 +169,9 @@ export async function generateFinancialPlan(input: FinanceInput): Promise<Financ
   const response = await callAI({
     system: FINANCIAL_PLAN_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateFinancialPlan'),
+    cacheSystem: true,
+    task: 'generateFinancialPlan',
   });
 
   try {
@@ -169,6 +189,9 @@ export async function getWeeklyFinanceInsight(input: FinanceInsightInput): Promi
   const response = await callAI({
     system: WEEKLY_FINANCE_INSIGHT_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('getWeeklyFinanceInsight'),
+    cacheSystem: true,
+    task: 'getWeeklyFinanceInsight',
   });
 
   try {
@@ -192,6 +215,9 @@ export async function categorizeMerchant(
     system: MERCHANT_CATEGORIZE_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify({ merchant, amountRupees }) }],
     maxTokens: 80,
+    model: pickModel('categorizeMerchant'),
+    cacheSystem: true,
+    task: 'categorizeMerchant',
   });
 
   try {
@@ -213,6 +239,9 @@ export async function recogniseFood(imageBase64: string, mediaType: string): Pro
         { type: 'text', text: 'Identify all food items in this photo and estimate their nutritional information.' },
       ],
     }],
+    model: pickModel('recogniseFood'),
+    cacheSystem: true,
+    task: 'recogniseFood',
   });
 
   try {
@@ -231,6 +260,9 @@ export async function generateCareerStrategy(input: CareerStrategyInput): Promis
     system: CAREER_STRATEGY_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
     maxTokens: 2500,
+    model: pickModel('generateCareerStrategy'),
+    cacheSystem: true,
+    task: 'generateCareerStrategy',
   });
 
   try {
@@ -248,6 +280,9 @@ export async function describeGoal(input: GoalDescriptionInput): Promise<GoalDes
     system: GOAL_DESCRIPTION_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
     maxTokens: 200,
+    model: pickModel('describeGoal'),
+    cacheSystem: true,
+    task: 'describeGoal',
   });
 
   try {
@@ -265,6 +300,9 @@ export async function generateMotivation(input: MotivationInput): Promise<Motiva
     system: MOTIVATION_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
     maxTokens: 200,
+    model: pickModel('generateMotivation'),
+    cacheSystem: true,
+    task: 'generateMotivation',
   });
 
   try {
@@ -279,10 +317,14 @@ export async function generateMotivation(input: MotivationInput): Promise<Motiva
 export async function extractDiscoveryProfile(raw: string): Promise<DiscoveryExtraction> {
   if (isMock) return MOCK_DISCOVERY_EXTRACTION;
 
+  const systemPrompt = usePromptStore.getState().getPrompt('discovery_extraction', DISCOVERY_EXTRACTION_PROMPT);
   const response = await callAI({
-    system: DISCOVERY_EXTRACTION_PROMPT,
+    system: systemPrompt,
     messages: [{ role: 'user', content: raw }],
     maxTokens: 4000,
+    model: pickModel('extractDiscoveryProfile'),
+    cacheSystem: true,
+    task: 'extractDiscoveryProfile',
   });
 
   try {
@@ -300,6 +342,9 @@ export async function suggestTomorrowTweak(input: TomorrowTweakInput): Promise<T
     system: TOMORROW_TWEAK_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
     maxTokens: 400,
+    model: pickModel('suggestTomorrowTweak'),
+    cacheSystem: true,
+    task: 'suggestTomorrowTweak',
   });
 
   try {

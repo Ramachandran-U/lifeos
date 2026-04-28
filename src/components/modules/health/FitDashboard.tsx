@@ -219,7 +219,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
           </View>
           {workouts.slice(0, 6).map((w) => (
             <View key={w.id} style={styles.workoutRow}>
-              <Ionicons name={w.iconName as never} size={18} color={colors.health} />
+              <Ionicons name={w.iconName} size={18} color={colors.health} />
               <View style={{ flex: 1 }}>
                 <Body style={{ color: colors.textPrimary, fontFamily: fonts.heading, fontSize: fontSizes.md }}>{w.name}</Body>
                 <Caption style={{ color: colors.textMuted }}>{w.date}</Caption>

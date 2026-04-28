@@ -28,6 +28,7 @@ import {
   createHealthLog,
 } from '@/db/queries/health';
 import { getUser, updateUser } from '@/db/queries/users';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { weightTrend, summarizeVitals } from '@/utils/health';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
@@ -49,6 +50,7 @@ type Section = 'calories' | 'blood';
 const CALORIE_TARGET = 2000;
 
 export default function HealthScreen() {
+  useScreenTracking('health');
   const today = format(new Date(), 'yyyy-MM-dd');
   const [foodEntries, setFoodEntries] = useState<ReturnType<typeof getFoodEntriesByDate>>([]);
   const [weightLogs, setWeightLogs] = useState<{ date: string; weight: number }[]>([]);
@@ -234,7 +236,7 @@ export default function HealthScreen() {
           {fitConnected ? (
             <>
               <Caption style={{ color: colors.textSecondary }}>
-                Pulls the last 7 days of steps, heart rate, sleep, and weight.
+                Pulls the last 14 days of steps, heart rate, sleep, and weight.
               </Caption>
               <View style={styles.fitActions}>
                 <Pressable
@@ -244,7 +246,7 @@ export default function HealthScreen() {
                 >
                   <Ionicons name="sync" size={14} color="#fff" />
                   <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>
-                    {fitSyncing ? 'Syncing…' : 'Sync last 7 days'}
+                    {fitSyncing ? 'Syncing…' : 'Sync last 14 days'}
                   </Caption>
                 </Pressable>
                 <Pressable style={styles.fitSecondary} onPress={handleFitDisconnect}>

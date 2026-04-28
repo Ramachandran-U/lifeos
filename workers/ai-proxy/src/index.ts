@@ -2,6 +2,11 @@ import { verifySupabaseJwt } from './auth';
 import { checkAndIncrement } from './rateLimit';
 import { proxyClaude } from './claude';
 import { proxyGeminiLive } from './gemini';
+import { handleConfig } from './routes/config';
+import { handleAdminFlags } from './routes/admin/flags';
+import { handleAdminPrompts } from './routes/admin/prompts';
+import { handlePrompts } from './routes/prompts';
+import { requireAdmin } from './lib/adminAuth';
 
 export interface Env {
   RATE_LIMIT: KVNamespace;
@@ -9,6 +14,8 @@ export interface Env {
   GEMINI_API_KEY: string;
   SUPABASE_JWKS_URL: string;
   SUPABASE_PROJECT_REF: string;
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
   DAILY_AI_REQUEST_LIMIT: string;
   DAILY_VOICE_MINUTES_LIMIT: string;
   ALLOWED_ORIGIN: string;
@@ -17,7 +24,7 @@ export interface Env {
 function corsHeaders(env: Env): HeadersInit {
   return {
     'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN,
-    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
   };
@@ -37,6 +44,15 @@ export default {
     }
 
     const url = new URL(req.url);
+
+    // Public config endpoint — no auth. Consumer app polls this at startup.
+    if (url.pathname === '/v1/config' && req.method === 'GET') {
+      try {
+        return await handleConfig(req, env, corsHeaders(env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'config error', env);
+      }
+    }
 
     // WebSocket upgrade for Gemini Live — handled before auth-header parsing
     // because browsers cannot set arbitrary headers on WebSocket handshakes.
@@ -69,6 +85,42 @@ export default {
 
     if (url.pathname === '/health' && req.method === 'GET') {
       return new Response('ok', { headers: corsHeaders(env) });
+    }
+
+    if (url.pathname === '/v1/prompts' && req.method === 'GET') {
+      try {
+        return await handlePrompts(req, env, corsHeaders(env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'prompts error', env);
+      }
+    }
+
+    // Admin routes — require both a valid Supabase JWT and a row in admins.
+    if (url.pathname.startsWith('/v1/admin/')) {
+      let admin;
+      try {
+        admin = await requireAdmin(env, { email: claims.email as string | undefined });
+      } catch (e) {
+        return jsonError(403, e instanceof Error ? e.message : 'forbidden', env);
+      }
+
+      if (url.pathname === '/v1/admin/flags' || url.pathname.startsWith('/v1/admin/flags/')) {
+        try {
+          return await handleAdminFlags(req, env, admin, corsHeaders(env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin flags error', env);
+        }
+      }
+
+      if (url.pathname === '/v1/admin/prompts' || url.pathname.startsWith('/v1/admin/prompts/')) {
+        try {
+          return await handleAdminPrompts(req, env, admin, corsHeaders(env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin prompts error', env);
+        }
+      }
+
+      return jsonError(404, 'admin route not found', env);
     }
 
     return jsonError(404, 'not found', env);

@@ -28,6 +28,7 @@ import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { SkillGapChart } from '@/components/modules/career/SkillGapChart';
 import { LearningResourceCard } from '@/components/modules/career/LearningResourceCard';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { CareerStrategyView } from '@/components/modules/career/CareerStrategyView';
 import { MotivationBanner } from '@/components/shared/MotivationBanner';
 import { useAI } from '@/hooks/useAI';
@@ -61,6 +62,7 @@ const HOURS_OPTIONS = [5, 10, 15, 20];
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function CareerScreen() {
+  useScreenTracking('career');
   const c = useColors();
   const { call, loading } = useAI();
 

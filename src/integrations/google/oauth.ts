@@ -1,7 +1,11 @@
 /**
  * Shared Google OAuth 2.0 (PKCE) driver. Parameterised by scope + storage key
- * so each integration (Gmail, Calendar, ...) gets its own token bucket without
- * duplicating the handshake code. Web-only.
+ * so each integration (Auth/SSO, Fit, Calendar, ...) gets its own token bucket
+ * without duplicating the handshake code. Web-only.
+ *
+ * Per-integration modules should call `createGoogleOAuthClient(cfg)` once and
+ * re-export the bound functions — see `googleAuth/oauth.ts` for the canonical
+ * pattern.
  */
 
 export interface GoogleTokens {
@@ -159,4 +163,27 @@ export async function getAccessToken(clientId: string, cfg: OAuthConfig): Promis
   } catch {
     return null;
   }
+}
+
+/**
+ * Bind every OAuth helper to a single config. Per-integration modules use this
+ * to expose a clean, unprefixed surface (`start`, `complete`, ...) without
+ * repeating the `cfg` argument at every call site.
+ */
+export interface GoogleOAuthClient {
+  start(clientId: string): Promise<void>;
+  complete(code: string, clientId: string): Promise<void>;
+  clear(): void;
+  isConnected(): boolean;
+  getAccessToken(clientId: string): Promise<string | null>;
+}
+
+export function createGoogleOAuthClient(cfg: OAuthConfig): GoogleOAuthClient {
+  return {
+    start: (clientId) => startOAuth(clientId, cfg),
+    complete: (code, clientId) => completeOAuth(code, clientId, cfg),
+    clear: () => clearTokens(cfg),
+    isConnected: () => isConnected(cfg),
+    getAccessToken: (clientId) => getAccessToken(clientId, cfg),
+  };
 }
