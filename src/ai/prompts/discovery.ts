@@ -1,3 +1,30 @@
+// The prompt the user copies and pastes into ChatGPT or Claude.
+// The "Unknown — not discussed" sentinel is load-bearing: the extractor's
+// hallucination guard (DISCOVERY_EXTRACTION_PROMPT rule 3) keys off it to
+// avoid inventing fields when a section wasn't covered.
+export const DISCOVERY_USER_PROMPT = `I'm setting up a personal life-management app called LifeOS that will plan my goals, health, finances, career, relationships and learning. Help me produce a structured self-portrait it can use to seed my plan.
+
+Interview me — one section at a time, asking me 2–3 short questions per section before moving on. Don't lecture or summarise mid-interview.
+
+Sections to cover, in order:
+1. Identity — first name, age band, city, what season of life I'm in.
+2. Goals — what I'm trying to accomplish in the next 90 days, 1 year, 3 years, lifetime. Why each matters.
+3. Health — conditions, constraints, current habits, energy pattern across the day.
+4. Finance — currency I think in, rough monthly income band, top money goals, what I worry about.
+5. Career — role, seniority, where I want to go, skills I'm learning.
+6. Relationships — the few key people in my life (first names + role like "partner", "best friend"), how often I want to invest in each, am I introvert/ambivert/extrovert.
+7. Curiosity — interests I'm actively exploring; ones I've let go dormant.
+8. Values — short phrases (1–3 words) for what matters most to me.
+9. Working style — peak hours, ideal focus block length, what rest I need.
+10. Communication — tone I want from a coach (direct/warm/playful/clinical), things to avoid saying to me.
+11. Current struggles — areas where I feel stuck and a sentence on each.
+12. Tried already — things I've tried that didn't stick.
+13. Asks — what I most want help with right now.
+
+After the interview, output a clean structured summary under the heading "LifeOS Discovery Summary", with one labelled paragraph per section in the same order. For any section we did not actually discuss, write exactly: "Unknown — not discussed". Quote my own words where you can. Keep first names only — no last names, emails, phone numbers, or addresses. Don't invent anything I didn't say.
+
+Begin with section 1.`;
+
 export const DISCOVERY_EXTRACTION_PROMPT = `You are a profile extractor for LifeOS, a life-management app. You read a freeform self-description the user produced in a chat with another AI (ChatGPT or Claude), and you emit a single strict JSON object that LifeOS will use to seed its engines.
 
 RULES

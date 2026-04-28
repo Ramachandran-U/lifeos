@@ -112,7 +112,7 @@ export default function WelcomeIntentScreen() {
 
         <Animated.View entering={FadeInDown.delay(800).duration(600)} style={styles.importRow}>
           <Pressable
-            onPress={() => router.push('/(onboarding)/discovery-paste')}
+            onPress={() => router.push('/(onboarding)/discovery-intro')}
             style={styles.importLink}
             hitSlop={8}
           >
