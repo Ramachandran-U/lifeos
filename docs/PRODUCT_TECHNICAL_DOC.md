@@ -48,6 +48,7 @@ lifeos/
 │   │   ├── day1-vision.tsx        # Vision → AI goal decomposition
 │   │   ├── day1-career.tsx        # Career → AI skill gap analysis
 │   │   ├── day1-routine.tsx       # Schedule → AI routine generation
+│   │   ├── discovery-intro.tsx    # Show canned Discovery prompt + Copy / Open ChatGPT / Open Claude
 │   │   ├── discovery-paste.tsx    # Paste Discovery Prompt output from ChatGPT/Claude
 │   │   └── discovery-confirm.tsx  # Preview of extracted profile (grouped sections + confidence dots)
 │   ├── (tabs)/                    # Main app (7 tabs)
