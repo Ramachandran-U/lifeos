@@ -14,6 +14,8 @@ import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUse
 import { AchievementToast } from '@/components/shared/AchievementToast';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
 import { useGameStore } from '@/store/useGameStore';
+import { useFlagStore } from '@/store/useFlagStore';
+import { usePromptStore } from '@/store/usePromptStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -64,6 +66,11 @@ export default function RootLayout() {
         setPrimaryDomains(domains.filter(isDomain));
         activated.filter(isDomain).forEach(markModuleActivated);
       }
+      // Fetch admin-portal-managed feature flags. Non-blocking — fallback
+      // values cover the case where the worker is unreachable.
+      useFlagStore.getState().fetchFlags().catch(() => {});
+      usePromptStore.getState().fetchPrompts().catch(() => {});
+
       setDbReady(true);
     }
     init();

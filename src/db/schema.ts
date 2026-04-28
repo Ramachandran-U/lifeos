@@ -279,6 +279,15 @@ export const discoveryImports = sqliteTable('discovery_imports', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- Chatbot ---
+export const chatMessages = sqliteTable('chat_messages', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  role: text('role').notNull(), // 'user' | 'assistant'
+  content: text('content').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),

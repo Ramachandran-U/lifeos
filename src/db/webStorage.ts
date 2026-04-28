@@ -22,6 +22,7 @@ const EXPLORATION_LOG_KEY = 'lifeos_exploration_log';
 const GOAL_COMMENTS_KEY = 'lifeos_goal_comments';
 const REFLECTIONS_KEY = 'lifeos_daily_reflections';
 const DISCOVERY_IMPORTS_KEY = 'lifeos_discovery_imports';
+const CHAT_MESSAGES_KEY = 'lifeos_chat_messages';
 
 function load<T>(key: string): T[] {
   try {
@@ -292,6 +293,33 @@ export function webGetLatestDiscoveryImport(userId: string): WebDiscoveryImport 
   return load<WebDiscoveryImport>(DISCOVERY_IMPORTS_KEY)
     .filter((r) => r.userId === userId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+}
+
+// ─── Chat ────────────────────────────────────────────────────────────────────
+
+export interface WebChatMessage {
+  id: string;
+  userId: string;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export function webInsertChatMessage(m: WebChatMessage): void {
+  const all = load<WebChatMessage>(CHAT_MESSAGES_KEY);
+  all.push(m);
+  save(CHAT_MESSAGES_KEY, all);
+}
+
+export function webGetChatMessages(userId: string): WebChatMessage[] {
+  return load<WebChatMessage>(CHAT_MESSAGES_KEY)
+    .filter((m) => m.userId === userId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export function webClearChatMessages(userId: string): void {
+  const remaining = load<WebChatMessage>(CHAT_MESSAGES_KEY).filter((m) => m.userId !== userId);
+  save(CHAT_MESSAGES_KEY, remaining);
 }
 
 // ─── Goals ───────────────────────────────────────────────────────────────────
