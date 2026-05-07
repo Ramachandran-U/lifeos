@@ -90,6 +90,28 @@ export async function signInWithApple(): Promise<AuthResult> {
   };
 }
 
+/**
+ * Web-only. Kicks off Supabase's hosted Google OAuth flow. Supabase handles the
+ * redirect to Google, the callback, and code exchange — then redirects back to
+ * `redirectTo` with the session in the URL hash (auto-consumed by supabase-js
+ * because `detectSessionInUrl: true`).
+ *
+ * Google Cloud Console only needs Supabase's callback URL registered — the
+ * app's own domain does not, so changing the deploy URL doesn't break sign-in.
+ */
+export async function startGoogleSupabaseOAuth(): Promise<void> {
+  assertConfigured();
+  if (typeof window === 'undefined') {
+    throw new Error('Google sign-in is only available on web right now.');
+  }
+  const redirectTo = `${window.location.origin}/google-auth-callback`;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo, scopes: 'openid email profile' },
+  });
+  if (error) throw error;
+}
+
 export async function signInWithGoogleIdToken(idToken: string): Promise<AuthResult> {
   assertConfigured();
   const { data, error } = await supabase.auth.signInWithIdToken({

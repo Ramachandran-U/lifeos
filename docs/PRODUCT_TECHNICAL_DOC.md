@@ -8,7 +8,7 @@
 
 **Target User:** Ambitious individuals who want to optimize multiple life domains simultaneously — not just productivity, but holistic life management.
 
-**Current Phase:** Phase 1 (local-only, no cloud sync). Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. The Polymath (Explore) module now ships: interests CRUD, weekly-target tracking, exploration log with minute chips, and gamification hooks (XP + learning streak + mind domain score). The Aurora Glass redesign has shipped across Home/Welcome/Reflect with unified motion tokens (`SPRING`, `TIMING`) and a shared `AuroraBackground` component. Evening reflect — a nightly 60s ritual (review blocks → mood → AI-suggested tweak for tomorrow) — ships behind an 18:00 "Wrap up today" CTA on Home. Discovery Import lets users paste a ChatGPT/Claude self-description and have it extracted into a structured profile (raw stashed in `discovery_imports`, structured output surfaced on a confidence-scored preview screen — seeding the engines from that preview is next). Social module is still WIP.
+**Current Phase:** Phase 1.5 — local-first, with a thin Cloudflare Workers backend (`workers/ai-proxy/`) brokering all AI traffic and Supabase handling auth. Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. The Polymath (Explore) module ships: interests CRUD, weekly-target tracking, exploration log with minute chips, and gamification hooks. Aurora Glass redesign across Home/Welcome/Reflect with unified motion tokens (`SPRING`, `TIMING`) and a shared `AuroraBackground` component. Evening reflect — a nightly 60s ritual (review blocks → mood → AI-suggested tweak for tomorrow) — ships behind an 18:00 "Wrap up today" CTA on Home. Discovery Import lets users paste a ChatGPT/Claude self-description and have it extracted into a structured profile (raw stashed in `discovery_imports`, structured output surfaced on a confidence-scored preview screen). **Chatbot** ("Ask LifeOS") ships at `app/chat.tsx`, persisted to the `chat_messages` table. **Voice assistant** prototype (Gemini Live, WebSocket via the worker) is wired in `src/ai/voiceClient.ts` + `src/components/shared/VoiceAssistantSheet.tsx`. **Goal comments** add an asynchronous review thread per goal (`goal_comments`). Native Android parity work is underway on branch `claude/interesting-rubin-97ecf6` — a cross-platform `kvStore` abstraction and `expo-secure-store` dep have landed; OAuth driver and finance transaction native branches are next. Social module is still WIP.
 
 ---
 
@@ -22,16 +22,18 @@
 | **State** | Zustand 5 |
 | **Database** | SQLite (expo-sqlite 16) + Drizzle ORM 0.45 |
 | **Transaction DB** | Dexie (IndexedDB) — web-first, for finance transactions |
-| **AI** | Claude API (Anthropic REST, claude-sonnet-4-20250514) |
+| **AI** | Claude (Anthropic) + Gemini Live (Google), brokered by `workers/ai-proxy` (Cloudflare Workers). The app never holds API keys; bearer is a Supabase JWT. |
+| **Backend** | Cloudflare Workers (`workers/ai-proxy/`) — `/claude` proxy, `/gemini-live` WebSocket, `/v1/config`, `/v1/prompts`, `/v1/admin/*`, KV-backed daily rate limits. |
+| **Auth** | Supabase Auth (email/password + Google OAuth + Apple) — JWT verified inside the worker via JWKS. Local SQLite users row mirrors the auth identity. |
 | **Data Fetching** | TanStack React Query 5 |
 | **Animations** | Reanimated 4 |
 | **Validation** | Zod |
 | **Notifications** | expo-notifications |
-| **Auth** | localStorage-backed email/password with expo-crypto SHA-256 hashing + per-user salt |
-| **Theme** | Zustand store (`useThemeStore`) + `useColors()` reactive hook; dark/light persisted to localStorage |
+| **Theme** | Zustand store (`useThemeStore`) + `useColors()` reactive hook; dark/light persisted via `kvStore` (localStorage on web, AsyncStorage on native) |
+| **Cross-platform KV** | `src/utils/kvStore.ts` — async wrapper over localStorage / sessionStorage on web; `expo-secure-store` (sensitive keys) + `@react-native-async-storage/async-storage` on native |
 | **Charts & Gamification Visuals** | `react-native-svg` — HexRadar (Life Balance), LevelRing / AvatarRing (progress rings), Sparkline (XP history). All animated via Reanimated. |
 
-**Architecture pattern:** Fully client-side. No backend server. All data persists in on-device SQLite. AI calls go directly to Anthropic's API (or use mock responses in dev). Zustand stores sync state between UI and DB.
+**Architecture pattern:** Local-first client + thin auth/AI broker. Domain data persists on-device in SQLite (web mirrors via localStorage/IndexedDB). All AI traffic routes through `workers/ai-proxy`, which verifies a Supabase JWT, enforces per-user daily rate limits in Workers KV, and forwards to Anthropic or Gemini. Admin-managed feature flags + system prompts are fetched at boot from the worker (`/v1/config`, `/v1/prompts`) and cached in Zustand stores. The app never embeds AI provider keys.
 
 ### Folder Structure
 
@@ -59,22 +61,41 @@ lifeos/
 │   │   ├── career.tsx             # Skill gaps & learning resources
 │   │   ├── explore.tsx            # Polymath (WIP)
 │   │   └── rewards.tsx            # Gamification: LevelRing, ladder, badges, streaks, quests
-│   ├── gmail-callback.tsx         # OAuth redirect handler (finance)
+│   ├── gmail-callback.tsx         # OAuth redirect handlers (one per Google integration)
+│   ├── chat.tsx                   # "Ask LifeOS" chatbot (persisted to chat_messages)
+│   ├── how-it-works.tsx           # Static product explainer
+│   ├── terms-privacy.tsx          # Legal copy
 │   ├── settings.tsx
-│   └── _layout.tsx                # Root: font loading, DB init, auth routing, session restore
+│   └── _layout.tsx                # Root: fonts, DB init, theme hydrate, Supabase session, flags/prompts fetch, auth routing
 ├── src/
-│   ├── ai/                        # AI layer
-│   │   ├── client.ts              # Claude API client (API key or mock)
-│   │   ├── functions.ts           # AI orchestration functions (incl. categorizeMerchant)
-│   │   ├── types.ts               # Zod schemas for all AI responses
-│   │   ├── prompts/               # System prompts per domain
+│   ├── ai/
+│   │   ├── client.ts              # Claude proxy client (sends Supabase JWT to /claude)
+│   │   ├── voiceClient.ts         # Gemini Live WebSocket wrapper (?token=<jwt>)
+│   │   ├── functions.ts           # AI orchestration functions (decompose, plan, etc.)
+│   │   ├── modelRouter.ts         # Picks model + maxTokens per task
+│   │   ├── costLedger.ts          # Per-task token + USD cost accumulator
+│   │   ├── tracing.ts             # startSpan/endSpan structured trace events
+│   │   ├── extractJson.ts         # Robust JSON extractor for AI replies
+│   │   ├── types.ts               # Zod schemas for AI responses
+│   │   ├── agent/                 # Multi-step agent scaffolding
+│   │   ├── rag/                   # RAG retrieval helpers
+│   │   ├── prompts/               # System prompts per domain (chatbot, goals, …)
 │   │   └── mocks/                 # Static mock responses for dev
+│   ├── integrations/
+│   │   ├── supabase/              # Supabase client + session token helpers
+│   │   ├── google/                # Shared PKCE OAuth driver
+│   │   ├── googleAuth/            # Google SSO
+│   │   ├── googleCalendar/        # Calendar API client
+│   │   └── googleFit/             # Fit aggregate + sessions client
 │   ├── db/
-│   │   ├── schema.ts              # Drizzle table definitions (native SQLite)
+│   │   ├── schema.ts              # Drizzle table definitions (22 tables)
 │   │   ├── index.ts               # DB init (WAL mode, foreign keys)
 │   │   ├── webStorage.ts          # localStorage user + session store (web)
-│   │   ├── careerStorage.ts       # Named career path snapshots (localStorage)
+│   │   ├── careerStorage.ts       # Named career path snapshots
 │   │   └── queries/               # CRUD per entity — each branches on Platform.OS for web
+│   │                              # (users, goals, goalComments, routine, health, finance,
+│   │                              #  behaviour, gamification, reflections, discovery, chat,
+│   │                              #  interests)
 │   ├── finance/                   # Finance intelligence layer
 │   │   ├── gmail/                 # OAuth (PKCE) + Gmail API fetcher
 │   │   ├── parsers/               # HDFC / ICICI / Axis regex parsers
@@ -82,14 +103,22 @@ lifeos/
 │   │   ├── categorizer.ts         # Rule-based + Claude fallback categorizer
 │   │   ├── insights.ts            # Behavioural insight detectors
 │   │   └── store/                 # Zustand: transactions, sync state, token
-│   ├── store/                     # Zustand stores (user, goals, game, theme)
-│   ├── hooks/                     # useAI, useNotifications
+│   ├── store/                     # Zustand: useUserStore, useGoalStore, useGameStore,
+│   │                              # useThemeStore, useFlagStore, usePromptStore,
+│   │                              # useMotivationStore, usePolymathStore
+│   ├── hooks/                     # useAI, useNotifications, useVoice
 │   ├── components/
-│   │   ├── ui/                    # Design system (Button, Card, Input, etc.)
-│   │   ├── shared/                # DailyBriefing, RoutineBlock, LifeBalanceDashboard, ProfileSidebar
+│   │   ├── ui/                    # Design system (Button, Card, Input, Typography, …)
+│   │   ├── shared/                # AuroraBackground, DailyBriefing, RoutineBlock,
+│   │   │                          # LifeBalanceDashboard, LifeHubSheet, ProfileSidebar,
+│   │   │                          # OAuthCallbackView, MotivationBanner, VoiceAssistantSheet
+│   │   ├── gamification/          # LevelUpOverlay, level/avatar rings, hex radar
 │   │   └── modules/               # Domain-specific (goals/, health/, finance/, career/, social/, polymath/)
 │   ├── theme/                     # Colors (dark+light), typography, spacing, shadows
-│   └── utils/                     # Gamification logic, ID generation, auth (password hashing)
+│   └── utils/                     # kvStore (cross-platform KV), gamification, IDs, sign-out, …
+├── workers/
+│   └── ai-proxy/                  # Cloudflare Worker: auth, rate limit, Claude/Gemini proxy,
+│                                  # admin portal API (flags + prompts), public /v1/config
 ```
 
 ---
@@ -157,20 +186,22 @@ Routing logic in `app/_layout.tsx`: no user → auth, stage < 100 → onboarding
 
 ### 3.7 Authentication
 
-Email/password authentication, local-first — no backend.
+Supabase Auth is the source of truth for identity. The local SQLite `users` row mirrors the Supabase user (id, email, name) and continues to back domain queries — Supabase never stores LifeOS domain data.
 
 | Concern | File | Notes |
 |---------|------|-------|
-| Sign-in screen | `app/(auth)/sign-in.tsx` | Validates against stored hash+salt |
-| Sign-up screen | `app/(auth)/sign-up.tsx` | Generates salt, hashes, persists |
-| Password utility | `src/utils/auth.ts` | `generateSalt()`, `hashPassword()`, `verifyPassword()` via `expo-crypto` SHA-256 |
-| Native storage | `src/db/queries/users.ts` | SQLite branch (via Drizzle) when `Platform.OS !== 'web'` |
-| Web storage | `src/db/webStorage.ts` | localStorage-backed user store with session |
-| Session | `webSetSession(userId)` | Called on login; checked on app launch in `app/_layout.tsx` |
+| Sign-in screen | `app/(auth)/sign-in.tsx` | Email/password + Google SSO + Apple SSO via Supabase |
+| Sign-up screen | `app/(auth)/sign-up.tsx` | Calls `supabase.auth.signUp`; mirrors row into local DB |
+| Supabase client | `src/integrations/supabase/client.ts` | Reads `EXPO_PUBLIC_SUPABASE_URL` + anon key |
+| Session token | `src/integrations/supabase/session.ts` | `getSupabaseAccessToken()` — used by every AI call + worker request |
+| Local mirror | `src/db/queries/users.ts` `ensureLocalUserFromAuth()` | Creates/migrates the local row from a Supabase session at boot |
+| Worker JWT verification | `workers/ai-proxy/src/auth.ts` | Verifies the JWT against the Supabase JWKS on every protected route |
 
-Routing in `app/_layout.tsx`: if no session, redirect to `(auth)/sign-in`; if session but `onboardingStage < 100`, redirect to `(onboarding)`; otherwise `(tabs)`.
+Boot flow (`app/_layout.tsx`): `supabase.auth.getSession()` → if a session exists, `ensureLocalUserFromAuth` writes the local row and `setWebSession(authUser.id)` flags the session; an `onAuthStateChange` listener resets state on logout. Routing remains: no session → `(auth)/sign-in`; `onboardingStage < 100` → onboarding; otherwise `(tabs)`.
 
-**Auth sentinels.** `src/db/queries/users.ts` declares two sentinel values for the `passwordHash` column at the top of the file: `GOOGLE_SSO_HASH = '__GOOGLE_SSO__'` (rows created by Google SSO) and `SUPABASE_AUTH_HASH = '__SUPABASE_AUTH__'` (rows created from a Supabase auth session). Login flows must skip password verification when they encounter either sentinel.
+**Auth sentinels.** `src/db/queries/users.ts` declares two sentinel `passwordHash` values for legacy rows: `GOOGLE_SSO_HASH = '__GOOGLE_SSO__'` and `SUPABASE_AUTH_HASH = '__SUPABASE_AUTH__'`. New installs only ever see the Supabase sentinel; the Google one is preserved for historical local-only accounts created before Supabase was wired up. Login flows skip password verification on either sentinel.
+
+**ID rewrite.** When an email already exists locally (legacy install) and the user signs in via Supabase for the first time, `webRewriteUserId(oldId, newId)` (web) / its SQLite equivalent (native) rewrites the primary id to the Supabase user id while preserving email, password fields, and `createdAt`. `ensureLocalUserFromAuth` invokes this whenever the local id and Supabase user id disagree.
 
 ### 3.8 Web Storage Layer
 
@@ -265,7 +296,7 @@ Prop contract:
 
 ## 4. Data Model
 
-**18 tables** defined in `src/db/schema.ts` (incl. `daily_reflections` and `discovery_imports`). All use UUID primary keys (`expo-crypto`), `createdAt`/`updatedAt` timestamps, and soft deletes where applicable.
+**22 tables** defined in `src/db/schema.ts`. All use UUID primary keys (`expo-crypto`), `createdAt`/`updatedAt` timestamps, and soft deletes where applicable. Tables added since the last revision: `goal_comments`, `daily_reflections`, `discovery_imports`, `chat_messages`.
 
 ### Entity Relationship Diagram
 
@@ -469,27 +500,50 @@ Schema defined but modules not yet fully implemented (Social and Polymath are WI
 | `generateFinancialPlan()` | goal details + income + risk | FinancialPlan (strategies + milestones) | Finance |
 | `getWeeklyFinanceInsight()` | goal progress data | WeeklyFinanceInsight | Finance |
 
-All functions validate output with Zod schemas, support mock mode via `EXPO_PUBLIC_USE_AI_MOCK=true`, and call the Claude API at `https://api.anthropic.com/v1/messages`.
+All functions validate output with Zod schemas, support mock mode via `EXPO_PUBLIC_USE_AI_MOCK=true`, and route through the AI proxy at `${EXPO_PUBLIC_AI_PROXY_URL}/claude` with a Supabase JWT bearer. The chatbot screen (`app/chat.tsx`) and voice assistant (`src/ai/voiceClient.ts`) share the same auth/transport.
+
+### Workers (`workers/ai-proxy`)
+
+| Route | Auth | Purpose |
+|-------|------|---------|
+| `GET /v1/config` | public | Boot-time config — feature flags + non-sensitive settings |
+| `GET /v1/prompts` | Bearer | System prompts overridable by admin portal |
+| `POST /claude` | Bearer | Forward to Anthropic; rate-limited per user via `RATE_LIMIT` KV |
+| `WS /gemini-live?token=` | Token in query | Gemini Live WebSocket pipe (browsers can't set headers on WS) |
+| `GET /health` | Bearer | Liveness |
+| `/v1/admin/flags`, `/v1/admin/prompts` | Bearer + admin row | Admin portal endpoints; admin allowlist in DB |
+
+Daily quotas come from `DAILY_AI_REQUEST_LIMIT` and `DAILY_VOICE_MINUTES_LIMIT`. CORS origin is locked to `ALLOWED_ORIGIN`. JWTs are verified against the Supabase JWKS — no shared secrets, no API keys ever leave the worker.
 
 ### DB Query Modules (`src/db/queries/`)
 
 | File | Key Functions |
 |------|--------------|
-| `users.ts` | `createUser`, `getUser`, `updateOnboardingStage` |
+| `users.ts` | `createUser`, `getUser`, `updateOnboardingStage`, `ensureLocalUserFromAuth`, `setWebSession` |
 | `goals.ts` | `createGoal`, `getGoalsByUser`, `completeGoal`, `getGoalChildren` |
-| `routine.ts` | `createRoutineBlock`, `getRoutineBlocksForDate`, `updateRoutineBlockStatus` |
+| `goalComments.ts` | `addGoalComment`, `getGoalComments`, `deleteGoalComment` |
+| `routine.ts` | `createRoutineBlock`, `getRoutineBlocksForDate`, `updateRoutineBlockStatus`, `setRoutineBlockCalendarEventId` |
 | `health.ts` | `createHealthLog`, `createFoodEntry`, `getFoodEntriesForDate`, `createBloodReport`, `getWeightHistory` |
 | `finance.ts` | `createFinancialGoal`, `getActiveFinancialGoal`, `createMilestone`, `completeMilestone` |
 | `behaviour.ts` | `logBehaviourEvent`, `getRecentEvents`, `generateWeeklyInsight` |
 | `gamification.ts` | `getGamification`, `updateGamification`, `initializeGamification` |
+| `reflections.ts` | `saveReflection`, `getReflectionForDate` |
+| `discovery.ts` | `saveDiscoveryImport`, `getLatestDiscoveryImport` |
+| `chat.ts` | `appendChatMessage`, `listChatMessages`, `clearChatMessages` |
+| `interests.ts` | `createInterest`, `logExploration`, `getInterestsByUser` |
 
 ### Zustand Stores (`src/store/`)
 
 | Store | State | Key Methods |
 |-------|-------|-------------|
-| `useUserStore` | userId, name, onboardingStage | `setUser()`, `setOnboardingStage()`, `reset()` |
+| `useUserStore` | userId, name, onboardingStage, primaryDomains, activatedModules | `setUser()`, `setOnboardingStage()`, `setPrimaryDomains()`, `markModuleActivated()`, `reset()` |
 | `useGoalStore` | goals[] | `loadGoals()`, `addGoal()`, `completeGoal()` |
-| `useGameStore` | domainScores, streaks, badges, XP, pendingBadges | `loadFromDB()`, `completeBlock()`, `addXP()`, `triggerStreak()`, `awardBadge()`, `popBadge()` |
+| `useGameStore` | domainScores, streaks, badges, XP, pendingBadges, pendingLevelUp | `loadFromDB()`, `completeBlock()`, `addXP()`, `triggerStreak()`, `awardBadge()`, `popBadge()`, `dismissLevelUp()` |
+| `useThemeStore` | mode, hydrated | `setMode()`, `toggle()`, `hydrate()` (called once on boot) |
+| `useFlagStore` | flags map | `fetchFlags()` from `/v1/config` at boot |
+| `usePromptStore` | prompts map | `fetchPrompts()`, `getPrompt(key, fallback)` |
+| `useMotivationStore` | banner copy | Surface CTAs / nudges on Home |
+| `usePolymathStore` | interests, exploration log | CRUD + weekly target tracking |
 
 ---
 
@@ -519,30 +573,47 @@ npx expo start          # Dev server
 
 ### Environment Variables
 
+App (`.env`):
+
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `EXPO_PUBLIC_USE_AI_MOCK` | Use static mock AI responses | `false` |
-| `ANTHROPIC_API_KEY` | Claude API key for real AI calls | (empty) |
+| `EXPO_PUBLIC_AI_PROXY_URL` | Cloudflare Worker base URL | `http://localhost:8787` |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL | (required) |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | (required) |
+| `EXPO_PUBLIC_GOOGLE_CLIENT_ID` | Web OAuth client (Calendar/Fit/Gmail) | (required for integrations) |
+| `EXPO_PUBLIC_GOOGLE_CLIENT_SECRET` | Web client secret (PKCE web flow still needs it) | (required for integrations) |
+
+Worker (`workers/ai-proxy/wrangler.toml` / secrets):
+
+| Variable | Purpose |
+|----------|---------|
+| `ANTHROPIC_API_KEY` | Server-only Claude key |
+| `GEMINI_API_KEY` | Server-only Gemini key |
+| `SUPABASE_JWKS_URL`, `SUPABASE_PROJECT_REF`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | JWT verification + admin row lookups |
+| `DAILY_AI_REQUEST_LIMIT`, `DAILY_VOICE_MINUTES_LIMIT` | Per-user daily quotas |
+| `ALLOWED_ORIGIN` | CORS lock |
+| `RATE_LIMIT` (KV) | Daily counter store |
 
 ### Development Notes
 
-- **Mock mode** (`EXPO_PUBLIC_USE_AI_MOCK=true`): All AI functions return plausible static data from `src/ai/mocks/` — no API key needed
+- **Mock mode** (`EXPO_PUBLIC_USE_AI_MOCK=true`): legacy switch retained for unit tests; production AI is brokered by the worker
+- **Worker dev**: `cd workers/ai-proxy && npm run dev` — point `EXPO_PUBLIC_AI_PROXY_URL` at the printed `http://localhost:8787`
 - **Database**: SQLite auto-initializes on first launch via `src/db/index.ts` with WAL mode + foreign keys enabled
-- **No backend**: Everything runs on-device. No server to deploy.
 - **TypeScript strict**: No `any`, all AI responses validated with Zod
 - **Theme tokens**: All visual values come from `src/theme/` — never use inline style values
 - **Component conventions**: `StyleSheet.create()` only, haptic feedback on interactions, Reanimated for animations
 
 ### Testing
 
-- Manual testing via Expo dev client
-- Mock data functions enable offline development
+- Jest + ts-jest configured (`npm test`); evals with `npm run evals` (live providers via `EVAL_REAL=true`)
+- Playwright (`@playwright/test`) for web e2e (e.g. `e2e/voice-assistant.spec.ts`)
 - TypeScript strict compilation catches type errors
-- No automated test suite yet (recommended: Jest + React Native Testing Library)
+- Manual testing via Expo dev client; mock mode for offline UI work
 
 ### Current Branch
 
-`lifeosv1` — Phase 1 implementation. Cloud sync (Supabase) is deferred to Phase 2.
+`lifeosv1` is the trunk. Active feature work happens on `claude/*` branches (current: `claude/interesting-rubin-97ecf6`, focused on Android parity).
 
 ---
 

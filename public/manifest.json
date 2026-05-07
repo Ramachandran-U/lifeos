@@ -1,0 +1,23 @@
+{
+  "name": "LifeOS",
+  "short_name": "LifeOS",
+  "description": "Your AI-first life-management app — goals, health, finance, career, social, polymath, all in one daily routine.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0D0D0D",
+  "theme_color": "#0D0D0D",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

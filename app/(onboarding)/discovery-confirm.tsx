@@ -10,7 +10,9 @@ import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { getLatestDiscoveryImport, type DiscoveryImport } from '@/db/queries/discovery';
+import { seedFromDiscovery } from '@/db/queries/discoverySeed';
 import { useUserStore } from '@/store/useUserStore';
+import * as Haptics from 'expo-haptics';
 
 // Placeholder confirmation screen — shows extracted summary.
 // Screen 3 (grouped editable sections + seeding) ships in the next pass.
@@ -18,6 +20,8 @@ export default function DiscoveryConfirmScreen() {
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const [record, setRecord] = useState<DiscoveryImport | null>(null);
+  const [seeding, setSeeding] = useState(false);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -25,6 +29,20 @@ export default function DiscoveryConfirmScreen() {
   }, [userId]);
 
   const e = record?.extracted;
+
+  const handleConfirm = () => {
+    if (!userId || !record || seeding) return;
+    setSeeding(true);
+    setSeedError(null);
+    try {
+      seedFromDiscovery(userId, record.extracted, record.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      router.replace('/(tabs)');
+    } catch (err) {
+      setSeedError(err instanceof Error ? err.message : 'Could not seed your plan');
+      setSeeding(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -88,10 +106,18 @@ export default function DiscoveryConfirmScreen() {
         )}
 
         <View style={styles.cta}>
-          <Button title="Use this to set up LifeOS" onPress={() => router.replace('/(tabs)')} />
-          <Caption style={styles.ctaHint}>
-            Seeding wires up goals, interests and contacts from this. (Coming next — for now this just takes you home.)
-          </Caption>
+          <Button
+            title={seeding ? 'Setting up…' : 'Use this to set up LifeOS'}
+            onPress={handleConfirm}
+            disabled={!e || seeding}
+          />
+          {seedError ? (
+            <Caption style={[styles.ctaHint, { color: colors.error }]}>{seedError}</Caption>
+          ) : (
+            <Caption style={styles.ctaHint}>
+              Adds your top goals and active interests to LifeOS. You can edit or delete any of them later.
+            </Caption>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

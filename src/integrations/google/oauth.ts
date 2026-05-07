@@ -141,8 +141,11 @@ async function refreshAccessToken(
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   });
-  if (!res.ok) throw new Error(`Refresh failed: ${res.status}`);
   const json = await res.json();
+  if (!res.ok) {
+    const err = json?.error ?? res.status;
+    throw Object.assign(new Error(`Refresh failed: ${err}`), { code: err });
+  }
   const next: GoogleTokens = {
     access_token: json.access_token,
     refresh_token: refreshToken,
@@ -160,7 +163,10 @@ export async function getAccessToken(clientId: string, cfg: OAuthConfig): Promis
   try {
     const next = await refreshAccessToken(clientId, tokens.refresh_token, cfg);
     return next.access_token;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && (err as { code?: string }).code === 'invalid_grant') {
+      clearTokens(cfg);
+    }
     return null;
   }
 }
