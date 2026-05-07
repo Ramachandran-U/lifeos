@@ -85,9 +85,11 @@ export function GoalDetailSheet({
           <Label color={typeColor.color}>{typeColor.label.toUpperCase()}</Label>
           <Body style={[styles.title, { color: c.textPrimary }]}>{goalTitle}</Body>
 
+          <View style={[styles.divider, { backgroundColor: c.border }]} />
+
           <View style={styles.section}>
             <View style={styles.descHeader}>
-              <Caption style={{ color: c.textMuted, letterSpacing: 1 }}>DESCRIPTION</Caption>
+              <Caption style={{ color: c.textSecondary, letterSpacing: 1, fontFamily: fonts.heading }}>DESCRIPTION</Caption>
               <Pressable
                 onPress={handleGenerateDescription}
                 disabled={descLoading}
@@ -105,15 +107,17 @@ export function GoalDetailSheet({
               </Pressable>
             </View>
             {description ? (
-              <Body style={{ color: c.textSecondary }}>{description}</Body>
+              <Body style={{ color: c.textPrimary, lineHeight: fontSizes.md * 1.6 }}>{description}</Body>
             ) : (
-              <Caption style={{ color: c.textMuted }}>No description yet. Generate one to anchor this goal.</Caption>
+              <Caption style={{ color: c.textSecondary }}>No description yet. Generate one to anchor this goal.</Caption>
             )}
             {descError && <Caption style={{ color: c.error }}>{descError}</Caption>}
           </View>
 
+          <View style={[styles.divider, { backgroundColor: c.border }]} />
+
           <View style={styles.section}>
-            <Caption style={{ color: c.textMuted, letterSpacing: 1 }}>COMMENTS ({comments.length})</Caption>
+            <Caption style={{ color: c.textSecondary, letterSpacing: 1, fontFamily: fonts.heading }}>COMMENTS ({comments.length})</Caption>
             <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
               {comments.length === 0 && (
                 <Caption style={{ color: c.textMuted }}>No comments yet. Add the first note below.</Caption>
@@ -162,9 +166,9 @@ export function GoalDetailSheet({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', padding: spacing.xl },
-  box: { width: '100%', maxWidth: 480, borderRadius: 20, borderWidth: 1, padding: spacing.xl, gap: spacing.md, maxHeight: '80%' },
-  title: { fontFamily: fonts.heading, fontSize: fontSizes.lg },
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.72)', padding: spacing.xl },
+  box: { width: '100%', maxWidth: 480, borderRadius: 20, borderWidth: 1, padding: spacing.xl, gap: spacing.lg, maxHeight: '85%' },
+  title: { fontFamily: fonts.heading, fontSize: fontSizes.xl, lineHeight: fontSizes.xl * 1.3 },
   section: { gap: spacing.sm, flexShrink: 1 },
   list: { maxHeight: 260 },
   listContent: { gap: spacing.sm, paddingVertical: spacing.xs },
@@ -178,6 +182,7 @@ const styles = StyleSheet.create({
   },
   sendBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   closeBtn: { alignSelf: 'center', paddingVertical: spacing.xs },
+  divider: { height: 1, borderRadius: 1 },
   descHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   descBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,

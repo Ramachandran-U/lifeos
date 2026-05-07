@@ -15,6 +15,7 @@ import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAI } from '@/hooks/useAI';
 import { generateRoutine } from '@/ai/functions';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
+import { useGameStore } from '@/store/useGameStore';
 import { updateUser } from '@/db/queries/users';
 import { createRoutineBlocks } from '@/db/queries/routine';
 import type { GeneratedRoutine } from '@/ai/types';
@@ -77,6 +78,7 @@ export default function Day1RoutineScreen() {
   const router = useRouter();
   const { call, loading, error } = useAI();
   const { userId, setOnboardingStage } = useUserStore();
+  const { awardBadge } = useGameStore();
 
   const [wakeTime, setWakeTime] = useState('07:00');
   const [sleepTime, setSleepTime] = useState('22:30');
@@ -124,6 +126,7 @@ export default function Day1RoutineScreen() {
     });
     setOnboardingStage(ONBOARDING_COMPLETE);
 
+    awardBadge(userId, 'first_blueprint');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     router.replace('/(tabs)');

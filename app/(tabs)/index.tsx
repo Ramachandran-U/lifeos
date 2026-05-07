@@ -193,16 +193,6 @@ export default function TodayScreen() {
     <View style={styles.root}>
       <AuroraBackground />
       <SafeAreaView style={styles.container}>
-        {/* Collapsed header chip — fades in on scroll */}
-        <Animated.View pointerEvents="none" style={[styles.collapsedHeader, chipStyle]}>
-          <View style={[styles.collapsedChip, { borderColor: c.border, backgroundColor: c.surface + 'EE' }]}>
-            <HexRadar scores={radarScores} size={36} />
-            <View>
-              <Caption style={{ color: c.textMuted, letterSpacing: 1, fontSize: 9 }}>LIFE</Caption>
-              <Body style={{ fontFamily: fonts.heading, color: c.textPrimary, fontSize: 16 }}>{avgScore}</Body>
-            </View>
-          </View>
-        </Animated.View>
 
         <Animated.ScrollView
           style={styles.flex}

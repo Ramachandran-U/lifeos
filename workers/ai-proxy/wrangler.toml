@@ -8,7 +8,7 @@ compatibility_flags = ["nodejs_compat"]
 # Then replace the id below with the one printed.
 [[kv_namespaces]]
 binding = "RATE_LIMIT"
-id = "REPLACE_ME_AFTER_WRANGLER_KV_CREATE"
+id = "8e46261c4c6948018ae072335c6a522a"
 
 [vars]
 # Non-secret config. Update with your Supabase project ref before deploy.

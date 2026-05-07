@@ -21,11 +21,13 @@ const BADGE_INFO: Record<BadgeId, { icon: string; name: string; subtitle: string
 };
 
 export function AchievementToast() {
-  const { popBadge } = useGameStore();
+  const pendingCount = useGameStore((s) => s.pendingBadges.length);
+  const popBadge = useGameStore((s) => s.popBadge);
   const [currentBadge, setCurrentBadge] = useState<BadgeId | null>(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (visible) return;
     const badge = popBadge();
     if (badge) {
       setCurrentBadge(badge);
@@ -34,20 +36,11 @@ export function AchievementToast() {
 
       const timer = setTimeout(() => {
         setVisible(false);
-        // Check for more badges after dismiss
-        setTimeout(() => {
-          const next = popBadge();
-          if (next) {
-            setCurrentBadge(next);
-            setVisible(true);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-        }, 500);
       }, 4000);
 
       return () => clearTimeout(timer);
     }
-  });
+  }, [pendingCount, visible, popBadge]);
 
   if (!visible || !currentBadge) return null;
 

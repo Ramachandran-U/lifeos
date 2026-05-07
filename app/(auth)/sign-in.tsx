@@ -12,8 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { ensureLocalUserFromAuth, getUserByEmail, setWebSession } from '@/db/queries/users';
 import { useUserStore } from '@/store/useUserStore';
-import { signInWithEmail, signInWithApple } from '@/integrations/supabase/auth';
-import { startGoogleAuthOAuth } from '@/integrations/googleAuth/oauth';
+import { signInWithEmail, signInWithApple, startGoogleSupabaseOAuth } from '@/integrations/supabase/auth';
 import { Ionicons } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
@@ -28,13 +27,8 @@ export default function SignInScreen() {
 
   const handleGoogleSignIn = async () => {
     setError('');
-    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setError('Google sign-in not configured. Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID.');
-      return;
-    }
     try {
-      await startGoogleAuthOAuth(clientId);
+      await startGoogleSupabaseOAuth();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start Google sign-in.');
     }
