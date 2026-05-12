@@ -156,6 +156,81 @@ export async function getSchemaFailures(days = 7): Promise<SchemaFailuresRespons
   return res.json();
 }
 
+// ─── feedback ────────────────────────────────────────────────────────────────
+
+export type FeedbackStatus = 'new' | 'triaged' | 'responded' | 'closed';
+
+export interface FeedbackRow {
+  id: number;
+  from_email: string | null;
+  subject: string | null;
+  body: string;
+  source: 'app' | 'email';
+  status: FeedbackStatus;
+  assigned_to: string | null;
+  notes: string | null;
+  device_id: string | null;
+  app_version: string | null;
+  platform: string | null;
+  received_at: string;
+  updated_at: string;
+}
+
+export async function listFeedback(status?: FeedbackStatus, limit = 100): Promise<FeedbackRow[]> {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (status) qs.set('status', status);
+  const res = await authedFetch(`/v1/admin/feedback?${qs.toString()}`);
+  if (!res.ok) throw new Error(`feedback: ${res.status}`);
+  const json = await res.json();
+  return json.feedback;
+}
+
+export async function patchFeedback(
+  id: number,
+  patch: { status?: FeedbackStatus; assigned_to?: string | null; notes?: string },
+): Promise<FeedbackRow> {
+  const res = await authedFetch(`/v1/admin/feedback/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`patch feedback: ${res.status} ${await res.text()}`);
+  const json = await res.json();
+  return json.feedback;
+}
+
+// ─── push ────────────────────────────────────────────────────────────────────
+
+export interface PushStats {
+  total: number;
+  by_platform: Record<string, number>;
+}
+
+export async function getPushStats(): Promise<PushStats> {
+  const res = await authedFetch('/v1/admin/push/stats');
+  if (!res.ok) throw new Error(`push stats: ${res.status}`);
+  return res.json();
+}
+
+export interface BroadcastResult {
+  sent: number;
+  failed: number;
+  invalid: number;
+}
+
+export async function broadcastPush(payload: {
+  title?: string;
+  body: string;
+  data?: Record<string, unknown>;
+  platform?: 'ios' | 'android' | 'web';
+}): Promise<BroadcastResult> {
+  const res = await authedFetch('/v1/admin/push/broadcast', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`broadcast: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 export async function activatePromptVersion(key: string, version: number): Promise<PromptVersion> {
   const res = await authedFetch(
     `/v1/admin/prompts/${encodeURIComponent(key)}/versions/${version}/activate`,

@@ -16,10 +16,19 @@ Notifications.setNotificationHandler({
 
 export async function requestNotificationPermissions(): Promise<boolean> {
   const { status: existing } = await Notifications.getPermissionsAsync();
-  if (existing === 'granted') return true;
+  if (existing === 'granted') {
+    // Re-register opportunistically so admin broadcasts can reach this device.
+    // No-op on web. Failures are non-fatal.
+    void (await import('@/utils/pushRegister')).registerPushToken().catch(() => {});
+    return true;
+  }
 
   const { status } = await Notifications.requestPermissionsAsync();
-  return status === 'granted';
+  if (status === 'granted') {
+    void (await import('@/utils/pushRegister')).registerPushToken().catch(() => {});
+    return true;
+  }
+  return false;
 }
 
 async function cancelNotification(id: string) {

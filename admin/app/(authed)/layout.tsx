@@ -9,7 +9,8 @@ const NAV: { label: string; href: string; enabled: boolean }[] = [
   { label: 'Prompts',         href: '/prompts',         enabled: true },
   { label: 'Telemetry',       href: '/telemetry',       enabled: true },
   { label: 'Schema failures', href: '/schema-failures', enabled: true },
-  { label: 'Feedback',        href: '#',                enabled: false },
+  { label: 'Feedback',        href: '/feedback',        enabled: true },
+  { label: 'Push',            href: '/push',            enabled: true },
   { label: 'Audit',           href: '#',                enabled: false },
 ];
 

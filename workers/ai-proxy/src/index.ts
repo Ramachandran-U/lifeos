@@ -6,6 +6,10 @@ import { handleConfig } from './routes/config';
 import { handleAdminFlags } from './routes/admin/flags';
 import { handleAdminPrompts } from './routes/admin/prompts';
 import { handleAdminTelemetry } from './routes/admin/telemetry';
+import { handleAdminFeedback } from './routes/admin/feedback';
+import { handleAdminPush } from './routes/admin/push';
+import { handleFeedback } from './routes/feedback';
+import { handlePushRegister } from './routes/push';
 import { handlePrompts } from './routes/prompts';
 import { handleGoogleToken } from './routes/googleToken';
 import { handleTelemetry } from './routes/telemetry';
@@ -81,6 +85,15 @@ export default {
       }
     }
 
+    // Public anonymous feedback ingest — no auth.
+    if (url.pathname === '/v1/feedback' && req.method === 'POST') {
+      try {
+        return await handleFeedback(req, env, corsHeaders(req, env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'feedback error', req, env);
+      }
+    }
+
     // Public config endpoint — no auth. Consumer app polls this at startup.
     if (url.pathname === '/v1/config' && req.method === 'GET') {
       try {
@@ -149,6 +162,14 @@ export default {
       }
     }
 
+    if (url.pathname === '/v1/push/register' && req.method === 'POST') {
+      try {
+        return await handlePushRegister(req, env, corsHeaders(req, env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'push register error', req, env);
+      }
+    }
+
     if (url.pathname === '/v1/prompts' && req.method === 'GET') {
       try {
         return await handlePrompts(req, env, corsHeaders(req, env));
@@ -187,6 +208,22 @@ export default {
           return await handleAdminTelemetry(req, env, admin, corsHeaders(req, env));
         } catch (e) {
           return jsonError(500, e instanceof Error ? e.message : 'admin telemetry error', req, env);
+        }
+      }
+
+      if (url.pathname.startsWith('/v1/admin/feedback')) {
+        try {
+          return await handleAdminFeedback(req, env, admin, corsHeaders(req, env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin feedback error', req, env);
+        }
+      }
+
+      if (url.pathname.startsWith('/v1/admin/push')) {
+        try {
+          return await handleAdminPush(req, env, admin, corsHeaders(req, env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin push error', req, env);
         }
       }
 
