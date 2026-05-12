@@ -1,8 +1,19 @@
 # LifeOS Admin Portal — Implementation Plan
 
-> **Status:** Phase 1 + Phase 2 shipped — flags + prompt registry are live, consumer app fetches both from `/v1/config` and `/v1/prompts` with a bundled fallback. Telemetry phase and "Out of scope for v1" boundaries below still hold. This file is retained as the design rationale; for current code see [`admin/`](../admin/), [`workers/ai-proxy/src/routes/`](../workers/ai-proxy/src/routes/), and [`supabase/migrations/`](../supabase/migrations/).
+> **Status (2026-05-12):** Phases 1–5 shipped. The admin portal v1 is feature-complete:
+> - **Phase 1 — Flags + foundation** ✅
+> - **Phase 2 — Prompt registry** ✅
+> - **Phase 3 — Anonymous opt-in telemetry** ✅ (funnel + recent events + privacy doc + Settings toggle)
+> - **Phase 4a — Schema-failure feed** ✅ (groups consumer-side `Zod.parse()` failures by task+schema)
+> - **Phase 4b — Eval pass-rate visibility** ✅ via **design C** — CI writes per-suite pass rates to `eval_reports` via `POST /v1/evals/report` (token-auth) and the admin's Evals tab surfaces them per `(branch, mode)`. No server-side eval runner (design A) or GH dispatch (design B) — committed-code prompts are gated by the CI eval workflow; runtime prompt overrides edited in the admin don't yet have eval coverage (documented gap).
+> - **Phase 5 — Feedback inbox + push broadcast** ✅ (in-app feedback form + admin triage UI + Expo push token registry + admin broadcast composer)
+>
+> This file is retained as the design rationale; for current code see [`admin/`](../admin/), [`workers/ai-proxy/src/routes/`](../workers/ai-proxy/src/routes/), and [`supabase/migrations/`](../supabase/migrations/).
+>
+> **Out of scope, deliberately deferred:** Gmail-pull cron for email feedback (in-app form covers the day-to-day case), audit-log read UI (data flows already via `writeAudit`), `aal2` MFA enforcement check.
+>
 > **Owner:** Ramachandran
-> **Stack decisions (as built):** Next.js 14 (App Router) at `admin/` · Cloudflare Worker (`lifeos-ai-proxy`) · Supabase Postgres + Auth · Cloudflare KV for hot config reads · Opt-in anonymous telemetry planned but not yet wired.
+> **Stack decisions (as built):** Next.js 14 (App Router) at `admin/` on Vercel · Cloudflare Worker (`lifeos-ai-proxy`) v4.x · Supabase Postgres + Auth · Cloudflare KV for hot config reads · Anonymous opt-in telemetry default-OFF.
 
 ---
 

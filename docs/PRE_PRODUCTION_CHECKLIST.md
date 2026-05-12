@@ -43,45 +43,42 @@ Last updated: 2026-04-28
 - **Original issue**: `@supabase/ssr` cookie refresh wasn't wired — admin pages 401'd at JWT expiry (~1h).
 - **Resolution**: [`admin/middleware.ts`](../admin/middleware.ts) added. Calls `supabase.auth.getUser()` on every request through the standard `@supabase/ssr` `createServerClient` + `getAll`/`setAll` cookie hook pattern. Matcher excludes static assets.
 
-### 8. Magic-link / password reset rate limits
+### 8. Magic-link / password reset rate limits — **still open**
 - **What**: Hit Supabase's free 4-emails-per-hour ceiling during testing.
 - **Why**: Real users will hit this on day one.
-- **Fix**: Configure custom SMTP in Supabase (SendGrid / Resend / Postmark). Update sender domain DNS for SPF/DKIM/DMARC.
+- **Fix**: Configure custom SMTP in Supabase (SendGrid / Resend / Postmark). Update sender domain DNS for SPF/DKIM/DMARC. Blocked on owning a sender domain — see strategic-domain decision.
 
-### 9. `usePromptStore` has no persistent cache
-- **What**: Prompt fetch is in-memory only with 5min TTL — every cold start re-fetches.
-- **Why**: Adds 200-500ms to first AI call after launch; fails closed (uses bundled fallback) if network slow.
-- **Fix**: Wrap store in `zustand/middleware` `persist` with AsyncStorage. Same treatment as `useFlagStore`.
+### 9. ~~`usePromptStore` has no persistent cache~~ ✅ Resolved 2026-05-12
+- **Resolution**: Both `usePromptStore` and `useFlagStore` wrapped in zustand `persist` middleware. Web → `localStorage`, native → `AsyncStorage` (matches the auth-session pattern). `partialize` keeps `loading`/`error` out of storage; versioned cache keys (`_v1`) for cheap busting.
 
-### 10. Chatbot has no per-feature rate limit
-- **What**: Daily AI quota is global per user; chatbot can drain it.
-- **Why**: User runs out of AI before the daily Routine Builder fires.
-- **Fix**: Add `task: 'chatbot'` quota bucket in Worker (e.g. 30/day vs 100/day overall). Already plumbed — just needs counter logic.
+### 10. ~~Chatbot has no per-feature rate limit~~ ✅ Resolved 2026-05-12
+- **Resolution**: Worker peeks at `body.task` and routes chatbot calls to `ai:chatbot:<userId>` bucket (`DAILY_CHATBOT_LIMIT=30`) instead of the shared `ai:<userId>` bucket. Older clients without the `task` field fall through to the default bucket — no regression.
 
 ---
 
 ## 🟡 Medium — fix in next iteration
 
-### 11. Discovery Screen 3 (confirm + seed) unfinished
-- **What**: `extractDiscoveryProfile` works, paste/confirm screens exist read-only. Editable confirm + seeding extracted data into SQLite tables (`goals`, `health_profile`, etc.) is deferred.
-- **Fix**: Carry-over task — see plan `smooth-tumbling-lantern.md` for the intro screen pass; Screen 3 follows.
+### 11. ~~Discovery Screen 3 (confirm + seed)~~ ✅ Resolved 2026-05-12
+- **Resolution**: Editable confirm + SQLite seed shipped as part of the v2 conversational onboarding work (commit `7fa58a7`).
 
-### 12. Audit log retention undefined
+### 12. Audit log retention undefined — **still open**
 - **What**: `audit_log` grows unbounded.
 - **Fix**: Pick a retention (90d? 1y?) and add a `pg_cron` job to delete past it. Consider archiving to R2/S3 first.
 
-### 13. Phase 3+ admin features deferred
-- Phase 3: telemetry dashboard (request count, p95, errors, cost per user)
-- Phase 4: prompt eval runner (golden-set regression test before Activate)
-- Phase 5: feedback inbox + push broadcast
+### 13. ~~Phase 3+ admin features deferred~~ ✅ Resolved 2026-05-12
+- Phase 3 — Telemetry funnel + recent events: shipped, see [ADMIN_PORTAL_PLAN.md](ADMIN_PORTAL_PLAN.md).
+- Phase 4a — Schema-failure feed: shipped (grouped view of consumer-side `Zod.parse()` failures).
+- Phase 4b — Eval runner + publish gate: shipped via **design C** — CI writes pass rates to `eval_reports` via `POST /v1/evals/report` (token-auth) and the admin's new Evals tab surfaces them per (branch, mode).
+- Phase 5 — Feedback inbox + push broadcast: shipped. Gmail-pull cron deferred; in-app `POST /v1/feedback` covers the day-to-day case.
 
-### 14. Mock mode (`USE_AI_MOCK`) not wired into all AI paths
+### 14. Mock mode (`USE_AI_MOCK`) not wired into all AI paths — **still open**
 - **What**: `extractDiscoveryProfile` checks the flag; chatbot and other functions don't.
 - **Fix**: Audit `src/ai/functions.ts` — every `callAI` call should have a mock branch.
 
-### 15. No automated E2E tests
+### 15. No automated E2E tests — **still open**
 - **What**: All onboarding / chat / admin flows verified manually.
 - **Fix**: Add Playwright suite for admin portal, Maestro for mobile happy-paths.
+- **Partial progress**: Jest eval harness at `evals/` covers AI surfaces (7 suites, 28+ graders, runs in CI on every PR touching `src/ai/**`). Not a substitute for E2E but closes a meaningful regression window.
 
 ---
 
@@ -90,7 +87,7 @@ Last updated: 2026-04-28
 - Sentry / error monitoring on consumer app + Worker + admin
 - Crashlytics for native crashes
 - Bundle size analysis — strip unused Expo modules
-- Light mode theme tokens (currently dark-only)
+- ~~Light mode theme tokens (currently dark-only)~~ ✅ Resolved 2026-05-08 — `useColors()` hook + `makeStyles(c: AppColors)` pattern across ~35 files. Settings toggle drives re-render.
 - App Store screenshots, listing copy, privacy policy URL, support URL
 - Privacy nutrition labels (App Store) + Data Safety form (Play Store) — be precise about on-device-only fields
 - HealthKit / Health Connect entitlements + usage descriptions in `app.json`
@@ -99,7 +96,8 @@ Last updated: 2026-04-28
 
 ## Operational notes
 
-- **Branch**: `claude/interesting-rubin-97ecf6` — uncommitted work as of session end (admin Phase 2 prompt registry, consumer prompt fetch, chatbot v1, Google web sign-in).
+- **Branch context (post PR #8)**: `lifeosv1` is the production branch and has everything from the admin portal v1 + AI engineering depth landings. Feature branches are short-lived; use a fresh worktree per workstream.
 - **Worker dev**: `cd workers/ai-proxy && npx wrangler dev` (uses `.dev.vars` — gitignored).
 - **Admin dev**: `cd admin && npm run dev` — must seed admin row in Supabase before sign-in works.
 - **Bundled prompt fallbacks** live in `src/ai/prompts/*.ts` and ship in the app bundle. The Worker `/v1/prompts` endpoint returns *active* versions which override these at runtime when reachable.
+- **Manual ops checklist** for everything that needs to happen in a dashboard / CLI (Wrangler secrets, Supabase migrations, GitHub repo secrets, MFA enrolment): [`docs/MANUAL_OPS_TODO.md`](MANUAL_OPS_TODO.md).

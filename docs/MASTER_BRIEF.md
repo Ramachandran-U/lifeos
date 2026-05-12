@@ -140,7 +140,7 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
   - Career `#5B4FE8` violet · Social `#FF4D8B` pink · Polymath `#00B4D8` cyan
 - **Gamification colours:** XP `#FFD700` gold · Streak `#FF6B35` flame · Badge `#A855F7` purple
 - **Brand:** primary `#5B4FE8` deep violet
-- **Dark mode default** — `#0D0D0D` bg, `#1A1A2E` surface, `#1F1F3A` card. Light mode available.
+- **Dark mode default** — `#0D0D0D` bg, `#1A1A2E` surface, `#1F1F3A` card. **Reactive light mode** — `useColors()` hook + `makeStyles(c: AppColors)` pattern across the consumer app; Settings → Appearance toggle drives a live re-render.
 
 ## 8. Tech Stack (for technical marketing / dev-facing content)
 
@@ -156,19 +156,25 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 | Async | TanStack React Query 5 |
 | Animation | Reanimated 4 + react-native-svg |
 | Validation | Zod |
-| Auth | Local email/password (expo-crypto SHA-256 + per-user salt) **and** Google sign-in via Supabase on web |
-| Backend | Cloudflare Worker `ai-proxy` (model routing, prompts, flags) + Supabase (auth) — no app data persisted server-side |
-| Admin | Admin portal (Next.js) with feature-flag and prompt registry, consumed live by clients with a bundled fallback |
-| AI infra | Cost ledger, model router, tracing, agent + RAG scaffolds in `src/ai/` |
-| Web deploy | Cloudflare Pages PWA (manifest, iOS standalone meta, static export) |
+| Auth | Local email/password (expo-crypto SHA-256 + per-user salt) **and** Google sign-in via Supabase on web; admin portal uses Supabase magic-link (default) with password fallback |
+| Backend | Cloudflare Worker `ai-proxy` v4 (model routing, prompts, flags, telemetry, feedback, push, evals, OAuth token exchange) + Supabase (auth + admin tables only) — no consumer app data persisted server-side |
+| Admin | Next.js 14 admin portal (Vercel) with Flags · Prompts · Telemetry · Schema failures · Evals · Feedback · Push tabs. Audit-logged on every mutation. Live admin URL: project-yom9m.vercel.app |
+| AI infra | Cost ledger · model router · tracing · **agentic Routine Planner** (retrieve → propose → critique → commit) wired into both consumer entry points · **RAG** seeded from recent reflections + behaviour events + blood-report summaries via `src/ai/historyContext.ts` · **eval harness** at `evals/` runs in CI on every PR touching `src/ai/**` (7 suites, 28+ graders) and writes pass rates back to the admin |
+| Finance | 4-tier categorizer: cache → rule → **distilled local k-NN classifier** (char-3-gram TF-IDF, zero deps) → batched AI fallback. The classifier holds 167 anchors and serves most rule-misses for free; AI escalations are batched at 25/req so a 100-merchant sync uses ≤2 AI calls |
+| Telemetry | Anonymous opt-in (default OFF). Anonymous device id, server-side event allowlist, 4 KB props cap, per-device daily cap. Funnel + recent-events dashboards in admin |
+| Web deploy | Cloudflare Pages PWA (manifest, iOS standalone meta, static export). Live web URL: lifeos-6r5-eqa.pages.dev |
 | Platforms | iOS, Android, Web (same codebase) |
 
 - **Sensitive data is on-device.** SQLite native / localStorage + IndexedDB on web. Cloudflare Worker proxies AI inference; Supabase handles auth only.
 - **Storage abstraction:** every query branches on `Platform.OS === 'web'` to swap SQLite ↔ localStorage/Dexie — transparent to callers.
 - **Mock mode** (`EXPO_PUBLIC_USE_AI_MOCK=true`) lets the full app run with zero API key during dev.
 
-### AI functions (14)
-`decomposeGoal`, `analyseSkillGap`, `generateRoutine`, `parseBloodReport`, `suggestMeals`, `generateFinancialPlan`, `getWeeklyFinanceInsight`, `categorizeMerchant`, `recogniseFood`, `generateCareerStrategy`, `describeGoal`, `generateMotivation`, `extractDiscoveryProfile`, `suggestTomorrowTweak`. Every one is Zod-validated and has a mock fallback. Additional prompt surfaces back the **chatbot** (Ask LifeOS), **discovery** import, and evening **reflection** flows.
+### AI functions
+Single-shot: `decomposeGoal`, `analyseSkillGap`, `parseBloodReport`, `suggestMeals`, `generateFinancialPlan`, `getWeeklyFinanceInsight`, `categorizeMerchant` + **batched** `categorizeMerchantsBatch`, `recogniseFood`, `generateCareerStrategy`, `describeGoal`, `generateMotivation`, `extractDiscoveryProfile`, `suggestTomorrowTweak`, `discoveryChatTurn`.
+
+Multi-step: `planRoutineAgent` (the agentic Routine Builder) wraps `generateRoutine` in a `retrieve → propose → critique → commit` loop with traced intermediate state. The public entry point `planRoutineWithContext` (`src/ai/routinePlanner.ts`) builds the RAG context from recent user history before invoking the agent.
+
+Every function is Zod-validated. Validation failures emit an `ai_schema_failure` telemetry event with the failing task + schema + raw response, which surfaces in the admin's **Schema failures** tab so production failures become eval-fixture candidates.
 
 ## 9. Privacy & Trust Story
 
