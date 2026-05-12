@@ -52,12 +52,34 @@ Notes:
 - RN-web renders `Pressable` as `generic` (not `role=button`); use `page.getByText(...)` selectors rather than `getByRole('button', ...)`.
 - Auth/onboarding state is seeded directly into `localStorage` via `addInitScript` — see [`e2e/helpers.ts`](../e2e/helpers.ts).
 
-Current specs:
-- [`career-strategy.spec.ts`](../e2e/career-strategy.spec.ts) — Career Strategist: fill role form → Analyse → Generate strategy → Commit all → verify `W1:` goal appears on Goals tab.
+Current specs include `career-strategy.spec.ts` and `voice-assistant.spec.ts` under [`e2e/`](../e2e/). Add new specs there with the helpers in [`e2e/helpers.ts`](../e2e/helpers.ts).
 
-## Next steps (not done yet)
+## AI Evals
 
-- Add `jest-expo` preset so components + hooks can be tested
-- Add `@testing-library/react-native` for the Rewards/Today/Goals screens
+The eval harness lives under [`evals/`](../evals/) and is the primary regression net for the AI layer (RAG retrieval, agentic planner, prompt caching, model routing, cost ledger, tracing, merchant categorisation benchmark, blood-report safety).
+
+```bash
+npm run evals             # mock-mode, no keys needed — fast and deterministic
+EVAL_REAL=true npm run evals:live   # live providers via the Worker (real cost)
+```
+
+Reports land in `evals/reports/`:
+- `latest.md` / `latest.json` — last run summary (per-suite pass rate, cost/token usage, model routing, tracing)
+- `traces.jsonl` — structured spans for every AI call
+- `benchmark-merchant.md` — categoriser accuracy
+
+See [`AI_TEST_PLAN.md`](AI_TEST_PLAN.md) for the full manual test matrix.
+
+## Worker tests
+
+`workers/ai-proxy/test/` carries happy-path tests per route — run via `npm test` inside `workers/ai-proxy/`. New endpoints must add at least one test before phase sign-off (see [`ADMIN_PORTAL_PLAN.md`](ADMIN_PORTAL_PLAN.md) § 8).
+
+## CI
+
+GitHub Actions runs typecheck, Jest, and evals on PRs touching `src/ai/**` or `evals/**`. See the workflow file under `.github/workflows/`.
+
+## Next steps
+
+- `jest-expo` preset so components + hooks can be tested
+- `@testing-library/react-native` for Rewards/Today/Goals screens
 - Mock `expo-sqlite` + `expo-crypto` for DB query tests
-- CI hook (GitHub Actions): `npm ci && npm test && npx playwright test` on every push

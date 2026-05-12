@@ -27,7 +27,10 @@ export type AITask =
   | 'describeGoal'
   | 'generateMotivation'
   | 'extractDiscoveryProfile'
+  | 'discoveryChatTurn'
   | 'suggestTomorrowTweak'
+  | 'replanRemainingDay'
+  | 'generateTomorrowRoutine'
   | 'agent.propose'
   | 'agent.critique'
   | 'agent.brief';
@@ -36,6 +39,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   categorizeMerchant: 'cheap',
   describeGoal: 'cheap',
   generateMotivation: 'cheap',
+  discoveryChatTurn: 'cheap',
   'agent.brief': 'cheap',
 
   decomposeGoal: 'planning',
@@ -48,6 +52,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   generateCareerStrategy: 'planning',
   extractDiscoveryProfile: 'planning',
   suggestTomorrowTweak: 'planning',
+  replanRemainingDay: 'planning',
+  generateTomorrowRoutine: 'planning',
   'agent.propose': 'planning',
   'agent.critique': 'planning',
 

@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 're
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -23,6 +23,8 @@ export default function Day1VisionScreen() {
   const router = useRouter();
   const { call, loading, error } = useAI();
   const { userId, name: storedName, email: userEmail, setUser, setOnboardingStage } = useUserStore();
+  const c = useColors();
+  const styles = makeStyles(c);
 
   const [vision, setVision] = useState('');
   const [age, setAge] = useState('');
@@ -114,13 +116,13 @@ export default function Day1VisionScreen() {
             <Animated.View entering={FadeInUp.duration(600)} style={styles.preview}>
               <Label style={styles.previewLabel}>YOUR LIFE PLAN</Label>
 
-              <Card moduleColor={colors.goal} style={styles.previewCard}>
-                <Label color={colors.goal}>PRIMARY GOAL</Label>
+              <Card moduleColor={c.goal} style={styles.previewCard}>
+                <Label color={c.goal}>PRIMARY GOAL</Label>
                 <Heading style={styles.goalTitle}>{hierarchy.primaryGoal.title}</Heading>
               </Card>
 
               <Card style={styles.previewCard}>
-                <Label color={colors.primary}>THIS YEAR</Label>
+                <Label color={c.primary}>THIS YEAR</Label>
                 <Body>{hierarchy.yearly.title}</Body>
                 <Caption style={styles.milestone}>{hierarchy.yearly.milestone}</Caption>
               </Card>
@@ -128,7 +130,7 @@ export default function Day1VisionScreen() {
               <Label style={styles.sectionLabel}>FIRST 3 MONTHS</Label>
               {hierarchy.monthly.map((m) => (
                 <Card key={m.month} style={styles.monthCard}>
-                  <Label color={colors.primary}>MONTH {m.month}</Label>
+                  <Label color={c.primary}>MONTH {m.month}</Label>
                   <Body>{m.title}</Body>
                   <Caption>{m.milestone}</Caption>
                 </Card>
@@ -137,7 +139,7 @@ export default function Day1VisionScreen() {
               <Label style={styles.sectionLabel}>THIS WEEK</Label>
               {hierarchy.weekly.slice(0, 1).map((w) => (
                 <Card key={w.week} style={styles.previewCard}>
-                  <Label color={colors.primary}>WEEK {w.week}: {w.focus}</Label>
+                  <Label color={c.primary}>WEEK {w.week}: {w.focus}</Label>
                   {w.tasks.map((task, i) => (
                     <Body key={i} style={styles.task}>• {task}</Body>
                   ))}
@@ -164,7 +166,7 @@ export default function Day1VisionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

@@ -33,6 +33,16 @@ type GoalInsert = {
 export function createGoal(data: GoalInsert) {
   const id = nanoid();
   const now = new Date().toISOString();
+  // Fire-and-forget telemetry. `track` no-ops if user hasn't opted in.
+  // Imported lazily to avoid a circular import via db init.
+  import('@/utils/telemetry').then(({ track }) =>
+    track('goal_created', {
+      level: data.level,
+      goal_type: data.goalType,
+      ai_generated: data.aiGenerated,
+      timeline: data.timeline,
+    }),
+  );
   if (isWeb) {
     const record: WebGoal = {
       id,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,6 +15,8 @@ interface Props {
 }
 
 export function EditVitalsSheet({ visible, initialWeightKg, initialHeightCm, onClose, onSave }: Props) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
 
@@ -67,7 +69,7 @@ export function EditVitalsSheet({ visible, initialWeightKg, initialHeightCm, onC
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.background,

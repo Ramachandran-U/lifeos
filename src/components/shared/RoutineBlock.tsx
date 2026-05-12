@@ -3,23 +3,11 @@ import { View, Pressable, StyleSheet, Platform } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, DOMAIN_GLYPHS } from '@/theme/colors';
+import { useColors, type AppColors, DOMAIN_GLYPHS } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption } from '@/components/ui/Typography';
 import { SPRING, TIMING } from '@/theme/motion';
-
-const MODULE_COLORS: Record<string, string> = {
-  goal: colors.goal,
-  health: colors.health,
-  finance: colors.finance,
-  career: colors.career,
-  social: colors.social,
-  polymath: colors.polymath,
-  rest: colors.textMuted,
-  work: colors.textSecondary,
-  meal: colors.warning,
-};
 
 const MODULE_LABELS: Record<string, string> = {
   goal: 'GOALS', health: 'HEALTH', finance: 'FINANCE', career: 'CAREER',
@@ -63,7 +51,20 @@ function durationLabel(start: string, end: string): string {
 }
 
 export function RoutineBlock({ id, startTime, endTime, title, module, status, onComplete, sub, xp }: RoutineBlockProps) {
-  const moduleColor = MODULE_COLORS[module] ?? colors.textMuted;
+  const c = useColors();
+  const styles = makeStyles(c);
+  const MODULE_COLORS: Record<string, string> = {
+    goal: c.goal,
+    health: c.health,
+    finance: c.finance,
+    career: c.career,
+    social: c.social,
+    polymath: c.polymath,
+    rest: c.textMuted,
+    work: c.textSecondary,
+    meal: c.warning,
+  };
+  const moduleColor = MODULE_COLORS[module] ?? c.textMuted;
   const moduleLabel = MODULE_LABELS[module] ?? module.toUpperCase();
   const glyph = GLYPHS[module] ?? '●';
   const isCompleted = status === 'completed';
@@ -112,10 +113,10 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
                 : undefined,
             ]}
           />
-          <Caption style={[styles.time, { color: isActive ? moduleColor : colors.textMuted }]}>
+          <Caption style={[styles.time, { color: isActive ? moduleColor : c.textMuted }]}>
             {startTime}
           </Caption>
-          <Caption style={[styles.time, { color: colors.textMuted }]}>{endTime}</Caption>
+          <Caption style={[styles.time, { color: c.textMuted }]}>{endTime}</Caption>
         </View>
 
         {/* Content */}
@@ -129,11 +130,11 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
               </Caption>
             </View>
             <View style={[styles.tag, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }]}>
-              <Caption style={[styles.tagText, { color: colors.textSecondary }]}>{duration}</Caption>
+              <Caption style={[styles.tagText, { color: c.textSecondary }]}>{duration}</Caption>
             </View>
             {xp !== undefined && (
-              <View style={[styles.tag, { backgroundColor: colors.primary + '1F', borderColor: colors.primary + '33' }]}>
-                <Caption style={[styles.tagText, { color: colors.primaryLight }]}>+{xp} XP</Caption>
+              <View style={[styles.tag, { backgroundColor: c.primary + '1F', borderColor: c.primary + '33' }]}>
+                <Caption style={[styles.tagText, { color: c.primaryLight }]}>+{xp} XP</Caption>
               </View>
             )}
           </View>
@@ -142,8 +143,8 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
         {/* Status control */}
         <Pressable onPress={handleComplete} style={styles.statusBtn} hitSlop={8}>
           {isCompleted ? (
-            <View style={[styles.checkCircle, { backgroundColor: colors.success + '26', borderColor: colors.success + '66' }]}>
-              <Ionicons name="checkmark" size={16} color={colors.success} />
+            <View style={[styles.checkCircle, { backgroundColor: c.success + '26', borderColor: c.success + '66' }]}>
+              <Ionicons name="checkmark" size={16} color={c.success} />
             </View>
           ) : isActive ? (
             <View
@@ -166,7 +167,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'stretch',

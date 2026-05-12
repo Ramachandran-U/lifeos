@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -10,18 +10,19 @@ import { Body } from '@/components/ui/Typography';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const c = useColors();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <View style={styles.content}>
-        <Animated.Text entering={FadeIn.duration(800)} style={styles.logo}>
+        <Animated.Text entering={FadeIn.duration(800)} style={[styles.logo, { color: c.primary }]}>
           LifeOS
         </Animated.Text>
         <Animated.View entering={FadeInDown.delay(400).duration(600)}>
-          <Body style={styles.tagline}>Your Digital Life Architect</Body>
+          <Body style={[styles.tagline, { color: c.textSecondary }]}>Your Digital Life Architect</Body>
         </Animated.View>
         <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.description}>
-          <Body style={styles.descText}>
+          <Body style={[styles.descText, { color: c.textMuted }]}>
             One system that understands every dimension of your life and turns it into a liveable daily structure.
           </Body>
         </Animated.View>
@@ -39,7 +40,6 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
@@ -50,11 +50,9 @@ const styles = StyleSheet.create({
   logo: {
     fontFamily: fonts.display,
     fontSize: fontSizes.hero,
-    color: colors.primary,
     marginBottom: spacing.sm,
   },
   tagline: {
-    color: colors.textSecondary,
     fontSize: fontSizes.xl,
     textAlign: 'center',
   },
@@ -63,7 +61,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   descText: {
-    color: colors.textMuted,
     fontSize: fontSizes.md,
     textAlign: 'center',
     lineHeight: 24,

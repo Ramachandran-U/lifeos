@@ -1,8 +1,8 @@
 # LifeOS Admin Portal — Implementation Plan
 
-> **Status:** plan, not yet built. Source of truth until v1 ships.
+> **Status:** Phase 1 + Phase 2 shipped — flags + prompt registry are live, consumer app fetches both from `/v1/config` and `/v1/prompts` with a bundled fallback. Telemetry phase and "Out of scope for v1" boundaries below still hold. This file is retained as the design rationale; for current code see [`admin/`](../admin/), [`workers/ai-proxy/src/routes/`](../workers/ai-proxy/src/routes/), and [`supabase/migrations/`](../supabase/migrations/).
 > **Owner:** Ramachandran
-> **Stack decisions:** Next.js 14 (App Router) at `admin/` · Cloudflare Worker (extend `lifeos-ai-proxy`) · Supabase Postgres + Auth · Cloudflare KV for hot config reads · Opt-in anonymous telemetry from day 1.
+> **Stack decisions (as built):** Next.js 14 (App Router) at `admin/` · Cloudflare Worker (`lifeos-ai-proxy`) · Supabase Postgres + Auth · Cloudflare KV for hot config reads · Opt-in anonymous telemetry planned but not yet wired.
 
 ---
 

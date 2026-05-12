@@ -274,7 +274,7 @@ export const getGoogleAuthAccessToken = client.getAccessToken;
 
 The empty-state copy ("Hit Sync to pull the last 14 days") matches the `syncFitDailyData(clientId, days=14)` default — both should move together if the window is ever re-tuned.
 
-Setup: both Calendar and Fit require (a) enabling the respective API in Google Cloud Console, (b) adding the callback URL to Authorized redirect URIs, (c) providing `EXPO_PUBLIC_GOOGLE_CLIENT_ID` + `EXPO_PUBLIC_GOOGLE_CLIENT_SECRET` in `.env` (web-type OAuth clients still require the secret even with PKCE).
+Setup: both Calendar and Fit require (a) enabling the respective API in Google Cloud Console, (b) adding the callback URL to Authorized redirect URIs, (c) providing `EXPO_PUBLIC_GOOGLE_CLIENT_ID` in `.env` for the app, and (d) setting `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` as Wrangler secrets on the Worker (web-type OAuth clients still require the secret even with PKCE — but it now stays server-side, exchanged via the Worker's `/v1/google/token` endpoint, never in the app bundle).
 
 **OAuth callback routes — shared view.** All four Google callback screens (`app/google-auth-callback.tsx`, `app/fit-callback.tsx`, `app/calendar-callback.tsx`, `app/gmail-callback.tsx`) are now ≈20-line wrappers around a single presentational component, `src/components/shared/OAuthCallbackView.tsx`. Each route file passes `exchange` (the bound `complete` from its integration's oauth module), an `onSuccess` follow-up (e.g. fetch profile + upsert user), and `redirectTo`. `OAuthCallbackView` owns the working/ok/error UI states, reads `code`/`error` from `window.location.search`, calls `exchange(code, clientId)` then `onSuccess(clientId)`, and finally `router.replace(await redirectTo())` after `redirectDelayMs`.
 
@@ -582,7 +582,6 @@ App (`.env`):
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL | (required) |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | (required) |
 | `EXPO_PUBLIC_GOOGLE_CLIENT_ID` | Web OAuth client (Calendar/Fit/Gmail) | (required for integrations) |
-| `EXPO_PUBLIC_GOOGLE_CLIENT_SECRET` | Web client secret (PKCE web flow still needs it) | (required for integrations) |
 
 Worker (`workers/ai-proxy/wrangler.toml` / secrets):
 
@@ -593,6 +592,7 @@ Worker (`workers/ai-proxy/wrangler.toml` / secrets):
 | `SUPABASE_JWKS_URL`, `SUPABASE_PROJECT_REF`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | JWT verification + admin row lookups |
 | `DAILY_AI_REQUEST_LIMIT`, `DAILY_VOICE_MINUTES_LIMIT` | Per-user daily quotas |
 | `ALLOWED_ORIGIN` | CORS lock |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Server-only Google OAuth credentials for `/v1/google/token` exchange |
 | `RATE_LIMIT` (KV) | Daily counter store |
 
 ### Development Notes

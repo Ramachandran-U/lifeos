@@ -202,6 +202,27 @@ export interface RoutineInput {
   workEndTime: string;
   goals?: string[];
   careerFocus?: string;
+  // --- Onboarding v2 additions: all optional so legacy callers keep working ---
+  chronotype?: 'lark' | 'balanced' | 'owl' | null;
+  primaryDomains?: string[];
+  fixedBlocks?: Array<{
+    label: string;
+    startTime: string;
+    endTime: string;
+    daysOfWeek: number[];
+    kind: 'work' | 'family' | 'commute' | 'meal' | 'sleep' | 'other';
+  }>;
+  constraints?: string[];
+  struggles?: string[];
+  currentHabits?: string[];
+  communicationTone?: 'direct' | 'warm' | 'playful' | 'clinical' | null;
+  /** Inferred from past behaviour — informs but does not override explicit profile. */
+  inferredPreferences?: {
+    preferredBlockMinutes?: number | null;
+    productiveHours?: number[];
+    droppedHabits?: string[];
+    preferredRestDays?: number[];
+  };
 }
 
 // --- Finance Types ---
@@ -290,6 +311,10 @@ export const CategorizeMerchantSchema = z.object({
 });
 
 export type CategorizeMerchantResult = z.infer<typeof CategorizeMerchantSchema>;
+
+export const CategorizeMerchantBatchSchema = z.array(CategorizeMerchantSchema);
+
+export type CategorizeMerchantBatchResult = z.infer<typeof CategorizeMerchantBatchSchema>;
 
 export interface ParsedTransaction {
   id: string;
@@ -434,3 +459,226 @@ export const DiscoveryExtractionSchema = z.object({
 });
 
 export type DiscoveryExtraction = z.infer<typeof DiscoveryExtractionSchema>;
+
+// --- UserProfile (Onboarding v2) ---
+// Canonical "what LifeOS knows about you" structure. Populated by any onboarding
+// path (chat, import, form) and continuously refined by behaviour-event inference.
+// Routine generation is gated on confidence.overall >= 0.7.
+
+export const ChronotypeEnum = z.enum(['lark', 'balanced', 'owl']);
+export type Chronotype = z.infer<typeof ChronotypeEnum>;
+
+export const PrimaryDomainEnum = z.enum(['goals', 'health', 'finance', 'career', 'social', 'polymath']);
+export type PrimaryDomain = z.infer<typeof PrimaryDomainEnum>;
+
+export const FixedBlockSchema = z.object({
+  label: z.string(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  daysOfWeek: z.array(z.number().min(0).max(6)),
+  kind: z.enum(['work', 'family', 'commute', 'meal', 'sleep', 'other']),
+});
+export type FixedBlock = z.infer<typeof FixedBlockSchema>;
+
+export const ProfileSlotConfidenceSchema = z.object({
+  identity: z.number().min(0).max(1),
+  vision: z.number().min(0).max(1),
+  schedule: z.number().min(0).max(1),
+  chronotype: z.number().min(0).max(1),
+  habits: z.number().min(0).max(1),
+  constraints: z.number().min(0).max(1),
+  primaryDomains: z.number().min(0).max(1),
+  overall: z.number().min(0).max(1),
+});
+export type ProfileSlotConfidence = z.infer<typeof ProfileSlotConfidenceSchema>;
+
+export const InferredPreferencesSchema = z.object({
+  preferredBlockMinutes: z.number().nullable(),
+  productiveHours: z.array(z.number().min(0).max(23)),
+  droppedHabits: z.array(z.string()),
+  preferredRestDays: z.array(z.number().min(0).max(6)),
+  /** ISO timestamp of the last weekly inference run. Optional for legacy profiles. */
+  lastInferredAt: z.string().nullable().optional(),
+});
+export type InferredPreferences = z.infer<typeof InferredPreferencesSchema>;
+
+export const UserProfileSchema = z.object({
+  version: z.literal(1),
+  identity: z.object({
+    firstName: z.string().nullable(),
+    ageBand: z.string().nullable(),
+    seasonOfLife: z.string().nullable(),
+  }),
+  vision: z.object({
+    statement: z.string().nullable(),
+    horizon: z.enum(['90d', '1y', '3y', 'lifetime']).nullable(),
+    topGoals: z.array(z.string()).max(5),
+  }),
+  schedule: z.object({
+    wakeTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+    sleepTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+    workStartTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+    workEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
+    fixedBlocks: z.array(FixedBlockSchema),
+  }),
+  chronotype: ChronotypeEnum.nullable(),
+  primaryDomains: z.array(PrimaryDomainEnum).max(3),
+  habits: z.object({
+    current: z.array(z.string()),
+    aspirational: z.array(z.string()),
+  }),
+  constraints: z.array(z.string()),
+  struggles: z.array(z.string()),
+  values: z.array(z.string()).max(5),
+  communication: z.object({
+    tone: z.enum(['direct', 'warm', 'playful', 'clinical']).nullable(),
+    avoid: z.array(z.string()),
+  }),
+  confidence: ProfileSlotConfidenceSchema,
+  inferredPreferences: InferredPreferencesSchema,
+  source: z.enum(['chat', 'import', 'form', 'hybrid']),
+  lastUpdated: z.string(),
+  /** ISO timestamp of the first routine block the user ever completed post-v2. */
+  firstBlockCompletedAt: z.string().nullable().optional(),
+});
+export type UserProfile = z.infer<typeof UserProfileSchema>;
+
+export const ROUTINE_CONFIDENCE_THRESHOLD = 0.7;
+
+export function emptyUserProfile(source: UserProfile['source'] = 'chat'): UserProfile {
+  return {
+    version: 1,
+    identity: { firstName: null, ageBand: null, seasonOfLife: null },
+    vision: { statement: null, horizon: null, topGoals: [] },
+    schedule: { wakeTime: null, sleepTime: null, workStartTime: null, workEndTime: null, fixedBlocks: [] },
+    chronotype: null,
+    primaryDomains: [],
+    habits: { current: [], aspirational: [] },
+    constraints: [],
+    struggles: [],
+    values: [],
+    communication: { tone: null, avoid: [] },
+    confidence: {
+      identity: 0, vision: 0, schedule: 0, chronotype: 0,
+      habits: 0, constraints: 0, primaryDomains: 0, overall: 0,
+    },
+    inferredPreferences: {
+      preferredBlockMinutes: null,
+      productiveHours: [],
+      droppedHabits: [],
+      preferredRestDays: [],
+    },
+    source,
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+// Partial slots returned by the conversational extractor — every field optional.
+// The orchestrator merges these into the running UserProfile.
+export const ProfileSlotsPatchSchema = z.object({
+  identity: z.object({
+    firstName: z.string().nullable().optional(),
+    ageBand: z.string().nullable().optional(),
+    seasonOfLife: z.string().nullable().optional(),
+  }).optional(),
+  vision: z.object({
+    statement: z.string().nullable().optional(),
+    horizon: z.enum(['90d', '1y', '3y', 'lifetime']).nullable().optional(),
+    topGoals: z.array(z.string()).optional(),
+  }).optional(),
+  schedule: z.object({
+    wakeTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+    sleepTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+    workStartTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+    workEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+    fixedBlocks: z.array(FixedBlockSchema).optional(),
+  }).optional(),
+  chronotype: ChronotypeEnum.nullable().optional(),
+  primaryDomains: z.array(PrimaryDomainEnum).optional(),
+  habits: z.object({
+    current: z.array(z.string()).optional(),
+    aspirational: z.array(z.string()).optional(),
+  }).optional(),
+  constraints: z.array(z.string()).optional(),
+  struggles: z.array(z.string()).optional(),
+  values: z.array(z.string()).optional(),
+  communication: z.object({
+    tone: z.enum(['direct', 'warm', 'playful', 'clinical']).nullable().optional(),
+    avoid: z.array(z.string()).optional(),
+  }).optional(),
+  confidenceDeltas: ProfileSlotConfidenceSchema.partial().optional(),
+});
+export type ProfileSlotsPatch = z.infer<typeof ProfileSlotsPatchSchema>;
+
+export const DiscoveryChatTurnSchema = z.object({
+  nextQuestion: z.string(),
+  patch: ProfileSlotsPatchSchema,
+  stage: z.enum(['identity', 'vision', 'schedule', 'habits', 'asks', 'done']),
+  done: z.boolean(),
+});
+export type DiscoveryChatTurn = z.infer<typeof DiscoveryChatTurnSchema>;
+
+export interface DiscoveryChatInput {
+  profile: UserProfile;
+  transcript: Array<{ role: 'user' | 'assistant'; content: string }>;
+}
+
+// --- Adaptive re-planning (Sprint 3) ---
+
+export const ReplanRemainingDaySchema = z.object({
+  /** Block IDs that should be removed from the rest of the day. */
+  drop: z.array(z.string()),
+  /** Patches to existing blocks. `id` must reference an existing block. */
+  edits: z.array(z.object({
+    id: z.string(),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    title: z.string().optional(),
+  })),
+  /** New blocks to add for the remainder of the day. */
+  add: z.array(z.object({
+    startTime: z.string().regex(/^\d{2}:\d{2}$/),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/),
+    title: z.string(),
+    module: z.enum(['goal', 'health', 'finance', 'career', 'social', 'polymath', 'rest', 'work', 'meal']),
+    energyRequired: z.enum(['low', 'medium', 'high']).optional(),
+  })),
+  /** One-line explanation shown to the user. */
+  rationale: z.string().max(160),
+});
+export type ReplanRemainingDay = z.infer<typeof ReplanRemainingDaySchema>;
+
+export interface ReplanRemainingDayInput {
+  nowHHMM: string;
+  remainingBlocks: Array<{
+    id: string;
+    startTime: string;
+    endTime: string;
+    title: string;
+    module: string;
+    status: 'upcoming' | 'in_progress' | 'completed' | 'skipped';
+  }>;
+  skippedToday: Array<{ id: string; title: string; module: string }>;
+  primaryDomains: string[];
+  chronotype: 'lark' | 'balanced' | 'owl' | null;
+  /** Optional recovery hint — when true, drop high-energy blocks for the rest of the day. */
+  softenForRecovery?: boolean;
+}
+
+// --- Tomorrow Routine (post-Reflect) ---
+
+export const GenerateTomorrowRoutineSchema = GeneratedRoutineSchema;
+export type GenerateTomorrowRoutine = z.infer<typeof GenerateTomorrowRoutineSchema>;
+
+export interface GenerateTomorrowRoutineInput {
+  tomorrowDate: string;
+  profile: UserProfile;
+  todayReview: {
+    mood: number | null;
+    blockReviews: Record<string, 'did' | 'skipped' | 'rescheduled'>;
+    skippedTitles: string[];
+    completedTitles: string[];
+  };
+  /** Optional recovery signal — true => soften the plan. */
+  softenForRecovery?: boolean;
+}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
 import { format } from 'date-fns';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -17,6 +17,8 @@ interface Props {
 }
 
 export function LogExplorationSheet({ visible, interestName, onClose, onLog }: Props) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const [minutes, setMinutes] = useState('30');
   const [notes, setNotes] = useState('');
 
@@ -60,7 +62,7 @@ export function LogExplorationSheet({ visible, interestName, onClose, onLog }: P
                   onPress={() => setMinutes(String(m))}
                   style={[styles.chip, active && styles.chipActive]}
                 >
-                  <Label color={active ? colors.background : colors.textSecondary}>{m}</Label>
+                  <Label color={active ? c.background : c.textSecondary}>{m}</Label>
                 </Pressable>
               );
             })}
@@ -90,7 +92,7 @@ export function LogExplorationSheet({ visible, interestName, onClose, onLog }: P
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

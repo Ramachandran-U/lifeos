@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
@@ -12,20 +12,22 @@ interface WeeklyInsightCardProps {
 }
 
 export function WeeklyInsightCard({ insight }: WeeklyInsightCardProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   return (
     <Card style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name="sparkles" size={18} color={colors.finance} />
+          <Ionicons name="sparkles" size={18} color={c.finance} />
         </View>
-        <Label color={colors.finance}>WEEKLY INSIGHT</Label>
+        <Label color={c.finance}>WEEKLY INSIGHT</Label>
       </View>
 
       <Body style={styles.headline}>{insight.headline}</Body>
       <Caption style={styles.insightText}>{insight.insight}</Caption>
 
       <View style={styles.actionBox}>
-        <Ionicons name="arrow-forward-circle" size={18} color={colors.finance} />
+        <Ionicons name="arrow-forward-circle" size={18} color={c.finance} />
         <Body style={styles.actionText}>{insight.actionItem}</Body>
       </View>
 
@@ -34,7 +36,7 @@ export function WeeklyInsightCard({ insight }: WeeklyInsightCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.sm,
   },

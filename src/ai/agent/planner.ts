@@ -94,8 +94,13 @@ async function planRoutineAgentInner(
   // Step 2 — propose
   const proposeRaw = await callAI({
     system:
-      'You are a routine planner. Given the user wake/sleep/work times, goals, and recent-history context, ' +
-      'propose 6–10 time-blocked routine blocks for today. Output JSON: {"blocks":[{startTime,endTime,title,module,energyRequired?}], "rationale": string}. ' +
+      'You are a routine planner. Given the user wake/sleep/work times, goals, recent-history context, ' +
+      'and optional profile signals (chronotype, primary domains, fixed blocks, constraints, struggles, ' +
+      'current habits, productive hours, dropped habits), propose 6–10 time-blocked routine blocks for today. ' +
+      'Honour fixed blocks verbatim. Place high-energy work inside the user\'s productive hours. Avoid ' +
+      'reinstating dropped habits. If the recent-history context shows a pattern (e.g. skipped morning ' +
+      'workouts, low-energy evenings), adapt the plan to it. ' +
+      'Output JSON: {"blocks":[{startTime,endTime,title,module,energyRequired?}], "rationale": string}. ' +
       'Modules: goal|health|finance|career|social|polymath|rest|work|meal. Times in HH:MM. start < end.',
     model: pickModel('agent.propose'),
     cacheSystem: true,
@@ -112,6 +117,14 @@ async function planRoutineAgentInner(
           },
           goals: input.goals,
           careerFocus: input.careerFocus,
+          chronotype: input.chronotype,
+          primaryDomains: input.primaryDomains,
+          fixedBlocks: input.fixedBlocks,
+          constraints: input.constraints,
+          struggles: input.struggles,
+          currentHabits: input.currentHabits,
+          communicationTone: input.communicationTone,
+          inferredPreferences: input.inferredPreferences,
           recentContext: contextBlock || '(none)',
         }),
       },
@@ -128,7 +141,9 @@ async function planRoutineAgentInner(
   const critiqueRaw = await callAI({
     system:
       'You are a critical reviewer of routine plans. Given a proposed plan, list concrete issues ' +
-      '(e.g. overlapping blocks, high-energy work after dinner, no rest, ignored goals) and produce a revised block list. ' +
+      '(e.g. overlapping blocks, high-energy work after dinner, no rest, ignored goals, ' +
+      'violations of fixed blocks, chronotype mismatch, reinstated dropped habits) and produce a ' +
+      'revised block list. ' +
       'Output JSON: {"issues": string[], "revisedBlocks": [...same shape...]}. If no issues, return [] and the original blocks unchanged.',
     model: pickModel('agent.critique'),
     cacheSystem: true,
@@ -144,6 +159,9 @@ async function planRoutineAgentInner(
             workEndTime: input.workEndTime,
           },
           goals: input.goals,
+          chronotype: input.chronotype,
+          fixedBlocks: input.fixedBlocks,
+          inferredPreferences: input.inferredPreferences,
           proposedBlocks: proposed.blocks,
         }),
       },

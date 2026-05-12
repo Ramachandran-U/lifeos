@@ -1,11 +1,43 @@
 /**
- * Transaction categorizer — two tiers:
- *   1. Hard rule map (merchant keyword → category). Covers ~70% of Indian spend.
- *   2. Claude fallback for misses. Capped per sync to control cost.
+ * Transaction categorizer — four tiers, executed in order:
+ *   1. SQLite/Dexie merchant cache. Memoizes prior categorizations
+ *      (including user corrections). Cost: zero AI calls.
+ *   2. Hard rule map (merchant keyword → category). Covers most Indian spend.
+ *   3. Local k-NN classifier (character-3-gram TF-IDF + cosine). Distilled
+ *      from the rule map; catches merchant strings that the regexes miss
+ *      but that are clearly similar to a known anchor. Zero AI calls.
+ *      See `merchantClassifier.ts`.
+ *   4. Batched AI fallback. One AI round-trip per ~25 misses from tiers
+ *      1-3, so a 100-transaction sync stays under Gemini's 20 RPM free tier.
+ *
+ * Every tier-3 + tier-4 result is written back to the cache so future
+ * syncs skip the expensive tiers entirely for that merchant.
  */
 
-import { categorizeMerchant } from '@/ai/functions';
+import { categorizeMerchantsBatch } from '@/ai/functions';
 import type { TransactionCategory } from '@/ai/types';
+import { classifyMerchant } from './merchantClassifier';
+import {
+  getCachedCategories,
+  setCachedCategoriesBulk,
+  type MerchantCacheRecord,
+} from '@/finance/db/transactionDb';
+
+/**
+ * Normalize a merchant string for cache lookups. Strips transaction-noise
+ * (UPI ref numbers, timestamps, leading channel prefixes, repeated whitespace)
+ * so "UPI/123456789/Swiggy Pvt Ltd" and "swiggy pvt ltd" hit the same row.
+ */
+export function normalizeMerchantForCache(merchant: string): string {
+  return merchant
+    .toLowerCase()
+    .replace(/^(upi|imps|neft|rtgs)[\s/\-:]+/i, '')   // channel prefix
+    .replace(/\b\d{6,}\b/g, '')                       // long digit runs (ref nums)
+    .replace(/\b\d{2}[:\-/]\d{2}[:\-/]\d{2,4}\b/g, '') // timestamps
+    .replace(/[^a-z0-9& ]+/g, ' ')                    // strip punctuation
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 interface Rule {
   pattern: RegExp;
@@ -72,49 +104,165 @@ export function categorizeByRule(merchant: string): TransactionCategory | null {
 }
 
 interface CategorizeOpts {
-  maxAiCalls?: number;
+  /** Maximum number of items sent to the AI in this sync. Default 50. */
+  maxAiItems?: number;
+  /** Size of each batched AI request. Default 25 — one request per batch. */
+  batchSize?: number;
 }
 
 /**
- * Categorize a batch of (merchant, amount) pairs. Returns a map keyed by index.
- * Tier 1 uses rules. Tier 2 calls Claude, capped at `maxAiCalls` per invocation.
+ * Categorize a batch of (merchant, amount) pairs. Returns categories in
+ * the same order as the input.
+ *
+ * Pipeline:
+ *   1. Direction + channel routing (credits → income / rule; p2a UPI → transfers).
+ *   2. Merchant cache lookup.
+ *   3. Rule map.
+ *   4. AI batched call(s) for whatever remains, capped at `maxAiItems`.
+ *
+ * AI results (and rule hits for new merchants) are written back to the
+ * cache. User corrections in the cache are never overwritten.
  */
 export async function categorizeBatch(
   items: Array<{ merchant: string; amount: number; direction: 'debit' | 'credit'; channel?: 'p2a' | 'p2m' }>,
   opts: CategorizeOpts = {},
 ): Promise<TransactionCategory[]> {
-  const maxAi = opts.maxAiCalls ?? 5;
+  const maxAiItems = opts.maxAiItems ?? 50;
+  const batchSize = opts.batchSize ?? 25;
   const results: TransactionCategory[] = new Array(items.length).fill('other');
-  let aiBudget = maxAi;
+  const cacheWrites: MerchantCacheRecord[] = [];
+  const now = Date.now();
 
+  // First pass: routing rules + index of items that need a cache lookup.
+  const needsCache: number[] = [];
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     if (it.direction === 'credit') {
       results[i] = categorizeByRule(it.merchant) ?? 'income';
       continue;
     }
-    // UPI person-to-account is almost always a personal transfer, not a merchant purchase.
-    // Route deterministically before hitting rules/AI.
     if (it.channel === 'p2a') {
       results[i] = 'transfers';
       continue;
     }
-    const ruleHit = categorizeByRule(it.merchant);
-    if (ruleHit) {
-      results[i] = ruleHit;
-      continue;
-    }
-    if (aiBudget > 0) {
-      aiBudget -= 1;
-      try {
-        const r = await categorizeMerchant(it.merchant, it.amount / 100);
-        results[i] = r.category;
-      } catch {
-        results[i] = 'other';
-      }
+    needsCache.push(i);
+  }
+
+  // Second pass: cache lookup. One bulk query, not N queries.
+  const keys = needsCache.map((i) => normalizeMerchantForCache(items[i].merchant));
+  let cache: Awaited<ReturnType<typeof getCachedCategories>> = new Map();
+  try {
+    cache = await getCachedCategories(Array.from(new Set(keys)));
+  } catch {
+    // Dexie unavailable (e.g. native build) — fall through; rules + AI still work.
+  }
+
+  const needsRule: number[] = [];
+  for (const idx of needsCache) {
+    const key = normalizeMerchantForCache(items[idx].merchant);
+    const cached = cache.get(key);
+    if (cached) {
+      results[idx] = cached.category as TransactionCategory;
     } else {
-      results[i] = 'other';
+      needsRule.push(idx);
     }
+  }
+
+  // Third pass: rule map for cache misses. Write rule hits to cache.
+  const needsClassifier: number[] = [];
+  for (const idx of needsRule) {
+    const ruleHit = categorizeByRule(items[idx].merchant);
+    if (ruleHit) {
+      results[idx] = ruleHit;
+      cacheWrites.push({
+        merchantKey: normalizeMerchantForCache(items[idx].merchant),
+        category: ruleHit,
+        confidence: 1,
+        source: 'rule',
+        updatedAt: now,
+      });
+    } else {
+      needsClassifier.push(idx);
+    }
+  }
+
+  // Tier 3.5: local k-NN classifier (free, zero-latency). Caches its
+  // confident verdicts. Anything below the confidence floor falls through.
+  const needsAi: number[] = [];
+  for (const idx of needsClassifier) {
+    const verdict = classifyMerchant(items[idx].merchant);
+    if (verdict) {
+      results[idx] = verdict.category;
+      cacheWrites.push({
+        merchantKey: normalizeMerchantForCache(items[idx].merchant),
+        category: verdict.category,
+        confidence: verdict.confidence,
+        source: 'rule', // treat as deterministic — never user-correctable-by-AI
+        updatedAt: now,
+      });
+    } else {
+      needsAi.push(idx);
+    }
+  }
+
+  // Fourth pass: AI fallback, batched. Cap total items, deduplicate by
+  // normalized key so we don't waste tokens categorizing the same merchant
+  // twice in one sync.
+  if (needsAi.length > 0) {
+    const aiCandidates = needsAi.slice(0, maxAiItems);
+    const seen = new Map<string, number>();
+    const uniqueItems: Array<{ merchant: string; amountRupees: number }> = [];
+    const uniqueIndices: number[] = [];
+    for (const idx of aiCandidates) {
+      const key = normalizeMerchantForCache(items[idx].merchant);
+      if (seen.has(key)) continue;
+      seen.set(key, uniqueItems.length);
+      uniqueItems.push({ merchant: items[idx].merchant, amountRupees: items[idx].amount / 100 });
+      uniqueIndices.push(idx);
+    }
+
+    for (let start = 0; start < uniqueItems.length; start += batchSize) {
+      const chunk = uniqueItems.slice(start, start + batchSize);
+      const chunkIndices = uniqueIndices.slice(start, start + batchSize);
+      let chunkResults;
+      try {
+        chunkResults = await categorizeMerchantsBatch(chunk);
+      } catch {
+        // Whole batch failed — leave as 'other', don't cache the failure.
+        continue;
+      }
+      for (let k = 0; k < chunkResults.length; k++) {
+        const r = chunkResults[k];
+        const origIdx = chunkIndices[k];
+        results[origIdx] = r.category;
+        if (r.confidence > 0) {
+          cacheWrites.push({
+            merchantKey: normalizeMerchantForCache(items[origIdx].merchant),
+            category: r.category,
+            confidence: r.confidence,
+            source: 'ai',
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    // Apply AI results to any duplicates we collapsed earlier.
+    for (const idx of aiCandidates) {
+      if (results[idx] !== 'other') continue;
+      const key = normalizeMerchantForCache(items[idx].merchant);
+      const reusedKeyIdx = seen.get(key);
+      if (reusedKeyIdx !== undefined) {
+        const reusedResult = results[uniqueIndices[reusedKeyIdx]];
+        if (reusedResult && reusedResult !== 'other') results[idx] = reusedResult;
+      }
+    }
+  }
+
+  if (cacheWrites.length > 0) {
+    setCachedCategoriesBulk(cacheWrites).catch(() => {
+      // Cache write failure is non-fatal — categorizations still flow.
+    });
   }
 
   return results;

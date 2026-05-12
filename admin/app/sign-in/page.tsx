@@ -8,7 +8,7 @@ export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'password' | 'magic'>('password');
+  const [mode, setMode] = useState<'password' | 'magic'>('magic');
   const [status, setStatus] = useState<'idle' | 'busy' | 'sent' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState<string>('');
 

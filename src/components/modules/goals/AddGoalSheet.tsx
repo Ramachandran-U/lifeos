@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -19,6 +19,8 @@ interface AddGoalSheetProps {
 }
 
 export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const { call, loading, error } = useAI();
   const { userId, name } = useUserStore();
   const { addGoal } = useGoalStore();
@@ -107,8 +109,8 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
 
           {hierarchy && (
             <View style={styles.preview}>
-              <Card moduleColor={colors.goal}>
-                <Label color={colors.goal}>GOAL</Label>
+              <Card moduleColor={c.goal}>
+                <Label color={c.goal}>GOAL</Label>
                 <Body style={styles.goalTitle}>{hierarchy.primaryGoal.title}</Body>
               </Card>
               <Card>
@@ -130,7 +132,7 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

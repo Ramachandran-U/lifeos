@@ -15,5 +15,5 @@
       "@types/*": ["src/types/*"]
     }
   },
-  "exclude": ["node_modules", "workers"]
+  "exclude": ["node_modules", "workers", "admin"]
 }

@@ -2,6 +2,7 @@ import { AIRequest } from './types';
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import { recordUsage, computeCost } from './costLedger';
 import { startSpan, endSpan } from './tracing';
+import { track } from '@/utils/telemetry';
 
 const PROXY_URL =
   process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
@@ -27,6 +28,7 @@ async function callViaProxy(request: AIRequest): Promise<string> {
         maxTokens: request.maxTokens,
         model: request.model,
         cacheSystem: request.cacheSystem,
+        task: request.task,
       }),
     });
 
@@ -44,6 +46,13 @@ async function callViaProxy(request: AIRequest): Promise<string> {
     const model = data.model ?? request.model ?? 'unknown';
     if (data.usage) {
       recordUsage({ model, task: request.task ?? 'unknown', usage: data.usage });
+      track('ai_call', {
+        task: request.task ?? 'unknown',
+        model,
+        input_tokens: data.usage.input_tokens,
+        output_tokens: data.usage.output_tokens,
+        cache_read_tokens: data.usage.cache_read_input_tokens,
+      });
       endSpan(span, {
         model,
         inputTokens: data.usage.input_tokens,

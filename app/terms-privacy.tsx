@@ -23,7 +23,11 @@ const SECTIONS: { title: string; body: string }[] = [
   },
   {
     title: 'What we do NOT do',
-    body: '• We do not run a backend that stores your data.\n• We do not sell, share, or monetise your data.\n• We do not show ads.\n• We do not use third-party analytics, trackers, or session-replay tools.\n• We do not train AI models on your data — Anthropic\'s API terms apply to the calls we make, and by default API inputs are not used for training.\n• We never transmit your raw blood report file, contact list, photos or financial transactions to anyone other than the specific provider you connected (Anthropic for AI parsing, Google for sync).',
+    body: '• We do not run a backend that stores your personal data.\n• We do not sell, share, or monetise your data.\n• We do not show ads.\n• We do not use third-party analytics, trackers, or session-replay tools.\n• We do not train AI models on your data — Anthropic\'s API terms apply to the calls we make, and by default API inputs are not used for training.\n• We never transmit your raw blood report file, contact list, photos or financial transactions to anyone other than the specific provider you connected (Anthropic for AI parsing, Google for sync).',
+  },
+  {
+    title: 'Anonymous usage stats (opt-in, default OFF)',
+    body: 'You can optionally help us improve LifeOS by sharing anonymous usage events — things like "onboarding finished", "routine block completed", "AI call made". We use these to spot bugs and decide which features need work.\n\nWhat we send: an event name, a random device id generated on your device (never linked to your email, name, or user account), the app version, and the platform (web / ios / android). We also send the prop fields listed below per event:\n\n• ai_call — task name, model, token counts\n• goal_created — goal level, type, timeline, ai_generated flag\n• routine_block_completed — module name\n• evening_reflect_completed — block count, whether you accepted the tomorrow tweak\n• onboarding_finished — onboarding stage\n\nWhat we do NOT send: goal titles, vision text, reflection content, blood report markers, transaction amounts or merchants, photos, names, emails. The random device id is the only identifier and is local to your device — if you reinstall the app, a new one is generated.\n\nThe toggle lives in Settings → Privacy. Default is OFF; nothing is sent unless you turn it on.',
   },
   {
     title: 'AI processing details',

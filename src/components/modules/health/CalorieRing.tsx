@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useEffect } from 'react';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
@@ -18,6 +18,8 @@ interface CalorieRingProps {
 }
 
 export function CalorieRing({ consumed, target, protein, carbs, fat }: CalorieRingProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const SIZE = 180;
   const STROKE = 14;
   const RADIUS = (SIZE - STROKE) / 2;
@@ -34,7 +36,7 @@ export function CalorieRing({ consumed, target, protein, carbs, fat }: CalorieRi
     strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
   }));
 
-  const ringColor = ratio > 1.1 ? colors.error : ratio > 0.9 ? colors.warning : colors.health;
+  const ringColor = ratio > 1.1 ? c.error : ratio > 0.9 ? c.warning : c.health;
 
   return (
     <View style={styles.container}>
@@ -44,7 +46,7 @@ export function CalorieRing({ consumed, target, protein, carbs, fat }: CalorieRi
             cx={SIZE / 2}
             cy={SIZE / 2}
             r={RADIUS}
-            stroke={colors.surface}
+            stroke={c.surface}
             strokeWidth={STROKE}
             fill="none"
           />
@@ -89,7 +91,7 @@ export function CalorieRing({ consumed, target, protein, carbs, fat }: CalorieRi
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     gap: spacing.md,

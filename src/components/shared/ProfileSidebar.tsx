@@ -128,13 +128,7 @@ export function ProfileSidebar({ visible, onClose }: ProfileSidebarProps) {
   const handleAskLifeOS = () => { onClose(); router.push('/chat'); };
   const handleHowItWorks = () => { onClose(); router.push('/how-it-works'); };
   const handleTermsPrivacy = () => { onClose(); router.push('/terms-privacy'); };
-  const handleFeedback = () => {
-    const subject = encodeURIComponent('LifeOS feedback');
-    const body = encodeURIComponent(
-      `\n\n---\nLifeOS · ${Platform.OS}\nUser: ${name || 'Anonymous'}\n`,
-    );
-    Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
-  };
+  const handleFeedback = () => { onClose(); router.push('/feedback'); };
 
   useEffect(() => {
     if (visible) {

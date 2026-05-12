@@ -5,7 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
@@ -23,6 +23,7 @@ import { useScreenTracking } from '@/hooks/useScreenTracking';
 
 export default function ExploreScreen() {
   useScreenTracking('explore');
+  const c = useColors();
   const { userId } = useUserStore();
   const { interests, load, addInterest, removeInterest, addExploration, weeklyMinutes } =
     usePolymathStore();
@@ -66,13 +67,13 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ModuleHeader title="Explore" icon="compass" color={colors.polymath} />
+        <ModuleHeader title="Explore" icon="compass" color={c.polymath} />
 
         <Animated.View entering={FadeInDown.duration(400)}>
-          <Card moduleColor={colors.polymath} style={styles.summary}>
-            <Label color={colors.polymath}>THIS WEEK</Label>
+          <Card moduleColor={c.polymath} style={styles.summary}>
+            <Label color={c.polymath}>THIS WEEK</Label>
             <Heading style={styles.summaryNumber}>{totalMinutesWeek} min</Heading>
             <Caption>across {interests.length} interest{interests.length === 1 ? '' : 's'}</Caption>
           </Card>
@@ -80,15 +81,15 @@ export default function ExploreScreen() {
 
         <View style={styles.listHeader}>
           <Label>INTERESTS</Label>
-          <Pressable onPress={() => setShowAdd(true)} style={styles.addBtn}>
-            <Ionicons name="add" size={18} color={colors.polymath} />
-            <Label color={colors.polymath}>Add</Label>
+          <Pressable onPress={() => setShowAdd(true)} style={[styles.addBtn, { backgroundColor: c.polymathLight }]}>
+            <Ionicons name="add" size={18} color={c.polymath} />
+            <Label color={c.polymath}>Add</Label>
           </Pressable>
         </View>
 
         {interests.length === 0 ? (
           <Card style={styles.empty}>
-            <Ionicons name="compass-outline" size={32} color={colors.textMuted} />
+            <Ionicons name="compass-outline" size={32} color={c.textMuted} />
             <Body style={styles.emptyTitle}>Nothing to explore yet</Body>
             <Caption style={styles.emptyBody}>
               Add an interest you want to spend time on each week — a skill, hobby, or topic.
@@ -126,7 +127,6 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
     paddingHorizontal: spacing.xl,
@@ -152,7 +152,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: 999,
-    backgroundColor: colors.polymathLight,
   },
   empty: {
     alignItems: 'center',
@@ -164,6 +163,5 @@ const styles = StyleSheet.create({
   },
   emptyBody: {
     textAlign: 'center',
-    color: colors.textSecondary,
   },
 });

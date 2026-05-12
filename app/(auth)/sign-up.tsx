@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +21,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function SignUpScreen() {
   const router = useRouter();
   const { setUser } = useUserStore();
+  const c = useColors();
+  const styles = makeStyles(c);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -171,7 +173,7 @@ export default function SignUpScreen() {
             </View>
 
             <Pressable style={styles.googleBtn} onPress={handleGoogleSignIn}>
-              <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
+              <Ionicons name="logo-google" size={18} color={c.textPrimary} />
               <Body style={styles.googleBtnLabel}>Continue with Google</Body>
             </Pressable>
 
@@ -198,7 +200,7 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

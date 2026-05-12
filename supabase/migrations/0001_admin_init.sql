@@ -61,14 +61,19 @@ create table if not exists flag_overrides (
 create index if not exists flag_overrides_flag_idx on flag_overrides (flag_id);
 
 -- ─── RLS lockdown ─────────────────────────────────────────────────────────
--- Tables are accessible only via service-role (the Worker). No anon access.
-alter table admins        enable row level security;
-alter table audit_log     enable row level security;
-alter table flags         enable row level security;
+-- DESIGN: deny by default. These tables are reachable ONLY through the
+-- Cloudflare Worker, which holds the service-role key. The anon and
+-- authenticated Postgres roles get zero direct access. If you ever add a
+-- CREATE POLICY here without re-reading docs/SECURITY.md, you are wrong.
+alter table admins         enable row level security;
+alter table audit_log      enable row level security;
+alter table flags          enable row level security;
 alter table flag_overrides enable row level security;
 
--- No policies created on purpose. RLS enabled + zero policies = anon and
--- authenticated roles get nothing. service_role bypasses RLS.
+comment on table admins         is 'RLS: deny by default. Access only via service-role through the Worker.';
+comment on table audit_log      is 'RLS: deny by default. Access only via service-role through the Worker.';
+comment on table flags          is 'RLS: deny by default. Access only via service-role through the Worker.';
+comment on table flag_overrides is 'RLS: deny by default. Access only via service-role through the Worker.';
 
 -- ─── seed flags ────────────────────────────────────────────────────────────
 insert into flags (key, type, default_value, description) values
@@ -79,7 +84,12 @@ insert into flags (key, type, default_value, description) values
   ('polymath_enabled',         'bool', 'true'::jsonb,  'Show the Explore (Polymath) tab')
 on conflict (key) do nothing;
 
--- Seed the first owner — replace before running on prod.
+-- Seed the first owner.
+-- IMPORTANT: this only inserts the *whitelist row*. The corresponding
+-- auth.users record must be created via the Supabase Admin "Invite User"
+-- flow (see docs/SECURITY.md § Admin onboarding). Do NOT set a password
+-- by directly updating auth.users.encrypted_password — that bypasses email
+-- verification, MFA enrolment, and the password-rotation pipeline.
 insert into admins (email, role, added_by) values
   ('ramachandran.u@vearc.com', 'owner', 'bootstrap')
 on conflict (email) do nothing;

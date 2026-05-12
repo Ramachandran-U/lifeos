@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -13,21 +13,25 @@ import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
 import { seedStarterRoutine } from '@/utils/starterRoutine';
+import { useFlagStore } from '@/store/useFlagStore';
+import { track } from '@/utils/telemetry';
 
 type Chip = { id: DomainId; emoji: string; label: string; color: string };
 
-const CHIPS: Chip[] = [
-  { id: 'goals',    emoji: '◆', label: 'Ship a big goal',     color: colors.goal },
-  { id: 'health',   emoji: '♥', label: 'Feel strong',         color: colors.health },
-  { id: 'finance',  emoji: '◈', label: 'Build wealth',        color: colors.finance },
-  { id: 'career',   emoji: '▲', label: 'Level up career',     color: colors.career },
-  { id: 'social',   emoji: '●', label: 'Nurture relationships', color: colors.social },
-  { id: 'polymath', emoji: '✦', label: 'Learn something new', color: colors.polymath },
-];
-
 export default function WelcomeIntentScreen() {
+  const c = useColors();
+  const styles = makeStyles(c);
+  const CHIPS: Chip[] = [
+    { id: 'goals',    emoji: '◆', label: 'Ship a big goal',     color: c.goal },
+    { id: 'health',   emoji: '♥', label: 'Feel strong',         color: c.health },
+    { id: 'finance',  emoji: '◈', label: 'Build wealth',        color: c.finance },
+    { id: 'career',   emoji: '▲', label: 'Level up career',     color: c.career },
+    { id: 'social',   emoji: '●', label: 'Nurture relationships', color: c.social },
+    { id: 'polymath', emoji: '✦', label: 'Learn something new', color: c.polymath },
+  ];
   const router = useRouter();
   const { userId, name, setOnboardingStage, setPrimaryDomains } = useUserStore();
+  const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
   const [selected, setSelected] = useState<DomainId[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -85,13 +89,13 @@ export default function WelcomeIntentScreen() {
                 onPress={() => toggle(chip.id)}
                 style={[
                   styles.chip,
-                  { borderColor: isSelected ? chip.color : colors.border,
-                    backgroundColor: isSelected ? chip.color + '22' : colors.surface,
+                  { borderColor: isSelected ? chip.color : c.border,
+                    backgroundColor: isSelected ? chip.color + '22' : c.surface,
                     borderLeftColor: chip.color },
                 ]}
               >
                 <Body style={[styles.chipEmoji, { color: chip.color }]}>{chip.emoji}</Body>
-                <Body style={[styles.chipLabel, isSelected && { color: colors.textPrimary, fontFamily: fonts.bodyMedium }]}>
+                <Body style={[styles.chipLabel, isSelected && { color: c.textPrimary, fontFamily: fonts.bodyMedium }]}>
                   {chip.label}
                 </Body>
               </Pressable>
@@ -110,6 +114,23 @@ export default function WelcomeIntentScreen() {
           </Caption>
         </Animated.View>
 
+        {onboardingV2 ? (
+          <Animated.View entering={FadeInDown.delay(750).duration(600)} style={styles.importRow}>
+            <Pressable
+              onPress={() => {
+                track('onboarding_v2_started', { entry: 'welcome_intent' });
+                router.push('/(onboarding)/discovery-chat');
+              }}
+              style={styles.importLink}
+              hitSlop={8}
+            >
+              <Caption style={styles.importText}>
+                Want me to actually <Caption style={styles.importTextAccent}>get to know you first?</Caption> Chat with me →
+              </Caption>
+            </Pressable>
+          </Animated.View>
+        ) : null}
+
         <Animated.View entering={FadeInDown.delay(800).duration(600)} style={styles.importRow}>
           <Pressable
             onPress={() => router.push('/(onboarding)/discovery-intro')}
@@ -126,7 +147,7 @@ export default function WelcomeIntentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
   logo: {

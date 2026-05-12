@@ -93,6 +93,182 @@ export async function createPromptVersion(
   return json.version;
 }
 
+export interface FunnelStage {
+  key: string;
+  label: string;
+  devices: number;
+}
+
+export interface FunnelResponse {
+  days: number;
+  variant?: 'v1' | 'v2';
+  stages: FunnelStage[];
+  sample_size: number;
+}
+
+export async function getFunnel(days = 7, variant: 'v1' | 'v2' = 'v1'): Promise<FunnelResponse> {
+  const qs = variant === 'v2' ? `?days=${days}&variant=v2` : `?days=${days}`;
+  const res = await authedFetch(`/v1/admin/telemetry/funnel${qs}`);
+  if (!res.ok) throw new Error(`funnel: ${res.status}`);
+  return res.json();
+}
+
+export interface RecentEvent {
+  device_id: string;
+  event: string;
+  props: Record<string, unknown>;
+  app_version: string | null;
+  platform: string | null;
+  ts: string;
+}
+
+export async function getRecentEvents(limit = 100): Promise<RecentEvent[]> {
+  const res = await authedFetch(`/v1/admin/telemetry/recent?limit=${limit}`);
+  if (!res.ok) throw new Error(`recent: ${res.status}`);
+  const json = await res.json();
+  return json.events;
+}
+
+export interface SchemaFailureSample {
+  ts: string;
+  error: string;
+  raw_preview: string;
+  app_version: string | null;
+  platform: string | null;
+}
+
+export interface SchemaFailureGroup {
+  task: string;
+  schema: string;
+  count: number;
+  last_seen: string;
+  first_seen: string;
+  samples: SchemaFailureSample[];
+}
+
+export interface SchemaFailuresResponse {
+  days: number;
+  groups: SchemaFailureGroup[];
+  sample_size: number;
+}
+
+export async function getSchemaFailures(days = 7): Promise<SchemaFailuresResponse> {
+  const res = await authedFetch(`/v1/admin/telemetry/schema-failures?days=${days}`);
+  if (!res.ok) throw new Error(`schema-failures: ${res.status}`);
+  return res.json();
+}
+
+// ─── feedback ────────────────────────────────────────────────────────────────
+
+export type FeedbackStatus = 'new' | 'triaged' | 'responded' | 'closed';
+
+export interface FeedbackRow {
+  id: number;
+  from_email: string | null;
+  subject: string | null;
+  body: string;
+  source: 'app' | 'email';
+  status: FeedbackStatus;
+  assigned_to: string | null;
+  notes: string | null;
+  device_id: string | null;
+  app_version: string | null;
+  platform: string | null;
+  received_at: string;
+  updated_at: string;
+}
+
+export async function listFeedback(status?: FeedbackStatus, limit = 100): Promise<FeedbackRow[]> {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (status) qs.set('status', status);
+  const res = await authedFetch(`/v1/admin/feedback?${qs.toString()}`);
+  if (!res.ok) throw new Error(`feedback: ${res.status}`);
+  const json = await res.json();
+  return json.feedback;
+}
+
+export async function patchFeedback(
+  id: number,
+  patch: { status?: FeedbackStatus; assigned_to?: string | null; notes?: string },
+): Promise<FeedbackRow> {
+  const res = await authedFetch(`/v1/admin/feedback/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`patch feedback: ${res.status} ${await res.text()}`);
+  const json = await res.json();
+  return json.feedback;
+}
+
+// ─── push ────────────────────────────────────────────────────────────────────
+
+export interface PushStats {
+  total: number;
+  by_platform: Record<string, number>;
+}
+
+export async function getPushStats(): Promise<PushStats> {
+  const res = await authedFetch('/v1/admin/push/stats');
+  if (!res.ok) throw new Error(`push stats: ${res.status}`);
+  return res.json();
+}
+
+export interface BroadcastResult {
+  sent: number;
+  failed: number;
+  invalid: number;
+}
+
+// ─── evals ───────────────────────────────────────────────────────────────────
+
+export interface EvalSuiteSummary {
+  name: string;
+  passRate: number;
+  threshold: number;
+  status: 'pass' | 'fail';
+  cases: number;
+}
+
+export interface EvalReport {
+  id: number;
+  branch: string;
+  commit_sha: string;
+  generated_at: string;
+  mode: 'MOCK' | 'LIVE';
+  suites: EvalSuiteSummary[];
+  workflow_url: string | null;
+  total_cases: number;
+  passed_cases: number;
+}
+
+export async function getLatestEvalReports(): Promise<EvalReport[]> {
+  const res = await authedFetch('/v1/admin/evals/latest');
+  if (!res.ok) throw new Error(`evals latest: ${res.status}`);
+  const json = await res.json();
+  return json.latest;
+}
+
+export async function getEvalHistory(branch: string, limit = 20): Promise<EvalReport[]> {
+  const res = await authedFetch(`/v1/admin/evals/branch/${encodeURIComponent(branch)}?limit=${limit}`);
+  if (!res.ok) throw new Error(`evals history: ${res.status}`);
+  const json = await res.json();
+  return json.reports;
+}
+
+export async function broadcastPush(payload: {
+  title?: string;
+  body: string;
+  data?: Record<string, unknown>;
+  platform?: 'ios' | 'android' | 'web';
+}): Promise<BroadcastResult> {
+  const res = await authedFetch('/v1/admin/push/broadcast', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`broadcast: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 export async function activatePromptVersion(key: string, version: number): Promise<PromptVersion> {
   const res = await authedFetch(
     `/v1/admin/prompts/${encodeURIComponent(key)}/versions/${version}/activate`,

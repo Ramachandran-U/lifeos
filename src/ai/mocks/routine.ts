@@ -1,4 +1,9 @@
-import { GeneratedRoutine } from '../types';
+import type {
+  GeneratedRoutine,
+  ReplanRemainingDay,
+  ReplanRemainingDayInput,
+  GenerateTomorrowRoutineInput,
+} from '../types';
 
 export const MOCK_ROUTINE: GeneratedRoutine = {
   blocks: [
@@ -18,3 +23,48 @@ export const MOCK_ROUTINE: GeneratedRoutine = {
   ],
   briefing: 'Your day starts with a focused career learning session while energy is high, followed by a productive work block. The afternoon balances your goal tasks with exercise, and the evening has time for exploration and social connection.',
 };
+
+export function buildMockReplanRemainingDay(input: ReplanRemainingDayInput): ReplanRemainingDay {
+  const skipped = input.skippedToday[0];
+  if (input.softenForRecovery) {
+    const heavy = input.remainingBlocks.filter(
+      (b) => b.title.toLowerCase().includes('workout') || b.module === 'career',
+    );
+    return {
+      drop: heavy.map((b) => b.id),
+      edits: [],
+      add: heavy.length
+        ? [{
+            startTime: heavy[0].startTime,
+            endTime: heavy[0].endTime,
+            title: 'Easy walk + reset',
+            module: 'rest',
+            energyRequired: 'low',
+          }]
+        : [],
+      rationale: 'Lower-energy day — swapped the hard blocks for a recovery walk.',
+    };
+  }
+  if (skipped && input.remainingBlocks[0]) {
+    return {
+      drop: [],
+      edits: [{ id: input.remainingBlocks[0].id, title: `${skipped.title} (retry)` }],
+      add: [],
+      rationale: `Re-tried the ${skipped.title.toLowerCase()} you missed in the next slot.`,
+    };
+  }
+  return { drop: [], edits: [], add: [], rationale: 'Day is on track — no changes.' };
+}
+
+export function buildMockTomorrowRoutine(input: GenerateTomorrowRoutineInput): GeneratedRoutine {
+  const soft = input.softenForRecovery;
+  const blocks = soft ? MOCK_ROUTINE.blocks.filter((b) => b.energyRequired !== 'high') : MOCK_ROUTINE.blocks;
+  const miss = input.todayReview.skippedTitles[0];
+  const win = input.todayReview.completedTitles[0];
+  const briefing = miss
+    ? `Today you missed "${miss}" — tomorrow it's shorter and earlier so it actually happens.`
+    : win
+    ? `Strong day today — "${win}" stays in tomorrow's plan.`
+    : 'A balanced day. Start with the deep-work block before the rest of the world wakes up.';
+  return { blocks, briefing };
+}

@@ -288,6 +288,17 @@ export const chatMessages = sqliteTable('chat_messages', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- User Profile (Onboarding v2 canonical "what we know about you") ---
+export const userProfiles = sqliteTable('user_profiles', {
+  userId: text('user_id').primaryKey(),
+  profile: text('profile').notNull(), // JSON: UserProfile
+  source: text('source').notNull(), // chat | import | form | hybrid
+  confidenceOverall: real('confidence_overall').notNull().default(0),
+  routineUnlocked: integer('routine_unlocked', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),

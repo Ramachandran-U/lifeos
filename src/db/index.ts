@@ -333,6 +333,16 @@ export async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS chat_messages_user_idx ON chat_messages (user_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS user_profiles (
+      user_id TEXT PRIMARY KEY,
+      profile TEXT NOT NULL,
+      source TEXT NOT NULL,
+      confidence_overall REAL NOT NULL DEFAULT 0,
+      routine_unlocked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Lightweight migrations for columns added after initial release.

@@ -6,7 +6,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 
 interface ProgressBarProps {
   value: number;
@@ -14,7 +14,9 @@ interface ProgressBarProps {
   height?: number;
 }
 
-export function ProgressBar({ value, color = colors.primary, height = 8 }: ProgressBarProps) {
+export function ProgressBar({ value, color, height = 8 }: ProgressBarProps) {
+  const c = useColors();
+  const fill = color ?? c.primary;
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -29,11 +31,11 @@ export function ProgressBar({ value, color = colors.primary, height = 8 }: Progr
   }));
 
   return (
-    <View style={[styles.track, { height, borderRadius: height / 2 }]}>
+    <View style={[styles.track, { height, borderRadius: height / 2, backgroundColor: c.surface }]}>
       <Animated.View
         style={[
           styles.fill,
-          { backgroundColor: color, borderRadius: height / 2 },
+          { backgroundColor: fill, borderRadius: height / 2 },
           fillStyle,
         ]}
       />
@@ -43,7 +45,6 @@ export function ProgressBar({ value, color = colors.primary, height = 8 }: Progr
 
 const styles = StyleSheet.create({
   track: {
-    backgroundColor: colors.surface,
     overflow: 'hidden',
     width: '100%',
   },

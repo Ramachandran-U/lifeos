@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
@@ -25,6 +25,8 @@ export function AchievementToast() {
   const popBadge = useGameStore((s) => s.popBadge);
   const [currentBadge, setCurrentBadge] = useState<BadgeId | null>(null);
   const [visible, setVisible] = useState(false);
+  const c = useColors();
+  const styles = makeStyles(c);
 
   useEffect(() => {
     if (visible) return;
@@ -64,7 +66,7 @@ export function AchievementToast() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 120,
