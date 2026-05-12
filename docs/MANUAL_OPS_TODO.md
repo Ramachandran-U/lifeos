@@ -59,6 +59,10 @@ These changes are pushed to git but need three manual actions to be live:
   ```
 - [ ] **Wait for Vercel auto-deploy** of the admin (or trigger manually in the Vercel dashboard). The new Telemetry tab will appear in the sidebar.
 - [ ] **Smoke-test end-to-end:** open the consumer app, Settings → Privacy → toggle "Share anonymous usage stats" ON. Then complete a routine block / create a goal. Within ~10s, check the admin Telemetry tab — your events should appear under "Recent events".
+- [ ] **Run Phase 5 migration.** Supabase Dashboard → SQL Editor → paste [`supabase/migrations/0004_feedback_and_push.sql`](../supabase/migrations/0004_feedback_and_push.sql) → Run. Adds `feedback` + `expo_push_tokens` tables.
+- [ ] **Redeploy Worker** to pick up `/v1/feedback`, `/v1/push/register`, and the admin feedback/push routes. (`npx wrangler deploy` from `workers/ai-proxy`.)
+- [ ] **Test feedback round-trip:** open consumer → Profile sidebar → Send feedback → submit a test message. Check the admin's new Feedback tab.
+- [ ] **Test push (native only):** install the EAS / device build, grant notification permission. In Supabase verify a row appears in `expo_push_tokens`. Send a test broadcast from admin → Push to confirm the device receives it.
 
 ## 🟠 Soon — before App Store submission
 
