@@ -38,7 +38,7 @@ Last updated: 2026-05-08
 - [ ] **Add admin URL to Supabase Redirect URLs** — Supabase Dashboard → Authentication → URL Configuration → Redirect URLs → add:
   - `https://project-yom9m.vercel.app/auth/callback`
   - `https://project-yom9m.vercel.app/**`
-- [ ] **Sanity-check end-to-end:** sign out of both apps, open the admin URL, request a magic link, confirm it redirects back to admin `/flags` (not the consumer app).
+- [x] ~~Sanity-check end-to-end~~ — done 2026-05-08. Flags + Prompts load. Surprise gotcha worth remembering: the Worker secret `SUPABASE_SERVICE_ROLE_KEY` had been set to the publishable/anon key by mistake (the two look superficially similar in Supabase Dashboard — the right one is labeled `secret` / `sb_secret_*` and is the only one that bypasses RLS). Symptom was a clean `403 {"error":"admin: not authorized"}` from every `/v1/admin/*` call, because PostgREST returned `[]` from the admins lookup. Fix: `npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY` with the correct key.
 - [ ] **Future:** if you set a custom domain on Vercel (e.g. `admin.lifeos.app`), update both the Worker `ALLOWED_ORIGINS` and the Supabase Redirect URLs again.
 
 ---
