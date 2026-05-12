@@ -142,7 +142,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
       const categories = await categorizeBatch(
         parsed.map(({ tx }) => ({ merchant: tx.merchant, amount: tx.amount, direction: tx.direction, channel: tx.channel })),
-        { maxAiCalls: 25 },
+        { maxAiItems: 50, batchSize: 25 },
       );
 
       const records: TxRecord[] = parsed.map(({ message, tx }, i) => ({

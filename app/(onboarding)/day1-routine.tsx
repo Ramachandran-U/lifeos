@@ -16,6 +16,7 @@ import { useAI } from '@/hooks/useAI';
 import { generateRoutine } from '@/ai/functions';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
+import { track } from '@/utils/telemetry';
 import { updateUser } from '@/db/queries/users';
 import { createRoutineBlocks } from '@/db/queries/routine';
 import type { GeneratedRoutine } from '@/ai/types';
@@ -128,6 +129,7 @@ export default function Day1RoutineScreen() {
       onboardingStage: ONBOARDING_COMPLETE,
     });
     setOnboardingStage(ONBOARDING_COMPLETE);
+    track('onboarding_finished', { stage: ONBOARDING_COMPLETE });
 
     awardBadge(userId, 'first_blueprint');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

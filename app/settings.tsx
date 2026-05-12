@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { useThemeStore } from '@/store/useThemeStore';
+import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +31,8 @@ export default function SettingsScreen() {
   const c = useColors();
   const themeMode = useThemeStore((s) => s.mode);
   const setThemeMode = useThemeStore((s) => s.setMode);
+  const telemetryEnabled = useTelemetryStore((s) => s.enabled);
+  const setTelemetryEnabled = useTelemetryStore((s) => s.setEnabled);
   const { userId, name, reset } = useUserStore();
   const [editName, setEditName] = useState(name);
   const [editAge, setEditAge] = useState('');
@@ -200,6 +203,22 @@ export default function SettingsScreen() {
         </Card>
 
         <Card style={styles.section}>
+          <Label>Privacy</Label>
+          <View style={styles.switchRow}>
+            <View style={styles.switchLabelCol}>
+              <Body style={styles.switchLabel}>Share anonymous usage stats</Body>
+              <Caption>Helps us spot bugs and find which features need work. No personal data — only a random device id.</Caption>
+            </View>
+            <Switch
+              value={telemetryEnabled}
+              onValueChange={setTelemetryEnabled}
+              trackColor={{ false: c.border, true: c.primary + '80' }}
+              thumbColor={telemetryEnabled ? c.primary : c.textMuted}
+            />
+          </View>
+        </Card>
+
+        <Card style={styles.section}>
           <Label>About</Label>
           <Body style={styles.infoText}>LifeOS v1.0.0</Body>
           <Caption>Your Digital Life Architect</Caption>
@@ -243,5 +262,10 @@ const styles = StyleSheet.create({
   switchLabel: {
     flex: 1,
     fontSize: fontSizes.sm,
+  },
+  switchLabelCol: {
+    flex: 1,
+    gap: 2,
+    marginRight: spacing.sm,
   },
 });

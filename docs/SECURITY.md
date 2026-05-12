@@ -163,7 +163,19 @@ If you see random 401s on admin pages, the first thing to check is whether middl
 
 ---
 
-## 7. Worker as single ingress
+## 7. Anonymous telemetry
+
+The `telemetry_events` table stores opt-in events from the consumer app. Constraints:
+
+- **Anonymous-only.** Identifier is a `device_id` UUID generated client-side; it is never linked to a `users.id`, email, or display name. The privacy doc (`app/terms-privacy.tsx`) covers the contract.
+- **Opt-in.** `useTelemetryStore.enabled` defaults to `false`. The consumer SDK (`src/utils/telemetry.ts`) no-ops when the flag is off. Users toggle it from Settings → Privacy.
+- **Allowlisted vocabulary.** Event names that aren't on the Worker-side allowlist (`workers/ai-proxy/src/routes/telemetry.ts` → `ALLOWED_EVENTS`) get 400'd at the door. Add a new event by appending to that set; no migration needed.
+- **Props size capped** at 4 KB after JSON stringify. Per-device daily cap of 5000 events.
+- **No PII in props.** Props are a free-form JSON bag, so it's on the *caller* to send only non-identifying fields. When you wire a new `track()` call, send counts and enum values; don't send goal titles, vision text, reflection content, transaction amounts, etc.
+
+The table follows the same RLS-deny-by-default rule as the admin tables (§ 2). The Worker is the only writer; admin dashboards read via `/v1/admin/telemetry/*`.
+
+## 8. Worker as single ingress
 
 Every privileged route is gated by [`workers/ai-proxy/src/lib/adminAuth.ts`](../workers/ai-proxy/src/lib/adminAuth.ts) → `requireAdmin()`, which:
 1. Verifies the Supabase JWT against the JWKS endpoint
@@ -175,7 +187,7 @@ If you add a new admin route in `workers/ai-proxy/src/routes/admin/`, you MUST a
 
 ---
 
-## 8. Secrets inventory
+## 9. Secrets inventory
 
 | Secret | Stored | Used by |
 |--------|--------|---------|
@@ -189,7 +201,7 @@ If a new secret needs client-side use, that's a red flag — design around it. T
 
 ---
 
-## 9. Auditing
+## 10. Auditing
 
 `audit_log` rows are written by `requireAdmin()` paths in the Worker. Every mutating action (publish prompt, flip flag, add admin, etc.) writes a row with `(actor_email, action, target_type, target_id, before, after, ts)`.
 
@@ -199,7 +211,7 @@ Retention: undefined. Decide before scaling — see [PRE_PRODUCTION_CHECKLIST.md
 
 ---
 
-## 10. Incident response shortcuts
+## 11. Incident response shortcuts
 
 | Symptom | First action |
 |---------|--------------|

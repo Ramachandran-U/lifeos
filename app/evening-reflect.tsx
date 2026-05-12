@@ -17,6 +17,7 @@ import { getRoutineBlocksByDate, updateRoutineBlock } from '@/db/queries/routine
 import { cloneRoutineToDate } from '@/utils/starterRoutine';
 import { upsertReflection, getReflectionByDate, type BlockReview } from '@/db/queries/reflections';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
+import { track } from '@/utils/telemetry';
 import { suggestTomorrowTweak } from '@/ai/functions';
 import type { TomorrowTweak } from '@/ai/types';
 import { useUserStore } from '@/store/useUserStore';
@@ -142,6 +143,10 @@ export default function EveningReflectScreen() {
         tweakPayload: tweak,
       });
       logBehaviourEvent('reflection_completed', 'goal');
+      track('evening_reflect_completed', {
+        block_count: blockReviews.length,
+        tweak_accepted: tweakAccepted,
+      });
       if (Platform.OS !== 'web') {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }

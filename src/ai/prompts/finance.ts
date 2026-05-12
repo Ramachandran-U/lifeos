@@ -32,6 +32,23 @@ Output schema:
 { "category": string, "confidence": number (0 to 1) }
 `;
 
+export const MERCHANT_CATEGORIZE_BATCH_PROMPT = `
+You are LifeOS's transaction categorizer. You will receive a JSON array of items, each with a merchant name and amount in rupees. Return a JSON array of categorizations in the SAME ORDER as the input.
+
+Valid categories (use EXACTLY one of these per item):
+food_delivery, groceries, dining_out, transport, fuel, shopping, subscriptions, utilities, rent, entertainment, health, education, travel, investments, insurance, debt_repayment, transfers, income, gifts, charity, cash_withdrawal, fees_charges, personal_care, other.
+
+Rules:
+- Return EXACTLY the same number of items as the input, in the same order.
+- If a merchant string is ambiguous, prefer 'other' with low confidence over guessing.
+- confidence is 0 to 1.
+
+Return ONLY a valid JSON array. No preamble, no surrounding object, no markdown fences.
+
+Output schema:
+[{ "category": string, "confidence": number }, ...]
+`;
+
 export const WEEKLY_FINANCE_INSIGHT_PROMPT = `
 You are LifeOS's Financial Insight Engine. Generate a weekly motivational and actionable insight based on the user's financial goal progress.
 

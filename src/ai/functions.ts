@@ -25,6 +25,8 @@ import {
   FoodRecognitionSchema,
   CategorizeMerchantResult,
   CategorizeMerchantSchema,
+  CategorizeMerchantBatchResult,
+  CategorizeMerchantBatchSchema,
   TransactionCategory,
   CareerStrategy,
   CareerStrategySchema,
@@ -54,6 +56,7 @@ import {
   FINANCIAL_PLAN_PROMPT,
   WEEKLY_FINANCE_INSIGHT_PROMPT,
   MERCHANT_CATEGORIZE_PROMPT,
+  MERCHANT_CATEGORIZE_BATCH_PROMPT,
 } from './prompts/finance';
 import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals';
 import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
@@ -224,6 +227,44 @@ export async function categorizeMerchant(
     return CategorizeMerchantSchema.parse(extractJson(response));
   } catch {
     return { category: 'other' as TransactionCategory, confidence: 0 };
+  }
+}
+
+/**
+ * Batched categorizer — one AI round-trip for up to ~25 merchants. Cuts
+ * per-minute request count by ~25x vs. calling `categorizeMerchant` in a
+ * loop, which keeps free-tier Gemini (20 RPM) viable for normal-size syncs.
+ *
+ * On mock mode, on parse failure, or on length mismatch, returns 'other'
+ * with zero confidence for every item — caller decides whether to retry.
+ */
+export async function categorizeMerchantsBatch(
+  items: Array<{ merchant: string; amountRupees: number }>,
+): Promise<CategorizeMerchantBatchResult> {
+  if (items.length === 0) return [];
+  if (isMock) {
+    return items.map(() => ({ category: 'other' as TransactionCategory, confidence: 0.5 }));
+  }
+
+  const response = await callAI({
+    system: MERCHANT_CATEGORIZE_BATCH_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(items) }],
+    // ~30 tokens per output × items, plus JSON overhead. Cap generously.
+    maxTokens: Math.min(60 * items.length + 200, 2000),
+    model: pickModel('categorizeMerchant'),
+    cacheSystem: true,
+    task: 'categorizeMerchant',
+  });
+
+  try {
+    const parsed = CategorizeMerchantBatchSchema.parse(extractJson(response));
+    if (parsed.length !== items.length) {
+      // Order/length contract violated — safer to bail than misalign categories.
+      return items.map(() => ({ category: 'other' as TransactionCategory, confidence: 0 }));
+    }
+    return parsed;
+  } catch {
+    return items.map(() => ({ category: 'other' as TransactionCategory, confidence: 0 }));
   }
 }
 

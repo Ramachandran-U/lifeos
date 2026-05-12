@@ -32,6 +32,7 @@ import { QuestCard } from '@/components/gamification/QuestCard';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
 import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
+import { track } from '@/utils/telemetry';
 import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
 import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
 import { updateUser } from '@/db/queries/users';
@@ -150,6 +151,7 @@ export default function TodayScreen() {
     const block = blocks.find(b => b.id === blockId);
     updateRoutineBlockStatus(blockId, 'completed');
     logBehaviourEvent('block_completed', block?.module ?? 'goal');
+    track('routine_block_completed', { module: block?.module ?? 'goal' });
     if (userId) {
       const mod = block?.module ?? 'goal';
       const todayBlocks = blocks.filter(b => b.module === mod);

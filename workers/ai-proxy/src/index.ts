@@ -5,8 +5,10 @@ import { proxyGeminiLive } from './gemini';
 import { handleConfig } from './routes/config';
 import { handleAdminFlags } from './routes/admin/flags';
 import { handleAdminPrompts } from './routes/admin/prompts';
+import { handleAdminTelemetry } from './routes/admin/telemetry';
 import { handlePrompts } from './routes/prompts';
 import { handleGoogleToken } from './routes/googleToken';
+import { handleTelemetry } from './routes/telemetry';
 import { requireAdmin } from './lib/adminAuth';
 
 export interface Env {
@@ -20,6 +22,7 @@ export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   DAILY_AI_REQUEST_LIMIT: string;
+  DAILY_CHATBOT_LIMIT: string;
   DAILY_VOICE_MINUTES_LIMIT: string;
   ALLOWED_ORIGINS: string;
   GOOGLE_CLIENT_ID: string;
@@ -69,6 +72,15 @@ export default {
 
     const url = new URL(req.url);
 
+    // Public anonymous telemetry ingest — no auth. Device-id only.
+    if (url.pathname === '/v1/telemetry' && req.method === 'POST') {
+      try {
+        return await handleTelemetry(req, env, corsHeaders(req, env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'telemetry error', req, env);
+      }
+    }
+
     // Public config endpoint — no auth. Consumer app polls this at startup.
     if (url.pathname === '/v1/config' && req.method === 'GET') {
       try {
@@ -98,12 +110,30 @@ export default {
     const userId = claims.sub;
 
     if (url.pathname === '/claude' && req.method === 'POST') {
-      const ok = await checkAndIncrement(
-        env.RATE_LIMIT,
-        `ai:${userId}`,
-        Number(env.DAILY_AI_REQUEST_LIMIT),
-      );
-      if (!ok) return jsonError(429, 'daily AI limit reached', req, env);
+      // Peek at the body to decide which bucket this call counts against.
+      // Chatbot calls have their own daily cap so a chatty user can't
+      // starve the Routine Builder / Goal decomposer / etc.
+      let task: string | undefined;
+      try {
+        const body = (await req.clone().json()) as { task?: string };
+        task = body.task;
+      } catch {
+        // body unreadable → fall through to default bucket
+      }
+
+      const isChatbot = task === 'chatbot';
+      const bucketKey = isChatbot ? `ai:chatbot:${userId}` : `ai:${userId}`;
+      const limit = isChatbot
+        ? Number(env.DAILY_CHATBOT_LIMIT)
+        : Number(env.DAILY_AI_REQUEST_LIMIT);
+
+      const ok = await checkAndIncrement(env.RATE_LIMIT, bucketKey, limit);
+      if (!ok) {
+        const message = isChatbot
+          ? 'daily chat limit reached'
+          : 'daily AI limit reached';
+        return jsonError(429, message, req, env);
+      }
       return proxyClaude(req, env, corsHeaders(req, env));
     }
 
@@ -149,6 +179,14 @@ export default {
           return await handleAdminPrompts(req, env, admin, corsHeaders(req, env));
         } catch (e) {
           return jsonError(500, e instanceof Error ? e.message : 'admin prompts error', req, env);
+        }
+      }
+
+      if (url.pathname.startsWith('/v1/admin/telemetry')) {
+        try {
+          return await handleAdminTelemetry(req, env, admin, corsHeaders(req, env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin telemetry error', req, env);
         }
       }
 

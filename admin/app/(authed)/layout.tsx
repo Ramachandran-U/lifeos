@@ -7,7 +7,7 @@ import { SignOutButton } from './SignOutButton';
 const NAV: { label: string; href: string; enabled: boolean }[] = [
   { label: 'Flags',     href: '/flags',     enabled: true },
   { label: 'Prompts',   href: '/prompts',   enabled: true },
-  { label: 'Telemetry', href: '#',          enabled: false },
+  { label: 'Telemetry', href: '/telemetry', enabled: true },
   { label: 'Feedback',  href: '#',          enabled: false },
   { label: 'Audit',     href: '#',          enabled: false },
 ];

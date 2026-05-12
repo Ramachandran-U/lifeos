@@ -291,6 +291,10 @@ export const CategorizeMerchantSchema = z.object({
 
 export type CategorizeMerchantResult = z.infer<typeof CategorizeMerchantSchema>;
 
+export const CategorizeMerchantBatchSchema = z.array(CategorizeMerchantSchema);
+
+export type CategorizeMerchantBatchResult = z.infer<typeof CategorizeMerchantBatchSchema>;
+
 export interface ParsedTransaction {
   id: string;
   date: string;

@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || '';
@@ -18,34 +21,51 @@ interface PromptState {
   getPrompt: (key: string, fallback: string) => string;
 }
 
-export const usePromptStore = create<PromptState>((set, get) => ({
-  prompts: {},
-  fetchedAt: null,
-  loading: false,
-  error: null,
+// Web stores in localStorage; native in AsyncStorage. Matches the
+// auth-session pattern in src/integrations/supabase/client.ts.
+const storage = createJSONStorage(() =>
+  Platform.OS === 'web' ? window.localStorage : AsyncStorage,
+);
 
-  fetchPrompts: async () => {
-    if (!PROXY_URL) return;
-    const fetchedAt = get().fetchedAt;
-    if (fetchedAt && Date.now() - fetchedAt < STALE_MS) return;
+export const usePromptStore = create<PromptState>()(
+  persist(
+    (set, get) => ({
+      prompts: {},
+      fetchedAt: null,
+      loading: false,
+      error: null,
 
-    set({ loading: true, error: null });
-    try {
-      const token = await getSupabaseAccessToken();
-      if (!token) {
-        set({ loading: false });
-        return;
-      }
-      const res = await fetch(`${PROXY_URL}/v1/prompts`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`prompts ${res.status}`);
-      const json = (await res.json()) as { prompts: Record<string, PromptEntry> };
-      set({ prompts: json.prompts, fetchedAt: Date.now(), loading: false });
-    } catch (e) {
-      set({ error: e instanceof Error ? e.message : 'prompt fetch failed', loading: false });
-    }
-  },
+      fetchPrompts: async () => {
+        if (!PROXY_URL) return;
+        const fetchedAt = get().fetchedAt;
+        if (fetchedAt && Date.now() - fetchedAt < STALE_MS) return;
 
-  getPrompt: (key, fallback) => get().prompts[key]?.body ?? fallback,
-}));
+        set({ loading: true, error: null });
+        try {
+          const token = await getSupabaseAccessToken();
+          if (!token) {
+            set({ loading: false });
+            return;
+          }
+          const res = await fetch(`${PROXY_URL}/v1/prompts`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error(`prompts ${res.status}`);
+          const json = (await res.json()) as { prompts: Record<string, PromptEntry> };
+          set({ prompts: json.prompts, fetchedAt: Date.now(), loading: false });
+        } catch (e) {
+          set({ error: e instanceof Error ? e.message : 'prompt fetch failed', loading: false });
+        }
+      },
+
+      getPrompt: (key, fallback) => get().prompts[key]?.body ?? fallback,
+    }),
+    {
+      // Bump the `_v1` suffix if the PromptEntry shape ever changes — old
+      // cached payloads will then be ignored instead of crashing the parser.
+      name: 'lifeos_prompts_v1',
+      storage,
+      partialize: (state) => ({ prompts: state.prompts, fetchedAt: state.fetchedAt }),
+    },
+  ),
+);

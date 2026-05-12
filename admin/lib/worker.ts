@@ -93,6 +93,40 @@ export async function createPromptVersion(
   return json.version;
 }
 
+export interface FunnelStage {
+  key: string;
+  label: string;
+  devices: number;
+}
+
+export interface FunnelResponse {
+  days: number;
+  stages: FunnelStage[];
+  sample_size: number;
+}
+
+export async function getFunnel(days = 7): Promise<FunnelResponse> {
+  const res = await authedFetch(`/v1/admin/telemetry/funnel?days=${days}`);
+  if (!res.ok) throw new Error(`funnel: ${res.status}`);
+  return res.json();
+}
+
+export interface RecentEvent {
+  device_id: string;
+  event: string;
+  props: Record<string, unknown>;
+  app_version: string | null;
+  platform: string | null;
+  ts: string;
+}
+
+export async function getRecentEvents(limit = 100): Promise<RecentEvent[]> {
+  const res = await authedFetch(`/v1/admin/telemetry/recent?limit=${limit}`);
+  if (!res.ok) throw new Error(`recent: ${res.status}`);
+  const json = await res.json();
+  return json.events;
+}
+
 export async function activatePromptVersion(key: string, version: number): Promise<PromptVersion> {
   const res = await authedFetch(
     `/v1/admin/prompts/${encodeURIComponent(key)}/versions/${version}/activate`,
