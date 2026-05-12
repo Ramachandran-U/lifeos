@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAI } from '@/hooks/useAI';
-import { generateRoutine } from '@/ai/functions';
+import { planRoutineWithContext } from '@/ai/routinePlanner';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { track } from '@/utils/telemetry';
@@ -92,7 +92,7 @@ export default function Day1RoutineScreen() {
 
   const handleGenerate = async () => {
     const result = await call(() =>
-      generateRoutine({
+      planRoutineWithContext({
         wakeTime,
         sleepTime,
         workStartTime: workStart,
