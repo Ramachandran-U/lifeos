@@ -43,6 +43,23 @@ Last updated: 2026-05-08
 
 ---
 
+## 🔴 To activate the latest commits (`9fa52c0`)
+
+These changes are pushed to git but need three manual actions to be live:
+
+- [ ] **Run Phase 3 telemetry migration.** Supabase Dashboard → SQL Editor → paste contents of [`supabase/migrations/0003_telemetry.sql`](../supabase/migrations/0003_telemetry.sql) → Run. Creates the `telemetry_events` table with indexes and RLS lockdown.
+- [ ] **Redeploy the Worker.** Picks up:
+  - new `POST /v1/telemetry` anonymous ingest
+  - new `GET /v1/admin/telemetry/{funnel,recent}` routes
+  - chatbot rate-limit bucket (`DAILY_CHATBOT_LIMIT=30`)
+  - the finance categorizer changes are client-side; this redeploy isn't needed for those but doesn't hurt
+  ```powershell
+  cd "c:\personal\Project X\lifeos\.claude\worktrees\interesting-rubin-97ecf6\workers\ai-proxy"
+  npx wrangler deploy
+  ```
+- [ ] **Wait for Vercel auto-deploy** of the admin (or trigger manually in the Vercel dashboard). The new Telemetry tab will appear in the sidebar.
+- [ ] **Smoke-test end-to-end:** open the consumer app, Settings → Privacy → toggle "Share anonymous usage stats" ON. Then complete a routine block / create a goal. Within ~10s, check the admin Telemetry tab — your events should appear under "Recent events".
+
 ## 🟠 Soon — before App Store submission
 
 These map to the 🟠 High tier in [PRE_PRODUCTION_CHECKLIST.md](PRE_PRODUCTION_CHECKLIST.md).
