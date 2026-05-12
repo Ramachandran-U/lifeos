@@ -131,6 +131,17 @@ export default function HealthScreen() {
       if (today && today.weightKg && today.weightKg > 0) {
         createHealthLog({ date: today.date, weight: today.weightKg });
       }
+      // Persist sleep across the synced window so recovery-aware planning can read it.
+      for (const day of result.days) {
+        const totalMins = day.sleep.total;
+        if (totalMins > 0) {
+          createHealthLog({
+            date: day.date,
+            sleepHours: Math.round((totalMins / 60) * 10) / 10,
+            source: 'health_connect',
+          });
+        }
+      }
       const totalSteps = result.days.reduce((s, d) => s + d.steps, 0);
       setFitStatus(
         `Synced 14 days · ${totalSteps.toLocaleString()} steps · ${result.workouts.length} workouts` +

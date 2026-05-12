@@ -77,6 +77,11 @@ import {
   DiscoveryChatInput,
   DiscoveryChatTurn,
   DiscoveryChatTurnSchema,
+  ReplanRemainingDay,
+  ReplanRemainingDayInput,
+  ReplanRemainingDaySchema,
+  GenerateTomorrowRoutineInput,
+  GenerateTomorrowRoutineSchema,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -87,7 +92,7 @@ import { TOMORROW_TWEAK_PROMPT } from './prompts/reflection';
 import { buildMockTomorrowTweak } from './mocks/reflection';
 import { GOAL_DECOMPOSITION_PROMPT, GOAL_DESCRIPTION_PROMPT } from './prompts/goals';
 import { SKILL_GAP_PROMPT, CAREER_STRATEGY_PROMPT, MOTIVATION_PROMPT } from './prompts/career';
-import { ROUTINE_GENERATION_PROMPT } from './prompts/routine';
+import { ROUTINE_GENERATION_PROMPT, REPLAN_REMAINING_DAY_PROMPT, GENERATE_TOMORROW_ROUTINE_PROMPT } from './prompts/routine';
 import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT, FOOD_RECOGNITION_PROMPT } from './prompts/health';
 import {
   FINANCIAL_PLAN_PROMPT,
@@ -97,7 +102,7 @@ import {
 } from './prompts/finance';
 import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals';
 import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
-import { MOCK_ROUTINE } from './mocks/routine';
+import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
 
@@ -440,5 +445,43 @@ export async function discoveryChatTurn(input: DiscoveryChatInput): Promise<Disc
     return DiscoveryChatTurnSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('discoveryChatTurn', 'DiscoveryChatTurn', response, err);
+  }
+}
+
+export async function replanRemainingDay(input: ReplanRemainingDayInput): Promise<ReplanRemainingDay> {
+  if (isMock) return buildMockReplanRemainingDay(input);
+
+  const response = await callAI({
+    system: REPLAN_REMAINING_DAY_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    maxTokens: 800,
+    model: pickModel('replanRemainingDay'),
+    cacheSystem: true,
+    task: 'replanRemainingDay',
+  });
+
+  try {
+    return ReplanRemainingDaySchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('replanRemainingDay', 'ReplanRemainingDay', response, err);
+  }
+}
+
+export async function generateTomorrowRoutine(input: GenerateTomorrowRoutineInput): Promise<GeneratedRoutine> {
+  if (isMock) return buildMockTomorrowRoutine(input);
+
+  const response = await callAI({
+    system: GENERATE_TOMORROW_ROUTINE_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    maxTokens: 1500,
+    model: pickModel('generateTomorrowRoutine'),
+    cacheSystem: true,
+    task: 'generateTomorrowRoutine',
+  });
+
+  try {
+    return GenerateTomorrowRoutineSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateTomorrowRoutine', 'GeneratedRoutine', response, err);
   }
 }

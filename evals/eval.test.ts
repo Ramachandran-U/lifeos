@@ -16,6 +16,8 @@ import categorizeMerchantSuite from './cases/categorizeMerchant';
 import ragRetrieveSuite from './cases/ragRetrieve';
 import planRoutineAgentSuite from './cases/planRoutineAgent';
 import parseBloodReportSafetySuite from './cases/parseBloodReportSafety';
+import discoveryChatSuite from './cases/discoveryChat';
+import replanRemainingDaySuite from './cases/replanRemainingDay';
 
 const suites: EvalSuite<any, any>[] = [
   decomposeGoalSuite,
@@ -25,6 +27,8 @@ const suites: EvalSuite<any, any>[] = [
   ragRetrieveSuite,
   planRoutineAgentSuite,
   parseBloodReportSafetySuite,
+  discoveryChatSuite,
+  replanRemainingDaySuite,
 ];
 
 interface CaseReport {

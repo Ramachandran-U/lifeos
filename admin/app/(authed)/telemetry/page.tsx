@@ -8,6 +8,7 @@ const WINDOW_OPTIONS = [1, 7, 30] as const;
 export default function TelemetryPage() {
   const [days, setDays] = useState<number>(7);
   const [funnel, setFunnel] = useState<FunnelResponse | null>(null);
+  const [funnelV2, setFunnelV2] = useState<FunnelResponse | null>(null);
   const [recent, setRecent] = useState<RecentEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -16,8 +17,13 @@ export default function TelemetryPage() {
     setError(null);
     setLoading(true);
     try {
-      const [f, r] = await Promise.all([getFunnel(windowDays), getRecentEvents(50)]);
+      const [f, fv2, r] = await Promise.all([
+        getFunnel(windowDays, 'v1'),
+        getFunnel(windowDays, 'v2'),
+        getRecentEvents(50),
+      ]);
       setFunnel(f);
+      setFunnelV2(fv2);
       setRecent(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'load failed');
@@ -31,6 +37,7 @@ export default function TelemetryPage() {
   }, [days]);
 
   const topStageDevices = funnel?.stages[0]?.devices ?? 0;
+  const topStageDevicesV2 = funnelV2?.stages[0]?.devices ?? 0;
 
   return (
     <div>
@@ -66,7 +73,7 @@ export default function TelemetryPage() {
       {loading ? <div style={{ color: '#A8A8C0', marginBottom: 16 }}>Loading…</div> : null}
 
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Funnel</h2>
+        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Funnel (v1 — legacy)</h2>
         {funnel === null || funnel.stages.every((s) => s.devices === 0) ? (
           <div style={{ color: '#6B6B88', fontSize: 13 }}>
             No telemetry yet for this window. Either no users have opted in, or none have done these
@@ -93,6 +100,48 @@ export default function TelemetryPage() {
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8, fontSize: 12, color: '#FFF', fontVariantNumeric: 'tabular-nums' }}>
                       {s.devices} ({pct}%)
                     </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section style={{ marginBottom: 40 }}>
+        <h2 style={{ fontSize: 16, marginBottom: 4 }}>Funnel (v2 — conversational onboarding)</h2>
+        <p style={{ color: '#6B6B88', fontSize: 12, marginTop: 0, marginBottom: 12 }}>
+          Tracks the new chat-based onboarding flow gated by the <code>onboarding_v2</code> flag.
+          Top number = devices that tapped the entry. Drop-off between stages is the funnel.
+        </p>
+        {funnelV2 === null || funnelV2.stages.every((s) => s.devices === 0) ? (
+          <div style={{ color: '#6B6B88', fontSize: 13 }}>
+            No v2 events yet. Flip the <code>onboarding_v2</code> flag on for a cohort and watch this fill in.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {funnelV2.stages.map((s, i) => {
+              const pct = topStageDevicesV2 > 0 ? Math.round((s.devices / topStageDevicesV2) * 100) : 0;
+              const prev = i > 0 ? funnelV2.stages[i - 1].devices : null;
+              const stepDrop = prev !== null && prev > 0 ? Math.round(((prev - s.devices) / prev) * 100) : null;
+              return (
+                <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 200, fontSize: 13 }}>{s.label}</div>
+                  <div style={{ flex: 1, position: 'relative', height: 24, background: '#1A1A2E', borderRadius: 4, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 0, top: 0, bottom: 0,
+                        width: `${pct}%`,
+                        background: '#00B4D8',
+                      }}
+                    />
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 8, fontSize: 12, color: '#FFF', fontVariantNumeric: 'tabular-nums' }}>
+                      {s.devices} ({pct}%)
+                    </div>
+                  </div>
+                  <div style={{ width: 80, fontSize: 12, color: stepDrop !== null && stepDrop > 50 ? '#FF6B35' : '#6B6B88', textAlign: 'right' }}>
+                    {stepDrop !== null ? `−${stepDrop}%` : ''}
                   </div>
                 </div>
               );

@@ -7,6 +7,7 @@ import {
   webInsertHealthLog,
   webGetHealthLogsByDate,
   webGetRecentWeightLogs,
+  webGetAllHealthLogs,
   webInsertFoodEntry,
   webGetFoodEntriesByDate,
   webInsertBloodReport,
@@ -62,6 +63,28 @@ export function getRecentWeightLogs(limit = 7) {
     .limit(limit)
     .all()
     .filter((l) => l.weight !== null);
+}
+
+/**
+ * Most recent sleep_hours value across all health logs (manual + Fit). Returns
+ * null if the latest entry is older than `maxAgeDays`. Used by the recovery
+ * heuristic — stale data shouldn't soften today's plan.
+ */
+export function getLatestSleepHours(maxAgeDays = 3): number | null {
+  const rows = isWeb
+    ? webGetAllHealthLogs()
+    : (db.select().from(healthLogs).orderBy(desc(healthLogs.date)).all() as Array<{
+        date: string;
+        sleepHours: number | null;
+      }>);
+  const withSleep = rows
+    .filter((r) => r.sleepHours !== null && r.sleepHours !== undefined && r.sleepHours > 0)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  if (withSleep.length === 0) return null;
+  const latest = withSleep[0];
+  const ageDays = Math.floor((Date.now() - new Date(`${latest.date}T00:00:00`).getTime()) / 86_400_000);
+  if (ageDays > maxAgeDays) return null;
+  return latest.sleepHours ?? null;
 }
 
 // --- Food Entries ---

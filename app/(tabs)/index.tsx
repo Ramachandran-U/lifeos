@@ -32,6 +32,12 @@ import { QuestCard } from '@/components/gamification/QuestCard';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
 import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
+import { useFlagStore } from '@/store/useFlagStore';
+import { getUserProfile } from '@/db/queries/userProfile';
+import { rebalanceRestOfToday, isRecoveryLow } from '@/ai/replanApply';
+import { refreshInferredPreferences } from '@/ai/profileLearning';
+import { getLatestSleepHours } from '@/db/queries/health';
+import { upsertUserProfile } from '@/db/queries/userProfile';
 import { track } from '@/utils/telemetry';
 import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
 import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
@@ -64,6 +70,9 @@ export default function TodayScreen() {
   const gameDomainScores = useGameStore((s) => s.domainScores);
   const today = format(new Date(), 'yyyy-MM-dd');
   const [blocks, setBlocks] = useState<ReturnType<typeof getRoutineBlocksByDate>>([]);
+  const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
+  const [replanning, setReplanning] = useState(false);
+  const [replanRationale, setReplanRationale] = useState<string | null>(null);
   const [domainScores, setDomainScores] = useState({
     goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0,
   });
@@ -145,13 +154,42 @@ export default function TodayScreen() {
   useFocusEffect(useCallback(() => {
     loadData();
     setCalConnected(isCalendarConnected());
-  }, [loadData]));
+    // Weekly profile learning — fire-and-forget; no-ops within the 7-day window.
+    if (onboardingV2 && userId) {
+      refreshInferredPreferences(userId).then((result) => {
+        if (result?.hasSignal) {
+          track('profile_inference_run', {
+            events: result.sampleSize.events,
+            blocks: result.sampleSize.blocks,
+            productive_hours: result.preferences.productiveHours.length,
+            dropped_habits: result.preferences.droppedHabits.length,
+          });
+        }
+      }).catch(() => { /* non-fatal */ });
+    }
+  }, [loadData, onboardingV2, userId]));
 
   const handleComplete = (blockId: string) => {
     const block = blocks.find(b => b.id === blockId);
     updateRoutineBlockStatus(blockId, 'completed');
     logBehaviourEvent('block_completed', block?.module ?? 'goal');
     track('routine_block_completed', { module: block?.module ?? 'goal' });
+    // First-block-ever telemetry (v2 funnel). Stamps the profile so it fires once.
+    if (onboardingV2 && userId) {
+      (async () => {
+        try {
+          const profile = await getUserProfile(userId);
+          if (profile && !profile.firstBlockCompletedAt) {
+            const stamped = { ...profile, firstBlockCompletedAt: new Date().toISOString() };
+            await upsertUserProfile(userId, stamped);
+            track('first_block_completed', {
+              module: block?.module ?? 'goal',
+              source: profile.source,
+            });
+          }
+        } catch { /* non-fatal */ }
+      })();
+    }
     if (userId) {
       const mod = block?.module ?? 'goal';
       const todayBlocks = blocks.filter(b => b.module === mod);
@@ -168,6 +206,36 @@ export default function TodayScreen() {
     }
     loadData();
   };
+
+  const skippedCount = useMemo(() => blocks.filter((b) => b.status === 'skipped').length, [blocks]);
+  const showReplanCta = onboardingV2 && skippedCount > 0 && !replanning;
+
+  const handleReplan = useCallback(async () => {
+    if (!userId || replanning) return;
+    setReplanning(true);
+    setReplanRationale(null);
+    try {
+      const profile = await getUserProfile(userId);
+      if (!profile) {
+        setReplanRationale('No profile yet — finish onboarding to unlock re-plan.');
+        return;
+      }
+      const reflection = getReflectionByDate(today);
+      const soften = isRecoveryLow({
+        lastSleepHours: getLatestSleepHours(3),
+        skippedTodayCount: skippedCount,
+        lastMood: reflection?.mood ?? null,
+      });
+      const { rationale, changeCount } = await rebalanceRestOfToday({ profile, softenForRecovery: soften });
+      track('routine_replanned', { soften, changes: changeCount });
+      setReplanRationale(changeCount > 0 ? rationale : 'Looks balanced — no changes needed.');
+      loadData();
+    } catch (err) {
+      setReplanRationale(err instanceof Error ? err.message : 'Re-plan failed. Try again.');
+    } finally {
+      setReplanning(false);
+    }
+  }, [userId, replanning, today, skippedCount, loadData]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -412,6 +480,35 @@ export default function TodayScreen() {
                 )}
                 {calStatus && <Caption style={{ color: c.textMuted }}>{calStatus}</Caption>}
               </Card>
+
+              {(showReplanCta || replanning || replanRationale) ? (
+                <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+                  <Ionicons name="refresh" size={20} color={c.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>
+                      {replanning ? 'Re-planning the rest of today…' : replanRationale ?? 'Day off track?'}
+                    </Body>
+                    {!replanning && !replanRationale ? (
+                      <Caption style={{ color: c.textSecondary, marginTop: 4 }}>
+                        {skippedCount} skipped — let me rebalance what's left.
+                      </Caption>
+                    ) : null}
+                  </View>
+                  {!replanning && !replanRationale ? (
+                    <Pressable
+                      onPress={handleReplan}
+                      style={{
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.sm,
+                        backgroundColor: c.primary,
+                        borderRadius: 12,
+                      }}
+                    >
+                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Re-plan</Caption>
+                    </Pressable>
+                  ) : null}
+                </Card>
+              ) : null}
 
               {blocks
                 .sort((a, b) => a.startTime.localeCompare(b.startTime))

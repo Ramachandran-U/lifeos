@@ -6,9 +6,11 @@ import { routineBlocks } from '../schema';
 import {
   webInsertRoutineBlock,
   webGetRoutineBlocksByDate,
+  webGetRoutineBlocksInRange,
   webUpdateRoutineBlockStatus,
   webUpdateRoutineBlock,
   webDeleteRoutineBlocksByDate,
+  webDeleteRoutineBlockById,
   webSetRoutineBlockCalendarEventId,
   type WebRoutineBlock,
 } from '../webStorage';
@@ -84,6 +86,17 @@ export function getRoutineBlocksByDate(date: string) {
     .all();
 }
 
+import { and, gte, lte } from 'drizzle-orm';
+
+export function getRoutineBlocksInRange(startDate: string, endDate: string) {
+  if (isWeb) {
+    return webGetRoutineBlocksInRange(startDate, endDate);
+  }
+  return db.select().from(routineBlocks)
+    .where(and(gte(routineBlocks.date, startDate), lte(routineBlocks.date, endDate)))
+    .all();
+}
+
 export function updateRoutineBlockStatus(id: string, status: string) {
   if (isWeb) {
     webUpdateRoutineBlockStatus(id, status);
@@ -128,4 +141,12 @@ export function deleteRoutineBlocksByDate(date: string) {
     return;
   }
   db.delete(routineBlocks).where(eq(routineBlocks.date, date)).run();
+}
+
+export function deleteRoutineBlock(id: string) {
+  if (isWeb) {
+    webDeleteRoutineBlockById(id);
+    return;
+  }
+  db.delete(routineBlocks).where(eq(routineBlocks.id, id)).run();
 }

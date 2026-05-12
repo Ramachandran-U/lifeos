@@ -13,6 +13,8 @@ import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
 import { seedStarterRoutine } from '@/utils/starterRoutine';
+import { useFlagStore } from '@/store/useFlagStore';
+import { track } from '@/utils/telemetry';
 
 type Chip = { id: DomainId; emoji: string; label: string; color: string };
 
@@ -29,6 +31,7 @@ export default function WelcomeIntentScreen() {
   ];
   const router = useRouter();
   const { userId, name, setOnboardingStage, setPrimaryDomains } = useUserStore();
+  const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
   const [selected, setSelected] = useState<DomainId[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -110,6 +113,23 @@ export default function WelcomeIntentScreen() {
             We'll seed a starter routine for today. Tap any block to make it yours.
           </Caption>
         </Animated.View>
+
+        {onboardingV2 ? (
+          <Animated.View entering={FadeInDown.delay(750).duration(600)} style={styles.importRow}>
+            <Pressable
+              onPress={() => {
+                track('onboarding_v2_started', { entry: 'welcome_intent' });
+                router.push('/(onboarding)/discovery-chat');
+              }}
+              style={styles.importLink}
+              hitSlop={8}
+            >
+              <Caption style={styles.importText}>
+                Want me to actually <Caption style={styles.importTextAccent}>get to know you first?</Caption> Chat with me →
+              </Caption>
+            </Pressable>
+          </Animated.View>
+        ) : null}
 
         <Animated.View entering={FadeInDown.delay(800).duration(600)} style={styles.importRow}>
           <Pressable

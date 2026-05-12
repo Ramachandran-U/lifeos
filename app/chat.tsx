@@ -19,6 +19,10 @@ import {
   clearChatMessages,
   type ChatMessage,
 } from '@/db/queries/chat';
+import { getUserProfile } from '@/db/queries/userProfile';
+import { getRoutineBlocksByDate } from '@/db/queries/routine';
+import { buildProfileContext } from '@/ai/profileContext';
+import { format } from 'date-fns';
 
 export default function ChatScreen() {
   const c = useColors();
@@ -53,10 +57,31 @@ export default function ChatScreen() {
 
     try {
       const system = usePromptStore.getState().getPrompt('chatbot_system', CHATBOT_SYSTEM_PROMPT);
-      const history = [...messages, userMsg].slice(-12).map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const profile = await getUserProfile(userId);
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const todayBlocks = profile
+        ? getRoutineBlocksByDate(today)
+            .sort((a, b) => a.startTime.localeCompare(b.startTime))
+            .map((b) => ({
+              startTime: b.startTime,
+              endTime: b.endTime,
+              title: b.title,
+              module: b.module,
+              status: b.status,
+            }))
+        : [];
+      const contextBlock = profile
+        ? buildProfileContext(profile, { todayBlocks, todayDate: today })
+        : '';
+      const history: { role: 'user' | 'assistant'; content: string }[] = [];
+      if (contextBlock) {
+        // Synthetic priming turn so the static system prompt stays cached.
+        history.push({ role: 'user', content: contextBlock });
+        history.push({ role: 'assistant', content: "Got it — I'll keep that in mind." });
+      }
+      for (const m of [...messages, userMsg].slice(-12)) {
+        history.push({ role: m.role, content: m.content });
+      }
       const reply = await callAI({
         system,
         messages: history,
@@ -103,10 +128,10 @@ export default function ChatScreen() {
           {messages.length === 0 ? (
             <Animated.View entering={FadeIn} style={styles.empty}>
               <Body style={{ color: c.textSecondary, textAlign: 'center' }}>
-                Ask anything about how LifeOS works — features, integrations, what's stored where, how to get started.
+                Ask me anything — about you, your routine, or how LifeOS works. Try "what should I do next?" or "why did you skip my workout today?"
               </Body>
               <Caption style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-                v1 is read-only. I can explain and guide you, but I can't add goals or log data from chat yet.
+                I read your profile + today's plan to answer. I can't change them from chat yet — direct actions are coming.
               </Caption>
             </Animated.View>
           ) : null}

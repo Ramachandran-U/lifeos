@@ -21,6 +21,11 @@ import { track } from '@/utils/telemetry';
 import { suggestTomorrowTweak } from '@/ai/functions';
 import type { TomorrowTweak } from '@/ai/types';
 import { useUserStore } from '@/store/useUserStore';
+import { useFlagStore } from '@/store/useFlagStore';
+import { getUserProfile } from '@/db/queries/userProfile';
+import { generateAndSaveTomorrow, isRecoveryLow } from '@/ai/replanApply';
+import { deleteRoutineBlocksByDate } from '@/db/queries/routine';
+import { getLatestSleepHours } from '@/db/queries/health';
 
 type Step = 'blocks' | 'mood' | 'tomorrow';
 
@@ -42,6 +47,8 @@ export default function EveningReflectScreen() {
   ];
   const router = useRouter();
   const primaryDomains = useUserStore((s) => s.primaryDomains);
+  const userId = useUserStore((s) => s.userId);
+  const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
   const today = format(new Date(), 'yyyy-MM-dd');
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
 
@@ -147,6 +154,47 @@ export default function EveningReflectScreen() {
         block_count: blockReviews.length,
         tweak_accepted: tweakAccepted,
       });
+
+      // Onboarding v2: regenerate tomorrow's full routine from the rich profile,
+      // softened if the user looks depleted. Failures are non-fatal — the legacy
+      // cloneRoutineToDate seed already wrote a usable tomorrow.
+      if (onboardingV2 && userId) {
+        try {
+          const profile = await getUserProfile(userId);
+          if (profile) {
+            const skippedIds = Object.entries(blockReviews)
+              .filter(([, v]) => v === 'skipped')
+              .map(([id]) => id);
+            const completedIds = Object.entries(blockReviews)
+              .filter(([, v]) => v === 'did')
+              .map(([id]) => id);
+            const titleFor = (id: string) =>
+              todayBlocks.find((b) => b.id === id)?.title ?? '';
+            const soften = isRecoveryLow({
+              lastSleepHours: getLatestSleepHours(3),
+              skippedTodayCount: skippedIds.length,
+              lastMood: mood,
+            });
+            // Replace the cloned-from-today seed with a freshly generated plan.
+            deleteRoutineBlocksByDate(tomorrow);
+            await generateAndSaveTomorrow({
+              profile,
+              todayReview: {
+                mood,
+                blockReviews,
+                skippedTitles: skippedIds.map(titleFor).filter(Boolean),
+                completedTitles: completedIds.map(titleFor).filter(Boolean),
+              },
+              softenForRecovery: soften,
+            });
+            track('tomorrow_routine_generated', { soften, skipped: skippedIds.length });
+          }
+        } catch (err) {
+          // Non-fatal: tomorrow still has the cloned seed.
+          track('tomorrow_routine_failed', { error: err instanceof Error ? err.message.slice(0, 120) : 'unknown' });
+        }
+      }
+
       if (Platform.OS !== 'web') {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }

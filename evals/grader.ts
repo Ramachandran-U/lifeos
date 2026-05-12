@@ -13,6 +13,11 @@ export const schemaValid = <T>(schema: ZodType<T>): Grader<unknown> => (out) => 
 export const check = <O>(name: string, fn: (out: O) => boolean, detailOnFail = ''): Grader<O> =>
   (out) => ({ name, passed: !!fn(out), detail: detailOnFail });
 
+/** Like `check`, but the predicate also receives the case input. */
+export const checkWithInput =
+  <O, I = unknown>(name: string, fn: (out: O, input: I) => boolean, detailOnFail = ''): Grader<O> =>
+  (out, input) => ({ name, passed: !!fn(out, input as I), detail: detailOnFail });
+
 export const equals = <O>(name: string, accessor: (out: O) => unknown, expected: unknown): Grader<O> =>
   (out) => {
     const actual = accessor(out);

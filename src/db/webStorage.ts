@@ -23,6 +23,31 @@ const GOAL_COMMENTS_KEY = 'lifeos_goal_comments';
 const REFLECTIONS_KEY = 'lifeos_daily_reflections';
 const DISCOVERY_IMPORTS_KEY = 'lifeos_discovery_imports';
 const CHAT_MESSAGES_KEY = 'lifeos_chat_messages';
+const USER_PROFILES_KEY = 'lifeos_user_profiles';
+
+// ─── User Profile (Onboarding v2) ────────────────────────────────────────────
+
+import type { UserProfile } from '@/ai/types';
+
+interface WebUserProfileRecord {
+  userId: string;
+  profile: UserProfile;
+}
+
+export function webGetUserProfile(userId: string): UserProfile | null {
+  const all = load<WebUserProfileRecord>(USER_PROFILES_KEY);
+  const found = all.find((r) => r.userId === userId);
+  return found ? found.profile : null;
+}
+
+export function webUpsertUserProfile(userId: string, profile: UserProfile): void {
+  const all = load<WebUserProfileRecord>(USER_PROFILES_KEY);
+  const idx = all.findIndex((r) => r.userId === userId);
+  const record: WebUserProfileRecord = { userId, profile };
+  if (idx >= 0) all[idx] = record;
+  else all.push(record);
+  save(USER_PROFILES_KEY, all);
+}
 
 function load<T>(key: string): T[] {
   try {
@@ -148,6 +173,10 @@ export function webGetRoutineBlocksByDate(date: string): WebRoutineBlock[] {
   return load<WebRoutineBlock>(ROUTINE_KEY).filter((b) => b.date === date);
 }
 
+export function webGetRoutineBlocksInRange(startDate: string, endDate: string): WebRoutineBlock[] {
+  return load<WebRoutineBlock>(ROUTINE_KEY).filter((b) => b.date >= startDate && b.date <= endDate);
+}
+
 export function webUpdateRoutineBlockStatus(id: string, status: string): void {
   const all = load<WebRoutineBlock>(ROUTINE_KEY);
   const idx = all.findIndex((b) => b.id === id);
@@ -158,6 +187,11 @@ export function webUpdateRoutineBlockStatus(id: string, status: string): void {
 
 export function webDeleteRoutineBlocksByDate(date: string): void {
   const all = load<WebRoutineBlock>(ROUTINE_KEY).filter((b) => b.date !== date);
+  save(ROUTINE_KEY, all);
+}
+
+export function webDeleteRoutineBlockById(id: string): void {
+  const all = load<WebRoutineBlock>(ROUTINE_KEY).filter((b) => b.id !== id);
   save(ROUTINE_KEY, all);
 }
 
@@ -447,6 +481,10 @@ export function webInsertHealthLog(log: WebHealthLog): void {
 
 export function webGetHealthLogsByDate(date: string): WebHealthLog[] {
   return load<WebHealthLog>(HEALTH_LOGS_KEY).filter((l) => l.date === date);
+}
+
+export function webGetAllHealthLogs(): WebHealthLog[] {
+  return load<WebHealthLog>(HEALTH_LOGS_KEY);
 }
 
 export function webGetRecentWeightLogs(limit: number): WebHealthLog[] {

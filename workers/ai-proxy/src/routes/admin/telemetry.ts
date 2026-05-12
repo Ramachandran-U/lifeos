@@ -31,6 +31,28 @@ const FUNNEL_STAGES = [
   { key: 'evening_reflect',     label: 'Evening reflect',     events: ['evening_reflect_completed'] },
 ] as const;
 
+// Conversational onboarding v2 funnel. Each stage is fed by exactly one event
+// from the consumer app — see src/utils/telemetry.ts call sites in the app.
+const FUNNEL_V2_STAGES = [
+  { key: 'v2_started',         label: 'v2 entry tapped',       events: ['onboarding_v2_started'] },
+  { key: 'v2_slot_filled',     label: 'First slot filled',     events: ['slot_filled'] },
+  { key: 'v2_chat_completed',  label: 'Discovery completed',   events: ['discovery_chat_completed'] },
+  { key: 'v2_routine',         label: 'Routine generated',     events: ['routine_generated'] },
+  { key: 'v2_first_block',     label: 'First block completed', events: ['first_block_completed'] },
+] as const;
+
+type StageList = ReadonlyArray<{ readonly key: string; readonly label: string; readonly events: readonly string[] }>;
+
+function computeFunnel(rows: EventRow[], stageList: StageList) {
+  const stageDevices = stageList.map(() => new Set<string>());
+  for (const row of rows) {
+    for (let i = 0; i < stageList.length; i++) {
+      if (stageList[i].events.includes(row.event)) stageDevices[i].add(row.device_id);
+    }
+  }
+  return stageList.map((s, i) => ({ key: s.key, label: s.label, devices: stageDevices[i].size }));
+}
+
 export async function handleAdminTelemetry(
   req: Request,
   env: SupabaseEnv,
@@ -43,29 +65,16 @@ export async function handleAdminTelemetry(
 
   if (req.method === 'GET' && action === 'funnel') {
     const days = clampInt(url.searchParams.get('days'), 1, 90, 7);
+    const variant = url.searchParams.get('variant') === 'v2' ? 'v2' : 'v1';
+    const stageList: StageList = variant === 'v2' ? FUNNEL_V2_STAGES : FUNNEL_STAGES;
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
     const rows = await pgSelect<EventRow>(
       env,
       'telemetry_events',
       `ts=gte.${encodeURIComponent(since)}&select=device_id,event,ts&limit=50000`,
     );
-
-    // For each stage, count distinct devices that fired any of its events.
-    const stageDevices = FUNNEL_STAGES.map(() => new Set<string>());
-    for (const row of rows) {
-      for (let i = 0; i < FUNNEL_STAGES.length; i++) {
-        if ((FUNNEL_STAGES[i].events as readonly string[]).includes(row.event)) {
-          stageDevices[i].add(row.device_id);
-        }
-      }
-    }
-
-    const stages = FUNNEL_STAGES.map((s, i) => ({
-      key: s.key,
-      label: s.label,
-      devices: stageDevices[i].size,
-    }));
-    return json({ days, stages, sample_size: rows.length }, cors);
+    const stages = computeFunnel(rows, stageList);
+    return json({ days, variant, stages, sample_size: rows.length }, cors);
   }
 
   if (req.method === 'GET' && action === 'recent') {

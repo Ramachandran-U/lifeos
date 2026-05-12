@@ -268,6 +268,19 @@ export default function ProfileScreen() {
           </Card>
         )}
 
+        {/* What LifeOS knows */}
+        <Card style={styles.card}>
+          <Label style={{ color: c.textMuted, letterSpacing: 1.5, marginBottom: spacing.xs }}>
+            YOUR PROFILE
+          </Label>
+          <Row
+            icon="sparkles-outline"
+            label="What LifeOS knows about you"
+            c={c}
+            onPress={() => router.push('/what-lifeos-knows')}
+          />
+        </Card>
+
         {/* Settings */}
         <Card style={styles.card}>
           <Label style={{ color: c.textMuted, letterSpacing: 1.5, marginBottom: spacing.xs }}>

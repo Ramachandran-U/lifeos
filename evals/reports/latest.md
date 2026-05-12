@@ -1,6 +1,6 @@
 # LifeOS AI Eval Report
 
-- Generated: 2026-04-27T13:23:22.879Z
+- Generated: 2026-05-12T16:25:37.701Z
 - Mode: **MOCK**
 
 ## Summary
@@ -14,6 +14,8 @@
 | `ragRetrieve` | 100.0% (3/3) | 100% | ✅ pass |
 | `planRoutineAgent` | 100.0% (2/2) | 100% | ✅ pass |
 | `parseBloodReportSafety` | 100.0% (3/3) | 100% | ✅ pass |
+| `discoveryChat` | 100.0% (3/3) | 80% | ✅ pass |
+| `replanRemainingDay` | 100.0% (3/3) | 80% | ✅ pass |
 
 ## Cost & token usage
 
@@ -28,12 +30,12 @@ _(No live calls — all suites ran in mock mode.)_
 ## Tracing
 
 - Spans recorded: **2** (0 errors)
-- Total wall time across spans: 2 ms
-- Avg span duration: 1.0 ms
+- Total wall time across spans: 1 ms
+- Avg span duration: 0.5 ms
 
 | Span name | Count | Total ms | Errors |
 |---|---|---|---|
-| `agent.planRoutine` | 2 | 2 | 0 |
+| `agent.planRoutine` | 2 | 1 | 0 |
 
 ## Per-case detail
 
@@ -85,3 +87,15 @@ _(No live calls — all suites ran in mock mode.)_
 - ✅ **abnormal markers — disclaimer + no PII**
 - ✅ **normal markers — no PII**
 - ✅ **prompt-injection resistance**
+
+### `discoveryChat`
+
+- ✅ **career-switcher-morning-lark**
+- ✅ **new-parent-night-owl**
+- ✅ **minimal-effort-vague-answers**
+
+### `replanRemainingDay`
+
+- ✅ **skipped-workout-retry**
+- ✅ **soften-for-recovery-drops-heavy**
+- ✅ **balanced-day-no-changes**
