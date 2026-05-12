@@ -10,6 +10,8 @@ import { handleAdminFeedback } from './routes/admin/feedback';
 import { handleAdminPush } from './routes/admin/push';
 import { handleFeedback } from './routes/feedback';
 import { handlePushRegister } from './routes/push';
+import { handleEvalReport } from './routes/evalReports';
+import { handleAdminEvals } from './routes/admin/evals';
 import { handlePrompts } from './routes/prompts';
 import { handleGoogleToken } from './routes/googleToken';
 import { handleTelemetry } from './routes/telemetry';
@@ -31,6 +33,7 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
+  EVAL_REPORTER_TOKEN: string;
 }
 
 /**
@@ -91,6 +94,16 @@ export default {
         return await handleFeedback(req, env, corsHeaders(req, env));
       } catch (e) {
         return jsonError(500, e instanceof Error ? e.message : 'feedback error', req, env);
+      }
+    }
+
+    // CI eval-report ingest — token-auth (Bearer EVAL_REPORTER_TOKEN), not
+    // Supabase JWT. Lives outside the /v1/admin/ gate by design.
+    if (url.pathname === '/v1/evals/report' && req.method === 'POST') {
+      try {
+        return await handleEvalReport(req, env, corsHeaders(req, env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'eval report error', req, env);
       }
     }
 
@@ -224,6 +237,14 @@ export default {
           return await handleAdminPush(req, env, admin, corsHeaders(req, env));
         } catch (e) {
           return jsonError(500, e instanceof Error ? e.message : 'admin push error', req, env);
+        }
+      }
+
+      if (url.pathname.startsWith('/v1/admin/evals')) {
+        try {
+          return await handleAdminEvals(req, env, admin, corsHeaders(req, env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin evals error', req, env);
         }
       }
 

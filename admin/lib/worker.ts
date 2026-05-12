@@ -101,12 +101,14 @@ export interface FunnelStage {
 
 export interface FunnelResponse {
   days: number;
+  variant?: 'v1' | 'v2';
   stages: FunnelStage[];
   sample_size: number;
 }
 
-export async function getFunnel(days = 7): Promise<FunnelResponse> {
-  const res = await authedFetch(`/v1/admin/telemetry/funnel?days=${days}`);
+export async function getFunnel(days = 7, variant: 'v1' | 'v2' = 'v1'): Promise<FunnelResponse> {
+  const qs = variant === 'v2' ? `?days=${days}&variant=v2` : `?days=${days}`;
+  const res = await authedFetch(`/v1/admin/telemetry/funnel${qs}`);
   if (!res.ok) throw new Error(`funnel: ${res.status}`);
   return res.json();
 }
@@ -215,6 +217,42 @@ export interface BroadcastResult {
   sent: number;
   failed: number;
   invalid: number;
+}
+
+// ─── evals ───────────────────────────────────────────────────────────────────
+
+export interface EvalSuiteSummary {
+  name: string;
+  passRate: number;
+  threshold: number;
+  status: 'pass' | 'fail';
+  cases: number;
+}
+
+export interface EvalReport {
+  id: number;
+  branch: string;
+  commit_sha: string;
+  generated_at: string;
+  mode: 'MOCK' | 'LIVE';
+  suites: EvalSuiteSummary[];
+  workflow_url: string | null;
+  total_cases: number;
+  passed_cases: number;
+}
+
+export async function getLatestEvalReports(): Promise<EvalReport[]> {
+  const res = await authedFetch('/v1/admin/evals/latest');
+  if (!res.ok) throw new Error(`evals latest: ${res.status}`);
+  const json = await res.json();
+  return json.latest;
+}
+
+export async function getEvalHistory(branch: string, limit = 20): Promise<EvalReport[]> {
+  const res = await authedFetch(`/v1/admin/evals/branch/${encodeURIComponent(branch)}?limit=${limit}`);
+  if (!res.ok) throw new Error(`evals history: ${res.status}`);
+  const json = await res.json();
+  return json.reports;
 }
 
 export async function broadcastPush(payload: {

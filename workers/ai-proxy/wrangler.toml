@@ -39,3 +39,4 @@ LLM_PROVIDER = "gemini"
 #   wrangler secret put SUPABASE_SERVICE_ROLE_KEY (required for /v1/config and /v1/admin/*)
 #   wrangler secret put GOOGLE_CLIENT_ID          (Web OAuth client — used by /v1/google/token)
 #   wrangler secret put GOOGLE_CLIENT_SECRET      (Web OAuth client — replaces EXPO_PUBLIC_GOOGLE_CLIENT_SECRET)
+#   wrangler secret put EVAL_REPORTER_TOKEN       (shared bearer; CI uses it to POST /v1/evals/report)
