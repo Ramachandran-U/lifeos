@@ -1,6 +1,38 @@
 import { callAI } from './client';
 import { extractJson } from './extractJson';
 import { pickModel } from './modelRouter';
+import { track } from '@/utils/telemetry';
+
+/**
+ * Emit an `ai_schema_failure` telemetry event and rethrow. Called from
+ * every Zod-parse catch so production failures end up in the admin's
+ * schema-failure feed and seed future eval fixtures.
+ *
+ * Props:
+ *   - task         the AI function tag (e.g. 'decomposeGoal')
+ *   - schema       the Zod schema name that failed
+ *   - error        first 200 chars of the Zod error message
+ *   - raw_preview  first 500 chars of the raw AI response
+ *
+ * Never includes any user input — the response is the model's output, not
+ * the user's prompt, so it's the safest place to log content for debugging.
+ */
+function recordSchemaFailure(
+  task: string,
+  schema: string,
+  raw: unknown,
+  err: unknown,
+): never {
+  const detail = err instanceof Error ? err.message : String(err);
+  const rawText = typeof raw === 'string' ? raw : JSON.stringify(raw ?? '');
+  track('ai_schema_failure', {
+    task,
+    schema,
+    error: detail.slice(0, 200),
+    raw_preview: rawText.slice(0, 500),
+  });
+  throw new Error(`AI returned invalid ${schema}: ${detail.slice(0, 120)}`);
+}
 import {
   GoalInput,
   GoalHierarchy,
@@ -42,8 +74,13 @@ import {
   TomorrowTweakInput,
   DiscoveryExtraction,
   DiscoveryExtractionSchema,
+  DiscoveryChatInput,
+  DiscoveryChatTurn,
+  DiscoveryChatTurnSchema,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
+import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
+import { buildMockDiscoveryChatTurn } from './mocks/discoveryChat';
 import { usePromptStore } from '@/store/usePromptStore';
 import { MOCK_DISCOVERY_EXTRACTION } from './mocks/discovery';
 import { TOMORROW_TWEAK_PROMPT } from './prompts/reflection';
@@ -80,9 +117,7 @@ export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
   try {
     return GoalHierarchySchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid goal structure: ' + detail.slice(0, 120));
+    recordSchemaFailure('decomposeGoal', 'GoalHierarchy', response, err);
   }
 }
 
@@ -100,9 +135,7 @@ export async function analyseSkillGap(input: CareerInput): Promise<SkillGapAnaly
   try {
     return SkillGapAnalysisSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid skill gap analysis: ' + detail.slice(0, 120));
+    recordSchemaFailure('analyseSkillGap', 'SkillGapAnalysis', response, err);
   }
 }
 
@@ -120,9 +153,7 @@ export async function generateRoutine(input: RoutineInput): Promise<GeneratedRou
   try {
     return GeneratedRoutineSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid routine: ' + detail.slice(0, 120));
+    recordSchemaFailure('generateRoutine', 'GeneratedRoutine', response, err);
   }
 }
 
@@ -140,9 +171,7 @@ export async function parseBloodReport(reportText: string): Promise<BloodReportR
   try {
     return BloodReportResultSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid blood report analysis: ' + detail.slice(0, 120));
+    recordSchemaFailure('parseBloodReport', 'BloodReportResult', response, err);
   }
 }
 
@@ -160,9 +189,7 @@ export async function suggestMeals(context: string): Promise<MealSuggestion> {
   try {
     return MealSuggestionSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid meal suggestions: ' + detail.slice(0, 120));
+    recordSchemaFailure('suggestMeals', 'MealSuggestion', response, err);
   }
 }
 
@@ -180,9 +207,7 @@ export async function generateFinancialPlan(input: FinanceInput): Promise<Financ
   try {
     return FinancialPlanSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid financial plan: ' + detail.slice(0, 120));
+    recordSchemaFailure('generateFinancialPlan', 'FinancialPlan', response, err);
   }
 }
 
@@ -200,9 +225,7 @@ export async function getWeeklyFinanceInsight(input: FinanceInsightInput): Promi
   try {
     return WeeklyFinanceInsightSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid finance insight: ' + detail.slice(0, 120));
+    recordSchemaFailure('getWeeklyFinanceInsight', 'WeeklyFinanceInsight', response, err);
   }
 }
 
@@ -288,9 +311,7 @@ export async function recogniseFood(imageBase64: string, mediaType: string): Pro
   try {
     return FoodRecognitionSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-
-    throw new Error('AI returned invalid food recognition: ' + detail.slice(0, 120));
+    recordSchemaFailure('recogniseFood', 'FoodRecognition', response, err);
   }
 }
 
@@ -309,8 +330,7 @@ export async function generateCareerStrategy(input: CareerStrategyInput): Promis
   try {
     return CareerStrategySchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error('AI returned invalid career strategy: ' + detail.slice(0, 120));
+    recordSchemaFailure('generateCareerStrategy', 'CareerStrategy', response, err);
   }
 }
 
@@ -329,8 +349,7 @@ export async function describeGoal(input: GoalDescriptionInput): Promise<GoalDes
   try {
     return GoalDescriptionSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error('AI returned invalid goal description: ' + detail.slice(0, 120));
+    recordSchemaFailure('describeGoal', 'GoalDescription', response, err);
   }
 }
 
@@ -349,8 +368,7 @@ export async function generateMotivation(input: MotivationInput): Promise<Motiva
   try {
     return MotivationSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error('AI returned invalid motivation: ' + detail.slice(0, 120));
+    recordSchemaFailure('generateMotivation', 'Motivation', response, err);
   }
 }
 
@@ -371,8 +389,7 @@ export async function extractDiscoveryProfile(raw: string): Promise<DiscoveryExt
   try {
     return DiscoveryExtractionSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error('AI returned invalid discovery profile: ' + detail.slice(0, 160));
+    recordSchemaFailure('extractDiscoveryProfile', 'DiscoveryExtraction', response, err);
   }
 }
 
@@ -391,7 +408,37 @@ export async function suggestTomorrowTweak(input: TomorrowTweakInput): Promise<T
   try {
     return TomorrowTweakSchema.parse(extractJson(response));
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    throw new Error('AI returned invalid tomorrow tweak: ' + detail.slice(0, 120));
+    recordSchemaFailure('suggestTomorrowTweak', 'TomorrowTweak', response, err);
+  }
+}
+
+export async function discoveryChatTurn(input: DiscoveryChatInput): Promise<DiscoveryChatTurn> {
+  if (isMock) return buildMockDiscoveryChatTurn(input);
+
+  const systemPrompt = usePromptStore
+    .getState()
+    .getPrompt('discovery_chat', DISCOVERY_CHAT_SYSTEM_PROMPT);
+
+  const messages: { role: 'user' | 'assistant'; content: string }[] = [
+    {
+      role: 'user',
+      content: `Current profile snapshot:\n${JSON.stringify(input.profile, null, 2)}`,
+    },
+    ...input.transcript,
+  ];
+
+  const response = await callAI({
+    system: systemPrompt,
+    messages,
+    maxTokens: 800,
+    model: pickModel('discoveryChatTurn'),
+    cacheSystem: true,
+    task: 'discoveryChatTurn',
+  });
+
+  try {
+    return DiscoveryChatTurnSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('discoveryChatTurn', 'DiscoveryChatTurn', response, err);
   }
 }

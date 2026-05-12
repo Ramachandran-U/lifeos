@@ -127,6 +127,35 @@ export async function getRecentEvents(limit = 100): Promise<RecentEvent[]> {
   return json.events;
 }
 
+export interface SchemaFailureSample {
+  ts: string;
+  error: string;
+  raw_preview: string;
+  app_version: string | null;
+  platform: string | null;
+}
+
+export interface SchemaFailureGroup {
+  task: string;
+  schema: string;
+  count: number;
+  last_seen: string;
+  first_seen: string;
+  samples: SchemaFailureSample[];
+}
+
+export interface SchemaFailuresResponse {
+  days: number;
+  groups: SchemaFailureGroup[];
+  sample_size: number;
+}
+
+export async function getSchemaFailures(days = 7): Promise<SchemaFailuresResponse> {
+  const res = await authedFetch(`/v1/admin/telemetry/schema-failures?days=${days}`);
+  if (!res.ok) throw new Error(`schema-failures: ${res.status}`);
+  return res.json();
+}
+
 export async function activatePromptVersion(key: string, version: number): Promise<PromptVersion> {
   const res = await authedFetch(
     `/v1/admin/prompts/${encodeURIComponent(key)}/versions/${version}/activate`,

@@ -5,11 +5,12 @@ import { serverClient } from '@/lib/supabase-server';
 import { SignOutButton } from './SignOutButton';
 
 const NAV: { label: string; href: string; enabled: boolean }[] = [
-  { label: 'Flags',     href: '/flags',     enabled: true },
-  { label: 'Prompts',   href: '/prompts',   enabled: true },
-  { label: 'Telemetry', href: '/telemetry', enabled: true },
-  { label: 'Feedback',  href: '#',          enabled: false },
-  { label: 'Audit',     href: '#',          enabled: false },
+  { label: 'Flags',           href: '/flags',           enabled: true },
+  { label: 'Prompts',         href: '/prompts',         enabled: true },
+  { label: 'Telemetry',       href: '/telemetry',       enabled: true },
+  { label: 'Schema failures', href: '/schema-failures', enabled: true },
+  { label: 'Feedback',        href: '#',                enabled: false },
+  { label: 'Audit',           href: '#',                enabled: false },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

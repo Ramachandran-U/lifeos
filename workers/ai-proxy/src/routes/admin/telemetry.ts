@@ -78,6 +78,59 @@ export async function handleAdminTelemetry(
     return json({ events: rows }, cors);
   }
 
+  // GET /v1/admin/telemetry/schema-failures?days=7
+  // Returns AI schema failures grouped by (task, schema) with count and a
+  // sample of recent raw outputs. Used by the admin to find regressions and
+  // seed eval fixtures (Phase 4).
+  if (req.method === 'GET' && action === 'schema-failures') {
+    const days = clampInt(url.searchParams.get('days'), 1, 90, 7);
+    const since = new Date(Date.now() - days * 86_400_000).toISOString();
+
+    // We fetch raw events instead of asking Postgres to group, because the
+    // group keys live inside the `props` jsonb. Bounded by `days` window.
+    const rows = await pgSelect<EventRow>(
+      env,
+      'telemetry_events',
+      `event=eq.ai_schema_failure&ts=gte.${encodeURIComponent(since)}&order=ts.desc&limit=2000`,
+    );
+
+    interface Bucket {
+      task: string;
+      schema: string;
+      count: number;
+      last_seen: string;
+      first_seen: string;
+      samples: Array<{ ts: string; error: string; raw_preview: string; app_version: string | null; platform: string | null }>;
+    }
+
+    const buckets = new Map<string, Bucket>();
+    for (const row of rows) {
+      const task = String(row.props.task ?? 'unknown');
+      const schema = String(row.props.schema ?? 'unknown');
+      const key = `${task}::${schema}`;
+      let b = buckets.get(key);
+      if (!b) {
+        b = { task, schema, count: 0, last_seen: row.ts, first_seen: row.ts, samples: [] };
+        buckets.set(key, b);
+      }
+      b.count += 1;
+      if (row.ts > b.last_seen) b.last_seen = row.ts;
+      if (row.ts < b.first_seen) b.first_seen = row.ts;
+      if (b.samples.length < 3) {
+        b.samples.push({
+          ts: row.ts,
+          error: String(row.props.error ?? ''),
+          raw_preview: String(row.props.raw_preview ?? ''),
+          app_version: row.app_version,
+          platform: row.platform,
+        });
+      }
+    }
+
+    const groups = Array.from(buckets.values()).sort((a, b) => b.count - a.count);
+    return json({ days, groups, sample_size: rows.length }, cors);
+  }
+
   return json({ error: 'telemetry route not found' }, cors, 404);
 }
 
