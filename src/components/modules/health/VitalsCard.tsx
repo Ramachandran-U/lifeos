@@ -1,6 +1,6 @@
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { Heading, Label, Caption } from '@/components/ui/Typography';
@@ -16,11 +16,11 @@ interface Props {
   onEdit: () => void;
 }
 
-const categoryColor = (c: BMICategory | null): string => {
-  if (c === 'healthy') return colors.success;
-  if (c === 'overweight') return colors.warning;
-  if (c === 'obese') return colors.error;
-  if (c === 'underweight') return colors.warning;
+const categoryColor = (cat: BMICategory | null, colors: AppColors): string => {
+  if (cat === 'healthy') return colors.success;
+  if (cat === 'overweight') return colors.warning;
+  if (cat === 'obese') return colors.error;
+  if (cat === 'underweight') return colors.warning;
   return colors.textMuted;
 };
 
@@ -33,18 +33,20 @@ export function VitalsCard({
   trendDelta,
   onEdit,
 }: Props) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const trendIcon =
     trendDirection === 'up' ? 'trending-up' : trendDirection === 'down' ? 'trending-down' : 'remove';
   const trendColor =
-    trendDirection === 'up' ? colors.warning : trendDirection === 'down' ? colors.success : colors.textMuted;
+    trendDirection === 'up' ? c.warning : trendDirection === 'down' ? c.success : c.textMuted;
 
   return (
-    <Card moduleColor={colors.health} style={styles.card}>
+    <Card moduleColor={c.health} style={styles.card}>
       <View style={styles.headerRow}>
-        <Label color={colors.health}>VITALS</Label>
+        <Label color={c.health}>VITALS</Label>
         <Pressable onPress={onEdit} hitSlop={8} style={styles.editBtn}>
-          <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
-          <Label color={colors.textSecondary}>Edit</Label>
+          <Ionicons name="create-outline" size={18} color={c.textSecondary} />
+          <Label color={c.textSecondary}>Edit</Label>
         </Pressable>
       </View>
 
@@ -53,7 +55,7 @@ export function VitalsCard({
           <Caption>BMI</Caption>
           <Heading style={styles.bmiNumber}>{bmi != null ? bmi : '—'}</Heading>
           {category && (
-            <Label color={categoryColor(category)}>{bmiCategoryLabel(category)}</Label>
+            <Label color={categoryColor(category, c)}>{bmiCategoryLabel(category)}</Label>
           )}
         </View>
 
@@ -81,7 +83,7 @@ export function VitalsCard({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: { gap: spacing.md },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },

@@ -1,6 +1,6 @@
 # AI Functions Reference
 
-All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → Claude Sonnet 4 REST API. Every function:
+All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → the `workers/ai-proxy` Cloudflare Worker (`POST /claude`, Bearer = Supabase JWT) → Claude Sonnet 4 (Anthropic). The chatbot (`app/chat.tsx`) and voice assistant (Gemini Live, `src/ai/voiceClient.ts`) share the same auth/transport. Every function:
 - Has a Zod schema in [`src/ai/types.ts`](../src/ai/types.ts)
 - Has a prompt in [`src/ai/prompts/`](../src/ai/prompts/)
 - Has a mock in [`src/ai/mocks/`](../src/ai/mocks/) (`EXPO_PUBLIC_USE_AI_MOCK=true` serves these)
@@ -14,6 +14,7 @@ All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → Claude Son
 | `analyseSkillGap` | `{ currentRole, targetRole, timeline, skills }` | `SkillGapAnalysis` (gaps + resources) | Onboarding career, Career tab |
 | `generateCareerStrategy` | `{ currentRole, targetRole, timeframe, hoursPerWeek, constraints, skills }` | `CareerStrategy` (reality check + phased plan + weekly/daily artifacts) | Career tab Elite Strategist. Output feeds [`CareerStrategyView`](../src/components/modules/career/CareerStrategyView.tsx); `Commit all` converts weekly/daily items into prioritised goals. |
 | `generateMotivation` | context slice | short strategist-tone banner | Home motivation banner |
+| `describeGoal` | `{ title, level, parentTitle?, vision? }` | `GoalDescription` (short outcome-focused description) | AddGoalSheet — fills the description field when the user only types a title |
 | `generateRoutine` | `{ wake, sleep, work*, goals }` | `GeneratedRoutine` (blocks + briefing) | Onboarding routine |
 | `parseBloodReport` | raw report text | `BloodReportResult` (markers, summary, suggestions) | Health upload |
 | `suggestMeals` | context string (target + eaten + prefs) | `MealSuggestion` | Health |

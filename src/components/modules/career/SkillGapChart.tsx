@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -22,6 +22,8 @@ interface SkillGapChartProps {
 }
 
 export function SkillGapChart({ gaps }: SkillGapChartProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   return (
     <View style={styles.container}>
       {gaps.map((gap, i) => {
@@ -35,7 +37,7 @@ export function SkillGapChart({ gaps }: SkillGapChartProps) {
               <Caption>{gap.currentLevel} → {gap.requiredLevel}</Caption>
             </View>
             <View style={styles.barCol}>
-              <ProgressBar value={current} color={colors.career} height={6} />
+              <ProgressBar value={current} color={c.career} height={6} />
               <View style={[styles.requiredMarker, { left: `${required}%` }]} />
             </View>
           </Animated.View>
@@ -45,7 +47,7 @@ export function SkillGapChart({ gaps }: SkillGapChartProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     gap: spacing.md,
   },

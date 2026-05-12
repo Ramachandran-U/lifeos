@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -18,6 +18,8 @@ interface Props {
 }
 
 export function AddInterestSheet({ visible, onClose, onAdd }: Props) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<Category>('tech');
   const [target, setTarget] = useState('60');
@@ -53,15 +55,15 @@ export function AddInterestSheet({ visible, onClose, onAdd }: Props) {
 
           <Label style={styles.sectionLabel}>Category</Label>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {CATEGORIES.map((c) => {
-              const active = c === category;
+            {CATEGORIES.map((cat) => {
+              const active = cat === category;
               return (
                 <Pressable
-                  key={c}
-                  onPress={() => setCategory(c)}
+                  key={cat}
+                  onPress={() => setCategory(cat)}
                   style={[styles.chip, active && styles.chipActive]}
                 >
-                  <Label color={active ? colors.background : colors.textSecondary}>{c}</Label>
+                  <Label color={active ? c.background : c.textSecondary}>{cat}</Label>
                 </Pressable>
               );
             })}
@@ -82,7 +84,7 @@ export function AddInterestSheet({ visible, onClose, onAdd }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

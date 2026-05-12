@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
@@ -31,10 +31,12 @@ function fmtDistance(m: number): string {
 }
 
 export function FitDashboard({ days, workouts }: FitDashboardProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   if (days.length === 0) {
     return (
       <Card>
-        <Caption style={{ color: colors.textMuted }}>No Google Fit data yet. Hit Sync to pull the last 14 days.</Caption>
+        <Caption style={{ color: c.textMuted }}>No Google Fit data yet. Hit Sync to pull the last 14 days.</Caption>
       </Card>
     );
   }
@@ -86,15 +88,15 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
       <Card style={styles.heroCard}>
         <View style={styles.heroRow}>
           <View style={{ flex: 1 }}>
-            <Label style={{ color: colors.textMuted }}>TODAY</Label>
+            <Label style={{ color: c.textMuted }}>TODAY</Label>
             <View style={styles.heroValue}>
               <Body style={styles.heroSteps}>{today.steps.toLocaleString()}</Body>
-              <Caption style={{ color: colors.textMuted }}>/ {STEP_GOAL.toLocaleString()} steps</Caption>
+              <Caption style={{ color: c.textMuted }}>/ {STEP_GOAL.toLocaleString()} steps</Caption>
             </View>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${goalPct}%`, backgroundColor: colors.health }]} />
+              <View style={[styles.progressFill, { width: `${goalPct}%`, backgroundColor: c.health }]} />
             </View>
-            <Caption style={{ color: colors.textSecondary }}>
+            <Caption style={{ color: c.textSecondary }}>
               {goalPct}% of goal · {hitDays}/7 days hit this week
             </Caption>
           </View>
@@ -107,7 +109,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
           iconName="footsteps"
           label="STEPS (avg)"
           value={Math.round(avg((d) => d.steps)).toLocaleString()}
-          color={colors.health}
+          color={c.health}
           trendPct={stepsPct}
           series={stepsSeries}
           target={STEP_GOAL}
@@ -117,7 +119,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
           label="ACTIVE MIN"
           value={Math.round(avg((d) => d.activeMinutes)).toString()}
           unit="min/day"
-          color={colors.health}
+          color={c.health}
           trendPct={activePct}
           series={activeSeries}
         />
@@ -126,7 +128,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
           label="HEART POINTS"
           value={Math.round(avg((d) => d.heartPoints)).toString()}
           unit="/day"
-          color={colors.error}
+          color={c.error}
           series={heartPointSeries}
         />
         <StatTile
@@ -134,7 +136,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
           label="CALORIES BURNED"
           value={Math.round(avg((d) => d.caloriesBurned)).toLocaleString()}
           unit="kcal/day"
-          color={colors.warning}
+          color={c.warning}
           trendPct={caloriesPct}
           series={caloriesSeries}
         />
@@ -143,14 +145,14 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
           label="DISTANCE"
           value={fmtDistance(avg((d) => d.distanceMeters))}
           unit="/day"
-          color={colors.polymath}
+          color={c.polymath}
         />
         <StatTile
           iconName="pulse"
           label="AVG HR"
           value={today.avgHeartRate ? Math.round(today.avgHeartRate).toString() : '—'}
           unit="bpm"
-          color={colors.error}
+          color={c.error}
           trendPct={hrPct === null ? null : -hrPct /* invert: lower HR = improvement */}
         />
       </View>
@@ -159,21 +161,21 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
       {sleepDays.length > 0 && (
         <Card style={styles.block}>
           <View style={styles.blockHeader}>
-            <Ionicons name="moon" size={16} color={colors.polymath} />
+            <Ionicons name="moon" size={16} color={c.polymath} />
             <Label>SLEEP · last 7 days</Label>
           </View>
           <View style={styles.sleepRow}>
             <View style={{ flex: 1 }}>
               <Body style={styles.sleepTotal}>{(avgSleep / 60).toFixed(1)}h</Body>
-              <Caption style={{ color: colors.textMuted }}>avg per night</Caption>
+              <Caption style={{ color: c.textMuted }}>avg per night</Caption>
             </View>
             <View style={styles.stageCol}>
-              <StageBar label="Deep" minutes={avgDeep} totalMinutes={sleepTotalForPct} color={colors.primary} />
-              <StageBar label="REM" minutes={avgRem} totalMinutes={sleepTotalForPct} color={colors.polymath} />
-              <StageBar label="Light" minutes={avgLight} totalMinutes={sleepTotalForPct} color={colors.health} />
+              <StageBar label="Deep" minutes={avgDeep} totalMinutes={sleepTotalForPct} color={c.primary} />
+              <StageBar label="REM" minutes={avgRem} totalMinutes={sleepTotalForPct} color={c.polymath} />
+              <StageBar label="Light" minutes={avgLight} totalMinutes={sleepTotalForPct} color={c.health} />
             </View>
           </View>
-          <Sparkline values={sleepDays.map((d) => d.sleep.total)} color={colors.polymath} height={26} />
+          <Sparkline values={sleepDays.map((d) => d.sleep.total)} color={c.polymath} height={26} />
         </Card>
       )}
 
@@ -186,7 +188,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
               label="SpO2"
               value={`${Math.round(latestSpo2 * 100) / 100}`}
               unit="%"
-              color={colors.polymath}
+              color={c.polymath}
             />
           )}
           {latestBodyFat !== null && (
@@ -195,7 +197,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
               label="BODY FAT"
               value={`${Math.round(latestBodyFat * 10) / 10}`}
               unit="%"
-              color={colors.warning}
+              color={c.warning}
             />
           )}
           {latestBp && latestBp.systolic !== null && latestBp.diastolic !== null && (
@@ -204,7 +206,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
               label="BLOOD PRESSURE"
               value={`${Math.round(latestBp.systolic)}/${Math.round(latestBp.diastolic)}`}
               unit="mmHg"
-              color={colors.error}
+              color={c.error}
             />
           )}
         </View>
@@ -214,17 +216,17 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
       {workouts.length > 0 && (
         <Card style={styles.block}>
           <View style={styles.blockHeader}>
-            <Ionicons name="barbell" size={16} color={colors.career} />
+            <Ionicons name="barbell" size={16} color={c.career} />
             <Label>WORKOUTS · {workouts.length}</Label>
           </View>
           {workouts.slice(0, 6).map((w) => (
             <View key={w.id} style={styles.workoutRow}>
-              <Ionicons name={w.iconName} size={18} color={colors.health} />
+              <Ionicons name={w.iconName} size={18} color={c.health} />
               <View style={{ flex: 1 }}>
-                <Body style={{ color: colors.textPrimary, fontFamily: fonts.heading, fontSize: fontSizes.md }}>{w.name}</Body>
-                <Caption style={{ color: colors.textMuted }}>{w.date}</Caption>
+                <Body style={{ color: c.textPrimary, fontFamily: fonts.heading, fontSize: fontSizes.md }}>{w.name}</Body>
+                <Caption style={{ color: c.textMuted }}>{w.date}</Caption>
               </View>
-              <Caption style={{ color: colors.textSecondary }}>{fmtDuration(w.durationMinutes)}</Caption>
+              <Caption style={{ color: c.textSecondary }}>{fmtDuration(w.durationMinutes)}</Caption>
             </View>
           ))}
         </Card>
@@ -236,10 +238,10 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
           {insights.map((ins) => (
             <Card key={ins.id} style={{
               ...styles.insightCard,
-              borderLeftColor: ins.tone === 'good' ? colors.success : ins.tone === 'warn' ? colors.warning : colors.textMuted,
+              borderLeftColor: ins.tone === 'good' ? c.success : ins.tone === 'warn' ? c.warning : c.textMuted,
             }}>
-              <Body style={{ color: colors.textPrimary, fontFamily: fonts.heading, fontSize: fontSizes.md }}>{ins.headline}</Body>
-              <Caption style={{ color: colors.textSecondary }}>{ins.detail}</Caption>
+              <Body style={{ color: c.textPrimary, fontFamily: fonts.heading, fontSize: fontSizes.md }}>{ins.headline}</Body>
+              <Caption style={{ color: c.textSecondary }}>{ins.detail}</Caption>
             </Card>
           ))}
         </View>
@@ -249,6 +251,8 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
 }
 
 function StageBar({ label, minutes, totalMinutes, color }: { label: string; minutes: number; totalMinutes: number; color: string }) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const pct = Math.round((minutes / totalMinutes) * 100);
   return (
     <View style={styles.stageRow}>
@@ -261,7 +265,7 @@ function StageBar({ label, minutes, totalMinutes, color }: { label: string; minu
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   wrap: { gap: spacing.md },
   heroCard: { paddingVertical: spacing.md },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
@@ -12,17 +12,18 @@ interface BloodReportCardProps {
   date: string;
 }
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  normal: { bg: colors.healthLight, text: colors.health },
-  high: { bg: '#FFE8E8', text: colors.error },
-  low: { bg: colors.financeLight, text: colors.warning },
-};
-
 export function BloodReportCard({ result, date }: BloodReportCardProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
+  const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+    normal: { bg: c.healthLight, text: c.health },
+    high: { bg: '#FFE8E8', text: c.error },
+    low: { bg: c.financeLight, text: c.warning },
+  };
   return (
-    <Card moduleColor={colors.health}>
+    <Card moduleColor={c.health}>
       <View style={styles.header}>
-        <Label color={colors.health}>BLOOD REPORT</Label>
+        <Label color={c.health}>BLOOD REPORT</Label>
         <Caption>{date}</Caption>
       </View>
 
@@ -59,7 +60,7 @@ export function BloodReportCard({ result, date }: BloodReportCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

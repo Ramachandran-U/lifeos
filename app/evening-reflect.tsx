@@ -6,7 +6,7 @@ import { format, addDays } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -23,12 +23,6 @@ import { useUserStore } from '@/store/useUserStore';
 
 type Step = 'blocks' | 'mood' | 'tomorrow';
 
-const REVIEW_OPTIONS: Array<{ value: BlockReview; label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = [
-  { value: 'did',          label: 'Did it',      color: colors.success, icon: 'checkmark-circle' },
-  { value: 'skipped',      label: 'Skipped',     color: colors.textMuted, icon: 'close-circle' },
-  { value: 'rescheduled',  label: 'Moved it',    color: colors.warning, icon: 'swap-horizontal' },
-];
-
 const MOODS = [
   { v: 1, emoji: '😞', label: 'Rough' },
   { v: 2, emoji: '😕', label: 'Meh' },
@@ -38,6 +32,13 @@ const MOODS = [
 ];
 
 export default function EveningReflectScreen() {
+  const c = useColors();
+  const styles = makeStyles(c);
+  const REVIEW_OPTIONS: Array<{ value: BlockReview; label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = [
+    { value: 'did',          label: 'Did it',      color: c.success, icon: 'checkmark-circle' },
+    { value: 'skipped',      label: 'Skipped',     color: c.textMuted, icon: 'close-circle' },
+    { value: 'rescheduled',  label: 'Moved it',    color: c.warning, icon: 'swap-horizontal' },
+  ];
   const router = useRouter();
   const primaryDomains = useUserStore((s) => s.primaryDomains);
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -158,7 +159,7 @@ export default function EveningReflectScreen() {
       <AuroraBackground />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <Label color={colors.primaryLight} style={styles.eyebrow}>EVENING REFLECT</Label>
+          <Label color={c.primaryLight} style={styles.eyebrow}>EVENING REFLECT</Label>
           <Heading style={styles.title}>
             {step === 'blocks' && 'How did today go?'}
             {step === 'mood' && 'And how did it feel?'}
@@ -175,7 +176,7 @@ export default function EveningReflectScreen() {
               todayBlocks.map((b) => (
                 <Card key={b.id} style={styles.blockCard}>
                   <View style={styles.blockHeader}>
-                    <Caption style={{ color: colors.textMuted, fontFamily: fonts.heading }}>
+                    <Caption style={{ color: c.textMuted, fontFamily: fonts.heading }}>
                       {b.startTime} – {b.endTime}
                     </Caption>
                     <Body style={{ fontFamily: fonts.heading, fontSize: fontSizes.md }}>{b.title}</Body>
@@ -189,11 +190,11 @@ export default function EveningReflectScreen() {
                           onPress={() => setReview(b.id, opt.value)}
                           style={[
                             styles.reviewBtn,
-                            { borderColor: selected ? opt.color : colors.border, backgroundColor: selected ? opt.color + '1F' : 'transparent' },
+                            { borderColor: selected ? opt.color : c.border, backgroundColor: selected ? opt.color + '1F' : 'transparent' },
                           ]}
                         >
-                          <Ionicons name={opt.icon} size={16} color={selected ? opt.color : colors.textMuted} />
-                          <Caption style={{ color: selected ? opt.color : colors.textSecondary, fontFamily: fonts.heading }}>
+                          <Ionicons name={opt.icon} size={16} color={selected ? opt.color : c.textMuted} />
+                          <Caption style={{ color: selected ? opt.color : c.textSecondary, fontFamily: fonts.heading }}>
                             {opt.label}
                           </Caption>
                         </Pressable>
@@ -221,18 +222,18 @@ export default function EveningReflectScreen() {
                     }}
                     style={[
                       styles.moodBtn,
-                      selected && { borderColor: colors.primary, backgroundColor: colors.primary + '22' },
+                      selected && { borderColor: c.primary, backgroundColor: c.primary + '22' },
                     ]}
                   >
                     <Body style={styles.moodEmoji}>{m.emoji}</Body>
-                    <Caption style={{ color: selected ? colors.primaryLight : colors.textMuted }}>{m.label}</Caption>
+                    <Caption style={{ color: selected ? c.primaryLight : c.textMuted }}>{m.label}</Caption>
                   </Pressable>
                 );
               })}
             </View>
             <Button title="Continue" onPress={goToTomorrow} disabled={mood === null} />
             <Pressable onPress={goToTomorrow} style={styles.skip}>
-              <Caption style={{ color: colors.textMuted }}>Skip</Caption>
+              <Caption style={{ color: c.textMuted }}>Skip</Caption>
             </Pressable>
           </Animated.View>
         )}
@@ -244,21 +245,21 @@ export default function EveningReflectScreen() {
             )}
 
             {tweakError && (
-              <Card><Body style={{ color: colors.error }}>{tweakError}</Body></Card>
+              <Card><Body style={{ color: c.error }}>{tweakError}</Body></Card>
             )}
 
             {tweak && !tweakLoading && (
-              <Card style={[styles.tweakCard, { borderLeftWidth: 4, borderLeftColor: colors.primary }]}>
+              <Card style={[styles.tweakCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
                 <View style={styles.tweakHeader}>
-                  <Ionicons name="sparkles" size={18} color={colors.primaryLight} />
-                  <Label color={colors.primaryLight}>SUGGESTED TWEAK</Label>
+                  <Ionicons name="sparkles" size={18} color={c.primaryLight} />
+                  <Label color={c.primaryLight}>SUGGESTED TWEAK</Label>
                 </View>
                 <Body style={styles.tweakRationale}>{tweak.rationale}</Body>
-                <View style={[styles.tweakPatch, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Caption style={{ color: colors.textMuted, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
+                <View style={[styles.tweakPatch, { backgroundColor: c.surface, borderColor: c.border }]}>
+                  <Caption style={{ color: c.textMuted, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
                     {tweak.kind.toUpperCase()}{tweak.blockId ? '' : ' · NEW BLOCK'}
                   </Caption>
-                  <Body style={{ color: colors.textPrimary, marginTop: 4 }}>
+                  <Body style={{ color: c.textPrimary, marginTop: 4 }}>
                     {describePatch(tweak)}
                   </Body>
                 </View>
@@ -270,12 +271,12 @@ export default function EveningReflectScreen() {
                   </View>
                 )}
                 {tweakAccepted === true && (
-                  <Caption style={{ color: colors.success, fontFamily: fonts.heading, marginTop: spacing.sm }}>
+                  <Caption style={{ color: c.success, fontFamily: fonts.heading, marginTop: spacing.sm }}>
                     ✓ Applied to tomorrow
                   </Caption>
                 )}
                 {tweakAccepted === false && (
-                  <Caption style={{ color: colors.textMuted, marginTop: spacing.sm }}>
+                  <Caption style={{ color: c.textMuted, marginTop: spacing.sm }}>
                     Dismissed — keeping tomorrow as-is.
                   </Caption>
                 )}
@@ -284,7 +285,7 @@ export default function EveningReflectScreen() {
 
             {tomorrowBlocks.length > 0 && (
               <>
-                <Label color={colors.textMuted} style={styles.previewLabel}>TOMORROW'S PLAN</Label>
+                <Label color={c.textMuted} style={styles.previewLabel}>TOMORROW'S PLAN</Label>
                 <View style={styles.preview}>
                   {tomorrowBlocks.map((b) => {
                     const isTarget = tweak?.blockId === b.id && tweakAccepted === true;
@@ -293,11 +294,11 @@ export default function EveningReflectScreen() {
                         key={b.id}
                         style={[
                           styles.previewRow,
-                          { borderColor: isTarget ? colors.primary + '77' : colors.border },
-                          isTarget && { backgroundColor: colors.primary + '14' },
+                          { borderColor: isTarget ? c.primary + '77' : c.border },
+                          isTarget && { backgroundColor: c.primary + '14' },
                         ]}
                       >
-                        <Caption style={{ color: colors.textMuted, fontFamily: fonts.heading, width: 52 }}>
+                        <Caption style={{ color: c.textMuted, fontFamily: fonts.heading, width: 52 }}>
                           {b.startTime}
                         </Caption>
                         <Body style={{ flex: 1 }}>{b.title}</Body>
@@ -321,6 +322,8 @@ export default function EveningReflectScreen() {
 }
 
 function Stepper({ current }: { current: Step }) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const order: Step[] = ['blocks', 'mood', 'tomorrow'];
   const idx = order.indexOf(current);
   return (
@@ -330,7 +333,7 @@ function Stepper({ current }: { current: Step }) {
           key={s}
           style={[
             styles.stepDot,
-            { backgroundColor: i <= idx ? colors.primary : colors.border },
+            { backgroundColor: i <= idx ? c.primary : c.border },
           ]}
         />
       ))}
@@ -347,7 +350,7 @@ function describePatch(t: TomorrowTweak): string {
   return parts.join(' · ') || 'No changes';
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.md },
   header: { gap: spacing.sm, paddingTop: spacing.xl, paddingBottom: spacing.sm },

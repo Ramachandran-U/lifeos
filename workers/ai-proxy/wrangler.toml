@@ -17,9 +17,21 @@ SUPABASE_PROJECT_REF = "izojsgzlaehodwlqwyvf"
 SUPABASE_URL = "https://izojsgzlaehodwlqwyvf.supabase.co"
 DAILY_AI_REQUEST_LIMIT = "200"
 DAILY_VOICE_MINUTES_LIMIT = "15"
-ALLOWED_ORIGIN = "*"
+# CORS allowlist — comma-separated. The Worker echoes the matching Origin back
+# (or "null" if not allowed). Mobile / native requests don't send Origin and
+# are unaffected. Use "*" only for local dev if you must — never in prod.
+# Update before deploy: add your real admin host (Vercel) and any other
+# legitimate frontends.
+ALLOWED_ORIGINS = "https://lifeos-6r5-eqa.pages.dev,https://project-yom9m.vercel.app,http://localhost:8081,http://localhost:3030,http://localhost:19006"
+# Which LLM the /claude endpoint dispatches to: "anthropic" | "gemini" | "openai".
+# Switching providers only requires updating this var + having the matching API
+# key set as a secret. The client request/response shape is unchanged.
+LLM_PROVIDER = "gemini"
 
 # Secrets — set with:
-#   wrangler secret put ANTHROPIC_API_KEY
-#   wrangler secret put GEMINI_API_KEY
-#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY  (required for /v1/config and /v1/admin/*)
+#   wrangler secret put GEMINI_API_KEY            (free tier: aistudio.google.com/apikey)
+#   wrangler secret put ANTHROPIC_API_KEY         (only if LLM_PROVIDER="anthropic")
+#   wrangler secret put OPENAI_API_KEY            (only if LLM_PROVIDER="openai")
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY (required for /v1/config and /v1/admin/*)
+#   wrangler secret put GOOGLE_CLIENT_ID          (Web OAuth client — used by /v1/google/token)
+#   wrangler secret put GOOGLE_CLIENT_SECRET      (Web OAuth client — replaces EXPO_PUBLIC_GOOGLE_CLIENT_SECRET)

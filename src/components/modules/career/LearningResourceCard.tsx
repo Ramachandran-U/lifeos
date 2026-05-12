@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
@@ -25,12 +25,14 @@ interface LearningResourceCardProps {
 }
 
 export function LearningResourceCard({ title, type, estimatedHours, status, progress = 0 }: LearningResourceCardProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const icon = TYPE_ICONS[type] ?? 'document';
 
   return (
-    <Card moduleColor={colors.career} style={styles.card}>
+    <Card moduleColor={c.career} style={styles.card}>
       <View style={styles.row}>
-        <Ionicons name={icon} size={20} color={colors.career} />
+        <Ionicons name={icon} size={20} color={c.career} />
         <View style={styles.content}>
           <Body style={styles.title}>{title}</Body>
           <View style={styles.meta}>
@@ -38,7 +40,7 @@ export function LearningResourceCard({ title, type, estimatedHours, status, prog
             <Badge label={status.replace('_', ' ')} variant={status === 'completed' ? 'health' : 'career'} />
           </View>
           {status === 'in_progress' && (
-            <ProgressBar value={progress} color={colors.career} height={4} />
+            <ProgressBar value={progress} color={c.career} height={4} />
           )}
         </View>
       </View>
@@ -46,7 +48,7 @@ export function LearningResourceCard({ title, type, estimatedHours, status, prog
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     paddingVertical: spacing.sm,
   },

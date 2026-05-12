@@ -30,7 +30,7 @@ import { XpBar } from '@/components/gamification/XpBar';
 import { StreakFlame } from '@/components/gamification/StreakFlame';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
-import { xpProgressInLevel } from '@/utils/gamification';
+import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
 import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
 import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
@@ -54,6 +54,9 @@ export default function TodayScreen() {
     router.replace('/(onboarding)/day1-vision');
   }, [userId, setOnboardingStage, router]);
   const loadGame = useGameStore((s) => s.loadFromDB);
+  const completeBlock = useGameStore((s) => s.completeBlock);
+  const addXP = useGameStore((s) => s.addXP);
+  const triggerStreak = useGameStore((s) => s.triggerStreak);
   const streaks = useGameStore((s) => s.streaks);
   const totalXP = useGameStore((s) => s.totalXP);
   const quests = useGameStore((s) => s.quests);
@@ -147,6 +150,20 @@ export default function TodayScreen() {
     const block = blocks.find(b => b.id === blockId);
     updateRoutineBlockStatus(blockId, 'completed');
     logBehaviourEvent('block_completed', block?.module ?? 'goal');
+    if (userId) {
+      const mod = block?.module ?? 'goal';
+      const todayBlocks = blocks.filter(b => b.module === mod);
+      const completed = todayBlocks.filter(b => b.id === blockId || b.status === 'completed').length;
+      completeBlock(userId, mod, completed, todayBlocks.length || 1);
+      addXP(userId, XP_VALUES.completeBlock);
+      const streakMap: Record<string, 'workout' | 'learning' | 'social'> = {
+        health: 'workout',
+        polymath: 'learning',
+        social: 'social',
+      };
+      const streakKey = streakMap[mod];
+      if (streakKey) triggerStreak(userId, streakKey);
+    }
     loadData();
   };
 

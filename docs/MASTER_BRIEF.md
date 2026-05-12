@@ -14,7 +14,7 @@
   - "Six engines. One life. One plan."
   - "Stop juggling apps. Start living a routine."
 - **Elevator pitch (30s):** People juggle goals, health, money, career, relationships, and curiosity across a dozen disconnected apps. LifeOS is the first mobile app that uses AI to understand all six dimensions of your life, then synthesises them into a single livable daily routine — updated continuously, gamified for momentum, and entirely private-by-design (your data never leaves your device).
-- **Elevator pitch (2-min):** LifeOS is a React Native app powered by Claude AI that acts as a Digital Life Architect. Through a 3-screen onboarding, it captures your vision, career targets, and schedule, then uses AI to decompose your life goals into a hierarchy (yearly → monthly → weekly → daily), analyse your skill gaps, and generate a full daily routine. It keeps pulling from six engines — Goals, Health, Finance, Career, Social, and Polymath (curiosity/learning) — to continuously answer the one question that matters: *what should I do next?* A built-in gamification layer (XP, levels, streaks, badges, a hexagonal Life Balance radar) makes momentum visible and the app feels alive. Finance even auto-ingests bank transactions from Gmail, categorises them with AI, and surfaces behavioural insights. All data stays on-device in SQLite — no cloud, no backend, no data harvesting.
+- **Elevator pitch (2-min):** LifeOS is a React Native app powered by Claude AI that acts as a Digital Life Architect. Onboarding captures your vision, career targets, and schedule — or imports an existing ChatGPT/Claude profile via the Discovery flow — then uses AI to decompose your life goals into a hierarchy (yearly → monthly → weekly → daily), analyse your skill gaps, and generate a full daily routine. It keeps pulling from six engines — Goals, Health, Finance, Career, Social, and Polymath (curiosity/learning) — to continuously answer the one question that matters: *what should I do next?* A built-in gamification layer (XP, levels, streaks, badges, a hexagonal Life Balance radar) makes momentum visible and the app feels alive. Finance auto-ingests bank and UPI transactions from Gmail, categorises them with AI, and surfaces behavioural insights. Google Calendar and Google Fit are wired in; an Ask LifeOS chatbot and voice assistant answer questions over your own data; an evening Reflect ritual closes the loop. Sensitive data stays on-device (SQLite native, localStorage/IndexedDB on web); AI inference runs through a Cloudflare Worker proxy with admin-managed prompts and feature flags, and Supabase handles optional Google sign-in.
 
 ---
 
@@ -56,8 +56,9 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 2. **AI-native from day one.** Claude Sonnet is wired into every meaningful decision: goal decomposition, routine generation, skill-gap analysis, food photo recognition, blood report parsing, transaction categorisation, weekly insights.
 3. **Private by design.** Everything lives on-device in SQLite — no backend, no data sharing. The only external call is to the Anthropic API for inference (no PII stored server-side).
 4. **Bold, expressive, alive.** Duolingo × Headspace aesthetic. Hexagonal Life Balance radar, animated level rings, XP chips, streak flames — gamification that feels premium, not toy-like.
-5. **Works on iOS, Android, and Web** from the same codebase, with automatic storage swapping (SQLite native, localStorage / IndexedDB on web).
-6. **Finance intelligence from your inbox.** Gmail OAuth + regex parsing + AI categorisation means transaction tracking without Plaid or bank logins.
+5. **Works on iOS, Android, and Web** from the same codebase, with automatic storage swapping (SQLite native, localStorage / IndexedDB on web). The web build ships as an installable PWA on Cloudflare Pages.
+6. **Finance intelligence from your inbox.** Gmail OAuth + regex parsing (bank + UPI) + AI categorisation means transaction tracking without Plaid or bank logins.
+7. **Admin-controlled AI.** A Cloudflare Worker `ai-proxy` plus an admin portal (feature flags + prompt registry) means prompts, models, and rollout can be tuned live without a client release.
 
 ## 6. Feature Highlights (marketing-ready bullets)
 
@@ -65,6 +66,8 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 - Enter your vision → AI decomposes into yearly/monthly/weekly/daily goals.
 - Enter your current + target role → AI finds your skill gaps and suggests learning resources.
 - Enter your wake/sleep/work hours → AI generates 24 time-blocked routine blocks for today.
+- **Discovery Import** — paste a ChatGPT or Claude conversation and AI extracts a starter profile (vision, role, routine) to seed LifeOS in one step.
+- Welcome-intent screen + a How-it-works walkthrough and Terms/Privacy screens for first-run orientation.
 
 ### Today Screen
 - Avatar with Level Ring showing XP progress in current level
@@ -72,6 +75,11 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 - Live streak + XP chips
 - AI-generated **Daily Briefing** and **Weekly Insight** from your behaviour analytics
 - Time-sorted routine blocks — tap to complete, haptic feedback, instant XP reward
+- Evening **Reflect** ritual — close the day, log wins, and get an AI-suggested tweak for tomorrow
+
+### Ask LifeOS & Voice
+- **Ask LifeOS chatbot** — read-only Q&A over your own profile, goals, routine, finance, and health data, available from the Profile sidebar
+- **Voice assistant** — hands-free interaction layered on the same context
 
 ### Health
 - Calorie ring with protein / carb / fat / fibre macro breakdown vs. 2000-kcal target
@@ -80,8 +88,8 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 - **Blood report upload** — AI parses markers, summarises, and gives action items
 
 ### Finance
-- AI-generated financial plan tailored to goal + income + savings + risk profile
-- **Gmail integration** — auto-ingests bank transaction emails (HDFC, ICICI, Axis) via OAuth
+- AI-generated financial plan tailored to goal + income + savings + risk profile, denominated in INR
+- **Gmail integration** — auto-ingests bank transaction emails (HDFC, ICICI, Axis) and **UPI** notifications via OAuth
 - Rule-based + AI merchant categorisation
 - Weekly AI insights: spending spikes, new merchants, category drift
 - Milestone tracking toward the goal
@@ -90,6 +98,13 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 - Visual skill-gap chart (current vs. required level)
 - Curated learning resources with status (not_started / in_progress / completed)
 - **Save Path** — name and persist career-path snapshots; load or delete later
+- **Elite Career Strategist** — long-form AI strategy generation alongside the skill-gap view
+
+### Integrations
+- **Google Calendar** — read + write events into the routine
+- **Google Fit** — pull activity, weight, and vitals
+- **Gmail** — finance ingest (bank emails + UPI)
+- **Google sign-in (Supabase)** — optional cloud auth on web; local email/password auth still supported
 
 ### Rewards Tab (Gamification)
 - **XP + Levels** — triangular curve, L1→L10 ≈ 5,500 XP
@@ -110,9 +125,13 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 
 ---
 
+### Information Architecture
+- **5-tab bottom nav:** Today, Life (hub linking Goals / Health / Finance / Career / Polymath), Rewards, Explore, Profile.
+- Profile screen surfaces **usage analytics** and acts as the entry point to chat, settings, integrations, and how-it-works.
+
 ## 7. Design DNA
 
-- **Vibe:** Duolingo × Headspace × Finch × Habitica HUD — adult and premium, never childish.
+- **Vibe:** Duolingo × Headspace × Finch × Habitica HUD — adult and premium, never childish. Current visual layer is the **Aurora Glass** redesign — soft glass surfaces, gradient blooms, and motion-driven depth.
 - **Typography:** Nunito (display/headings, 700/800) + DM Sans (body/labels, 400/500/600). Scale 11 / 13 / 15 / 17 / 20 / 28 / 36 / 48.
 - **Grid:** 4pt. Cards radius 20, buttons 16, pills 999.
 - **Motion:** Reanimated-driven micro-animations on every state change. Haptics on meaningful taps.
@@ -137,38 +156,42 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 | Async | TanStack React Query 5 |
 | Animation | Reanimated 4 + react-native-svg |
 | Validation | Zod |
-| Auth | Local email/password, expo-crypto SHA-256 + per-user salt |
+| Auth | Local email/password (expo-crypto SHA-256 + per-user salt) **and** Google sign-in via Supabase on web |
+| Backend | Cloudflare Worker `ai-proxy` (model routing, prompts, flags) + Supabase (auth) — no app data persisted server-side |
+| Admin | Admin portal (Next.js) with feature-flag and prompt registry, consumed live by clients with a bundled fallback |
+| AI infra | Cost ledger, model router, tracing, agent + RAG scaffolds in `src/ai/` |
+| Web deploy | Cloudflare Pages PWA (manifest, iOS standalone meta, static export) |
 | Platforms | iOS, Android, Web (same codebase) |
 
-- **No backend server.** Everything runs on-device.
+- **Sensitive data is on-device.** SQLite native / localStorage + IndexedDB on web. Cloudflare Worker proxies AI inference; Supabase handles auth only.
 - **Storage abstraction:** every query branches on `Platform.OS === 'web'` to swap SQLite ↔ localStorage/Dexie — transparent to callers.
 - **Mock mode** (`EXPO_PUBLIC_USE_AI_MOCK=true`) lets the full app run with zero API key during dev.
 
-### AI functions (9)
-`decomposeGoal`, `analyseSkillGap`, `generateRoutine`, `parseBloodReport`, `suggestMeals`, `generateFinancialPlan`, `getWeeklyFinanceInsight`, `categorizeMerchant`, `recogniseFood`. Every one is Zod-validated and has a mock fallback.
+### AI functions (14)
+`decomposeGoal`, `analyseSkillGap`, `generateRoutine`, `parseBloodReport`, `suggestMeals`, `generateFinancialPlan`, `getWeeklyFinanceInsight`, `categorizeMerchant`, `recogniseFood`, `generateCareerStrategy`, `describeGoal`, `generateMotivation`, `extractDiscoveryProfile`, `suggestTomorrowTweak`. Every one is Zod-validated and has a mock fallback. Additional prompt surfaces back the **chatbot** (Ask LifeOS), **discovery** import, and evening **reflection** flows.
 
 ## 9. Privacy & Trust Story
 
-- Health logs, blood reports, contacts, transactions — all stored in on-device SQLite (or IndexedDB on web).
-- No backend. No account sync in Phase 1. No telemetry.
-- The only external call is to the Anthropic API for inference. No persistent server-side storage of user data.
+- Health logs, blood reports, contacts, transactions — all stored in on-device SQLite (or localStorage/IndexedDB on web).
+- AI inference is proxied through a Cloudflare Worker so API keys never ship to the client; the Worker does not persist user content.
+- Supabase is used for optional Google sign-in only; LifeOS app data is not synced to Supabase in the current phase.
 - Soft deletes on all user data (`deletedAt` column) — deletion is always recoverable client-side before purge.
 
 ## 10. Roadmap / Phasing
 
-- **Phase 1 (shipping now):** Local-only. Onboarding, Goals, Health, Finance (+ Gmail ingest), Career, Polymath, full gamification overhaul (Rewards tab, levels, hex radar, quests, badges).
-- **Phase 2:** Optional cloud sync (Supabase). Social module complete.
+- **Phase 1 (shipping now):** Onboarding (incl. Discovery Import), Goals, Health, Finance (+ Gmail/UPI ingest, INR), Career (incl. Elite Career Strategist + Save Path), Polymath, full gamification overhaul (Rewards tab, levels, hex radar, quests, badges). Google Calendar + Google Fit integrations. Ask LifeOS chatbot + voice assistant. Aurora Glass redesign. PWA on Cloudflare Pages with Supabase Google sign-in. Cloudflare Worker `ai-proxy` + admin portal (flags + prompt registry).
+- **Phase 2:** Optional cloud sync of app data (Supabase). Social module complete. RAG + agent flows graduating from scaffolds.
 - **Phase 3:** Plaid integration for broader finance coverage; native HealthKit / Health Connect integration.
 
 ## 11. Metrics / Proof Points for Decks
 
 - **6 life engines** feeding 1 master planner
-- **9 AI functions**, all Zod-validated, all with mock fallbacks
-- **16 database tables** modelling the full life graph
+- **14 AI functions**, all Zod-validated, all with mock fallbacks
 - **8 badges, 5 streaks, 12+ level tiers, 2–3 daily + 1 weekly quest**
-- **3-screen onboarding → full AI-generated routine**
-- **3 banks supported** for Gmail-based transaction ingest (HDFC, ICICI, Axis) — extensible via regex
-- **iOS, Android, and Web** from a single codebase
+- **3-screen onboarding** (or 1-step Discovery Import) **→ full AI-generated routine**
+- **3 banks + UPI** supported for Gmail-based transaction ingest (HDFC, ICICI, Axis) — extensible via regex
+- **iOS, Android, and Web (PWA on Cloudflare Pages)** from a single codebase
+- **Cloudflare Worker AI proxy + admin portal** for live prompt/flag control
 
 ## 12. Sample Taglines, Headlines & Hooks
 
@@ -196,12 +219,12 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 
 ## 13. FAQs for FAQ sections / sales enablement
 
-- **Is my data private?** Yes — all user data stays in on-device storage. No backend. The only network call is to Anthropic for AI inference.
-- **Do I need an API key?** No — LifeOS ships with a mock mode for full app use; real AI calls use your (or our) Anthropic key.
+- **Is my data private?** Yes — sensitive data (health, finance, contacts) stays in on-device storage. AI inference goes through a Cloudflare Worker proxy that does not persist user content. Supabase is used only for optional Google sign-in.
+- **Do I need an API key?** No — LifeOS ships with a mock mode and routes real AI calls through the Worker.
 - **Does it work offline?** Yes for everything except live AI calls.
-- **Which banks are supported for Finance?** HDFC, ICICI, and Axis today (Gmail-based, regex-parsed). New banks = new parser.
-- **Is there a web version?** Yes — the same codebase runs on iOS, Android, and Web. Web uses localStorage + IndexedDB instead of SQLite.
-- **What AI model powers it?** Claude Sonnet 4 via the Anthropic REST API.
+- **Which banks are supported for Finance?** HDFC, ICICI, Axis, and UPI today (Gmail-based, regex-parsed). New banks = new parser.
+- **Is there a web version?** Yes — the same codebase runs on iOS, Android, and Web (installable PWA on Cloudflare Pages). Web uses localStorage + IndexedDB instead of SQLite.
+- **What AI model powers it?** Claude Sonnet 4 via the Anthropic REST API, routed through the `ai-proxy` Worker with admin-managed prompts and feature flags.
 
 ## 14. Boilerplate (short / medium / long)
 

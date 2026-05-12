@@ -3,7 +3,7 @@ import { View, StyleSheet, Modal, Pressable, ScrollView, Image } from 'react-nat
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -30,6 +30,8 @@ interface AddFoodSheetProps {
 type Mode = 'choose' | 'manual' | 'scanning' | 'review';
 
 export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed }: AddFoodSheetProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const { call, loading } = useAI();
   const [mode, setMode] = useState<Mode>('choose');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -170,12 +172,12 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
       <Heading style={styles.title}>Add {mealType}</Heading>
       <View style={styles.optionRow}>
         <Pressable style={styles.optionCard} onPress={handleTakePhoto}>
-          <Ionicons name="camera" size={32} color={colors.health} />
+          <Ionicons name="camera" size={32} color={c.health} />
           <Body style={styles.optionLabel}>Take Photo</Body>
           <Caption>AI identifies your food</Caption>
         </Pressable>
         <Pressable style={styles.optionCard} onPress={handlePickFromGallery}>
-          <Ionicons name="images" size={32} color={colors.health} />
+          <Ionicons name="images" size={32} color={c.health} />
           <Body style={styles.optionLabel}>Gallery</Body>
           <Caption>Pick a food photo</Caption>
         </Pressable>
@@ -218,7 +220,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
               <Ionicons
                 name={selectedItems[i] ? 'checkbox' : 'square-outline'}
                 size={22}
-                color={selectedItems[i] ? colors.health : colors.textMuted}
+                color={selectedItems[i] ? c.health : c.textMuted}
               />
             </View>
             <View style={styles.reviewContent}>
@@ -230,7 +232,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
         ))}
 
         <Card style={styles.totalCard}>
-          <Label color={colors.health}>TOTAL</Label>
+          <Label color={c.health}>TOTAL</Label>
           <Body>{selectedTotal.calories} cal  |  P: {selectedTotal.protein}g  C: {selectedTotal.carbs}g  F: {selectedTotal.fat}g</Body>
         </Card>
 
@@ -281,7 +283,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',

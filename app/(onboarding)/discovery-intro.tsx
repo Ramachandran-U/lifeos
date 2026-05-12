@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -25,6 +25,8 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 export default function DiscoveryIntroScreen() {
+  const c = useColors();
+  const styles = makeStyles(c);
   const router = useRouter();
   const [copied, setCopied] = useState(false);
 
@@ -100,7 +102,7 @@ export default function DiscoveryIntroScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
   back: { marginTop: spacing.md, marginBottom: spacing.sm },

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -19,18 +19,6 @@ import { useGameStore } from '@/store/useGameStore';
 import { updateUser } from '@/db/queries/users';
 import { createRoutineBlocks } from '@/db/queries/routine';
 import type { GeneratedRoutine } from '@/ai/types';
-
-const MODULE_COLORS: Record<string, string> = {
-  goal: colors.goal,
-  health: colors.health,
-  finance: colors.finance,
-  career: colors.career,
-  social: colors.social,
-  polymath: colors.polymath,
-  rest: colors.textMuted,
-  work: colors.textSecondary,
-  meal: colors.warning,
-};
 
 const TIME_OPTIONS = [
   '05:00', '05:30', '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00',
@@ -54,6 +42,8 @@ function TimePicker({ options, selected, onSelect, label }: {
   onSelect: (v: string) => void;
   label: string;
 }) {
+  const c = useColors();
+  const pickerStyles = makePickerStyles(c);
   return (
     <View style={pickerStyles.container}>
       <Label>{label}</Label>
@@ -75,6 +65,19 @@ function TimePicker({ options, selected, onSelect, label }: {
 }
 
 export default function Day1RoutineScreen() {
+  const c = useColors();
+  const styles = makeStyles(c);
+  const MODULE_COLORS: Record<string, string> = {
+    goal: c.goal,
+    health: c.health,
+    finance: c.finance,
+    career: c.career,
+    social: c.social,
+    polymath: c.polymath,
+    rest: c.textMuted,
+    work: c.textSecondary,
+    meal: c.warning,
+  };
   const router = useRouter();
   const { call, loading, error } = useAI();
   const { userId, setOnboardingStage } = useUserStore();
@@ -175,7 +178,7 @@ export default function Day1RoutineScreen() {
             </Card>
 
             {routine.blocks.map((block, i) => {
-              const moduleColor = MODULE_COLORS[block.module] ?? colors.textMuted;
+              const moduleColor = MODULE_COLORS[block.module] ?? c.textMuted;
               return (
                 <Card key={i} moduleColor={moduleColor} style={styles.blockCard}>
                   <View style={styles.blockRow}>
@@ -204,7 +207,7 @@ export default function Day1RoutineScreen() {
   );
 }
 
-const pickerStyles = StyleSheet.create({
+const makePickerStyles = (c: AppColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },
@@ -216,24 +219,24 @@ const pickerStyles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: c.border,
     marginRight: spacing.sm,
   },
   pillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   text: {
-    color: colors.textSecondary,
+    color: c.textSecondary,
     fontSize: fontSizes.sm,
   },
   textActive: {
-    color: colors.textPrimary,
+    color: c.textPrimary,
     fontFamily: fonts.bodyMedium,
   },
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

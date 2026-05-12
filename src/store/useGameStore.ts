@@ -42,7 +42,7 @@ const DEFAULT_STREAKS: Streaks = {
 };
 
 const DEFAULT_SCORES: DomainScores = {
-  goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0,
+  goals: 15, health: 15, finance: 15, career: 15, social: 15, mind: 15,
 };
 
 const MODULE_TO_DOMAIN: Record<string, keyof DomainScores> = {
@@ -70,7 +70,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     let scores = DEFAULT_SCORES;
     let streaks = DEFAULT_STREAKS;
     let badges: BadgeId[] = [];
-    try { scores = JSON.parse(game.domainScores); } catch { /* keep default */ }
+    try {
+      const parsed = JSON.parse(game.domainScores) as DomainScores;
+      scores = {
+        goals: Math.max(15, parsed.goals ?? 0),
+        health: Math.max(15, parsed.health ?? 0),
+        finance: Math.max(15, parsed.finance ?? 0),
+        career: Math.max(15, parsed.career ?? 0),
+        social: Math.max(15, parsed.social ?? 0),
+        mind: Math.max(15, parsed.mind ?? 0),
+      };
+    } catch { /* keep default */ }
     try { streaks = JSON.parse(game.streaks); } catch { /* keep default */ }
     try { badges = JSON.parse(game.badges); } catch { /* keep default */ }
 

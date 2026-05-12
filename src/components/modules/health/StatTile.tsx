@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Caption, Label } from '@/components/ui/Typography';
@@ -29,6 +29,8 @@ export function StatTile({
   series,
   target,
 }: StatTileProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const hasTrend = trendPct !== null && trendPct !== undefined && Number.isFinite(trendPct);
   const up = (trendPct ?? 0) >= 0;
   return (
@@ -38,7 +40,7 @@ export function StatTile({
         <Label style={styles.label}>{label}</Label>
       </View>
       <View style={styles.valueRow}>
-        <Label style={[styles.value, { color: colors.textPrimary }]}>{value}</Label>
+        <Label style={[styles.value, { color: c.textPrimary }]}>{value}</Label>
         {unit && <Caption style={styles.unit}>{unit}</Caption>}
       </View>
       <View style={styles.bottomRow}>
@@ -47,9 +49,9 @@ export function StatTile({
             <Ionicons
               name={up ? 'arrow-up' : 'arrow-down'}
               size={11}
-              color={up ? colors.success : colors.error}
+              color={up ? c.success : c.error}
             />
-            <Caption style={{ color: up ? colors.success : colors.error }}>
+            <Caption style={{ color: up ? c.success : c.error }}>
               {Math.abs(Math.round(trendPct!))}%
             </Caption>
           </View>
@@ -64,7 +66,7 @@ export function StatTile({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   tile: {
     flex: 1,
     minWidth: 140,

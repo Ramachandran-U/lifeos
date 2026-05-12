@@ -8,10 +8,38 @@
  * pattern.
  */
 
+import { getSupabaseAccessToken } from '@/integrations/supabase/session';
+
+const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
+
 export interface GoogleTokens {
   access_token: string;
   refresh_token?: string;
   expires_at: number;
+}
+
+async function workerTokenExchange(body: Record<string, string>): Promise<{
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  error?: string;
+}> {
+  const bearer = await getSupabaseAccessToken();
+  if (!bearer) throw new Error('Sign in required to connect Google.');
+  const res = await fetch(`${PROXY_URL}/v1/google/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearer}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = (json as { error?: string }).error ?? `${res.status}`;
+    throw Object.assign(new Error(`Google token exchange failed: ${err}`), { code: err });
+  }
+  return json as { access_token: string; refresh_token?: string; expires_in?: number };
 }
 
 export interface OAuthConfig {
@@ -77,23 +105,12 @@ export async function completeOAuth(
   const verifier = sessionStorage.getItem(cfg.verifierKey);
   if (!verifier) throw new Error('Missing PKCE verifier — start the OAuth flow again');
 
-  const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET;
-  const body = new URLSearchParams({
-    client_id: clientId,
-    ...(clientSecret ? { client_secret: clientSecret } : {}),
+  const json = await workerTokenExchange({
+    grant_type: 'authorization_code',
     code,
     code_verifier: verifier,
-    grant_type: 'authorization_code',
     redirect_uri: getRedirectUri(cfg.redirectPath),
   });
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!res.ok) throw new Error(`Token exchange failed: ${res.status} ${await res.text()}`);
-  const json = await res.json();
   storeTokens(cfg, {
     access_token: json.access_token,
     refresh_token: json.refresh_token,
@@ -125,27 +142,13 @@ export function isConnected(cfg: OAuthConfig): boolean {
 }
 
 async function refreshAccessToken(
-  clientId: string,
   refreshToken: string,
   cfg: OAuthConfig,
 ): Promise<GoogleTokens> {
-  const clientSecret = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_SECRET;
-  const body = new URLSearchParams({
-    client_id: clientId,
-    ...(clientSecret ? { client_secret: clientSecret } : {}),
-    refresh_token: refreshToken,
+  const json = await workerTokenExchange({
     grant_type: 'refresh_token',
+    refresh_token: refreshToken,
   });
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  const json = await res.json();
-  if (!res.ok) {
-    const err = json?.error ?? res.status;
-    throw Object.assign(new Error(`Refresh failed: ${err}`), { code: err });
-  }
   const next: GoogleTokens = {
     access_token: json.access_token,
     refresh_token: refreshToken,
@@ -161,7 +164,7 @@ export async function getAccessToken(clientId: string, cfg: OAuthConfig): Promis
   if (Date.now() < tokens.expires_at - 30_000) return tokens.access_token;
   if (!tokens.refresh_token) return null;
   try {
-    const next = await refreshAccessToken(clientId, tokens.refresh_token, cfg);
+    const next = await refreshAccessToken(tokens.refresh_token, cfg);
     return next.access_token;
   } catch (err) {
     if (err instanceof Error && (err as { code?: string }).code === 'invalid_grant') {

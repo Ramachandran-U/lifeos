@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +17,8 @@ import * as Haptics from 'expo-haptics';
 // Placeholder confirmation screen — shows extracted summary.
 // Screen 3 (grouped editable sections + seeding) ships in the next pass.
 export default function DiscoveryConfirmScreen() {
+  const c = useColors();
+  const styles = makeStyles(c);
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const [record, setRecord] = useState<DiscoveryImport | null>(null);
@@ -112,7 +114,7 @@ export default function DiscoveryConfirmScreen() {
             disabled={!e || seeding}
           />
           {seedError ? (
-            <Caption style={[styles.ctaHint, { color: colors.error }]}>{seedError}</Caption>
+            <Caption style={[styles.ctaHint, { color: c.error }]}>{seedError}</Caption>
           ) : (
             <Caption style={styles.ctaHint}>
               Adds your top goals and active interests to LifeOS. You can edit or delete any of them later.
@@ -125,7 +127,9 @@ export default function DiscoveryConfirmScreen() {
 }
 
 function Section({ title, confidence, children }: { title: string; confidence: 'high' | 'medium' | 'low'; children: React.ReactNode }) {
-  const dotColor = confidence === 'high' ? colors.success : confidence === 'medium' ? colors.warning : colors.textMuted;
+  const c = useColors();
+  const styles = makeStyles(c);
+  const dotColor = confidence === 'high' ? c.success : confidence === 'medium' ? c.warning : c.textMuted;
   return (
     <View style={styles.section}>
       <View style={styles.sectionHead}>
@@ -137,7 +141,7 @@ function Section({ title, confidence, children }: { title: string; confidence: '
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
   title: { marginTop: spacing.xl },

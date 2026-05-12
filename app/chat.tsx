@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
@@ -21,6 +21,8 @@ import {
 } from '@/db/queries/chat';
 
 export default function ChatScreen() {
+  const c = useColors();
+  const styles = makeStyles(c);
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -84,11 +86,11 @@ export default function ChatScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Body style={{ color: colors.textSecondary }}>← Back</Body>
+            <Body style={{ color: c.textSecondary }}>← Back</Body>
           </Pressable>
           <Heading style={{ fontSize: fontSizes.lg }}>Ask LifeOS</Heading>
           <Pressable onPress={onClear} hitSlop={12}>
-            <Body style={{ color: colors.textSecondary, fontSize: fontSizes.sm }}>Clear</Body>
+            <Body style={{ color: c.textSecondary, fontSize: fontSizes.sm }}>Clear</Body>
           </Pressable>
         </View>
 
@@ -100,7 +102,7 @@ export default function ChatScreen() {
         >
           {messages.length === 0 ? (
             <Animated.View entering={FadeIn} style={styles.empty}>
-              <Body style={{ color: colors.textSecondary, textAlign: 'center' }}>
+              <Body style={{ color: c.textSecondary, textAlign: 'center' }}>
                 Ask anything about how LifeOS works — features, integrations, what's stored where, how to get started.
               </Body>
               <Caption style={{ marginTop: spacing.sm, textAlign: 'center' }}>
@@ -117,7 +119,7 @@ export default function ChatScreen() {
                 m.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant,
               ]}
             >
-              <Body style={{ color: m.role === 'user' ? colors.textPrimary : colors.textPrimary }}>
+              <Body style={{ color: m.role === 'user' ? c.textPrimary : c.textPrimary }}>
                 {m.content}
               </Body>
             </View>
@@ -125,14 +127,14 @@ export default function ChatScreen() {
 
           {busy ? (
             <View style={[styles.bubble, styles.bubbleAssistant, { flexDirection: 'row', alignItems: 'center' }]}>
-              <ActivityIndicator size="small" color={colors.textSecondary} />
-              <Body style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>Thinking…</Body>
+              <ActivityIndicator size="small" color={c.textSecondary} />
+              <Body style={{ color: c.textSecondary, marginLeft: spacing.sm }}>Thinking…</Body>
             </View>
           ) : null}
 
           {error ? (
-            <View style={[styles.bubble, { borderColor: colors.error, borderWidth: 1, alignSelf: 'stretch' }]}>
-              <Body style={{ color: colors.error }}>{error}</Body>
+            <View style={[styles.bubble, { borderColor: c.error, borderWidth: 1, alignSelf: 'stretch' }]}>
+              <Body style={{ color: c.error }}>{error}</Body>
             </View>
           ) : null}
         </ScrollView>
@@ -142,7 +144,7 @@ export default function ChatScreen() {
             value={input}
             onChangeText={setInput}
             placeholder="Ask about LifeOS…"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={c.textMuted}
             style={styles.input}
             multiline
             maxLength={2000}
@@ -155,7 +157,7 @@ export default function ChatScreen() {
             disabled={busy || !input.trim()}
             style={[styles.sendBtn, (busy || !input.trim()) && { opacity: 0.4 }]}
           >
-            <Body style={{ color: colors.textPrimary, fontFamily: fonts.body }}>Send</Body>
+            <Body style={{ color: c.textPrimary, fontFamily: fonts.body }}>Send</Body>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -163,7 +165,7 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   safe: { flex: 1 },
   header: {

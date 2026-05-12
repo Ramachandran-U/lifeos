@@ -5,7 +5,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
+import { useThemeStore } from '@/store/useThemeStore';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -26,6 +27,9 @@ import {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const c = useColors();
+  const themeMode = useThemeStore((s) => s.mode);
+  const setThemeMode = useThemeStore((s) => s.setMode);
   const { userId, name, reset } = useUserStore();
   const [editName, setEditName] = useState(name);
   const [editAge, setEditAge] = useState('');
@@ -94,7 +98,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Button title="Back" variant="ghost" onPress={() => router.back()} />
@@ -131,8 +135,8 @@ export default function SettingsScreen() {
                   await Notifications.cancelScheduledNotificationAsync('daily_routine').catch(() => {});
                 }
               }}
-              trackColor={{ false: colors.border, true: colors.primary + '80' }}
-              thumbColor={notifDailyRoutine ? colors.primary : colors.textMuted}
+              trackColor={{ false: c.border, true: c.primary + '80' }}
+              thumbColor={notifDailyRoutine ? c.primary : c.textMuted}
             />
           </View>
           <View style={styles.switchRow}>
@@ -144,8 +148,8 @@ export default function SettingsScreen() {
                 if (val) await scheduleGoalTaskReminder();
                 else await Notifications.cancelScheduledNotificationAsync('goal_task_reminder').catch(() => {});
               }}
-              trackColor={{ false: colors.border, true: colors.primary + '80' }}
-              thumbColor={notifGoalReminder ? colors.primary : colors.textMuted}
+              trackColor={{ false: c.border, true: c.primary + '80' }}
+              thumbColor={notifGoalReminder ? c.primary : c.textMuted}
             />
           </View>
           <View style={styles.switchRow}>
@@ -157,8 +161,8 @@ export default function SettingsScreen() {
                 if (val) await scheduleStreakAtRiskNotification();
                 else await Notifications.cancelScheduledNotificationAsync('streak_at_risk').catch(() => {});
               }}
-              trackColor={{ false: colors.border, true: colors.primary + '80' }}
-              thumbColor={notifStreakAtRisk ? colors.primary : colors.textMuted}
+              trackColor={{ false: c.border, true: c.primary + '80' }}
+              thumbColor={notifStreakAtRisk ? c.primary : c.textMuted}
             />
           </View>
           <View style={styles.switchRow}>
@@ -170,8 +174,8 @@ export default function SettingsScreen() {
                 if (val) await scheduleSocialOverdueNudge();
                 else await Notifications.cancelScheduledNotificationAsync('social_overdue').catch(() => {});
               }}
-              trackColor={{ false: colors.border, true: colors.primary + '80' }}
-              thumbColor={notifSocialNudge ? colors.primary : colors.textMuted}
+              trackColor={{ false: c.border, true: c.primary + '80' }}
+              thumbColor={notifSocialNudge ? c.primary : c.textMuted}
             />
           </View>
         </Card>
@@ -180,6 +184,19 @@ export default function SettingsScreen() {
           <Label>Data</Label>
           <Button title="Export my data" variant="secondary" onPress={handleExportData} />
           <Button title="Delete all my data" variant="danger" onPress={handleDeleteAllData} />
+        </Card>
+
+        <Card style={styles.section}>
+          <Label>Appearance</Label>
+          <View style={styles.switchRow}>
+            <Body style={styles.switchLabel}>Light mode</Body>
+            <Switch
+              value={themeMode === 'light'}
+              onValueChange={(val) => setThemeMode(val ? 'light' : 'dark')}
+              trackColor={{ false: c.border, true: c.primary + '80' }}
+              thumbColor={themeMode === 'light' ? c.primary : c.textMuted}
+            />
+          </View>
         </Card>
 
         <Card style={styles.section}>
@@ -195,7 +212,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   flex: {
     flex: 1,
@@ -217,9 +233,7 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.sm,
   },
-  infoText: {
-    color: colors.textSecondary,
-  },
+  infoText: {},
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

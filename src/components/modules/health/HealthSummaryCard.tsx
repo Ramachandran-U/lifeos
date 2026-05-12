@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { Body, Label, Caption } from '@/components/ui/Typography';
@@ -11,9 +11,11 @@ interface Props {
 }
 
 export function HealthSummaryCard({ summary }: Props) {
+  const c = useColors();
+  const styles = makeStyles(c);
   return (
     <Card style={styles.card}>
-      <Label color={colors.health}>HEALTH SUMMARY</Label>
+      <Label color={c.health}>HEALTH SUMMARY</Label>
       <Body style={styles.headline}>{summary.headline}</Body>
       <Caption>{summary.detail}</Caption>
 
@@ -21,7 +23,7 @@ export function HealthSummaryCard({ summary }: Props) {
         <View style={styles.suggestions}>
           {summary.suggestions.map((s, i) => (
             <View key={i} style={styles.suggestionRow}>
-              <Ionicons name="checkmark-circle" size={14} color={colors.health} />
+              <Ionicons name="checkmark-circle" size={14} color={c.health} />
               <Caption style={styles.suggestionText}>{s}</Caption>
             </View>
           ))}
@@ -31,7 +33,7 @@ export function HealthSummaryCard({ summary }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: { gap: spacing.sm },
   headline: { fontWeight: '600' },
   suggestions: { gap: spacing.xs, marginTop: spacing.xs },

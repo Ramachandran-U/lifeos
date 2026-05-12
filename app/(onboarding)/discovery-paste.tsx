@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +20,8 @@ const SOFT_WARN_CHARS = 1500;
 const PHASES = ['Reading your story…', 'Mapping goals…', 'Shaping your engines…'];
 
 export default function DiscoveryPasteScreen() {
+  const c = useColors();
+  const styles = makeStyles(c);
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const [text, setText] = useState('');
@@ -90,12 +92,12 @@ export default function DiscoveryPasteScreen() {
             multiline
             editable={!submitting}
             placeholder="Paste here…"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={c.textMuted}
             style={styles.editor}
             textAlignVertical="top"
           />
           <View style={styles.editorFooter}>
-            <Caption style={[styles.count, tooShort && { color: colors.textMuted }, softWarn && { color: colors.warning }]}>
+            <Caption style={[styles.count, tooShort && { color: c.textMuted }, softWarn && { color: c.warning }]}>
               {charCount.toLocaleString()} / ~12,000
             </Caption>
             {tooShort && charCount > 0 ? (
@@ -134,7 +136,7 @@ export default function DiscoveryPasteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl },
   back: { marginTop: spacing.md, marginBottom: spacing.sm },

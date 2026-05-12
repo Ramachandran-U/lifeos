@@ -5,7 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
@@ -51,6 +51,7 @@ const CALORIE_TARGET = 2000;
 
 export default function HealthScreen() {
   useScreenTracking('health');
+  const c = useColors();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [foodEntries, setFoodEntries] = useState<ReturnType<typeof getFoodEntriesByDate>>([]);
   const [weightLogs, setWeightLogs] = useState<{ date: string; weight: number }[]>([]);
@@ -202,9 +203,9 @@ export default function HealthScreen() {
   const toggleSection = (s: Section) => setOpenSection((cur) => (cur === s ? null : s));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <ModuleHeader title="Health" icon="heart" color={colors.health} />
+        <ModuleHeader title="Health" icon="heart" color={c.health} />
 
         <Animated.View entering={FadeInDown.duration(400)}>
           <VitalsCard
@@ -230,17 +231,17 @@ export default function HealthScreen() {
 
         <Card style={styles.fitCard}>
           <View style={styles.fitHeader}>
-            <Ionicons name="fitness" size={18} color={colors.health} />
+            <Ionicons name="fitness" size={18} color={c.health} />
             <Label>GOOGLE FIT</Label>
           </View>
           {fitConnected ? (
             <>
-              <Caption style={{ color: colors.textSecondary }}>
+              <Caption style={{ color: c.textSecondary }}>
                 Pulls the last 14 days of steps, heart rate, sleep, and weight.
               </Caption>
               <View style={styles.fitActions}>
                 <Pressable
-                  style={[styles.fitPrimary, { backgroundColor: colors.health }, fitSyncing && { opacity: 0.6 }]}
+                  style={[styles.fitPrimary, { backgroundColor: c.health }, fitSyncing && { opacity: 0.6 }]}
                   onPress={handleFitSync}
                   disabled={fitSyncing}
                 >
@@ -250,17 +251,17 @@ export default function HealthScreen() {
                   </Caption>
                 </Pressable>
                 <Pressable style={styles.fitSecondary} onPress={handleFitDisconnect}>
-                  <Caption style={{ color: colors.textMuted }}>Disconnect</Caption>
+                  <Caption style={{ color: c.textMuted }}>Disconnect</Caption>
                 </Pressable>
               </View>
             </>
           ) : (
             <>
-              <Caption style={{ color: colors.textSecondary }}>
+              <Caption style={{ color: c.textSecondary }}>
                 Connect Google Fit to pull steps, heart rate, sleep, and weight automatically.
               </Caption>
               <Pressable
-                style={[styles.fitPrimary, { backgroundColor: colors.health, alignSelf: 'flex-start' }]}
+                style={[styles.fitPrimary, { backgroundColor: c.health, alignSelf: 'flex-start' }]}
                 onPress={handleFitConnect}
               >
                 <Ionicons name="link" size={14} color="#fff" />
@@ -268,7 +269,7 @@ export default function HealthScreen() {
               </Pressable>
             </>
           )}
-          {fitStatus && <Caption style={{ color: colors.textMuted }}>{fitStatus}</Caption>}
+          {fitStatus && <Caption style={{ color: c.textMuted }}>{fitStatus}</Caption>}
         </Card>
 
         {fitConnected && fitDays.length > 0 && (
@@ -288,7 +289,7 @@ export default function HealthScreen() {
               <Ionicons
                 name={openSection === 'calories' ? 'chevron-up' : 'chevron-down'}
                 size={20}
-                color={colors.textSecondary}
+                color={c.textSecondary}
               />
             </View>
           </Card>
@@ -311,7 +312,7 @@ export default function HealthScreen() {
                   <View style={styles.mealHeader}>
                     <Label>{meal.charAt(0).toUpperCase() + meal.slice(1)}</Label>
                     <Pressable onPress={() => openAddFood(meal)}>
-                      <Ionicons name="add-circle" size={24} color={colors.health} />
+                      <Ionicons name="add-circle" size={24} color={c.health} />
                     </Pressable>
                   </View>
                   {mealGroups[meal].length > 0 ? (
@@ -348,7 +349,7 @@ export default function HealthScreen() {
               <Ionicons
                 name={openSection === 'blood' ? 'chevron-up' : 'chevron-down'}
                 size={20}
-                color={colors.textSecondary}
+                color={c.textSecondary}
               />
             </View>
           </Card>
@@ -363,7 +364,7 @@ export default function HealthScreen() {
                 {loading ? (
                   <View style={styles.loadingContainer}>
                     <LoadingDots />
-                    <Body style={styles.loadingText}>Analysing your blood report...</Body>
+                    <Body style={[styles.loadingText, { color: c.textSecondary }]}>Analysing your blood report...</Body>
                   </View>
                 ) : (
                   <>
@@ -408,7 +409,7 @@ export default function HealthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   flex: { flex: 1 },
   scroll: {
     paddingHorizontal: spacing.xl,
@@ -430,7 +431,7 @@ const styles = StyleSheet.create({
   uploadCard: { gap: spacing.sm },
   uploadDesc: { marginTop: spacing.xs },
   loadingContainer: { alignItems: 'center', paddingVertical: spacing.md, gap: spacing.sm },
-  loadingText: { color: colors.textSecondary },
+  loadingText: {},
   fitCard: { gap: spacing.sm },
   fitHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   fitActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },

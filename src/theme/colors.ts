@@ -62,18 +62,27 @@ export const darkColors = {
 
 export const lightColors = {
   ...MODULE,
-  background:    '#FAF7FF',
-  surface:       '#F2ECFC',
-  surfaceAlt:    '#E8E0F7',
-  card:          'rgba(255,255,255,0.6)',
-  border:        'rgba(20,8,40,0.1)',
+  // Domain "Light" tints overridden for legibility on a light background —
+  // the dark-mode tints (#2A1E4A etc.) are unreadable here.
+  goalLight:     '#F1E9FF',
+  healthLight:   '#DFF7EC',
+  financeLight:  '#FFF1D6',
+  careerLight:   '#E1ECFF',
+  socialLight:   '#FFE3EE',
+  polymathLight: '#FFF1D6',
+  primaryLight:  '#E8DEFF',
+  background:    '#F7F4FC',
+  surface:       '#FFFFFF',
+  surfaceAlt:    '#F0EAFA',
+  card:          '#FFFFFF',
+  border:        'rgba(20,8,40,0.14)',
   textPrimary:   '#140828',
-  textSecondary: 'rgba(20,8,40,0.62)',
-  textMuted:     'rgba(20,8,40,0.4)',
+  textSecondary: 'rgba(20,8,40,0.72)',
+  textMuted:     'rgba(20,8,40,0.52)',
   // Sidebar
   sidebarBg:     '#FFFFFF',
-  sidebarBorder: 'rgba(20,8,40,0.1)',
-  overlay:       'rgba(20,8,40,0.3)',
+  sidebarBorder: 'rgba(20,8,40,0.14)',
+  overlay:       'rgba(20,8,40,0.45)',
 } as const;
 
 export type AppColors = { [K in keyof typeof darkColors]: string };

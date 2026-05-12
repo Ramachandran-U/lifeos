@@ -37,9 +37,6 @@ export function HexRadar({ scores, size = 340, activeDomain, onDomainPress }: Pr
       return `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)},${p.y.toFixed(2)}`;
     }).join(' ') + 'Z';
 
-  const vals = Object.values(scores);
-  const avg = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
-
   return (
     <Pressable disabled style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
@@ -120,28 +117,6 @@ export function HexRadar({ scores, size = 340, activeDomain, onDomainPress }: Pr
             </G>
           );
         })}
-        <SvgText
-          x={cx}
-          y={cy - 4}
-          textAnchor="middle"
-          fontFamily="Nunito"
-          fontWeight="800"
-          fontSize={52}
-          fill={c.textPrimary}
-        >
-          {avg}
-        </SvgText>
-        <SvgText
-          x={cx}
-          y={cy + 22}
-          textAnchor="middle"
-          fontFamily="Nunito"
-          fontSize={11}
-          fill={c.textMuted}
-          letterSpacing={1}
-        >
-          LIFE SCORE
-        </SvgText>
       </Svg>
     </Pressable>
   );
