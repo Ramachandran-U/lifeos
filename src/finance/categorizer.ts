@@ -1,17 +1,22 @@
 /**
- * Transaction categorizer — three tiers, executed in order:
+ * Transaction categorizer — four tiers, executed in order:
  *   1. SQLite/Dexie merchant cache. Memoizes prior categorizations
  *      (including user corrections). Cost: zero AI calls.
  *   2. Hard rule map (merchant keyword → category). Covers most Indian spend.
- *   3. Batched AI fallback. One AI round-trip per ~25 cache+rule misses,
- *      so a 100-transaction sync stays under Gemini's 20 RPM free tier.
+ *   3. Local k-NN classifier (character-3-gram TF-IDF + cosine). Distilled
+ *      from the rule map; catches merchant strings that the regexes miss
+ *      but that are clearly similar to a known anchor. Zero AI calls.
+ *      See `merchantClassifier.ts`.
+ *   4. Batched AI fallback. One AI round-trip per ~25 misses from tiers
+ *      1-3, so a 100-transaction sync stays under Gemini's 20 RPM free tier.
  *
- * Every tier-3 result is written back to the cache so future syncs skip
- * the AI entirely for that merchant.
+ * Every tier-3 + tier-4 result is written back to the cache so future
+ * syncs skip the expensive tiers entirely for that merchant.
  */
 
 import { categorizeMerchantsBatch } from '@/ai/functions';
 import type { TransactionCategory } from '@/ai/types';
+import { classifyMerchant } from './merchantClassifier';
 import {
   getCachedCategories,
   setCachedCategoriesBulk,
@@ -164,7 +169,7 @@ export async function categorizeBatch(
   }
 
   // Third pass: rule map for cache misses. Write rule hits to cache.
-  const needsAi: number[] = [];
+  const needsClassifier: number[] = [];
   for (const idx of needsRule) {
     const ruleHit = categorizeByRule(items[idx].merchant);
     if (ruleHit) {
@@ -174,6 +179,25 @@ export async function categorizeBatch(
         category: ruleHit,
         confidence: 1,
         source: 'rule',
+        updatedAt: now,
+      });
+    } else {
+      needsClassifier.push(idx);
+    }
+  }
+
+  // Tier 3.5: local k-NN classifier (free, zero-latency). Caches its
+  // confident verdicts. Anything below the confidence floor falls through.
+  const needsAi: number[] = [];
+  for (const idx of needsClassifier) {
+    const verdict = classifyMerchant(items[idx].merchant);
+    if (verdict) {
+      results[idx] = verdict.category;
+      cacheWrites.push({
+        merchantKey: normalizeMerchantForCache(items[idx].merchant),
+        category: verdict.category,
+        confidence: verdict.confidence,
+        source: 'rule', // treat as deterministic — never user-correctable-by-AI
         updatedAt: now,
       });
     } else {
