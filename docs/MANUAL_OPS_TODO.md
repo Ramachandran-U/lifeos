@@ -64,6 +64,25 @@ These changes are pushed to git but need three manual actions to be live:
 - [ ] **Test feedback round-trip:** open consumer → Profile sidebar → Send feedback → submit a test message. Check the admin's new Feedback tab.
 - [ ] **Test push (native only):** install the EAS / device build, grant notification permission. In Supabase verify a row appears in `expo_push_tokens`. Send a test broadcast from admin → Push to confirm the device receives it.
 
+### Phase 4b — eval pass-rate reporting (commit `e45d9d5`)
+
+- [ ] **Run migration:** Supabase SQL Editor → paste [`supabase/migrations/0005_eval_reports.sql`](../supabase/migrations/0005_eval_reports.sql).
+- [ ] **Generate an eval reporter token.** Any opaque string, e.g.:
+  ```powershell
+  -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | % { [char]$_ })
+  ```
+  Save it somewhere — you need it twice.
+- [ ] **Set the Worker secret:**
+  ```powershell
+  cd "c:\personal\Project X\lifeos\.claude\worktrees\interesting-rubin-97ecf6\workers\ai-proxy"
+  npx wrangler secret put EVAL_REPORTER_TOKEN
+  ```
+  Paste the token when prompted. Then `npx wrangler deploy`.
+- [ ] **Set the two GitHub repo secrets** at https://github.com/Ramachandran-U/lifeos/settings/secrets/actions:
+  - `EVAL_REPORTER_URL` = `https://lifeos-ai-proxy.haloai.workers.dev/v1/evals/report`
+  - `EVAL_REPORTER_TOKEN` = same opaque string from above
+- [ ] **Verify:** push a no-op commit touching `src/ai/**` (or just rerun the latest action). Action's "Report to admin portal" step should print `reporter: {"ok":true,...}`. Then open admin → Evals — the row should appear within seconds.
+
 ## 🟠 Soon — before App Store submission
 
 These map to the 🟠 High tier in [PRE_PRODUCTION_CHECKLIST.md](PRE_PRODUCTION_CHECKLIST.md).
