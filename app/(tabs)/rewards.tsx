@@ -7,6 +7,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
+import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
 import { xpProgressInLevel } from '@/utils/gamification';
 import { BADGE_META, DOMAIN_META, STREAK_META, type StreakKey } from '@/constants/gamification';
 import { LevelRing } from '@/components/gamification/LevelRing';
@@ -41,6 +42,8 @@ export default function RewardsScreen() {
   const badges = useGameStore((s) => s.badges);
   const streaks = useGameStore((s) => s.streaks);
   const domainScores = useGameStore((s) => s.domainScores);
+  const historyFor = useDomainHistoryStore((s) => s.historyFor);
+  const deltaFor = useDomainHistoryStore((s) => s.deltaFor);
   const quests = useGameStore((s) => s.quests);
   const [section, setSection] = useState<Section>('overview');
 
@@ -125,16 +128,23 @@ export default function RewardsScreen() {
 
           {section === 'overview' && (
             <View style={styles.grid}>
-              {DOMAIN_META.map((dm) => (
-                <View key={dm.key} style={styles.gridCell}>
-                  <DomainMiniCard
-                    domainKey={dm.key}
-                    score={domainScores[dm.key] ?? 0}
-                    delta={0}
-                    history={MOCK_HISTORY}
-                  />
-                </View>
-              ))}
+              {DOMAIN_META.map((dm) => {
+                const score = domainScores[dm.key] ?? 0;
+                const history = historyFor(dm.key);
+                // Empty/single-entry state — show a flat line at current score
+                // so the sparkline is real (not mock) but doesn't overpromise.
+                const safeHistory = history.length >= 2 ? history : [score, score];
+                return (
+                  <View key={dm.key} style={styles.gridCell}>
+                    <DomainMiniCard
+                      domainKey={dm.key}
+                      score={score}
+                      delta={deltaFor(dm.key)}
+                      history={safeHistory}
+                    />
+                  </View>
+                );
+              })}
             </View>
           )}
 

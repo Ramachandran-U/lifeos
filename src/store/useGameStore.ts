@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { getOrCreateGamification, updateGamification } from '@/db/queries/gamification';
+import { getUser } from '@/db/queries/users';
+import { ONBOARDING_COMPLETE } from './useUserStore';
 import {
   DomainScores,
   Streaks,
@@ -84,6 +86,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     try { streaks = JSON.parse(game.streaks); } catch { /* keep default */ }
     try { badges = JSON.parse(game.badges); } catch { /* keep default */ }
 
+    // Retroactive first_blueprint award. The badge used to only be granted
+    // from day1-routine.tsx; users who finished via welcome-intent or
+    // discovery-confirm completed onboarding but never received it. This
+    // makes good on the debt on next app open.
+    if (!badges.includes('first_blueprint')) {
+      try {
+        const user = getUser();
+        if (user && user.onboardingStage >= ONBOARDING_COMPLETE) {
+          badges = [...badges, 'first_blueprint'];
+          updateGamification(userId, { badges: JSON.stringify(badges) });
+        }
+      } catch {
+        // getUser is sync over SQLite; on web it could throw if not signed in.
+        // Skip the retroactive claim silently — they'll get it via the
+        // onboarding-completion paths instead.
+      }
+    }
+
     set({
       domainScores: scores,
       streaks,
@@ -92,6 +112,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       weeklyXP: game.weeklyXP,
       lastKnownLevel: levelFromXP(game.totalXP),
     });
+
+    // Snapshot today's scores into the rolling 7-day history so the
+    // Rewards screen's sparkline + delta can render real data. Idempotent
+    // within a UTC day. Dynamic import to avoid a circular dep at module
+    // load (useDomainHistoryStore doesn't depend on useGameStore, but
+    // keeping it lazy is cheaper than reasoning about init order).
+    import('./useDomainHistoryStore').then(({ useDomainHistoryStore }) =>
+      useDomainHistoryStore.getState().record(scores),
+    ).catch(() => { /* non-fatal */ });
   },
 
   completeBlock: (userId, module, completedCount, totalCount) => {

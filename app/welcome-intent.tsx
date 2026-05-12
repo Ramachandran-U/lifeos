@@ -14,6 +14,7 @@ import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUse
 import { updateUser } from '@/db/queries/users';
 import { seedStarterRoutine } from '@/utils/starterRoutine';
 import { useFlagStore } from '@/store/useFlagStore';
+import { useGameStore } from '@/store/useGameStore';
 import { track } from '@/utils/telemetry';
 
 type Chip = { id: DomainId; emoji: string; label: string; color: string };
@@ -31,6 +32,7 @@ export default function WelcomeIntentScreen() {
   ];
   const router = useRouter();
   const { userId, name, setOnboardingStage, setPrimaryDomains } = useUserStore();
+  const awardBadge = useGameStore((s) => s.awardBadge);
   const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
   const [selected, setSelected] = useState<DomainId[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +58,8 @@ export default function WelcomeIntentScreen() {
       });
       setPrimaryDomains(selected);
       setOnboardingStage(ONBOARDING_COMPLETE);
+      // First-blueprint badge — symmetric with day1-routine + discovery-confirm.
+      awardBadge(userId, 'first_blueprint');
       if (Platform.OS !== 'web') {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
