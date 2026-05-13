@@ -12,6 +12,8 @@ import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Body, Label, Caption } from '@/components/ui/Typography';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { CalorieRing } from '@/components/modules/health/CalorieRing';
 import { FoodEntryRow } from '@/components/modules/health/FoodEntryRow';
@@ -69,6 +71,7 @@ export default function HealthScreen() {
   const { call, loading } = useAI();
   const { userId } = useUserStore();
   const { awardBadge, addXP } = useGameStore();
+  const advanceQuest = useGameStore((s) => s.advanceQuest);
 
   const loadData = useCallback(() => {
     setFoodEntries(getFoodEntriesByDate(today));
@@ -214,7 +217,9 @@ export default function HealthScreen() {
   const toggleSection = (s: Section) => setOpenSection((cur) => (cur === s ? null : s));
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <AuroraBackground />
+      <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
         <ModuleHeader title="Health" icon="heart" color={c.health} />
 
@@ -243,7 +248,7 @@ export default function HealthScreen() {
         <Card style={styles.fitCard}>
           <View style={styles.fitHeader}>
             <Ionicons name="fitness" size={18} color={c.health} />
-            <Label>GOOGLE FIT</Label>
+            <SectionLabel>GOOGLE FIT</SectionLabel>
           </View>
           {fitConnected ? (
             <>
@@ -292,7 +297,7 @@ export default function HealthScreen() {
           <Card style={styles.sectionHeader}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Label>CALORIE TRACKING</Label>
+                <SectionLabel color={c.health}>CALORIE TRACKING</SectionLabel>
                 <Caption>
                   {Math.round(totals.calories)} / {CALORIE_TARGET} kcal today
                 </Caption>
@@ -352,7 +357,7 @@ export default function HealthScreen() {
           <Card style={styles.sectionHeader}>
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Label>BLOOD REPORTS</Label>
+                <SectionLabel color={c.health}>BLOOD REPORTS</SectionLabel>
                 <Caption>
                   {bloodReportResult ? 'Latest report available' : 'No reports yet'}
                 </Caption>
@@ -405,6 +410,7 @@ export default function HealthScreen() {
         onClose={() => setShowAddFood(false)}
         onSaved={() => {
           logBehaviourEvent('food_logged', 'health');
+          advanceQuest('q_food', 1);
           loadData();
         }}
         onPhotoUsed={() => {
@@ -415,7 +421,8 @@ export default function HealthScreen() {
           }
         }}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

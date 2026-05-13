@@ -93,8 +93,12 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     ? ({ boxShadow: `0 0 24px ${moduleColor}33, inset 0 0 0 1px ${moduleColor}55` } as unknown as object)
     : undefined;
 
+  // Two-layer animation wrapper: outer view owns the layout entry animation,
+  // inner view owns the per-frame opacity/scale. Reanimated 4 warns when both
+  // coexist on the same node ("opacity may be overwritten by a layout animation").
   return (
-    <Animated.View entering={FadeIn.duration(300)} style={animatedStyle}>
+    <Animated.View entering={FadeIn.duration(300)}>
+      <Animated.View style={animatedStyle}>
       <View
         style={[
           styles.container,
@@ -163,6 +167,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
           )}
         </Pressable>
       </View>
+      </Animated.View>
     </Animated.View>
   );
 }

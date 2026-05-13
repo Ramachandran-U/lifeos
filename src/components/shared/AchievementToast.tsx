@@ -28,21 +28,26 @@ export function AchievementToast() {
   const c = useColors();
   const styles = makeStyles(c);
 
+  // Effect 1 — when idle and a badge is queued, show it.
+  // Must NOT own the auto-dismiss timer: this effect re-runs every time
+  // `visible` flips, and its cleanup would clear the timer before it fires.
   useEffect(() => {
     if (visible) return;
+    if (pendingCount === 0) return;
     const badge = popBadge();
     if (badge) {
       setCurrentBadge(badge);
       setVisible(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      const timer = setTimeout(() => {
-        setVisible(false);
-      }, 4000);
-
-      return () => clearTimeout(timer);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
   }, [pendingCount, visible, popBadge]);
+
+  // Effect 2 — auto-dismiss exactly once per visible cycle.
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => setVisible(false), 4000);
+    return () => clearTimeout(timer);
+  }, [visible]);
 
   if (!visible || !currentBadge) return null;
 

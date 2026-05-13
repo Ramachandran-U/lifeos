@@ -1,5 +1,19 @@
 import { z } from 'zod';
 
+// LLM-tolerant enum: lowercases + trims the input before checking membership.
+// Smaller models (Llama via Groq, Gemma, Gemini-flash) frequently return
+// capitalized values like "Low" / "Medium" / "High" or stray whitespace.
+// `optional` controls whether unknown values become undefined or fail.
+function tolerantEnum<T extends [string, ...string[]]>(values: T, opts: { passthrough?: boolean } = {}) {
+  const set = new Set<string>(values);
+  return z.preprocess((v) => {
+    if (typeof v !== 'string') return v;
+    const norm = v.trim().toLowerCase();
+    if (set.has(norm)) return norm;
+    return opts.passthrough ? norm : undefined;
+  }, z.enum(values).optional());
+}
+
 export type AIContentPart =
   | { type: 'text'; text: string }
   | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
@@ -184,8 +198,11 @@ export const RoutineBlockSchema = z.object({
   startTime: z.string(),
   endTime: z.string(),
   title: z.string(),
-  module: z.enum(['goal', 'health', 'finance', 'career', 'social', 'polymath', 'rest', 'work', 'meal']),
-  energyRequired: z.enum(['low', 'medium', 'high']).optional(),
+  module: z.preprocess(
+    (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v),
+    z.enum(['goal', 'health', 'finance', 'career', 'social', 'polymath', 'rest', 'work', 'meal']),
+  ),
+  energyRequired: tolerantEnum(['low', 'medium', 'high']),
 });
 
 export const GeneratedRoutineSchema = z.object({
@@ -640,8 +657,11 @@ export const ReplanRemainingDaySchema = z.object({
     startTime: z.string().regex(/^\d{2}:\d{2}$/),
     endTime: z.string().regex(/^\d{2}:\d{2}$/),
     title: z.string(),
-    module: z.enum(['goal', 'health', 'finance', 'career', 'social', 'polymath', 'rest', 'work', 'meal']),
-    energyRequired: z.enum(['low', 'medium', 'high']).optional(),
+    module: z.preprocess(
+    (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v),
+    z.enum(['goal', 'health', 'finance', 'career', 'social', 'polymath', 'rest', 'work', 'meal']),
+  ),
+    energyRequired: tolerantEnum(['low', 'medium', 'high']),
   })),
   /** One-line explanation shown to the user. */
   rationale: z.string().max(160),

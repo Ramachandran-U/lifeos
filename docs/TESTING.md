@@ -5,8 +5,10 @@ Minimal Jest + ts-jest setup for pure-logic tests. Component/integration tests n
 ## Run
 
 ```bash
-npm test             # single run
+npm test             # unit tests (pure logic)
 npm run test:watch   # watch mode
+npm run evals        # AI eval harness (mock mode, free, ~2s for 7 suites / 28+ cases)
+npm run evals:live   # same but hits real LLMs (sets EVAL_REAL=true)
 ```
 
 ## Layout
@@ -22,11 +24,33 @@ Config: [`jest.config.js`](../jest.config.js). Paths:
 - `@/` → `src/`
 - `testEnvironment: 'node'` (no DOM)
 - `app/` and `src/components/` are ignored — RN JSX needs jest-expo.
+- `moduleNameMapper` for `react-native`, `expo-constants`, `@react-native-async-storage/async-storage` → tiny stubs under [`jest.mocks/`](../jest.mocks/) so consumer modules that import RN at the top level can be exercised in pure Node.
 
 ## Coverage today
 
 - **gamification.ts** — XP curve, streak grace logic, badge awards, domain score weighting
 - **emailParsers.ts** — HDFC/ICICI/Axis regex + dispatcher
+
+## AI eval harness ([`evals/`](../evals/))
+
+A second test layer dedicated to AI surfaces. Lives in [`evals/`](../evals/), runs under the same Jest config, but with its own runner ([`evals/eval.test.ts`](../evals/eval.test.ts)) that emits a markdown report + cost ledger + tracing summary to [`evals/reports/`](../evals/reports/).
+
+**Suites today (28+ graded cases):**
+
+| Suite | Coverage |
+|-------|----------|
+| `decomposeGoal` | Schema + structural checks (monthly/weekly non-empty, daily examples ≥ 3) |
+| `generateFinancialPlan` | Schema + currency handling + milestone counts |
+| `generateRoutine` | Schema + block validity |
+| `categorizeMerchant` | Schema (accuracy reported separately) |
+| `ragRetrieve` | Top-hit correctness over a small in-memory corpus |
+| `planRoutineAgent` | Trace shape (retrieve → propose → critique → commit) + plan validity |
+| `parseBloodReportSafety` | Schema + **PII non-echo** + **prompt-injection resistance** + (live only) marker grounding + clinician disclaimer when abnormal |
+
+**Benchmarks** ([`evals/benchmarks/`](../evals/benchmarks/)):
+- `merchantBenchmark.test.ts` — side-by-side rule / classifier / LLM / stacked pipeline accuracy + projected $/1k inputs.
+
+**CI gating:** [`.github/workflows/evals.yml`](../.github/workflows/evals.yml) runs on every PR touching `src/ai/**`. When `EVAL_REPORTER_URL` + `EVAL_REPORTER_TOKEN` repo secrets are set, the workflow POSTs the summary to the Worker, which surfaces it in the admin's Evals tab.
 
 ## Adding tests
 

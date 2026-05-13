@@ -15,6 +15,7 @@ import { getUserProfile } from '@/db/queries/userProfile';
 import { generateAndSaveRoutineForToday, ProfileNotReadyError } from '@/ai/routineFromProfile';
 import { ROUTINE_CONFIDENCE_THRESHOLD, type UserProfile, type DiscoveryExtraction } from '@/ai/types';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
+import { useGameStore } from '@/store/useGameStore';
 import { updateUser } from '@/db/queries/users';
 import { track } from '@/utils/telemetry';
 import * as Haptics from 'expo-haptics';
@@ -29,6 +30,7 @@ export default function DiscoveryConfirmScreen() {
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const setOnboardingStage = useUserStore((s) => s.setOnboardingStage);
+  const awardBadge = useGameStore((s) => s.awardBadge);
   const setPrimaryDomains = useUserStore((s) => s.setPrimaryDomains);
 
   const [source, setSource] = useState<ConfirmSource | null>(null);
@@ -69,6 +71,10 @@ export default function DiscoveryConfirmScreen() {
         updateUser(userId, { onboardingStage: ONBOARDING_COMPLETE });
         setOnboardingStage(ONBOARDING_COMPLETE);
       }
+      // Match the day1-routine.tsx legacy path — onboarding completion
+      // earns the first_blueprint badge regardless of which onboarding
+      // variant the user took.
+      awardBadge(userId, 'first_blueprint');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.replace('/(tabs)');
     } catch (err) {

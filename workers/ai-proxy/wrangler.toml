@@ -26,7 +26,7 @@ DAILY_VOICE_MINUTES_LIMIT = "15"
 # are unaffected. Use "*" only for local dev if you must — never in prod.
 # Update before deploy: add your real admin host (Vercel) and any other
 # legitimate frontends.
-ALLOWED_ORIGINS = "https://lifeos-6r5-eqa.pages.dev,https://project-yom9m.vercel.app,http://localhost:8081,http://localhost:3030,http://localhost:19006"
+ALLOWED_ORIGINS = "https://lifeos-6r5.pages.dev,https://lifeos-6r5-eqa.pages.dev,https://project-yom9m.vercel.app,http://localhost:8081,http://localhost:3030,http://localhost:19006"
 # Which LLM the /claude endpoint dispatches to: "anthropic" | "gemini" | "openai".
 # Switching providers only requires updating this var + having the matching API
 # key set as a secret. The client request/response shape is unchanged.

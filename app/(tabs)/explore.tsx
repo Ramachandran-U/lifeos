@@ -10,6 +10,7 @@ import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { InterestCard } from '@/components/modules/polymath/InterestCard';
 import { AddInterestSheet } from '@/components/modules/polymath/AddInterestSheet';
 import { LogExplorationSheet } from '@/components/modules/polymath/LogExplorationSheet';
@@ -28,6 +29,7 @@ export default function ExploreScreen() {
   const { interests, load, addInterest, removeInterest, addExploration, weeklyMinutes } =
     usePolymathStore();
   const { addXP, triggerStreak, completeBlock } = useGameStore();
+  const advanceQuest = useGameStore((s) => s.advanceQuest);
 
   const [showAdd, setShowAdd] = useState(false);
   const [activeInterest, setActiveInterest] = useState<Interest | null>(null);
@@ -57,6 +59,7 @@ export default function ExploreScreen() {
     addXP(userId, XP_VALUES.completeGoalTask);
     triggerStreak(userId, 'learning');
     completeBlock(userId, 'polymath', 1, 1);
+    advanceQuest('q_learn', 1);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
@@ -67,7 +70,9 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <AuroraBackground />
+      <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <ModuleHeader title="Explore" icon="compass" color={c.polymath} />
 
@@ -120,7 +125,8 @@ export default function ExploreScreen() {
         onClose={() => setActiveInterest(null)}
         onLog={handleLog}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

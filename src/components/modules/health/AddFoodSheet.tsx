@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, Modal, Pressable, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, ScrollView, Image, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,11 @@ import { recogniseFood } from '@/ai/functions';
 import { useAI } from '@/hooks/useAI';
 import { format } from 'date-fns';
 import type { FoodRecognition } from '@/ai/types';
+import { searchFoods, scaleMacros } from '@/utils/foodSearch';
+import { lookupBarcode } from '@/utils/openFoodFacts';
+import { upgradeFoodRecognition } from '@/utils/upgradeFoodRecognition';
+import { BarcodeScannerWeb, isBarcodeDetectorSupported } from './BarcodeScannerWeb';
+import type { FoodItem } from '@/data/foods';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -27,7 +32,7 @@ interface AddFoodSheetProps {
   onPhotoUsed?: () => void;
 }
 
-type Mode = 'choose' | 'manual' | 'scanning' | 'review';
+type Mode = 'choose' | 'manual' | 'scanning' | 'review' | 'barcode';
 
 export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed }: AddFoodSheetProps) {
   const c = useColors();
@@ -46,6 +51,71 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
 
+  // Bundled-DB search state. When the user picks a result we autofill the
+  // macro fields from its default serving; if they then change the quantity,
+  // we re-scale from the picked item rather than the raw text.
+  const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
+  const [pickedItem, setPickedItem] = useState<FoodItem | null>(null);
+
+  // Barcode lookup state.
+  const [barcode, setBarcode] = useState('');
+  const [barcodeBusy, setBarcodeBusy] = useState(false);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
+  const [scannerOn, setScannerOn] = useState(false);
+  const canScan = isBarcodeDetectorSupported();
+
+  const handleBarcodeLookup = async () => {
+    const code = barcode.trim();
+    if (!code) return;
+    setBarcodeBusy(true);
+    setBarcodeError(null);
+    try {
+      const result = await lookupBarcode(code);
+      if (!result) {
+        setBarcodeError('Not found in Open Food Facts. Try entering it manually.');
+        return;
+      }
+      // Treat the OFF hit like a search result: pick it, prefill the manual
+      // form, and drop the user there so they can confirm + save.
+      handlePickResult(result.item);
+      setMode('manual');
+      setBarcode('');
+    } catch (e) {
+      setBarcodeError(e instanceof Error ? e.message : 'Lookup failed.');
+    } finally {
+      setBarcodeBusy(false);
+    }
+  };
+
+  const handleNameChange = (next: string) => {
+    setFoodName(next);
+    if (pickedItem && next !== pickedItem.name) setPickedItem(null);
+    setSearchResults(next.trim().length >= 2 ? searchFoods(next) : []);
+  };
+
+  const handlePickResult = (item: FoodItem) => {
+    setPickedItem(item);
+    setFoodName(item.name);
+    setQuantity(String(item.defaultServing.quantityG));
+    setCalories(String(item.defaultServing.calories));
+    setProtein(String(item.defaultServing.protein));
+    setCarbs(String(item.defaultServing.carbs));
+    setFat(String(item.defaultServing.fat));
+    setSearchResults([]);
+  };
+
+  const handleQuantityChange = (next: string) => {
+    setQuantity(next);
+    if (!pickedItem) return;
+    const g = parseFloat(next);
+    if (!Number.isFinite(g) || g <= 0) return;
+    const scaled = scaleMacros(pickedItem.defaultServing, g);
+    setCalories(String(scaled.calories));
+    setProtein(String(scaled.protein));
+    setCarbs(String(scaled.carbs));
+    setFat(String(scaled.fat));
+  };
+
   const reset = () => {
     setMode('choose');
     setPhotoUri(null);
@@ -57,6 +127,11 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
     setProtein('');
     setCarbs('');
     setFat('');
+    setSearchResults([]);
+    setPickedItem(null);
+    setBarcode('');
+    setBarcodeError(null);
+    setScannerOn(false);
   };
 
   const handleClose = () => {
@@ -80,8 +155,11 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
       setMode('scanning');
 
       const mediaType = asset.mimeType ?? 'image/jpeg';
-      const recognition = await call(() => recogniseFood(asset.base64!, mediaType));
-      if (recognition) {
+      const rawRecognition = await call(() => recogniseFood(asset.base64!, mediaType));
+      if (rawRecognition) {
+        // Upgrade AI macro estimates with DB lookups for confident name
+        // matches — empirically the model undershoots kcal by 20–40%.
+        const { recognition } = upgradeFoodRecognition(rawRecognition);
         setRecognised(recognition);
         setSelectedItems(recognition.items.map(() => true));
         setMode('review');
@@ -108,8 +186,11 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
       setMode('scanning');
 
       const mediaType = asset.mimeType ?? 'image/jpeg';
-      const recognition = await call(() => recogniseFood(asset.base64!, mediaType));
-      if (recognition) {
+      const rawRecognition = await call(() => recogniseFood(asset.base64!, mediaType));
+      if (rawRecognition) {
+        // Upgrade AI macro estimates with DB lookups for confident name
+        // matches — empirically the model undershoots kcal by 20–40%.
+        const { recognition } = upgradeFoodRecognition(rawRecognition);
         setRecognised(recognition);
         setSelectedItems(recognition.items.map(() => true));
         setMode('review');
@@ -182,7 +263,84 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
           <Caption>Pick a food photo</Caption>
         </Pressable>
       </View>
-      <Button title="Enter manually" variant="secondary" onPress={() => setMode('manual')} style={styles.manualBtn} />
+      <View style={styles.optionRow}>
+        <Pressable style={styles.optionCard} onPress={() => setMode('barcode')}>
+          <Ionicons name="barcode" size={32} color={c.health} />
+          <Body style={styles.optionLabel}>Barcode</Body>
+          <Caption>Scan a packaged product</Caption>
+        </Pressable>
+        <Pressable style={styles.optionCard} onPress={() => setMode('manual')}>
+          <Ionicons name="search" size={32} color={c.health} />
+          <Body style={styles.optionLabel}>Search</Body>
+          <Caption>~1,600 foods + macros</Caption>
+        </Pressable>
+      </View>
+    </>
+  );
+
+  // Once the camera fires a code, auto-lookup so the user doesn't have to
+  // press a second button. Done inline (not via state effect) so the call
+  // doesn't fire on every re-render.
+  const handleScannerDetect = (code: string) => {
+    setScannerOn(false);
+    setBarcode(code);
+    setBarcodeBusy(true);
+    setBarcodeError(null);
+    lookupBarcode(code)
+      .then((result) => {
+        if (!result) {
+          setBarcodeError(`Barcode ${code} not in Open Food Facts. Try a different one or enter macros manually.`);
+          return;
+        }
+        handlePickResult(result.item);
+        setMode('manual');
+        setBarcode('');
+      })
+      .catch((e) => setBarcodeError(e instanceof Error ? e.message : 'Lookup failed.'))
+      .finally(() => setBarcodeBusy(false));
+  };
+
+  const renderBarcode = () => (
+    <>
+      <View style={styles.handle} />
+      <Heading style={styles.title}>Look up barcode</Heading>
+      <Caption style={styles.barcodeHint}>
+        {scannerOn
+          ? 'Hold the package barcode inside the box. Detection is automatic.'
+          : Platform.OS === 'web' && canScan
+            ? 'Scan with your camera, or type the digits if you prefer. Powered by Open Food Facts — best for international brands; Indian packaged snacks may have gaps.'
+            : 'Type the barcode digits from the package (8–13 digits). Powered by Open Food Facts.'}
+      </Caption>
+
+      {scannerOn && Platform.OS === 'web' ? (
+        <BarcodeScannerWeb
+          onScan={handleScannerDetect}
+          onError={(msg) => { setBarcodeError(msg); setScannerOn(false); }}
+        />
+      ) : null}
+
+      <View style={styles.form}>
+        {Platform.OS === 'web' && canScan && !scannerOn ? (
+          <Button title="📷 Scan with camera" onPress={() => { setBarcodeError(null); setScannerOn(true); }} />
+        ) : null}
+        {scannerOn ? (
+          <Button title="Stop scanning" variant="ghost" onPress={() => setScannerOn(false)} />
+        ) : null}
+        <Input
+          label="Barcode"
+          placeholder="e.g. 8901058851656"
+          value={barcode}
+          onChangeText={(t) => { setBarcode(t.replace(/[^\d]/g, '')); setBarcodeError(null); }}
+          keyboardType="numeric"
+        />
+        {barcodeError ? <Body style={styles.barcodeError}>{barcodeError}</Body> : null}
+        <Button
+          title={barcodeBusy ? 'Looking up…' : 'Look up'}
+          onPress={handleBarcodeLookup}
+          disabled={!barcode.trim() || barcodeBusy}
+        />
+        <Button title="Back" variant="ghost" onPress={() => { setMode('choose'); setBarcode(''); setBarcodeError(null); setScannerOn(false); }} />
+      </View>
     </>
   );
 
@@ -247,8 +405,39 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
       <View style={styles.handle} />
       <Heading style={styles.title}>Add {mealType}</Heading>
       <View style={styles.form}>
-        <Input label="Food name" placeholder="e.g. Grilled chicken" value={foodName} onChangeText={setFoodName} />
-        <Input label="Quantity (g)" placeholder="100" value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
+        <Input
+          label="Food name"
+          placeholder="Type to search (dal, biryani, idli…)"
+          value={foodName}
+          onChangeText={handleNameChange}
+        />
+        {searchResults.length > 0 && (
+          <View style={styles.searchResults}>
+            {searchResults.map((item) => (
+              <Pressable key={item.id} style={styles.searchResult} onPress={() => handlePickResult(item)}>
+                <View style={styles.searchResultLeft}>
+                  <Body style={styles.searchResultName}>{item.name}</Body>
+                  <Caption>
+                    {item.defaultServing.label} · {item.defaultServing.calories} cal · P {item.defaultServing.protein}g · C {item.defaultServing.carbs}g · F {item.defaultServing.fat}g
+                  </Caption>
+                </View>
+                <Ionicons name="add-circle" size={24} color={c.health} />
+              </Pressable>
+            ))}
+          </View>
+        )}
+        {pickedItem && (
+          <Caption style={styles.pickedHint}>
+            From bundled DB · {pickedItem.source === 'curated-seed' ? 'approximate' : pickedItem.source.toUpperCase()} · macros auto-scale with quantity
+          </Caption>
+        )}
+        <Input
+          label="Quantity (g)"
+          placeholder="100"
+          value={quantity}
+          onChangeText={handleQuantityChange}
+          keyboardType="numeric"
+        />
         <Input label="Calories" placeholder="250" value={calories} onChangeText={setCalories} keyboardType="numeric" />
         <View style={styles.macroRow}>
           <View style={styles.macroInput}>
@@ -276,6 +465,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
             {mode === 'scanning' && renderScanning()}
             {mode === 'review' && renderReview()}
             {mode === 'manual' && renderManual()}
+            {mode === 'barcode' && renderBarcode()}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -389,5 +579,42 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   macroInput: {
     flex: 1,
+  },
+  // Search results dropdown
+  searchResults: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: -spacing.xs,
+    overflow: 'hidden',
+  },
+  searchResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    gap: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  searchResultLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  searchResultName: {
+    fontFamily: fonts.bodyMedium,
+  },
+  pickedHint: {
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: -spacing.xs,
+  },
+  barcodeHint: {
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  barcodeError: {
+    color: colors.error,
+    textAlign: 'center',
   },
 });
