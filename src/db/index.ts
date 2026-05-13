@@ -97,6 +97,7 @@ export async function initDatabase() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at TEXT
     );
+    CREATE INDEX IF NOT EXISTS goals_user_parent_idx ON goals (user_id, parent_id);
 
     CREATE TABLE IF NOT EXISTS goal_comments (
       id TEXT PRIMARY KEY,
@@ -121,6 +122,8 @@ export async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE INDEX IF NOT EXISTS routine_blocks_date_idx ON routine_blocks (date);
+    CREATE INDEX IF NOT EXISTS routine_blocks_date_status_idx ON routine_blocks (date, status);
 
     CREATE TABLE IF NOT EXISTS health_logs (
       id TEXT PRIMARY KEY,
@@ -305,6 +308,8 @@ export async function initDatabase() {
       day_of_week INTEGER NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE INDEX IF NOT EXISTS behaviour_events_created_at_idx ON behaviour_events (created_at);
+    CREATE INDEX IF NOT EXISTS behaviour_events_event_type_created_at_idx ON behaviour_events (event_type, created_at);
 
     CREATE TABLE IF NOT EXISTS daily_reflections (
       id TEXT PRIMARY KEY,
