@@ -119,27 +119,41 @@ export function checkBadges(
   return newBadges;
 }
 
+/**
+ * Cumulative XP milestone shown on the level ladder for tier `n`
+ * (triangular progression: 100, 300, 600, …).
+ */
 export function xpForLevel(n: number): number {
   return (100 * n * (n + 1)) / 2;
 }
 
+/** Minimum total XP at which level `level` (1-indexed) begins. Level 1 starts at 0. */
+export function xpTotalAtStartOfLevel(level: number): number {
+  if (level <= 1) return 0;
+  return (100 * level * (level + 1)) / 2;
+}
+
 export function levelFromXP(xp: number): number {
   let n = 1;
-  while (xpForLevel(n + 1) <= xp) n++;
+  while (xpTotalAtStartOfLevel(n + 1) <= xp) n += 1;
   return n;
 }
 
-export function xpProgressInLevel(xp: number): {
+export interface LevelProgress {
   level: number;
   current: number;
   needed: number;
   pct: number;
-} {
+}
+
+export function xpProgressInLevel(xp: number): LevelProgress {
   const level = levelFromXP(xp);
-  const start = xpForLevel(level);
-  const end = xpForLevel(level + 1);
-  const pct = Math.min(1, (xp - start) / (end - start));
-  return { level, current: xp - start, needed: end - start, pct };
+  const start = xpTotalAtStartOfLevel(level);
+  const end = xpTotalAtStartOfLevel(level + 1);
+  const needed = end - start;
+  const current = xp - start;
+  const pct = needed > 0 ? Math.min(1, Math.max(0, current / needed)) : 1;
+  return { level, current, needed, pct };
 }
 
 export const XP_VALUES = {
@@ -153,37 +167,7 @@ export const XP_VALUES = {
   photoFood: 20,
 } as const;
 
-// ─── Level progression ───────────────────────────────────────────────────────
-// Cumulative XP required to reach level n: 100 * n * (n + 1) / 2
-// e.g. L1=100, L2=300, L3=600, L4=1000, L5=1500, L6=2100, L7=2800, L8=3600,
-//      L9=4500, L10=5500, L11=6600, L12=7800
-
-export function xpForLevel(n: number): number {
-  return (100 * n * (n + 1)) / 2;
-}
-
-export function levelFromXP(xp: number): number {
-  let n = 1;
-  while (xpForLevel(n + 1) <= xp) n++;
-  return n;
-}
-
-export interface LevelProgress {
-  level: number;
-  current: number; // XP accumulated inside the current level
-  needed: number;  // XP required to advance to the next level
-  pct: number;     // 0..1
-}
-
-export function xpProgressInLevel(xp: number): LevelProgress {
-  const level = levelFromXP(xp);
-  const start = xpForLevel(level);
-  const end = xpForLevel(level + 1);
-  const needed = end - start;
-  const current = xp - start;
-  const pct = Math.min(1, Math.max(0, current / needed));
-  return { level, current, needed, pct };
-}
+// Ladder labels use `xpForLevel`; progress bars use `xpTotalAtStartOfLevel` (see above).
 
 // ─── Level perks (design mock — surface on Rewards ladder) ───────────────────
 export const LEVEL_PERKS: Record<number, string[]> = {

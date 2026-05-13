@@ -75,6 +75,7 @@ export const healthLogs = sqliteTable('health_logs', {
   id: text('id').primaryKey(),
   date: text('date').notNull(), // YYYY-MM-DD
   weight: real('weight'),
+  heightCm: real('height_cm'),
   sleepHours: real('sleep_hours'),
   steps: integer('steps'),
   energyLevel: integer('energy_level'), // 1-5

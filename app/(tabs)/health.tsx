@@ -28,10 +28,12 @@ import {
   getRecentWeightLogs,
   getBloodReports,
   createHealthLog,
+  getRecentBodyMeasurements,
+  type BodyMeasurementRow,
 } from '@/db/queries/health';
 import { getUser, updateUser } from '@/db/queries/users';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
-import { weightTrend, summarizeVitals } from '@/utils/health';
+import { weightTrend, summarizeVitals, calculateBMI } from '@/utils/health';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
@@ -71,6 +73,7 @@ export default function HealthScreen() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [weightLogs, setWeightLogs] = useState<{ date: string; weight: number }[]>([]);
+  const [bodyMeasurements, setBodyMeasurements] = useState<BodyMeasurementRow[]>([]);
   const [heightCm, setHeightCm] = useState<number | null>(null);
   const [bloodReportResult, setBloodReportResult] = useState<BloodReportResult | null>(null);
   const [showAddFood, setShowAddFood] = useState(false);
@@ -94,6 +97,8 @@ export default function HealthScreen() {
         fibre: entry.fibre ?? undefined,
       })),
     );
+    const measurements = getRecentBodyMeasurements(40);
+    setBodyMeasurements(measurements);
     const weights = getRecentWeightLogs(30);
     setWeightLogs(
       weights
@@ -101,7 +106,8 @@ export default function HealthScreen() {
         .map((w) => ({ date: w.date, weight: w.weight! })),
     );
     const user = getUser();
-    setHeightCm(user?.heightCm ?? null);
+    const hFromLog = measurements.find((m) => m.heightCm != null && m.heightCm > 0)?.heightCm;
+    setHeightCm(hFromLog ?? user?.heightCm ?? null);
 
     const reports = getBloodReports();
     if (reports.length > 0 && reports[0].parsedMarkers) {
@@ -177,6 +183,14 @@ export default function HealthScreen() {
     }
   };
 
+  const referenceBmi = useMemo(() => {
+    const row = bodyMeasurements.find(
+      (m) => m.weight != null && m.weight > 0 && m.heightCm != null && m.heightCm > 0,
+    );
+    if (!row?.weight || !row.heightCm) return null;
+    return calculateBMI(row.weight, row.heightCm);
+  }, [bodyMeasurements]);
+
   const trend = useMemo(() => weightTrend(weightLogs), [weightLogs]);
   const summary = useMemo(
     () =>
@@ -212,13 +226,22 @@ export default function HealthScreen() {
   }, [foodEntries]);
 
   const handleSaveVitals = (data: { weightKg?: number; heightCm?: number }) => {
-    if (data.weightKg != null) {
-      createHealthLog({ date: today, weight: data.weightKg });
+    const hasW = data.weightKg != null;
+    const hasH = data.heightCm != null;
+    if (hasW || hasH) {
+      createHealthLog({
+        date: today,
+        ...(hasW ? { weight: data.weightKg! } : {}),
+        ...(hasH ? { heightCm: data.heightCm! } : {}),
+        source: 'manual',
+      });
+    }
+    if (hasW) {
       logBehaviourEvent('weight_logged', 'health');
       if (userId) addXP(userId, 10);
     }
-    if (data.heightCm != null && userId) {
-      updateUser(userId, { heightCm: data.heightCm });
+    if (hasH && userId) {
+      updateUser(userId, { heightCm: data.heightCm! });
     }
     loadData();
   };
@@ -419,6 +442,8 @@ export default function HealthScreen() {
         visible={showEditVitals}
         initialWeightKg={trend.latest}
         initialHeightCm={heightCm}
+        lastLoggedAt={bodyMeasurements[0]?.createdAt ?? null}
+        referenceBmi={referenceBmi}
         onClose={() => setShowEditVitals(false)}
         onSave={handleSaveVitals}
       />

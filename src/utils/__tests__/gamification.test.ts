@@ -33,6 +33,13 @@ describe('levelFromXP', () => {
 });
 
 describe('xpProgressInLevel', () => {
+  it('starts at 0 XP inside level 1 (no negative current)', () => {
+    const p = xpProgressInLevel(0);
+    expect(p.level).toBe(1);
+    expect(p.current).toBe(0);
+    expect(p.needed).toBe(300);
+    expect(p.pct).toBe(0);
+  });
   it('reports percentage inside the current level', () => {
     const p = xpProgressInLevel(400);
     expect(p.level).toBe(2);

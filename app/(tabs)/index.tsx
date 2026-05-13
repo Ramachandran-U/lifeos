@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   FadeInDown,
@@ -36,10 +36,10 @@ import { XpBar } from '@/components/gamification/XpBar';
 import { StreakFlame } from '@/components/gamification/StreakFlame';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
-import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
+import { xpProgressInLevel, XP_VALUES, type DomainScores } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
 import { cloneRoutineToDate } from '@/utils/starterRoutine';
-import { subDays } from 'date-fns';
+import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
 import { useFlagStore } from '@/store/useFlagStore';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { rebalanceRestOfToday, isRecoveryLow } from '@/ai/replanApply';
@@ -292,9 +292,11 @@ export default function TodayScreen() {
     transform: [{ translateY: interpolate(scrollY.value, [120, 200], [-16, 0], Extrapolation.CLAMP) }],
   }));
   const radarScores = gameDomainScores.goals !== undefined ? gameDomainScores : domainScores;
-  const avgScore = Math.round(
-    (radarScores.goals + radarScores.health + radarScores.finance +
-      radarScores.career + radarScores.social + radarScores.mind) / 6,
+  const domainHistoryEntries = useDomainHistoryStore((s) => s.entries);
+  const todayLocalRadar = format(new Date(), 'yyyy-MM-dd');
+  const priorRadarScores = useMemo(
+    () => useDomainHistoryStore.getState().getPriorDayScores(todayLocalRadar, radarScores as DomainScores),
+    [domainHistoryEntries, todayLocalRadar, radarScores],
   );
 
   return (
@@ -310,11 +312,7 @@ export default function TodayScreen() {
         >
           {/* Hex radar hero — Aurora center stack overlays the radar */}
           <Animated.View style={[styles.heroWrap, heroStyle]}>
-            <HexRadar scores={radarScores} size={340} />
-            <View pointerEvents="none" style={styles.heroOverlay}>
-              <AuroraText variant="micro" muted>LIFE BALANCE</AuroraText>
-              <AuroraText variant="display" numeric style={{ marginTop: 2 }}>{avgScore}</AuroraText>
-            </View>
+            <HexRadar scores={radarScores} priorScores={priorRadarScores} size={340} />
           </Animated.View>
 
           {/* Header */}
@@ -650,11 +648,6 @@ function makeStyles(c: ReturnType<typeof useColors>, density = 1) {
       paddingTop: spacing.sm,
       paddingBottom: spacing.xs,
       position: 'relative',
-    },
-    heroOverlay: {
-      position: 'absolute',
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     xpLabelRow: {
       flexDirection: 'row',

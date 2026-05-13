@@ -465,6 +465,7 @@ export interface WebHealthLog {
   id: string;
   date: string;
   weight?: number | null;
+  heightCm?: number | null;
   sleepHours?: number | null;
   steps?: number | null;
   energyLevel?: number | null;

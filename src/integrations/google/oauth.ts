@@ -9,6 +9,7 @@
  */
 
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
+import { stashOAuthReturnPath } from '@/integrations/google/oauthReturnPath';
 
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
 
@@ -25,7 +26,11 @@ async function workerTokenExchange(body: Record<string, string>): Promise<{
   error?: string;
 }> {
   const bearer = await getSupabaseAccessToken();
-  if (!bearer) throw new Error('Sign in required to connect Google.');
+  if (!bearer) {
+    throw new Error(
+      'Sign in required to connect Google. Make sure you are logged in, then try again.',
+    );
+  }
   const res = await fetch(`${PROXY_URL}/v1/google/token`, {
     method: 'POST',
     headers: {
@@ -80,6 +85,7 @@ function getRedirectUri(path: string): string {
 
 export async function startOAuth(clientId: string, cfg: OAuthConfig): Promise<void> {
   if (typeof window === 'undefined') throw new Error('Google OAuth is web-only');
+  stashOAuthReturnPath();
   const verifier = generateVerifier();
   const challenge = await challengeFor(verifier);
   sessionStorage.setItem(cfg.verifierKey, verifier);

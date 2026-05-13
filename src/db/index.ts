@@ -126,6 +126,7 @@ export async function initDatabase() {
       id TEXT PRIMARY KEY,
       date TEXT NOT NULL,
       weight REAL,
+      height_cm REAL,
       sleep_hours REAL,
       steps INTEGER,
       energy_level INTEGER,
@@ -358,4 +359,5 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE interests ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`);
   await safeAlter(`ALTER TABLE users ADD COLUMN height_cm REAL`);
   await safeAlter(`ALTER TABLE goals ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`);
+  await safeAlter(`ALTER TABLE health_logs ADD COLUMN height_cm REAL`);
 }

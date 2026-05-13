@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { OAuthCallbackView } from '@/components/shared/OAuthCallbackView';
 import { handleCalendarCallback } from '@/integrations/googleCalendar/oauth';
+import { takeOAuthReturnPath } from '@/integrations/google/oauthReturnPath';
 
 export default function CalendarCallbackScreen() {
   const router = useRouter();
@@ -8,7 +9,7 @@ export default function CalendarCallbackScreen() {
     <OAuthCallbackView
       router={router}
       exchange={handleCalendarCallback}
-      redirectTo={() => '/(tabs)'}
+      redirectTo={() => takeOAuthReturnPath('/(tabs)')}
       workingTitle="Connecting Google Calendar..."
       okTitle="Connected"
       okSubtitle="Redirecting to Today..."

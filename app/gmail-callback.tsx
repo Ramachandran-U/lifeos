@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { OAuthCallbackView } from '@/components/shared/OAuthCallbackView';
 import { handleOAuthCallback } from '@/finance/gmail/oauth';
+import { takeOAuthReturnPath } from '@/integrations/google/oauthReturnPath';
 
 export default function GmailCallbackScreen() {
   const router = useRouter();
@@ -9,11 +10,11 @@ export default function GmailCallbackScreen() {
       router={router}
       workingTitle="Connecting Gmail..."
       okTitle="Connected"
-      okSubtitle="Redirecting to Finance..."
+      okSubtitle="Taking you back…"
       errorTitle="Connection failed"
       nativeUnsupportedMsg="Gmail sign-in is only supported on web right now."
       exchange={handleOAuthCallback}
-      redirectTo={() => '/(tabs)/finance'}
+      redirectTo={() => takeOAuthReturnPath('/(tabs)/finance')}
     />
   );
 }

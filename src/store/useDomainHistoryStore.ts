@@ -8,8 +8,8 @@
  *
  * This store is the small pragmatic version: a 7-entry rolling window per
  * domain, persisted via zustand-persist. `record(scores)` is idempotent
- * within a day (only the first call per UTC day pushes a new entry), so
- * it's safe to call on every app-focus event.
+ * within a calendar day (device local), so
+ * it's safe to call from every app-focus effect.
  */
 
 import { create } from 'zustand';
@@ -21,7 +21,7 @@ import type { DomainScores } from '@/utils/gamification';
 const WINDOW_SIZE = 7;
 
 export interface ScorePoint {
-  /** YYYY-MM-DD (UTC) — the day this snapshot was taken. */
+  /** YYYY-MM-DD (device local calendar) — the day this snapshot was taken. */
   date: string;
   score: number;
 }
@@ -37,15 +37,24 @@ interface DomainHistoryState {
   historyFor: (domain: keyof DomainScores) => number[];
   /** Convenience: difference between latest and oldest in the window. */
   deltaFor: (domain: keyof DomainScores) => number;
+  /**
+   * Best-effort scores from the most recent snapshot strictly before `todayLocal`
+   * (YYYY-MM-DD device calendar). Missing domains copy `fallback` so the radar
+   * stays a closed hex; returns null if there is no prior history at all.
+   */
+  getPriorDayScores: (todayLocal: string, fallback: DomainScores) => DomainScores | null;
 }
 
 const storage = createJSONStorage(() =>
   Platform.OS === 'web' ? window.localStorage : AsyncStorage,
 );
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayLocalISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+const DOMAIN_KEYS: (keyof DomainScores)[] = ['goals', 'health', 'finance', 'career', 'social', 'mind'];
 
 export const useDomainHistoryStore = create<DomainHistoryState>()(
   persist(
@@ -53,7 +62,7 @@ export const useDomainHistoryStore = create<DomainHistoryState>()(
       entries: {},
 
       record: (scores) => {
-        const today = todayUtc();
+        const today = todayLocalISO();
         const current = get().entries;
         const nextEntries: typeof current = { ...current };
         let changed = false;
@@ -84,6 +93,24 @@ export const useDomainHistoryStore = create<DomainHistoryState>()(
         const arr = get().entries[domain] ?? [];
         if (arr.length < 2) return 0;
         return arr[arr.length - 1]!.score - arr[0]!.score;
+      },
+
+      getPriorDayScores: (todayLocal, fallback) => {
+        const entries = get().entries;
+        let anyPrior = false;
+        const out: DomainScores = { ...fallback };
+        for (const k of DOMAIN_KEYS) {
+          const arr = entries[k] ?? [];
+          const prior = [...arr]
+            .filter((p) => p.date < todayLocal)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .pop();
+          if (prior) {
+            out[k] = prior.score;
+            anyPrior = true;
+          }
+        }
+        return anyPrior ? out : null;
       },
     }),
     {

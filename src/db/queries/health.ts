@@ -25,6 +25,7 @@ const isWeb = Platform.OS === 'web';
 export function createHealthLog(data: {
   date: string;
   weight?: number;
+  heightCm?: number;
   sleepHours?: number;
   steps?: number;
   energyLevel?: number;
@@ -32,23 +33,90 @@ export function createHealthLog(data: {
   source?: string;
 }) {
   const id = nanoid();
+  const source = data.source ?? 'manual';
   if (isWeb) {
     const record: WebHealthLog = {
       id,
       date: data.date,
       weight: data.weight ?? null,
+      heightCm: data.heightCm ?? null,
       sleepHours: data.sleepHours ?? null,
       steps: data.steps ?? null,
       energyLevel: data.energyLevel ?? null,
       notes: data.notes ?? null,
-      source: data.source ?? 'manual',
+      source,
       createdAt: new Date().toISOString(),
     };
     webInsertHealthLog(record);
     return id;
   }
-  db.insert(healthLogs).values({ id, ...data }).run();
+  db.insert(healthLogs).values({
+    id,
+    date: data.date,
+    weight: data.weight ?? null,
+    heightCm: data.heightCm ?? null,
+    sleepHours: data.sleepHours ?? null,
+    steps: data.steps ?? null,
+    energyLevel: data.energyLevel ?? null,
+    notes: data.notes ?? null,
+    source,
+  }).run();
   return id;
+}
+
+export interface BodyMeasurementRow {
+  id: string;
+  date: string;
+  weight: number | null;
+  heightCm: number | null;
+  createdAt: string;
+}
+
+/** Weight and/or height entries, newest first (by `createdAt`). */
+export function getRecentBodyMeasurements(limit = 40): BodyMeasurementRow[] {
+  if (isWeb) {
+    return webGetAllHealthLogs()
+      .filter(
+        (l) =>
+          (l.weight != null && l.weight > 0) ||
+          (l.heightCm != null && l.heightCm > 0),
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit)
+      .map((l) => ({
+        id: l.id,
+        date: l.date,
+        weight: l.weight ?? null,
+        heightCm: l.heightCm ?? null,
+        createdAt: l.createdAt,
+      }));
+  }
+  const rows = db
+    .select()
+    .from(healthLogs)
+    .orderBy(desc(healthLogs.createdAt))
+    .limit(Math.max(limit * 4, 40))
+    .all() as Array<{
+      id: string;
+      date: string;
+      weight: number | null;
+      heightCm: number | null;
+      createdAt: string;
+    }>;
+  return rows
+    .filter(
+      (l) =>
+        (l.weight != null && l.weight > 0) ||
+        (l.heightCm != null && l.heightCm > 0),
+    )
+    .slice(0, limit)
+    .map((l) => ({
+      id: l.id,
+      date: l.date,
+      weight: l.weight ?? null,
+      heightCm: l.heightCm ?? null,
+      createdAt: l.createdAt,
+    }));
 }
 
 export function getHealthLogsByDate(date: string) {

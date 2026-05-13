@@ -102,15 +102,24 @@ export default function RootLayout() {
     const inWhatLifeosKnows = segments[0] === 'what-lifeos-knows';
     const inSettings = segments[0] === 'settings';
     const inTermsPrivacy = segments[0] === 'terms-privacy';
+    const seg0 = segments[0] as string;
+    const inGoogleIntegrationCallback =
+      seg0 === 'gmail-callback' || seg0 === 'calendar-callback' || seg0 === 'fit-callback';
 
     if (!userId) {
-      if (!inAuth && !inGoogleCallback) router.replace('/(auth)/sign-in');
+      if (!inAuth && !inGoogleCallback && !inGoogleIntegrationCallback) {
+        router.replace('/(auth)/sign-in');
+      }
     } else if (onboardingStage === 0) {
       // New flow: stage 0 = no intent captured → short welcome screen
-      if (!inWelcomeIntent && !inOnboarding) router.replace('/welcome-intent');
+      if (!inWelcomeIntent && !inOnboarding && !inGoogleIntegrationCallback) {
+        router.replace('/welcome-intent');
+      }
     } else if (onboardingStage < ONBOARDING_COMPLETE) {
       // Legacy flow: existing users mid-onboarding keep the old screens
-      if (!inOnboarding) router.replace('/(onboarding)/day1-vision');
+      if (!inOnboarding && !inGoogleIntegrationCallback) {
+        router.replace('/(onboarding)/day1-vision');
+      }
     } else {
       const allowed =
         inTabs ||
@@ -120,7 +129,8 @@ export default function RootLayout() {
         inWhatLifeosKnows ||
         inSettings ||
         inTermsPrivacy ||
-        inGoogleCallback;
+        inGoogleCallback ||
+        inGoogleIntegrationCallback;
       if (!allowed) router.replace('/(tabs)');
     }
   }, [fontsLoaded, dbReady, userId, onboardingStage, segments, router]);

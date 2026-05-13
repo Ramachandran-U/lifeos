@@ -1,41 +1,75 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
+import { format, parseISO } from 'date-fns';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Body, Heading } from '@/components/ui/Typography';
+import { Body, Heading, Caption } from '@/components/ui/Typography';
+import { calculateBMI } from '@/utils/health';
 
 interface Props {
   visible: boolean;
   initialWeightKg: number | null;
   initialHeightCm: number | null;
+  /** ISO timestamp of the latest body log (for reassurance). */
+  lastLoggedAt?: string | null;
+  /** BMI from the most recent log that had both weight and height. */
+  referenceBmi?: number | null;
   onClose: () => void;
   onSave: (data: { weightKg?: number; heightCm?: number }) => void;
 }
 
-export function EditVitalsSheet({ visible, initialWeightKg, initialHeightCm, onClose, onSave }: Props) {
+export function EditVitalsSheet({
+  visible,
+  initialWeightKg,
+  initialHeightCm,
+  lastLoggedAt,
+  referenceBmi,
+  onClose,
+  onSave,
+}: Props) {
   const c = useColors();
   const styles = makeStyles(c);
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
+  const [showBmiCompare, setShowBmiCompare] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setWeight(initialWeightKg != null ? String(initialWeightKg) : '');
       setHeight(initialHeightCm != null ? String(initialHeightCm) : '');
+      setShowBmiCompare(false);
     }
   }, [visible, initialWeightKg, initialHeightCm]);
 
+  const wNum = parseFloat(weight);
+  const hNum = parseFloat(height);
+  const formBmi =
+    Number.isFinite(wNum) && Number.isFinite(hNum) && wNum > 0 && hNum > 0
+      ? calculateBMI(wNum, hNum)
+      : null;
+
   const handleSave = () => {
-    const w = parseFloat(weight);
-    const h = parseFloat(height);
     const payload: { weightKg?: number; heightCm?: number } = {};
-    if (Number.isFinite(w) && w > 0 && w !== initialWeightKg) payload.weightKg = w;
-    if (Number.isFinite(h) && h > 0 && h !== initialHeightCm) payload.heightCm = h;
+    if (Number.isFinite(wNum) && wNum > 0) payload.weightKg = wNum;
+    if (Number.isFinite(hNum) && hNum > 0) payload.heightCm = hNum;
+    if (Object.keys(payload).length === 0) return;
     onSave(payload);
     onClose();
   };
+
+  const canCompare = referenceBmi != null && formBmi != null;
+  const bmiDelta = canCompare ? Number((formBmi - referenceBmi).toFixed(1)) : null;
+
+  let lastLoggedLabel: string | null = null;
+  if (lastLoggedAt) {
+    try {
+      lastLoggedLabel = format(parseISO(lastLoggedAt), "MMM d, yyyy '·' h:mm a");
+    } catch {
+      lastLoggedLabel = null;
+    }
+  }
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -44,8 +78,11 @@ export function EditVitalsSheet({ visible, initialWeightKg, initialHeightCm, onC
           <View style={styles.handle} />
           <Heading style={styles.title}>Update vitals</Heading>
           <Body style={styles.subtitle}>
-            Weight is logged daily. Height updates your profile.
+            Saves a timestamped entry to your health log and updates your profile height.
           </Body>
+          {lastLoggedLabel ? (
+            <Caption style={{ color: c.textMuted }}>Last logged: {lastLoggedLabel}</Caption>
+          ) : null}
 
           <Input
             label="Weight (kg)"
@@ -62,6 +99,27 @@ export function EditVitalsSheet({ visible, initialWeightKg, initialHeightCm, onC
             keyboardType="decimal-pad"
           />
 
+          {canCompare ? (
+            <View style={{ gap: spacing.sm }}>
+              <Button
+                title={showBmiCompare ? 'Hide BMI comparison' : 'Show BMI change vs last log'}
+                variant="secondary"
+                onPress={() => setShowBmiCompare((v) => !v)}
+              />
+              {showBmiCompare && bmiDelta != null ? (
+                <View style={[styles.compareBox, { borderColor: c.border, backgroundColor: c.surface }]}>
+                  <Caption style={{ color: c.textMuted }}>BMI journey (preview)</Caption>
+                  <Body style={{ color: c.textPrimary }}>
+                    {`Last recorded BMI ${referenceBmi} → with these values ${formBmi}`}
+                  </Body>
+                  <Body style={{ color: bmiDelta <= 0 ? c.success : c.warning }}>
+                    {`Change: ${bmiDelta > 0 ? '+' : ''}${bmiDelta} vs last full log`}
+                  </Body>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
           <Button title="Save" onPress={handleSave} />
         </Pressable>
       </Pressable>
@@ -69,16 +127,23 @@ export function EditVitalsSheet({ visible, initialWeightKg, initialHeightCm, onC
   );
 }
 
-const makeStyles = (colors: AppColors) => StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
-  title: { textAlign: 'left' },
-  subtitle: { color: colors.textSecondary },
-});
+const makeStyles = (colors: AppColors) =>
+  StyleSheet.create({
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    sheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: spacing.xl,
+      gap: spacing.md,
+    },
+    handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center' },
+    title: { textAlign: 'left' },
+    subtitle: { color: colors.textSecondary },
+    compareBox: {
+      borderWidth: 1,
+      borderRadius: 16,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+  });
