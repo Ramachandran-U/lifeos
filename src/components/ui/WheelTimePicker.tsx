@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Pressable,
   Platform,
   NativeSyntheticEvent,
   NativeScrollEvent,
@@ -106,6 +107,10 @@ export function WheelTimePicker({ label, options, selected, onSelect, formatValu
           decelerationRate="fast"
           onScroll={handleScroll}
           onMomentumScrollEnd={handleMomentumEnd}
+          // onScrollEndDrag covers the web case: mouse-wheel / trackpad
+          // drag often ends without firing onMomentumScrollEnd, leaving the
+          // parent state stale even though the UI shows a new selection.
+          onScrollEndDrag={handleMomentumEnd}
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingVertical: contentPad }}
         >
@@ -113,7 +118,14 @@ export function WheelTimePicker({ label, options, selected, onSelect, formatValu
             const distance = Math.abs(i - activeIdx);
             const isActive = distance === 0;
             return (
-              <View key={opt} style={styles.row}>
+              <Pressable
+                key={opt}
+                style={styles.row}
+                onPress={() => {
+                  scrollRef.current?.scrollTo({ y: i * ITEM_HEIGHT, animated: true });
+                  handleSnap(i);
+                }}
+              >
                 <Text
                   style={{
                     fontFamily: isActive ? fonts.display : fonts.heading,
@@ -129,7 +141,7 @@ export function WheelTimePicker({ label, options, selected, onSelect, formatValu
                 >
                   {formatValue ? formatValue(opt) : opt}
                 </Text>
-              </View>
+              </Pressable>
             );
           })}
         </ScrollView>
