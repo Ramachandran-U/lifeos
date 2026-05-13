@@ -3,6 +3,7 @@ import { addDays, setHours, setMinutes, parseISO } from 'date-fns';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Platform } from 'react-native';
+import { registerPushToken } from '@/utils/pushRegister';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -19,13 +20,13 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   if (existing === 'granted') {
     // Re-register opportunistically so admin broadcasts can reach this device.
     // No-op on web. Failures are non-fatal.
-    void (await import('@/utils/pushRegister')).registerPushToken().catch(() => {});
+    void registerPushToken().catch(() => {});
     return true;
   }
 
   const { status } = await Notifications.requestPermissionsAsync();
   if (status === 'granted') {
-    void (await import('@/utils/pushRegister')).registerPushToken().catch(() => {});
+    void registerPushToken().catch(() => {});
     return true;
   }
   return false;
