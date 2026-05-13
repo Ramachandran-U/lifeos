@@ -102,6 +102,7 @@ export default function RootLayout() {
     const inWhatLifeosKnows = segments[0] === 'what-lifeos-knows';
     const inSettings = segments[0] === 'settings';
     const inTermsPrivacy = segments[0] === 'terms-privacy';
+    const inEditPriorities = segments[0] === 'edit-priorities';
 
     if (!userId) {
       if (!inAuth && !inGoogleCallback) router.replace('/(auth)/sign-in');
@@ -120,6 +121,7 @@ export default function RootLayout() {
         inWhatLifeosKnows ||
         inSettings ||
         inTermsPrivacy ||
+        inEditPriorities ||
         inGoogleCallback;
       if (!allowed) router.replace('/(tabs)');
     }
