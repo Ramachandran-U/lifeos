@@ -1,16 +1,26 @@
 import type { FoodItem } from './types';
 import seed from './seed';
 import ifct from './ifct.json';
+import indb from './indb.json';
 
 export type { FoodItem, FoodMacros, FoodServing, FoodSource } from './types';
 
 /**
- * Merged food database — seed entries first (curated recipes like biryani,
- * paratha that the IFCT raw-foods data doesn't cover), then 528 IFCT 2017
- * whole-food entries (almonds, fruits, fish, eggs, etc.). When a query
- * matches in both, the seed entry wins because the search ranking sorts
- * by score (and earlier insertion order ties).
+ * Merged food database — three sources, in priority order:
+ *   1. seed.ts (~60) — hand-curated recipes for the common-case quick search
+ *      ("Vegetable biryani", "Roti", "Dal tadka"). These win on tie because
+ *      they sort first and our search ranking is stable.
+ *   2. INDB 2024 (~1,000) — the big recipe layer (paneer butter masala,
+ *      every parantha variant, regional dishes, kebabs, etc.). Per-100g
+ *      values scaled to a heuristic serving size by unit keyword.
+ *   3. IFCT 2017 (~530) — whole-foods composition tables from NIN: nuts,
+ *      fruits, fish, eggs, leafy greens, oils, spices. Multilingual aliases
+ *      cover Hindi/Tamil/Telugu/Marathi/Kannada/Malayalam names.
  *
- * Total: ~590 items, ~180 KB raw JSON, ~50 KB gzipped on the wire.
+ * Total: ~1,600 items, ~370 KB raw JSON, ~90 KB gzipped on the wire.
  */
-export const FOODS: FoodItem[] = [...seed, ...(ifct as FoodItem[])];
+export const FOODS: FoodItem[] = [
+  ...seed,
+  ...(indb as FoodItem[]),
+  ...(ifct as FoodItem[]),
+];
