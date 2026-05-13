@@ -6,6 +6,7 @@
 import {
   startOAuth,
   completeOAuth,
+  consumeReturnPath,
   getAccessToken as getToken,
   isConnected,
   clearTokens,
@@ -45,4 +46,8 @@ export function isGmailConnected(): boolean {
 
 export function getAccessToken(clientId: string): Promise<string | null> {
   return getToken(clientId, GMAIL_CONFIG);
+}
+
+export function consumeGmailReturnPath(): string | null {
+  return consumeReturnPath(GMAIL_CONFIG);
 }

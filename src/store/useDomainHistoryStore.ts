@@ -37,6 +37,8 @@ interface DomainHistoryState {
   historyFor: (domain: keyof DomainScores) => number[];
   /** Convenience: difference between latest and oldest in the window. */
   deltaFor: (domain: keyof DomainScores) => number;
+  /** Convenience: snapshot from the previous recorded day, or null if none. */
+  yesterdaySnapshot: () => Partial<DomainScores> | null;
 }
 
 const storage = createJSONStorage(() =>
@@ -84,6 +86,18 @@ export const useDomainHistoryStore = create<DomainHistoryState>()(
         const arr = get().entries[domain] ?? [];
         if (arr.length < 2) return 0;
         return arr[arr.length - 1]!.score - arr[0]!.score;
+      },
+
+      yesterdaySnapshot: () => {
+        const entries = get().entries;
+        const out: Partial<DomainScores> = {};
+        let any = false;
+        for (const [key, arr] of Object.entries(entries) as Array<[keyof DomainScores, ScorePoint[]]>) {
+          if (!arr || arr.length < 2) continue;
+          out[key] = arr[arr.length - 2]!.score;
+          any = true;
+        }
+        return any ? out : null;
       },
     }),
     {

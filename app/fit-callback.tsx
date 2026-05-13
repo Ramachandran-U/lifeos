@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { OAuthCallbackView } from '@/components/shared/OAuthCallbackView';
-import { handleFitCallback } from '@/integrations/googleFit/oauth';
+import { handleFitCallback, consumeFitReturnPath } from '@/integrations/googleFit/oauth';
 
 export default function FitCallbackScreen() {
   const router = useRouter();
@@ -8,7 +8,7 @@ export default function FitCallbackScreen() {
     <OAuthCallbackView
       router={router}
       exchange={handleFitCallback}
-      redirectTo={() => '/(tabs)/health'}
+      redirectTo={() => consumeFitReturnPath() ?? '/(tabs)/health'}
       workingTitle="Connecting Google Fit..."
       okTitle="Connected"
       okSubtitle="Redirecting to Health..."

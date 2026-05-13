@@ -54,6 +54,7 @@ import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { enqueueXPReward } from '@/store/useRewardQueueStore';
+import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
 import type { DomainKey } from '@/components/ui/DomainGlyph';
 
 export default function TodayScreen() {
@@ -292,10 +293,7 @@ export default function TodayScreen() {
     transform: [{ translateY: interpolate(scrollY.value, [120, 200], [-16, 0], Extrapolation.CLAMP) }],
   }));
   const radarScores = gameDomainScores.goals !== undefined ? gameDomainScores : domainScores;
-  const avgScore = Math.round(
-    (radarScores.goals + radarScores.health + radarScores.finance +
-      radarScores.career + radarScores.social + radarScores.mind) / 6,
-  );
+  const yesterdayScores = useDomainHistoryStore((s) => s.yesterdaySnapshot());
 
   return (
     <View style={styles.root}>
@@ -308,13 +306,9 @@ export default function TodayScreen() {
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
-          {/* Hex radar hero — Aurora center stack overlays the radar */}
+          {/* Hex radar hero — solid line is today, dashed faint line is yesterday. */}
           <Animated.View style={[styles.heroWrap, heroStyle]}>
-            <HexRadar scores={radarScores} size={340} />
-            <View pointerEvents="none" style={styles.heroOverlay}>
-              <AuroraText variant="micro" muted>LIFE BALANCE</AuroraText>
-              <AuroraText variant="display" numeric style={{ marginTop: 2 }}>{avgScore}</AuroraText>
-            </View>
+            <HexRadar scores={radarScores} yesterdayScores={yesterdayScores as React.ComponentProps<typeof HexRadar>['yesterdayScores']} size={340} />
           </Animated.View>
 
           {/* Header */}

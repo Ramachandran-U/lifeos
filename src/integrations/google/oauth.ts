@@ -78,11 +78,30 @@ function getRedirectUri(path: string): string {
   return `${window.location.origin}${path}`;
 }
 
+function returnPathKey(cfg: OAuthConfig): string {
+  return `${cfg.verifierKey}_return`;
+}
+
+/** Reads + clears the stored return path from sessionStorage. */
+export function consumeReturnPath(cfg: OAuthConfig): string | null {
+  if (typeof window === 'undefined') return null;
+  const key = returnPathKey(cfg);
+  const value = sessionStorage.getItem(key);
+  if (value) sessionStorage.removeItem(key);
+  return value;
+}
+
 export async function startOAuth(clientId: string, cfg: OAuthConfig): Promise<void> {
   if (typeof window === 'undefined') throw new Error('Google OAuth is web-only');
   const verifier = generateVerifier();
   const challenge = await challengeFor(verifier);
   sessionStorage.setItem(cfg.verifierKey, verifier);
+  // Stash the page we're leaving so the callback can send the user back.
+  // Skip if we somehow start from a callback route to avoid loops.
+  const here = `${window.location.pathname}${window.location.search}`;
+  if (!here.includes('-callback')) {
+    sessionStorage.setItem(returnPathKey(cfg), here);
+  }
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -185,6 +204,8 @@ export interface GoogleOAuthClient {
   clear(): void;
   isConnected(): boolean;
   getAccessToken(clientId: string): Promise<string | null>;
+  /** Returns the path the user was on when `start` was called, then clears it. */
+  consumeReturnPath(): string | null;
 }
 
 export function createGoogleOAuthClient(cfg: OAuthConfig): GoogleOAuthClient {
@@ -194,5 +215,6 @@ export function createGoogleOAuthClient(cfg: OAuthConfig): GoogleOAuthClient {
     clear: () => clearTokens(cfg),
     isConnected: () => isConnected(cfg),
     getAccessToken: (clientId) => getAccessToken(clientId, cfg),
+    consumeReturnPath: () => consumeReturnPath(cfg),
   };
 }

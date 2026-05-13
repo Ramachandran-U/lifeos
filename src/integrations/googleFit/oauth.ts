@@ -22,3 +22,4 @@ export const handleFitCallback = client.complete;
 export const clearFitTokens = client.clear;
 export const isFitConnected = client.isConnected;
 export const getFitAccessToken = client.getAccessToken;
+export const consumeFitReturnPath = client.consumeReturnPath;

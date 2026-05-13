@@ -154,10 +154,13 @@ export interface LevelProgress {
 
 export function xpProgressInLevel(xp: number): LevelProgress {
   const level = levelFromXP(xp);
-  const start = xpForLevel(level);
-  const end = xpForLevel(level + 1);
+  // levelFromXP returns 1 even when xp < xpForLevel(2). Anchor the "start of
+  // current level" at xpForLevel(level-1) — or 0 for level 1 — so users with
+  // little XP see 0/N progress instead of a negative current.
+  const start = level <= 1 ? 0 : xpForLevel(level);
+  const end = level <= 1 ? xpForLevel(2) : xpForLevel(level + 1);
   const needed = end - start;
-  const current = xp - start;
+  const current = Math.max(0, xp - start);
   const pct = Math.min(1, Math.max(0, current / needed));
   return { level, current, needed, pct };
 }

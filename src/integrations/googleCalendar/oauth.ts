@@ -14,3 +14,4 @@ export const handleCalendarCallback = client.complete;
 export const clearCalendarTokens = client.clear;
 export const isCalendarConnected = client.isConnected;
 export const getCalendarAccessToken = client.getAccessToken;
+export const consumeCalendarReturnPath = client.consumeReturnPath;
