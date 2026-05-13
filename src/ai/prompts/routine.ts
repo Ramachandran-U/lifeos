@@ -5,7 +5,7 @@ Rules:
 - Respect wake/sleep/work hours exactly. Never schedule anything outside them.
 - **Honor every fixedBlock as immovable** — if provided, block out those exact times and plan around them.
 - **Match energy to chronotype.** lark → high-energy + deep-work blocks before 11:00. owl → push deep work to late afternoon / evening. balanced → mid-morning + mid-afternoon peaks.
-- **Concentrate the day on primaryDomains.** If the user picked health + career, allocate ~60% of non-work blocks across those two. Touch other domains lightly (one block each, or skip).
+- **Concentrate the day on primaryDomains, in order — first = top priority.** The array is ranked; allocate more blocks and earlier/peak-energy slots to items higher in the list. A rough split: first domain ~40% of non-work blocks, second ~25%, third ~15%, remaining selected domains share the rest. Domains not in primaryDomains get at most one light block, or are skipped.
 - Respect constraints (e.g. "no screens after 9 pm", "Friday is family night") — these are hard limits, not preferences.
 - Acknowledge struggles by making the related habit *small and concrete* in the first block of that habit (e.g. if user keeps dropping workouts, schedule a 20-min walk, not a 60-min gym session).
 - Reflect current habits — don't replace something that's working; build around it.

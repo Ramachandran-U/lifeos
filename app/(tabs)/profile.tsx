@@ -428,6 +428,12 @@ export default function ProfileScreen() {
 
         <Card style={styles.card}>
           <SectionLabel>SETTINGS</SectionLabel>
+          <Row
+            icon="options-outline"
+            label="Priorities & focus"
+            c={c}
+            onPress={() => router.push('/edit-priorities')}
+          />
           <Row icon="notifications-outline" label="Notifications" c={c} onPress={() => {}} />
           <Row
             icon="lock-closed-outline"
