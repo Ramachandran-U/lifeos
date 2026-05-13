@@ -1,17 +1,46 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import { getOrCreateGamification, updateGamification } from '@/db/queries/gamification';
+import { getUser } from '@/db/queries/users';
+import { ONBOARDING_COMPLETE } from './useUserStore';
 import {
   DomainScores,
   Streaks,
   BadgeId,
-  Quest,
-  DEFAULT_QUESTS,
   updateStreak,
   calculateDomainScore,
   checkBadges,
-  levelFromXP,
   XP_VALUES,
+  levelFromXP,
 } from '@/utils/gamification';
+import { DEFAULT_QUESTS, type Quest } from '@/constants/gamification';
+
+// Quest progress is held in zustand memory + persisted to localStorage on web.
+// (Native does not need persistence here because the store rehydrates from
+// SQLite via loadFromDB; this storage handles the web reload path.)
+const QUEST_STORAGE_KEY = 'lifeos_quests_v1';
+interface PersistedQuests {
+  quests: Quest[];
+  questDailyResetDate: string;
+}
+function loadPersistedQuests(): PersistedQuests | null {
+  if (Platform.OS !== 'web') return null;
+  try {
+    const raw = localStorage.getItem(QUEST_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedQuests;
+  } catch {
+    return null;
+  }
+}
+function persistQuests(state: PersistedQuests) {
+  if (Platform.OS !== 'web') return;
+  try {
+    localStorage.setItem(QUEST_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+}
 
 interface GameState {
   domainScores: DomainScores;
@@ -20,8 +49,10 @@ interface GameState {
   totalXP: number;
   weeklyXP: number;
   pendingBadges: BadgeId[];
-  pendingLevelUps: number[];
   quests: Quest[];
+  questDailyResetDate: string; // YYYY-MM-DD; resets q_food, q_routine on rollover
+  pendingLevelUp: number | null;
+  lastKnownLevel: number;
 
   loadFromDB: (userId: string) => void;
   completeBlock: (userId: string, module: string, completedCount: number, totalCount: number) => void;
@@ -29,8 +60,14 @@ interface GameState {
   triggerStreak: (userId: string, streakType: keyof Streaks) => void;
   awardBadge: (userId: string, badgeId: BadgeId) => void;
   popBadge: () => BadgeId | undefined;
-  popLevelUp: () => number | undefined;
-  updateQuestProgress: (id: string, progress: number) => void;
+  advanceQuest: (id: string, delta?: number) => void;
+  resetDailyQuestsIfNeeded: () => void;
+  dismissLevelUp: () => void;
+}
+
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 const DEFAULT_STREAKS: Streaks = {
@@ -42,7 +79,7 @@ const DEFAULT_STREAKS: Streaks = {
 };
 
 const DEFAULT_SCORES: DomainScores = {
-  goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0,
+  goals: 15, health: 15, finance: 15, career: 15, social: 15, mind: 15,
 };
 
 const MODULE_TO_DOMAIN: Record<string, keyof DomainScores> = {
@@ -54,6 +91,8 @@ const MODULE_TO_DOMAIN: Record<string, keyof DomainScores> = {
   polymath: 'mind',
 };
 
+const persistedQuests = loadPersistedQuests();
+
 export const useGameStore = create<GameState>((set, get) => ({
   domainScores: { ...DEFAULT_SCORES },
   streaks: { ...DEFAULT_STREAKS },
@@ -61,17 +100,47 @@ export const useGameStore = create<GameState>((set, get) => ({
   totalXP: 0,
   weeklyXP: 0,
   pendingBadges: [],
-  pendingLevelUps: [],
-  quests: DEFAULT_QUESTS.map((q) => ({ ...q })),
+  quests: persistedQuests?.quests ?? DEFAULT_QUESTS.map((q) => ({ ...q })),
+  questDailyResetDate: persistedQuests?.questDailyResetDate ?? todayISO(),
+  pendingLevelUp: null,
+  lastKnownLevel: 1,
 
   loadFromDB: (userId) => {
     const game = getOrCreateGamification(userId);
     let scores = DEFAULT_SCORES;
     let streaks = DEFAULT_STREAKS;
     let badges: BadgeId[] = [];
-    try { scores = JSON.parse(game.domainScores); } catch { /* keep default */ }
+    try {
+      const parsed = JSON.parse(game.domainScores) as DomainScores;
+      scores = {
+        goals: Math.max(15, parsed.goals ?? 0),
+        health: Math.max(15, parsed.health ?? 0),
+        finance: Math.max(15, parsed.finance ?? 0),
+        career: Math.max(15, parsed.career ?? 0),
+        social: Math.max(15, parsed.social ?? 0),
+        mind: Math.max(15, parsed.mind ?? 0),
+      };
+    } catch { /* keep default */ }
     try { streaks = JSON.parse(game.streaks); } catch { /* keep default */ }
     try { badges = JSON.parse(game.badges); } catch { /* keep default */ }
+
+    // Retroactive first_blueprint award. The badge used to only be granted
+    // from day1-routine.tsx; users who finished via welcome-intent or
+    // discovery-confirm completed onboarding but never received it. This
+    // makes good on the debt on next app open.
+    if (!badges.includes('first_blueprint')) {
+      try {
+        const user = getUser();
+        if (user && user.onboardingStage >= ONBOARDING_COMPLETE) {
+          badges = [...badges, 'first_blueprint'];
+          updateGamification(userId, { badges: JSON.stringify(badges) });
+        }
+      } catch {
+        // getUser is sync over SQLite; on web it could throw if not signed in.
+        // Skip the retroactive claim silently — they'll get it via the
+        // onboarding-completion paths instead.
+      }
+    }
 
     set({
       domainScores: scores,
@@ -79,11 +148,24 @@ export const useGameStore = create<GameState>((set, get) => ({
       badges,
       totalXP: game.totalXP,
       weeklyXP: game.weeklyXP,
+      lastKnownLevel: levelFromXP(game.totalXP),
     });
+
+    // Daily quest rollover — runs on every focus / mount.
+    get().resetDailyQuestsIfNeeded();
+
+    // Snapshot today's scores into the rolling 7-day history so the
+    // Rewards screen's sparkline + delta can render real data. Idempotent
+    // within a UTC day. Dynamic import to avoid a circular dep at module
+    // load (useDomainHistoryStore doesn't depend on useGameStore, but
+    // keeping it lazy is cheaper than reasoning about init order).
+    import('./useDomainHistoryStore').then(({ useDomainHistoryStore }) =>
+      useDomainHistoryStore.getState().record(scores),
+    ).catch(() => { /* non-fatal */ });
   },
 
   completeBlock: (userId, module, completedCount, totalCount) => {
-    const { domainScores, badges, streaks, totalXP, weeklyXP, pendingLevelUps } = get();
+    const { domainScores, badges, streaks, totalXP, weeklyXP } = get();
     const domain = MODULE_TO_DOMAIN[module];
     if (!domain) return;
 
@@ -95,12 +177,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const newBadges = checkBadges(badges, { domainScores: newScores, streaks });
     const allBadges = [...badges, ...newBadges];
-
-    // Detect level crossings from old→new total XP
-    const oldLevel = levelFromXP(totalXP);
-    const newLevel = levelFromXP(newXP);
-    const crossed: number[] = [];
-    for (let l = oldLevel + 1; l <= newLevel; l++) crossed.push(l);
 
     updateGamification(userId, {
       domainScores: JSON.stringify(newScores),
@@ -115,25 +191,23 @@ export const useGameStore = create<GameState>((set, get) => ({
       totalXP: newXP,
       weeklyXP: newWeeklyXP,
       pendingBadges: [...get().pendingBadges, ...newBadges],
-      pendingLevelUps: [...pendingLevelUps, ...crossed],
     });
+
+    // Routine quest — every completed block ticks toward "Complete morning routine".
+    get().advanceQuest('q_routine', 1);
   },
 
   addXP: (userId, amount) => {
-    const { totalXP, weeklyXP, pendingLevelUps } = get();
+    const { totalXP, weeklyXP, lastKnownLevel } = get();
     const newTotal = totalXP + amount;
     const newWeekly = weeklyXP + amount;
-
-    const oldLevel = levelFromXP(totalXP);
     const newLevel = levelFromXP(newTotal);
-    const crossed: number[] = [];
-    for (let l = oldLevel + 1; l <= newLevel; l++) crossed.push(l);
-
     updateGamification(userId, { totalXP: newTotal, weeklyXP: newWeekly });
     set({
       totalXP: newTotal,
       weeklyXP: newWeekly,
-      pendingLevelUps: [...pendingLevelUps, ...crossed],
+      lastKnownLevel: newLevel,
+      pendingLevelUp: newLevel > lastKnownLevel ? newLevel : get().pendingLevelUp,
     });
   },
 
@@ -177,19 +251,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     return first;
   },
 
-  popLevelUp: () => {
-    const { pendingLevelUps } = get();
-    if (pendingLevelUps.length === 0) return undefined;
-    const [first, ...rest] = pendingLevelUps;
-    set({ pendingLevelUps: rest });
-    return first;
+  advanceQuest: (id, delta = 1) => {
+    get().resetDailyQuestsIfNeeded();
+    const { quests, questDailyResetDate } = get();
+    const next = quests.map((q) =>
+      q.id === id ? { ...q, progress: Math.min(q.total, q.progress + delta) } : q,
+    );
+    set({ quests: next });
+    persistQuests({ quests: next, questDailyResetDate });
   },
 
-  updateQuestProgress: (id, progress) => {
-    set({
-      quests: get().quests.map((q) =>
-        q.id === id ? { ...q, progress: Math.min(progress, q.total) } : q,
-      ),
-    });
+  resetDailyQuestsIfNeeded: () => {
+    const today = todayISO();
+    const { questDailyResetDate, quests } = get();
+    if (questDailyResetDate === today) return;
+    const next = quests.map((q) => (q.type === 'daily' ? { ...q, progress: 0 } : q));
+    set({ questDailyResetDate: today, quests: next });
+    persistQuests({ quests: next, questDailyResetDate: today });
   },
+
+  dismissLevelUp: () => set({ pendingLevelUp: null }),
 }));

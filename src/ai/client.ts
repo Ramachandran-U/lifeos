@@ -1,32 +1,77 @@
 import { AIRequest } from './types';
+import { getSupabaseAccessToken } from '@/integrations/supabase/session';
+import { recordUsage, computeCost } from './costLedger';
+import { startSpan, endSpan } from './tracing';
+import { track } from '@/utils/telemetry';
 
-async function callViaAPI(request: AIRequest): Promise<string> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: request.maxTokens ?? 1500,
-      system: request.system,
-      messages: request.messages,
-    }),
-  });
+const PROXY_URL =
+  process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
 
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+async function callViaProxy(request: AIRequest): Promise<string> {
+  const span = startSpan('callAI', { task: request.task, model: request.model, cacheSystem: !!request.cacheSystem });
+
+  try {
+    const token = await getSupabaseAccessToken();
+    if (!token) {
+      throw new Error('Sign in required to use AI features.');
+    }
+
+    const response = await fetch(`${PROXY_URL}/claude`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        system: request.system,
+        messages: request.messages,
+        maxTokens: request.maxTokens,
+        model: request.model,
+        cacheSystem: request.cacheSystem,
+        task: request.task,
+      }),
+    });
+
+    if (response.status === 429) {
+      throw new Error("You've hit today's AI limit. Try again tomorrow.");
+    }
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`AI proxy ${response.status}: ${body.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+
+    const model = data.model ?? request.model ?? 'unknown';
+    if (data.usage) {
+      recordUsage({ model, task: request.task ?? 'unknown', usage: data.usage });
+      track('ai_call', {
+        task: request.task ?? 'unknown',
+        model,
+        input_tokens: data.usage.input_tokens,
+        output_tokens: data.usage.output_tokens,
+        cache_read_tokens: data.usage.cache_read_input_tokens,
+      });
+      endSpan(span, {
+        model,
+        inputTokens: data.usage.input_tokens,
+        outputTokens: data.usage.output_tokens,
+        cacheReadTokens: data.usage.cache_read_input_tokens,
+        cacheCreationTokens: data.usage.cache_creation_input_tokens,
+        costUsd: computeCost(model, data.usage),
+      });
+    } else {
+      endSpan(span, { model });
+    }
+
+    return data.text;
+  } catch (err) {
+    endSpan(span, { status: 'error', error: err instanceof Error ? err.message : String(err) });
+    throw err;
   }
-
-  const data = await response.json();
-  return data.content[0].text;
 }
 
 export async function callAI(request: AIRequest): Promise<string> {
-  if (process.env.ANTHROPIC_API_KEY) {
-    return callViaAPI(request);
-  }
-  throw new Error('No AI backend available. Set ANTHROPIC_API_KEY or enable USE_AI_MOCK.');
+  return callViaProxy(request);
 }

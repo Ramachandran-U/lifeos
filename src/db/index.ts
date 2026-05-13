@@ -67,6 +67,7 @@ export async function initDatabase() {
       password_salt TEXT NOT NULL,
       name TEXT NOT NULL,
       age INTEGER,
+      height_cm REAL,
       vision_statement TEXT,
       wake_time TEXT,
       sleep_time TEXT,
@@ -95,6 +96,14 @@ export async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       deleted_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS goal_comments (
+      id TEXT PRIMARY KEY,
+      goal_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS routine_blocks (
@@ -176,6 +185,7 @@ export async function initDatabase() {
 
     CREATE TABLE IF NOT EXISTS interests (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL DEFAULT '',
       name TEXT NOT NULL,
       category TEXT NOT NULL,
       weekly_minutes_target INTEGER NOT NULL,
@@ -295,5 +305,57 @@ export async function initDatabase() {
       day_of_week INTEGER NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS daily_reflections (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      mood INTEGER,
+      block_reviews TEXT NOT NULL,
+      tweak_accepted INTEGER,
+      tweak_payload TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS discovery_imports (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      raw_text TEXT NOT NULL,
+      extracted TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS chat_messages_user_idx ON chat_messages (user_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS user_profiles (
+      user_id TEXT PRIMARY KEY,
+      profile TEXT NOT NULL,
+      source TEXT NOT NULL,
+      confidence_overall REAL NOT NULL DEFAULT 0,
+      routine_unlocked INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+
+  // Lightweight migrations for columns added after initial release.
+  // SQLite throws on duplicate ADD COLUMN — swallow that specific error.
+  const safeAlter = async (sqlStmt: string) => {
+    try {
+      await expo.execAsync(sqlStmt);
+    } catch (err) {
+      const msg = String(err);
+      if (!/duplicate column name/i.test(msg)) throw err;
+    }
+  };
+  await safeAlter(`ALTER TABLE interests ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN height_cm REAL`);
+  await safeAlter(`ALTER TABLE goals ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`);
 }

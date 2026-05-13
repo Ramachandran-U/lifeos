@@ -1,11 +1,12 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Display, Body, Label, Caption } from '@/components/ui/Typography';
+import { formatMoney } from '@/utils/currency';
 
 interface FinanceGoalCardProps {
   title: string;
@@ -34,19 +35,21 @@ export function FinanceGoalCard({
   monthlyTarget,
   targetDate,
 }: FinanceGoalCardProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   const progress = targetAmount > 0 ? (currentSaved / targetAmount) * 100 : 0;
   const icon = GOAL_TYPE_ICONS[goalType] ?? 'cash';
-  const formattedTarget = `$${targetAmount.toLocaleString()}`;
-  const formattedSaved = `$${currentSaved.toLocaleString()}`;
+  const formattedTarget = formatMoney(targetAmount);
+  const formattedSaved = formatMoney(currentSaved);
 
   return (
-    <Card moduleColor={colors.finance} style={styles.card}>
+    <Card moduleColor={c.finance} style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name={icon} size={20} color={colors.finance} />
+          <Ionicons name={icon} size={20} color={c.finance} />
         </View>
         <View style={styles.headerText}>
-          <Label color={colors.finance}>YOUR GOAL</Label>
+          <Label color={c.finance}>YOUR GOAL</Label>
           <Body style={styles.title}>{title}</Body>
         </View>
       </View>
@@ -56,17 +59,17 @@ export function FinanceGoalCard({
         <Caption> / {formattedTarget}</Caption>
       </View>
 
-      <ProgressBar value={progress} color={colors.finance} height={10} />
+      <ProgressBar value={progress} color={c.finance} height={10} />
 
       <View style={styles.footer}>
         <Caption>{Math.round(progress)}% complete</Caption>
-        <Caption>Target: ${monthlyTarget.toLocaleString()}/mo</Caption>
+        <Caption>Target: {formatMoney(monthlyTarget)}/mo</Caption>
       </View>
     </Card>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.sm,
   },

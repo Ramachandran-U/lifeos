@@ -1,0 +1,81 @@
+name: AI Evals
+
+on:
+  pull_request:
+    paths:
+      - 'src/ai/**'
+      - 'evals/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/evals.yml'
+  push:
+    branches: [lifeosv1, main]
+    paths:
+      - 'src/ai/**'
+      - 'evals/**'
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run AI evals (mock mode)
+        run: npm run evals
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: evals/reports/
+
+      # Push the summary to the admin portal so ops can see pass rates
+      # without leaving the dashboard. Requires two repo secrets:
+      #   - EVAL_REPORTER_URL   — full URL to the Worker, e.g.
+      #                           https://lifeos-ai-proxy.<acct>.workers.dev/v1/evals/report
+      #   - EVAL_REPORTER_TOKEN — must match the Worker's EVAL_REPORTER_TOKEN secret
+      # Both are optional; if either is unset the step is a no-op so the
+      # action keeps working for outside contributors.
+      - name: Report to admin portal
+        if: always() && env.EVAL_REPORTER_URL != '' && env.EVAL_REPORTER_TOKEN != ''
+        env:
+          EVAL_REPORTER_URL: ${{ secrets.EVAL_REPORTER_URL }}
+          EVAL_REPORTER_TOKEN: ${{ secrets.EVAL_REPORTER_TOKEN }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = "evals/reports/latest.json";
+            if (!fs.existsSync(path)) { console.log("no latest.json — skipping"); process.exit(0); }
+            const r = JSON.parse(fs.readFileSync(path, "utf8"));
+            const suites = (r.suites ?? []).map(s => ({
+              name: s.name,
+              passRate: s.passRate,
+              threshold: s.threshold,
+              status: s.passRate >= s.threshold ? "pass" : "fail",
+              cases: s.cases?.length ?? 0,
+            }));
+            const body = {
+              branch: process.env.BRANCH,
+              commit_sha: process.env.COMMIT_SHA,
+              mode: r.mode ?? "MOCK",
+              suites,
+              workflow_url: process.env.WORKFLOW_URL,
+            };
+            fetch(process.env.EVAL_REPORTER_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + process.env.EVAL_REPORTER_TOKEN,
+              },
+              body: JSON.stringify(body),
+            }).then(res => res.text()).then(t => console.log("reporter:", t))
+              .catch(e => { console.error("reporter failed:", e); process.exit(0); });
+          '

@@ -9,12 +9,15 @@ export const users = sqliteTable('users', {
   passwordSalt: text('password_salt').notNull(),
   name: text('name').notNull(),
   age: integer('age'),
+  heightCm: real('height_cm'),
   visionStatement: text('vision_statement'),
   wakeTime: text('wake_time'),
   sleepTime: text('sleep_time'),
   workStartTime: text('work_start_time'),
   workEndTime: text('work_end_time'),
   onboardingStage: integer('onboarding_stage').notNull().default(0),
+  primaryDomains: text('primary_domains'), // JSON string[] — user's chosen focus domains from welcome-intent
+  activatedModules: text('activated_modules'), // JSON string[] — modules user has supplied data for
   installDate: text('install_date'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
@@ -35,9 +38,19 @@ export const goals = sqliteTable('goals', {
   energyLevel: text('energy_level'), // low | medium | high
   aiGenerated: integer('ai_generated', { mode: 'boolean' }).default(false),
   metadata: text('metadata'), // JSON
+  priority: integer('priority').notNull().default(0), // 0 = default; lower = higher priority
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
   deletedAt: text('deleted_at'),
+});
+
+// --- Goal Comments ---
+export const goalComments = sqliteTable('goal_comments', {
+  id: text('id').primaryKey(),
+  goalId: text('goal_id').notNull(),
+  userId: text('user_id').notNull(),
+  body: text('body').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
 // --- Routine Blocks ---
@@ -126,6 +139,7 @@ export const contactInteractions = sqliteTable('contact_interactions', {
 // --- Interests ---
 export const interests = sqliteTable('interests', {
   id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
   name: text('name').notNull(),
   category: text('category').notNull(), // arts | science | tech | sports | music | writing | language | philosophy | other
   weeklyMinutesTarget: integer('weekly_minutes_target').notNull(),
@@ -240,6 +254,47 @@ export const gamification = sqliteTable('gamification', {
   badges: text('badges').notNull().default('[]'), // JSON: BadgeId[]
   totalXP: integer('total_xp').notNull().default(0),
   weeklyXP: integer('weekly_xp').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Daily Reflections ---
+export const dailyReflections = sqliteTable('daily_reflections', {
+  id: text('id').primaryKey(),
+  date: text('date').notNull(), // YYYY-MM-DD — one reflection per user per day
+  mood: integer('mood'), // 1-5
+  blockReviews: text('block_reviews').notNull(), // JSON: Record<blockId, 'did' | 'skipped' | 'rescheduled'>
+  tweakAccepted: integer('tweak_accepted', { mode: 'boolean' }),
+  tweakPayload: text('tweak_payload'), // JSON: the AI suggestion offered
+  notes: text('notes'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Discovery Imports ---
+export const discoveryImports = sqliteTable('discovery_imports', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  rawText: text('raw_text').notNull(),
+  extracted: text('extracted').notNull(), // JSON: DiscoveryExtraction
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Chatbot ---
+export const chatMessages = sqliteTable('chat_messages', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  role: text('role').notNull(), // 'user' | 'assistant'
+  content: text('content').notNull(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- User Profile (Onboarding v2 canonical "what we know about you") ---
+export const userProfiles = sqliteTable('user_profiles', {
+  userId: text('user_id').primaryKey(),
+  profile: text('profile').notNull(), // JSON: UserProfile
+  source: text('source').notNull(), // chat | import | form | hybrid
+  confidenceOverall: real('confidence_overall').notNull().default(0),
+  routineUnlocked: integer('routine_unlocked', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });

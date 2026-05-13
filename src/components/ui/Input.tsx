@@ -1,5 +1,5 @@
 import { View, TextInput, TextInputProps, StyleSheet } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Label, Caption } from './Typography';
@@ -12,19 +12,33 @@ interface InputProps extends TextInputProps {
 }
 
 export function Input({ label, error, showCharCount, maxLength, value, style, ...props }: InputProps) {
+  const c = useColors();
   return (
     <View style={styles.container}>
       {label ? <Label style={styles.label}>{label}</Label> : null}
       <TextInput
-        style={[styles.input, error ? styles.inputError : undefined, style]}
-        placeholderTextColor={colors.textMuted}
-        selectionColor={colors.primary}
+        style={[
+          {
+            backgroundColor: c.surface,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: error ? c.error : c.border,
+            paddingHorizontal: spacing.md,
+            paddingVertical: 14,
+            fontFamily: fonts.body,
+            fontSize: fontSizes.md,
+            color: c.textPrimary,
+          },
+          style,
+        ]}
+        placeholderTextColor={c.textMuted}
+        selectionColor={c.primary}
         maxLength={maxLength}
         value={value}
         {...props}
       />
       <View style={styles.footer}>
-        {error ? <Caption color={colors.error}>{error}</Caption> : <View />}
+        {error ? <Caption color={c.error}>{error}</Caption> : <View />}
         {showCharCount && maxLength ? (
           <Caption>{(value?.length ?? 0)}/{maxLength}</Caption>
         ) : null}
@@ -39,20 +53,6 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: spacing.xs,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    fontFamily: fonts.body,
-    fontSize: fontSizes.md,
-    color: colors.textPrimary,
-  },
-  inputError: {
-    borderColor: colors.error,
   },
   footer: {
     flexDirection: 'row',

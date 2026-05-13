@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
@@ -15,6 +15,8 @@ interface WeightChartProps {
 }
 
 export function WeightChart({ entries }: WeightChartProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   if (entries.length === 0) {
     return (
       <Card>
@@ -40,7 +42,7 @@ export function WeightChart({ entries }: WeightChartProps) {
           const height = ((entry.weight - min) / range) * 40 + 10;
           return (
             <View key={i} style={styles.bar}>
-              <View style={[styles.barFill, { height, backgroundColor: colors.health }]} />
+              <View style={[styles.barFill, { height, backgroundColor: c.health }]} />
               <Caption style={styles.barLabel}>{entry.date.slice(5)}</Caption>
             </View>
           );
@@ -50,7 +52,7 @@ export function WeightChart({ entries }: WeightChartProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -1,86 +1,260 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Text, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
-import { Body, Caption } from '@/components/ui/Typography';
+import { radii } from '@/theme/radii';
+import { useDensityScale } from '@/theme/density';
+import { usePreferencesStore } from '@/store/usePreferencesStore';
+import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
+import { Card } from '@/components/ui/Card';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
-import { ProfileSidebar } from '@/components/shared/ProfileSidebar';
-import { AvatarRing } from '@/components/gamification/AvatarRing';
-import { HexRadar } from '@/components/gamification/HexRadar';
-import { XPBar } from '@/components/gamification/XPBar';
-import { StreakFlame } from '@/components/gamification/StreakFlame';
-import { QuestCard } from '@/components/gamification/QuestCard';
-import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
+import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
-import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
+import { AvatarRing } from '@/components/gamification/AvatarRing';
+import { HexRadar } from '@/components/gamification/HexRadar';
+import { XpBar } from '@/components/gamification/XpBar';
+import { StreakFlame } from '@/components/gamification/StreakFlame';
+import { QuestCard } from '@/components/gamification/QuestCard';
+import { STREAK_META, type StreakKey } from '@/constants/gamification';
+import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
+import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
+import { cloneRoutineToDate } from '@/utils/starterRoutine';
+import { subDays } from 'date-fns';
+import { useFlagStore } from '@/store/useFlagStore';
+import { getUserProfile } from '@/db/queries/userProfile';
+import { rebalanceRestOfToday, isRecoveryLow } from '@/ai/replanApply';
+import { refreshInferredPreferences } from '@/ai/profileLearning';
+import { getLatestSleepHours } from '@/db/queries/health';
+import { upsertUserProfile } from '@/db/queries/userProfile';
+import { track } from '@/utils/telemetry';
+import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
+import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
+import { updateUser } from '@/db/queries/users';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
-import {
-  xpProgressInLevel,
-  STREAK_META,
-  DomainKey,
-  DOMAIN_META,
-} from '@/utils/gamification';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
+import { enqueueXPReward } from '@/store/useRewardQueueStore';
+import type { DomainKey } from '@/components/ui/DomainGlyph';
 
 export default function TodayScreen() {
   const c = useColors();
   const router = useRouter();
-  const { width: winWidth } = useWindowDimensions();
+  useScreenTracking('today');
   const { userId, name } = useUserStore();
+  const activatedModules = useUserStore((s) => s.activatedModules);
+  const primaryDomains = useUserStore((s) => s.primaryDomains);
+  const setOnboardingStage = useUserStore((s) => s.setOnboardingStage);
+
+  const startOnboarding = useCallback(() => {
+    if (userId) updateUser(userId, { onboardingStage: 0 });
+    setOnboardingStage(0);
+    router.replace('/(onboarding)/day1-vision');
+  }, [userId, setOnboardingStage, router]);
+  const loadGame = useGameStore((s) => s.loadFromDB);
+  const completeBlock = useGameStore((s) => s.completeBlock);
+  const addXP = useGameStore((s) => s.addXP);
+  const triggerStreak = useGameStore((s) => s.triggerStreak);
+  const streaks = useGameStore((s) => s.streaks);
+  const totalXP = useGameStore((s) => s.totalXP);
+  const quests = useGameStore((s) => s.quests);
+  const gameDomainScores = useGameStore((s) => s.domainScores);
   const today = format(new Date(), 'yyyy-MM-dd');
-
-  // Game store selectors
-  const totalXP    = useGameStore((s) => s.totalXP);
-  const streaks    = useGameStore((s) => s.streaks);
-  const quests     = useGameStore((s) => s.quests);
-  const pendingLevelUps = useGameStore((s) => s.pendingLevelUps);
-  const popLevelUp = useGameStore((s) => s.popLevelUp);
-  const loadGameFromDB = useGameStore((s) => s.loadFromDB);
-
   const [blocks, setBlocks] = useState<ReturnType<typeof getRoutineBlocksByDate>>([]);
+  const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
+  const [replanning, setReplanning] = useState(false);
+  const [replanRationale, setReplanRationale] = useState<string | null>(null);
   const [domainScores, setDomainScores] = useState({
     goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0,
   });
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeDomain, setActiveDomain] = useState<DomainKey | null>(null);
-  const [currentLevelUp, setCurrentLevelUp] = useState<number | null>(null);
+  const [hasReflectedToday, setHasReflectedToday] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [calConnected, setCalConnected] = useState(false);
+  const [calSyncing, setCalSyncing] = useState(false);
+  const [calStatus, setCalStatus] = useState<string | null>(null);
+
+  const handleCalendarConnect = async () => {
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      setCalStatus('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID — see .env.example.');
+      return;
+    }
+    await startCalendarOAuth(clientId);
+  };
+
+  const handleCalendarDisconnect = () => {
+    clearCalendarTokens();
+    setCalConnected(false);
+    setCalStatus('Disconnected.');
+  };
+
+  const handleCalendarSync = async () => {
+    const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) { setCalStatus('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID.'); return; }
+    if (blocks.length === 0) { setCalStatus('No routine blocks to sync.'); return; }
+    setCalSyncing(true);
+    setCalStatus(null);
+    try {
+      const result = await syncBlocksToCalendar(clientId, blocks.map((b) => ({
+        id: b.id,
+        date: b.date,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        title: b.title,
+        module: b.module,
+        notes: b.notes ?? undefined,
+        calendarEventId: b.calendarEventId ?? undefined,
+      })));
+      for (const [blockId, eventId] of Object.entries(result.eventIds)) {
+        setRoutineBlockCalendarEventId(blockId, eventId);
+      }
+      setCalStatus(
+        `Synced · ${result.created} added, ${result.updated} updated` +
+        (result.failed > 0 ? `, ${result.failed} failed` : ''),
+      );
+      loadData();
+    } catch (err) {
+      setCalStatus(err instanceof Error ? err.message : 'Sync failed');
+    } finally {
+      setCalSyncing(false);
+    }
+  };
 
   const loadData = useCallback(() => {
-    const todayBlocks = getRoutineBlocksByDate(today);
+    // Daily roll-forward — if today has no blocks but yesterday did, clone
+    // yesterday's schedule to today with fresh (unchecked) status. Idempotent.
+    let todayBlocks = getRoutineBlocksByDate(today);
+    if (todayBlocks.length === 0) {
+      const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+      cloneRoutineToDate(today, yesterday);
+      todayBlocks = getRoutineBlocksByDate(today);
+    }
     setBlocks(todayBlocks);
     if (userId) {
       const game = getOrCreateGamification(userId);
       try { setDomainScores(JSON.parse(game.domainScores)); } catch { /* keep defaults */ }
-      loadGameFromDB(userId);
+      loadGame(userId);
     }
     setWeeklyInsight(generateWeeklyInsight());
-  }, [today, userId, loadGameFromDB]);
+    setHasReflectedToday(getReflectionByDate(today) !== undefined);
+  }, [today, userId, loadGame]);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  const topStreaks = useMemo(() => {
+    return (Object.keys(STREAK_META) as StreakKey[])
+      .map((k) => ({ key: k, ...streaks[k] }))
+      .sort((a, b) => (b.count ?? 0) - (a.count ?? 0))
+      .slice(0, 3);
+  }, [streaks]);
 
-  // Drain the level-up queue one at a time
+  const prog = useMemo(() => xpProgressInLevel(totalXP), [totalXP]);
+
   useFocusEffect(useCallback(() => {
-    if (currentLevelUp == null && pendingLevelUps.length > 0) {
-      const next = popLevelUp();
-      if (next != null) setCurrentLevelUp(next);
+    loadData();
+    setCalConnected(isCalendarConnected());
+    // Weekly profile learning — fire-and-forget; no-ops within the 7-day window.
+    if (onboardingV2 && userId) {
+      refreshInferredPreferences(userId).then((result) => {
+        if (result?.hasSignal) {
+          track('profile_inference_run', {
+            events: result.sampleSize.events,
+            blocks: result.sampleSize.blocks,
+            productive_hours: result.preferences.productiveHours.length,
+            dropped_habits: result.preferences.droppedHabits.length,
+          });
+        }
+      }).catch(() => { /* non-fatal */ });
     }
-  }, [currentLevelUp, pendingLevelUps, popLevelUp]));
+  }, [loadData, onboardingV2, userId]));
 
   const handleComplete = (blockId: string) => {
     const block = blocks.find(b => b.id === blockId);
     updateRoutineBlockStatus(blockId, 'completed');
     logBehaviourEvent('block_completed', block?.module ?? 'goal');
+    track('routine_block_completed', { module: block?.module ?? 'goal' });
+    // First-block-ever telemetry (v2 funnel). Stamps the profile so it fires once.
+    if (onboardingV2 && userId) {
+      (async () => {
+        try {
+          const profile = await getUserProfile(userId);
+          if (profile && !profile.firstBlockCompletedAt) {
+            const stamped = { ...profile, firstBlockCompletedAt: new Date().toISOString() };
+            await upsertUserProfile(userId, stamped);
+            track('first_block_completed', {
+              module: block?.module ?? 'goal',
+              source: profile.source,
+            });
+          }
+        } catch { /* non-fatal */ }
+      })();
+    }
+    if (userId) {
+      const mod = block?.module ?? 'goal';
+      const todayBlocks = blocks.filter(b => b.module === mod);
+      const completed = todayBlocks.filter(b => b.id === blockId || b.status === 'completed').length;
+      completeBlock(userId, mod, completed, todayBlocks.length || 1);
+      addXP(userId, XP_VALUES.completeBlock);
+      // Aurora XP beat — flyaway chip near the top of the screen.
+      enqueueXPReward(XP_VALUES.completeBlock, mod as DomainKey);
+      const streakMap: Record<string, 'workout' | 'learning' | 'social'> = {
+        health: 'workout',
+        polymath: 'learning',
+        social: 'social',
+      };
+      const streakKey = streakMap[mod];
+      if (streakKey) triggerStreak(userId, streakKey);
+    }
     loadData();
   };
+
+  const skippedCount = useMemo(() => blocks.filter((b) => b.status === 'skipped').length, [blocks]);
+  const showReplanCta = onboardingV2 && skippedCount > 0 && !replanning;
+
+  const handleReplan = useCallback(async () => {
+    if (!userId || replanning) return;
+    setReplanning(true);
+    setReplanRationale(null);
+    try {
+      const profile = await getUserProfile(userId);
+      if (!profile) {
+        setReplanRationale('No profile yet — finish onboarding to unlock re-plan.');
+        return;
+      }
+      const reflection = getReflectionByDate(today);
+      const soften = isRecoveryLow({
+        lastSleepHours: getLatestSleepHours(3),
+        skippedTodayCount: skippedCount,
+        lastMood: reflection?.mood ?? null,
+      });
+      const { rationale, changeCount } = await rebalanceRestOfToday({ profile, softenForRecovery: soften });
+      track('routine_replanned', { soften, changes: changeCount });
+      setReplanRationale(changeCount > 0 ? rationale : 'Looks balanced — no changes needed.');
+      loadData();
+    } catch (err) {
+      setReplanRationale(err instanceof Error ? err.message : 'Re-plan failed. Try again.');
+    } finally {
+      setReplanning(false);
+    }
+  }, [userId, replanning, today, skippedCount, loadData]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -98,202 +272,310 @@ export default function TodayScreen() {
     .map((w: string) => w[0]?.toUpperCase() ?? '')
     .join('');
 
-  const prog = xpProgressInLevel(totalXP);
+  const densityScale = useDensityScale();
+  const gamification = usePreferencesStore((s) => s.gamification);
+  const styles = makeStyles(c, densityScale);
 
-  // Top 3 streaks (by count)
-  const topStreaks = useMemo(() =>
-    (Object.entries(streaks) as [keyof typeof streaks, typeof streaks[keyof typeof streaks]][])
-      .sort(([, a], [, b]) => b.count - a.count)
-      .slice(0, 3),
-    [streaks],
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.value = e.contentOffset.y;
+  });
+  const heroStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, 140], [1, 0], Extrapolation.CLAMP),
+    transform: [
+      { scale: interpolate(scrollY.value, [0, 220], [1, 0.78], Extrapolation.CLAMP) },
+      { translateY: interpolate(scrollY.value, [0, 220], [0, -40], Extrapolation.CLAMP) },
+    ],
+  }));
+  const chipStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [120, 200], [0, 1], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(scrollY.value, [120, 200], [-16, 0], Extrapolation.CLAMP) }],
+  }));
+  const radarScores = gameDomainScores.goals !== undefined ? gameDomainScores : domainScores;
+  const avgScore = Math.round(
+    (radarScores.goals + radarScores.health + radarScores.finance +
+      radarScores.career + radarScores.social + radarScores.mind) / 6,
   );
-
-  const dailyQuests  = quests.filter((q) => q.type === 'daily');
-  const weeklyQuests = quests.filter((q) => q.type === 'weekly');
-
-  // Radar sized to fit width (up to 420). The design target is 420 but on phones
-  // we need to cap at the available width (minus side padding).
-  const radarSize = Math.min(420, winWidth - spacing.xl * 2);
-
-  // Greatest domain highlight for the daily briefing
-  const strongestDomain = useMemo(() => {
-    const entries = (Object.entries(domainScores) as [DomainKey, number][]);
-    entries.sort(([, a], [, b]) => b - a);
-    return entries[0];
-  }, [domainScores]);
-
-  const styles = makeStyles(c);
 
   return (
     <View style={styles.root}>
+      <AuroraBackground />
       <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-          {/* Greeting row */}
-          <View style={styles.greetingRow}>
-            <Pressable onPress={() => setSidebarOpen(true)} hitSlop={8}>
-              <AvatarRing xp={totalXP} initials={initials} size={72} />
-            </Pressable>
-            <View style={styles.greetingBody}>
-              <Text
-                numberOfLines={1}
-                style={[styles.greetingText, { color: c.textPrimary, fontFamily: fonts.display }]}
-              >
-                {greeting}, {name ? (name.split(' ')[0]) : 'there'} 👋
-              </Text>
-              <Caption style={{ color: c.textSecondary }}>
-                {format(new Date(), 'EEEE, MMMM d')}
-              </Caption>
-              <View style={styles.xpRow}>
-                <View style={styles.xpBarSlot}>
-                  <XPBar pct={prog.pct} color={c.primary} height={6} />
-                </View>
-                <Caption style={{ color: c.textMuted }}>
-                  {prog.current}/{prog.needed} XP
-                </Caption>
-              </View>
-            </View>
-          </View>
 
-          {/* Chip row */}
-          <View style={styles.chipRow}>
-            <View style={[styles.chip, { backgroundColor: c.streak + '22' }]}>
-              <Text style={{ fontSize: 13 }}>🔥</Text>
-              <Text style={[styles.chipText, { color: c.streak }]}>
-                {streaks.workout.count}d streak
-              </Text>
+        <Animated.ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scroll}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+        >
+          {/* Hex radar hero — Aurora center stack overlays the radar */}
+          <Animated.View style={[styles.heroWrap, heroStyle]}>
+            <HexRadar scores={radarScores} size={340} />
+            <View pointerEvents="none" style={styles.heroOverlay}>
+              <AuroraText variant="micro" muted>LIFE BALANCE</AuroraText>
+              <AuroraText variant="display" numeric style={{ marginTop: 2 }}>{avgScore}</AuroraText>
             </View>
-            <View style={[styles.chip, { backgroundColor: c.xp + '22' }]}>
-              <Text style={[styles.chipText, { color: c.xp }]}>
-                ⚡ {totalXP.toLocaleString()} XP
-              </Text>
-            </View>
-            <Pressable
-              onPress={() => router.push('/rewards' as never)}
-              style={[styles.chip, { backgroundColor: c.primaryLight, borderWidth: 1, borderColor: c.primary + '44' }]}
-            >
-              <Text style={[styles.chipText, { color: c.primary }]}>🏆 Rewards</Text>
-            </Pressable>
-          </View>
-
-          {/* Life Balance hex radar */}
-          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>LIFE BALANCE</Text>
-            </View>
-            <View style={styles.radarWrap}>
-              <HexRadar
-                scores={domainScores}
-                size={radarSize}
-                activeDomain={activeDomain}
-                onDomainPress={(k) => setActiveDomain(k === activeDomain ? null : k)}
-              />
-            </View>
-            {activeDomain && (
-              <DomainDetailCard
-                domainKey={activeDomain}
-                scores={domainScores}
-                onClose={() => setActiveDomain(null)}
-              />
-            )}
           </Animated.View>
 
-          {/* Top streaks */}
-          {Object.values(streaks).some((s) => s.count > 0) && (
-            <Animated.View entering={FadeInDown.delay(150).duration(400)}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>TOP STREAKS</Text>
-              </View>
-              <View style={styles.streakRow}>
-                {topStreaks.map(([key, streak]) => {
-                  const meta = STREAK_META[key];
-                  const color = (c as unknown as Record<string, string>)[meta.colorKey] ?? c.primary;
+          {/* Header */}
+          <View style={styles.header}>
+            <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
+              <AvatarRing xp={totalXP} initials={initials || 'U'} size={64} />
+            </Pressable>
+            <Pressable
+              onPress={() => setVoiceOpen(true)}
+              hitSlop={8}
+              style={[styles.voiceBtn, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}
+              testID="voice-open"
+            >
+              <Ionicons name="mic" size={20} color={c.primary} />
+            </Pressable>
+            <View style={styles.headerCenter}>
+              <Heading style={{ color: c.textPrimary }}>{greeting}, {name || 'there'}</Heading>
+              <AuroraText variant="micro" muted style={{ marginTop: 2 }}>
+                {format(new Date(), 'EEEE · MMMM d').toUpperCase()}
+              </AuroraText>
+              {gamification !== 'off' && (
+                <View style={styles.xpRow}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    {gamification === 'full' && (
+                      <View style={styles.xpLabelRow}>
+                        <AuroraText variant="micro" muted>
+                          {`L${prog.level} → L${prog.level + 1}`}
+                        </AuroraText>
+                        <AuroraText variant="caption" numeric color={c.xp}>
+                          {`${prog.current}/${prog.needed} XP`}
+                        </AuroraText>
+                      </View>
+                    )}
+                    <XpBar pct={prog.pct} color={c.primary} height={6} />
+                  </View>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Streak rail — Aurora 5-up tile grid (hidden when gamification minimal/off) */}
+          {gamification === 'full' && topStreaks.some((s) => (s.count ?? 0) > 0) && (
+            <View style={styles.streaksSection}>
+              <SectionLabel>{`STREAKS · ${topStreaks.filter((s) => (s.count ?? 0) > 0).length}`}</SectionLabel>
+              <View style={styles.streakGrid}>
+                {topStreaks.map((s) => {
+                  const meta = STREAK_META[s.key];
+                  const color = c[meta.colorKey];
+                  const active = (s.count ?? 0) > 0;
                   return (
                     <View
-                      key={key}
+                      key={s.key}
                       style={[
-                        styles.streakCard,
-                        { backgroundColor: c.card, borderColor: color + '33' },
+                        styles.streakTile,
+                        {
+                          backgroundColor: active ? color + '1F' : c.surfaceAlt,
+                          borderColor: active ? color + '44' : c.border,
+                        },
                       ]}
                     >
-                      <View style={styles.streakTop}>
-                        <Text style={{ fontSize: 16 }}>{meta.emoji}</Text>
-                        <Caption style={{ color: c.textSecondary }}>{meta.label}</Caption>
-                      </View>
-                      <StreakFlame count={streak.count} graceUsed={streak.graceUsed} size="sm" />
+                      <StreakFlame
+                        count={s.count ?? 0}
+                        graceUsed={s.graceUsed ?? false}
+                        size="sm"
+                      />
+                      <AuroraText variant="micro" color={active ? color : c.textMuted}>
+                        {meta.label.toUpperCase()}
+                      </AuroraText>
                     </View>
                   );
                 })}
               </View>
-            </Animated.View>
+            </View>
           )}
 
-          {/* Active quests */}
-          {dailyQuests.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>ACTIVE QUESTS</Text>
-                <Pressable onPress={() => router.push('/rewards' as never)}>
-                  <Caption style={{ color: c.primary }}>View all</Caption>
-                </Pressable>
-              </View>
+          {/* Active Quests (hidden when gamification off) */}
+          {gamification === 'full' && quests.length > 0 && (
+            <View style={styles.questsSection}>
+              <Body style={styles.sectionLabel}>ACTIVE QUESTS</Body>
               <View style={styles.questList}>
-                {dailyQuests.map((q) => (
+                {quests.slice(0, 3).map((q) => (
                   <QuestCard key={q.id} quest={q} compact />
                 ))}
               </View>
+            </View>
+          )}
+
+          {blocks.length > 0 && new Date().getHours() >= 18 && !hasReflectedToday && (
+            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+              <GlassCard
+                accent={c.polymath}
+                onPress={() => router.push('/evening-reflect')}
+                style={styles.reflectCard}
+              >
+                <View style={styles.reflectRow}>
+                  <View style={[styles.wrapBadge, { backgroundColor: c.polymath + '22', borderColor: c.polymath + '55' }]}>
+                    <AuroraText variant="h3" color={c.polymath}>✦</AuroraText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AuroraText variant="bodyLg">Wrap up the day</AuroraText>
+                    <AuroraText variant="caption" muted style={{ marginTop: 2 }}>
+                      60 seconds · sets up tomorrow's plan
+                    </AuroraText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={c.textMuted} />
+                </View>
+              </GlassCard>
+            </Animated.View>
+          )}
+          {hasReflectedToday && (
+            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+              <GlassCard accent={c.success} style={styles.reflectCard}>
+                <View style={styles.reflectRow}>
+                  <Ionicons name="checkmark-circle" size={22} color={c.success} />
+                  <AuroraText variant="body" secondary style={{ flex: 1 }}>
+                    Reflection logged. Tomorrow is ready.
+                  </AuroraText>
+                </View>
+              </GlassCard>
             </Animated.View>
           )}
 
-          {/* Weekly quest */}
-          {weeklyQuests.length > 0 && (
-            <Animated.View entering={FadeInDown.delay(225).duration(400)}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>WEEKLY QUEST</Text>
-              </View>
-              <View style={styles.questList}>
-                {weeklyQuests.map((q) => (
-                  <QuestCard key={q.id} quest={q} compact />
-                ))}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Daily briefing */}
-          <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <DailyBriefing
-              text={buildBriefing(
-                completedCount,
-                blocks.length,
-                strongestDomain,
-                domainScores,
-              )}
+              text={blocks.length > 0
+                ? `You have ${blocks.length} blocks planned today. ${completedCount} completed so far. Keep going!`
+                : 'No routine set up yet. Complete onboarding to get your personalised daily plan.'
+              }
+              ctaLabel={blocks.length === 0 ? 'Complete onboarding' : undefined}
+              onCtaPress={blocks.length === 0 ? startOnboarding : undefined}
             />
           </Animated.View>
 
           {weeklyInsight && (
             <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-              <View
-                style={[
-                  styles.insightCard,
-                  { backgroundColor: c.card, borderColor: c.border },
-                ]}
-              >
+              <GlassCard accent={c.primary} style={styles.insightCard}>
                 <View style={styles.insightHeader}>
-                  <Ionicons name="analytics-outline" size={18} color={c.primary} />
-                  <Caption style={{ color: c.primary, letterSpacing: 0.5 }}>WEEKLY INSIGHT</Caption>
+                  <Ionicons name="analytics-outline" size={14} color={c.primary} />
+                  <SectionLabel color={c.primary}>WEEKLY INSIGHT</SectionLabel>
                 </View>
-                <Body style={[styles.insightText, { color: c.textSecondary }]}>{weeklyInsight}</Body>
-              </View>
+                <AuroraText variant="bodyLg" secondary>{weeklyInsight}</AuroraText>
+              </GlassCard>
             </Animated.View>
           )}
 
-          {/* Routine blocks */}
+          {blocks.length > 0 && primaryDomains.length > 0 && activatedModules.length === 0 && (
+            <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+              <Card style={[styles.insightCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
+                <View style={styles.insightHeader}>
+                  <Ionicons name="sparkles" size={18} color={c.primary} />
+                  <Label color={c.primary}>YOUR STARTER DAY</Label>
+                </View>
+                <Body style={styles.insightText}>
+                  This is a seeded routine. Tap any block to make it yours — or keep it as-is for today.
+                </Body>
+              </Card>
+            </Animated.View>
+          )}
+
           {blocks.length > 0 ? (
             <View style={styles.blocksSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>TODAY'S ROUTINE</Text>
-                <Caption style={{ color: c.textMuted }}>{completedCount}/{blocks.length} done</Caption>
+              <View style={styles.routineHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
+                  <AuroraText variant="h3">Today's flow</AuroraText>
+                  <AuroraText variant="micro" numeric color={c.success}>
+                    {`${completedCount}/${blocks.length} DONE`}
+                  </AuroraText>
+                </View>
+                <Pressable
+                  style={[styles.editRoutineBtn, { borderColor: c.border, backgroundColor: c.surface }]}
+                  onPress={() => {
+                    // Blur active element before navigating so the prior
+                    // screen can be aria-hidden without retaining focus on
+                    // the (now-invisible) button. Fixes the W3C aria-hidden
+                    // warning on web during route transitions.
+                    if (typeof document !== 'undefined') {
+                      (document.activeElement as HTMLElement | null)?.blur();
+                    }
+                    router.push('/(onboarding)/day1-routine?mode=edit');
+                  }}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit routine"
+                >
+                  <Ionicons name="pencil" size={14} color={c.primary} />
+                  <Caption style={{ color: c.primary, fontFamily: fonts.heading }}>Edit routine</Caption>
+                </Pressable>
               </View>
+
+              <Card style={styles.calCard}>
+                <View style={styles.calHeader}>
+                  <Ionicons name="calendar" size={18} color={c.primary} />
+                  <Label color={c.primary}>GOOGLE CALENDAR</Label>
+                </View>
+                {calConnected ? (
+                  <>
+                    <Caption style={{ color: c.textSecondary }}>
+                      Push today's routine as events with a 10-minute popup reminder on each.
+                    </Caption>
+                    <View style={styles.calActions}>
+                      <Pressable
+                        style={[styles.calPrimary, { backgroundColor: c.primary }, calSyncing && { opacity: 0.6 }]}
+                        onPress={handleCalendarSync}
+                        disabled={calSyncing}
+                      >
+                        <Ionicons name="sync" size={14} color="#fff" />
+                        <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>
+                          {calSyncing ? 'Syncing…' : `Sync ${blocks.length} block${blocks.length === 1 ? '' : 's'}`}
+                        </Caption>
+                      </Pressable>
+                      <Pressable style={styles.calSecondary} onPress={handleCalendarDisconnect}>
+                        <Caption style={{ color: c.textMuted }}>Disconnect</Caption>
+                      </Pressable>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Caption style={{ color: c.textSecondary }}>
+                      Block time for your routine on your calendar and get popup reminders before each block.
+                    </Caption>
+                    <Pressable
+                      style={[styles.calPrimary, { backgroundColor: c.primary, alignSelf: 'flex-start' }]}
+                      onPress={handleCalendarConnect}
+                    >
+                      <Ionicons name="link" size={14} color="#fff" />
+                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Connect Google Calendar</Caption>
+                    </Pressable>
+                  </>
+                )}
+                {calStatus && <Caption style={{ color: c.textMuted }}>{calStatus}</Caption>}
+              </Card>
+
+              {(showReplanCta || replanning || replanRationale) ? (
+                <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+                  <Ionicons name="refresh" size={20} color={c.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>
+                      {replanning ? 'Re-planning the rest of today…' : replanRationale ?? 'Day off track?'}
+                    </Body>
+                    {!replanning && !replanRationale ? (
+                      <Caption style={{ color: c.textSecondary, marginTop: 4 }}>
+                        {skippedCount} skipped — let me rebalance what's left.
+                      </Caption>
+                    ) : null}
+                  </View>
+                  {!replanning && !replanRationale ? (
+                    <Pressable
+                      onPress={handleReplan}
+                      style={{
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.sm,
+                        backgroundColor: c.primary,
+                        borderRadius: 12,
+                      }}
+                    >
+                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Re-plan</Caption>
+                    </Pressable>
+                  ) : null}
+                </Card>
+              ) : null}
+
               {blocks
                 .sort((a, b) => a.startTime.localeCompare(b.startTime))
                 .map((block) => (
@@ -316,111 +598,19 @@ export default function TodayScreen() {
               <Caption style={{ color: c.textMuted }}>Complete onboarding to get started</Caption>
             </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
 
-      {/* Sidebar overlays everything */}
-      <ProfileSidebar visible={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      {/* Level-up celebration */}
-      {currentLevelUp != null && (
-        <LevelUpOverlay
-          visible
-          level={currentLevelUp}
-          userName={name ?? undefined}
-          onClose={() => setCurrentLevelUp(null)}
-        />
-      )}
+      <VoiceAssistantSheet
+        visible={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        systemInstruction="You are the LifeOS Daily Briefing assistant. Be concise and actionable."
+      />
     </View>
   );
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function buildBriefing(
-  completed: number,
-  total: number,
-  strongest: [DomainKey, number] | undefined,
-  scores: Record<DomainKey, number>,
-): string {
-  if (total === 0) {
-    return 'No routine set up yet. Complete onboarding to get your personalised daily plan.';
-  }
-  const domainMeta = strongest ? DOMAIN_META.find(d => d.key === strongest[0]) : undefined;
-  const weakest = (Object.entries(scores) as [DomainKey, number][])
-    .sort(([, a], [, b]) => a - b)[0];
-  const weakMeta = weakest ? DOMAIN_META.find(d => d.key === weakest[0]) : undefined;
-
-  const head = `You're ${completed} of ${total} blocks in.`;
-  if (strongest && strongest[1] > 0 && domainMeta) {
-    const tail = weakMeta && weakest && weakest[1] < strongest[1]
-      ? ` ${weakMeta.label} is your biggest growth opportunity this week.`
-      : '';
-    return `${head} Your ${domainMeta.label.toLowerCase()} score is your strongest at ${strongest[1]} — keep that momentum going.${tail}`;
-  }
-  return `${head} Keep going!`;
-}
-
-// ─── Domain Detail Card ──────────────────────────────────────────────────────
-// Inline accordion-style detail panel shown under the radar when a domain dot
-// is tapped. Avoids the absolute-positioned overlay pattern used on desktop
-// since we're in a vertical ScrollView on mobile.
-
-function DomainDetailCard({
-  domainKey,
-  scores,
-  onClose,
-}: {
-  domainKey: DomainKey;
-  scores: Record<DomainKey, number>;
-  onClose: () => void;
-}) {
-  const c = useColors();
-  const meta = DOMAIN_META.find((d) => d.key === domainKey);
-  if (!meta) return null;
-  const color = (c as unknown as Record<string, string>)[meta.colorKey] ?? c.primary;
-  const score = scores[domainKey] ?? 0;
-
-  return (
-    <Animated.View
-      entering={FadeInDown.duration(250)}
-      style={{
-        backgroundColor: c.card,
-        borderColor: color + '44',
-        borderWidth: 1,
-        borderRadius: 20,
-        padding: 20,
-        marginTop: spacing.sm,
-        gap: spacing.sm,
-      }}
-    >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 22 }}>{meta.emoji}</Text>
-          <Text style={{ fontFamily: fonts.display, fontWeight: '800', fontSize: 18, color: c.textPrimary }}>
-            {meta.label}
-          </Text>
-        </View>
-        <Pressable onPress={onClose} hitSlop={8}>
-          <Text style={{ color: c.textMuted, fontSize: 18 }}>✕</Text>
-        </Pressable>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-        <Text style={{ fontFamily: fonts.display, fontWeight: '800', fontSize: 48, color, lineHeight: 50 }}>
-          {score}
-        </Text>
-        <Text style={{ fontFamily: fonts.body, fontSize: 13, color: c.textMuted }}>
-          / 100
-        </Text>
-      </View>
-      <XPBar pct={score / 100} color={color} height={8} />
-    </Animated.View>
-  );
-}
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
-function makeStyles(c: ReturnType<typeof useColors>) {
+function makeStyles(c: ReturnType<typeof useColors>, density = 1) {
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -433,94 +623,96 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       flex: 1,
     },
     scroll: {
-      paddingHorizontal: spacing.xl,
-      paddingBottom: spacing.xxxl,
-      gap: spacing.lg,
+      paddingHorizontal: Math.round(spacing.xl * density),
+      paddingBottom: Math.round(spacing.xxxl * density),
+      gap: Math.round(spacing.md * density),
     },
-    greetingRow: {
+    header: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.md,
       paddingTop: spacing.md,
+      gap: spacing.md,
     },
-    greetingBody: {
-      flex: 1,
-      gap: 4,
-    },
-    greetingText: {
-      fontSize: 22,
-      fontWeight: '800',
-      lineHeight: 26,
-    },
-    xpRow: {
-      flexDirection: 'row',
+    headerCenter: { flex: 1, gap: 4 },
+    voiceBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       alignItems: 'center',
-      gap: spacing.sm,
-      marginTop: 6,
+      justifyContent: 'center',
+      borderWidth: 1,
     },
-    xpBarSlot: {
-      flex: 1,
-    },
-    chipRow: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      flexWrap: 'wrap',
-    },
-    chip: {
-      flexDirection: 'row',
+    xpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+    radarWrap: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+    heroWrap: {
       alignItems: 'center',
-      gap: 4,
-      borderRadius: 999,
-      paddingHorizontal: 12,
-      paddingVertical: 5,
+      justifyContent: 'center',
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+      position: 'relative',
     },
-    chipText: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 13,
-      fontWeight: '600',
-    },
-    sectionHeader: {
-      flexDirection: 'row',
+    heroOverlay: {
+      position: 'absolute',
       alignItems: 'center',
+      justifyContent: 'center',
+    },
+    xpLabelRow: {
+      flexDirection: 'row',
       justifyContent: 'space-between',
-      marginBottom: spacing.sm,
+      alignItems: 'baseline',
+    },
+    collapsedHeader: {
+      position: 'absolute',
+      top: spacing.md,
+      left: 0,
+      right: 0,
+      alignItems: 'center',
+      zIndex: 10,
+    },
+    collapsedChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      borderRadius: 999,
+      borderWidth: 1,
     },
     sectionLabel: {
       fontFamily: fonts.heading,
       fontSize: 13,
-      fontWeight: '700',
+      color: c.textSecondary,
       letterSpacing: 0.5,
+      alignSelf: 'flex-start',
     },
-    radarWrap: {
-      alignItems: 'center',
-    },
-    streakRow: {
+    streaksSection: { gap: spacing.sm },
+    streakGrid: {
       flexDirection: 'row',
+      gap: 6,
       flexWrap: 'wrap',
-      gap: spacing.sm,
     },
-    streakCard: {
+    streakTile: {
       flex: 1,
-      minWidth: 140,
+      minWidth: 56,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderRadius: radii.control,
       borderWidth: 1,
-      borderRadius: 20,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      gap: 6,
-    },
-    streakTop: {
-      flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: spacing.xs,
     },
-    questList: {
-      gap: spacing.sm,
+    wrapBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
     },
+    questsSection: { gap: spacing.sm },
+    questList: { gap: 8 },
     insightCard: {
       gap: spacing.sm,
-      borderWidth: 1,
-      borderRadius: 20,
-      padding: spacing.md,
     },
     insightHeader: {
       flexDirection: 'row',
@@ -528,11 +720,33 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       gap: spacing.xs,
     },
     insightText: {
+      color: c.textSecondary,
       fontSize: fontSizes.sm,
       lineHeight: 20,
     },
     blocksSection: {
       gap: spacing.sm,
+    },
+    routineHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    editRoutineBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+    },
+    sectionTitle: {
+      fontFamily: fonts.heading,
+      fontSize: fontSizes.lg,
+      marginTop: spacing.sm,
+      color: c.textPrimary,
     },
     emptyState: {
       alignItems: 'center',
@@ -541,6 +755,40 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     emptyText: {
       fontSize: fontSizes.lg,
+    },
+    calCard: {
+      gap: spacing.sm,
+    },
+    calHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    calActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      flexWrap: 'wrap',
+    },
+    calPrimary: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+    },
+    calSecondary: {
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+    },
+    reflectCard: {
+      gap: 0,
+    },
+    reflectRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
   });
 }

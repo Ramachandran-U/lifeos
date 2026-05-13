@@ -1,6 +1,6 @@
 import { Pressable, PressableProps, StyleSheet, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body } from './Typography';
@@ -13,14 +13,14 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   style?: ViewStyle;
 }
 
-const variantStyles: Record<ButtonVariant, { bg: string; text: string; border?: string }> = {
-  primary: { bg: colors.primary, text: colors.textPrimary },
-  secondary: { bg: 'transparent', text: colors.primary, border: colors.primary },
-  ghost: { bg: 'transparent', text: colors.textSecondary },
-  danger: { bg: colors.error, text: colors.textPrimary },
-};
-
 export function Button({ title, variant = 'primary', style, onPress, ...props }: ButtonProps) {
+  const c = useColors();
+  const variantStyles: Record<ButtonVariant, { bg: string; text: string; border?: string }> = {
+    primary: { bg: c.primary, text: '#FFFFFF' },
+    secondary: { bg: 'transparent', text: c.primary, border: c.primary },
+    ghost: { bg: 'transparent', text: c.textSecondary },
+    danger: { bg: c.error, text: '#FFFFFF' },
+  };
   const v = variantStyles[variant];
 
   const handlePress = (e: Parameters<NonNullable<PressableProps['onPress']>>[0]) => {

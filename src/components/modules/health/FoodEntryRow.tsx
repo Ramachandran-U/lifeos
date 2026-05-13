@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption } from '@/components/ui/Typography';
@@ -14,6 +14,8 @@ interface FoodEntryRowProps {
 }
 
 export function FoodEntryRow({ foodName, calories, protein, carbs, fat, quantityG }: FoodEntryRowProps) {
+  const c = useColors();
+  const styles = makeStyles(c);
   return (
     <View style={styles.container}>
       <View style={styles.main}>
@@ -28,7 +30,7 @@ export function FoodEntryRow({ foodName, calories, protein, carbs, fat, quantity
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',

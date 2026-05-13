@@ -1,0 +1,26 @@
+{
+  "name": "lifeos-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3030",
+    "build": "next build",
+    "start": "next start -p 3030",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "@vercel/analytics": "^2.0.1",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.16.5",
+    "@types/react": "18.3.5",
+    "@types/react-dom": "18.3.0",
+    "typescript": "5.5.4"
+  }
+}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
@@ -21,33 +21,33 @@ const BADGE_INFO: Record<BadgeId, { icon: string; name: string; subtitle: string
 };
 
 export function AchievementToast() {
-  const { popBadge } = useGameStore();
+  const pendingCount = useGameStore((s) => s.pendingBadges.length);
+  const popBadge = useGameStore((s) => s.popBadge);
   const [currentBadge, setCurrentBadge] = useState<BadgeId | null>(null);
   const [visible, setVisible] = useState(false);
+  const c = useColors();
+  const styles = makeStyles(c);
 
+  // Effect 1 — when idle and a badge is queued, show it.
+  // Must NOT own the auto-dismiss timer: this effect re-runs every time
+  // `visible` flips, and its cleanup would clear the timer before it fires.
   useEffect(() => {
+    if (visible) return;
+    if (pendingCount === 0) return;
     const badge = popBadge();
     if (badge) {
       setCurrentBadge(badge);
       setVisible(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      const timer = setTimeout(() => {
-        setVisible(false);
-        // Check for more badges after dismiss
-        setTimeout(() => {
-          const next = popBadge();
-          if (next) {
-            setCurrentBadge(next);
-            setVisible(true);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          }
-        }, 500);
-      }, 4000);
-
-      return () => clearTimeout(timer);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-  });
+  }, [pendingCount, visible, popBadge]);
+
+  // Effect 2 — auto-dismiss exactly once per visible cycle.
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => setVisible(false), 4000);
+    return () => clearTimeout(timer);
+  }, [visible]);
 
   if (!visible || !currentBadge) return null;
 
@@ -71,7 +71,7 @@ export function AchievementToast() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 120,

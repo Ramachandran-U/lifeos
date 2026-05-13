@@ -8,7 +8,7 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 interface LoadingDotsProps {
@@ -46,12 +46,14 @@ function Dot({ color, size, delay }: { color: string; size: number; delay: numbe
   );
 }
 
-export function LoadingDots({ color = colors.primary, size = 10 }: LoadingDotsProps) {
+export function LoadingDots({ color, size = 10 }: LoadingDotsProps) {
+  const c = useColors();
+  const dotColor = color ?? c.primary;
   return (
     <View style={styles.container}>
-      <Dot color={color} size={size} delay={0} />
-      <Dot color={color} size={size} delay={200} />
-      <Dot color={color} size={size} delay={400} />
+      <Dot color={dotColor} size={size} delay={0} />
+      <Dot color={dotColor} size={size} delay={200} />
+      <Dot color={dotColor} size={size} delay={400} />
     </View>
   );
 }

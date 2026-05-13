@@ -1,10 +1,17 @@
-import { GoalHierarchy } from '../types';
+import { GoalHierarchy, GoalDescription, GoalDescriptionInput } from '../types';
+
+export function buildMockGoalDescription(input: GoalDescriptionInput): GoalDescription {
+  const { title, goalType, level } = input;
+  const scope = level ? `${level} goal` : 'goal';
+  return {
+    description: `This ${goalType} ${scope} anchors your day-to-day choices around "${title}". You'll know it's working when the next concrete action feels obvious and you see weekly progress without checking a tracker.`,
+  };
+}
 
 export function buildMockGoalHierarchy(visionStatement: string, name?: string): GoalHierarchy {
-  // Derive a clean primary goal title directly from the user's own words
   const vision = visionStatement.trim();
-  // Capitalise first letter, strip trailing period if present
   const primaryTitle = vision.charAt(0).toUpperCase() + vision.slice(1).replace(/\.$/, '');
+  const short = primaryTitle.length > 60 ? primaryTitle.slice(0, 57) + '…' : primaryTitle;
 
   return {
     primaryGoal: {
@@ -12,58 +19,70 @@ export function buildMockGoalHierarchy(visionStatement: string, name?: string): 
       type: 'career',
     },
     yearly: {
-      title: `Make serious progress toward: ${primaryTitle}`,
-      milestone: `Complete the foundational steps that put this goal within reach`,
+      title: `One public artifact proving progress on: ${short}`,
+      milestone: `By year-end, a URL or document that a stranger could evaluate as evidence you're closer to "${short}" than you were in month 1.`,
     },
     monthly: [
-      { month: 1, title: 'Research & Foundation', milestone: 'Understand the full requirements and create a clear roadmap' },
-      { month: 2, title: 'Skill Building', milestone: 'Acquire the core skills and knowledge needed for the goal' },
-      { month: 3, title: 'First Real Steps', milestone: 'Take the first concrete actions toward the goal and measure progress' },
+      {
+        month: 1,
+        title: `Published 1-page roadmap for "${short}"`,
+        milestone: `A written doc listing the 3 skills, 3 artifacts, and 3 people that define success — shared with at least one accountability partner.`,
+      },
+      {
+        month: 2,
+        title: `Shipped first proof-of-competence artifact`,
+        milestone: `One deployed, documented output relevant to the goal (repo, post, demo, design doc). Binary: it has a URL or it doesn't.`,
+      },
+      {
+        month: 3,
+        title: `Artifact reviewed by 1 practitioner + tightened V2`,
+        milestone: `Written feedback logged from someone already doing this, and a V2 merged that addresses the top 2 critiques.`,
+      },
     ],
     weekly: [
       {
         week: 1,
-        focus: 'Research and plan',
+        focus: `Scope — turn "${short}" into a shippable target`,
         tasks: [
-          `Research what it concretely takes to achieve: ${primaryTitle}`,
-          'Identify the 3 biggest skill gaps or requirements',
-          'Find 2–3 people who have done this and study their path',
+          `Write a 1-page doc defining what "done" looks like in 12 weeks (artifact, not feeling).`,
+          `List 3 people who've reached a version of this — note what they shipped, not how they felt.`,
+          `Pick ONE proof artifact to ship by week 8 and post it in your goal card.`,
         ],
       },
       {
         week: 2,
-        focus: 'Build your knowledge base',
+        focus: 'Start building — no more reading',
         tasks: [
-          'Read or watch 3 resources directly related to the goal',
-          'Write down the key milestones in your own words',
-          'Identify one mentor or community to join',
+          `Make the first commit / draft / page of your proof artifact and push it publicly.`,
+          `Block 4 deep-work sessions on your calendar this week and defend them.`,
+          `Write a 3-sentence progress note at the end of the week. No artifact = no note.`,
         ],
       },
       {
         week: 3,
-        focus: 'Take the first action',
+        focus: 'Ship a visible checkpoint',
         tasks: [
-          'Complete one small but real step toward the goal',
-          'Share your goal with someone who can hold you accountable',
-          'Set a 90-day target and write it down',
+          `Publish v0.1 of the artifact somewhere public (repo README, draft post, demo link).`,
+          `Send it to 1 practitioner with a specific question. No "thoughts?" — ask a real one.`,
+          `List the 2 biggest gaps their feedback surfaces and log them as next-week tasks.`,
         ],
       },
       {
         week: 4,
-        focus: 'Review and adjust',
+        focus: 'Tighten and commit',
         tasks: [
-          'Review what you learned and did this month',
-          'Adjust your plan based on new information',
-          'Commit to one habit that supports this goal daily',
+          `Merge the V2 changes that address last week's feedback. No scope creep.`,
+          `Write a 1-paragraph retro: what shipped, what didn't, and why. Be honest.`,
+          `Re-commit to one daily ritual that makes week 5 non-negotiable.`,
         ],
       },
     ],
     dailyTaskExamples: [
-      `Spend 30 min on a skill directly required for: ${primaryTitle}`,
-      'Read or watch one piece of educational content on the topic (20 min)',
-      'Journal on progress and blockers (10 min)',
-      'Do one outreach or networking action related to the goal (15 min)',
-      'Review your goal roadmap and update your task list (10 min)',
+      `45 min deep work: move the proof artifact forward by one concrete commit/draft.`,
+      `20 min: read one primary source (paper, docs, code) — take Feynman-style notes in your own words.`,
+      `10 min end-of-day log: what shipped, what's blocking, what's next. No blank entries.`,
+      `15 min: one outreach action tied to the artifact — question, share, or ask for review.`,
+      `10 min weekly checkpoint: if this week produced no visible output, cut scope before adding hours.`,
     ],
   };
 }

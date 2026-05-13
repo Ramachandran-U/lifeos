@@ -4,21 +4,25 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
-import { createUser, getUserByEmail } from '@/db/queries/users';
-import { generateSalt, hashPassword } from '@/utils/auth';
+import { ensureLocalUserFromAuth, setWebSession } from '@/db/queries/users';
 import { useUserStore } from '@/store/useUserStore';
+import { signUpWithEmail, signInWithApple, startGoogleSupabaseOAuth } from '@/integrations/supabase/auth';
+import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignUpScreen() {
   const router = useRouter();
   const { setUser } = useUserStore();
+  const c = useColors();
+  const styles = makeStyles(c);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -26,6 +30,15 @@ export default function SignUpScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    try {
+      await startGoogleSupabaseOAuth();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to start Google sign-in.');
+    }
+  };
 
   const handleRegister = async () => {
     setError('');
@@ -51,27 +64,40 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      const existing = getUserByEmail(trimmedEmail);
-      if (existing) {
-        setError('An account with this email already exists. Please sign in.');
-        return;
-      }
-
-      const salt = await generateSalt();
-      const hash = await hashPassword(password, salt);
-      const userId = await createUser({
-        email: trimmedEmail,
-        passwordHash: hash,
-        passwordSalt: salt,
-        name: trimmedName,
-      });
-
+      const result = await signUpWithEmail(trimmedEmail, password, trimmedName);
+      await ensureLocalUserFromAuth(result);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setUser(userId, trimmedName, trimmedEmail, 0);
-    } catch {
-      setError('Something went wrong. Please try again.');
+      setWebSession(result.userId);
+      setUser(result.userId, result.name, result.email, 0);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong.';
+      if (/already registered|user already exists/i.test(msg)) {
+        setError('An account with this email already exists. Please sign in.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAppleSignUp = async () => {
+    setError('');
+    try {
+      const result = await signInWithApple();
+      await ensureLocalUserFromAuth(result);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setWebSession(result.userId);
+      setUser(result.userId, result.name, result.email, 0);
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        'code' in e &&
+        (e as { code?: string }).code === 'ERR_REQUEST_CANCELED'
+      ) {
+        return;
+      }
+      setError(e instanceof Error ? e.message : 'Apple sign-in failed.');
     }
   };
 
@@ -140,6 +166,27 @@ export default function SignUpScreen() {
               disabled={loading}
             />
 
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Caption style={styles.dividerText}>or</Caption>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable style={styles.googleBtn} onPress={handleGoogleSignIn}>
+              <Ionicons name="logo-google" size={18} color={c.textPrimary} />
+              <Body style={styles.googleBtnLabel}>Continue with Google</Body>
+            </Pressable>
+
+            {Platform.OS === 'ios' && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                cornerRadius={16}
+                style={styles.appleBtn}
+                onPress={handleAppleSignUp}
+              />
+            )}
+
             <View style={styles.signInRow}>
               <Caption style={styles.signInPrompt}>Already have an account? </Caption>
               <Pressable onPress={() => router.back()}>
@@ -153,7 +200,7 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -200,5 +247,32 @@ const styles = StyleSheet.create({
   signInLink: {
     color: colors.primary,
     fontFamily: fonts.bodyMedium,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginVertical: spacing.xs,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { color: colors.textMuted },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  googleBtnLabel: {
+    color: colors.textPrimary,
+    fontFamily: fonts.bodyMedium,
+  },
+  appleBtn: {
+    width: '100%',
+    minHeight: 56,
   },
 });

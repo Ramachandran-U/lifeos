@@ -1,19 +1,9 @@
 import { View, StyleSheet } from 'react-native';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Caption } from './Typography';
 
 type BadgeVariant = 'goal' | 'health' | 'finance' | 'career' | 'social' | 'polymath' | 'default';
-
-const variantColors: Record<BadgeVariant, { bg: string; text: string }> = {
-  goal: { bg: colors.goalLight, text: colors.goal },
-  health: { bg: colors.healthLight, text: colors.health },
-  finance: { bg: colors.financeLight, text: colors.finance },
-  career: { bg: colors.careerLight, text: colors.career },
-  social: { bg: colors.socialLight, text: colors.social },
-  polymath: { bg: colors.polymathLight, text: colors.polymath },
-  default: { bg: colors.surface, text: colors.textSecondary },
-};
 
 interface BadgeProps {
   label: string;
@@ -22,6 +12,16 @@ interface BadgeProps {
 }
 
 export function Badge({ label, icon, variant = 'default' }: BadgeProps) {
+  const c = useColors();
+  const variantColors: Record<BadgeVariant, { bg: string; text: string }> = {
+    goal: { bg: c.goalLight, text: c.goal },
+    health: { bg: c.healthLight, text: c.health },
+    finance: { bg: c.financeLight, text: c.finance },
+    career: { bg: c.careerLight, text: c.career },
+    social: { bg: c.socialLight, text: c.social },
+    polymath: { bg: c.polymathLight, text: c.polymath },
+    default: { bg: c.surface, text: c.textSecondary },
+  };
   const v = variantColors[variant];
 
   return (

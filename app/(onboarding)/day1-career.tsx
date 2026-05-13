@@ -3,9 +3,10 @@ import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Pressable
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { colors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -29,6 +30,8 @@ export default function Day1CareerScreen() {
   const router = useRouter();
   const { call, loading, error } = useAI();
   const { userId, setOnboardingStage } = useUserStore();
+  const c = useColors();
+  const styles = makeStyles(c);
 
   const [currentRole, setCurrentRole] = useState('');
   const [targetRole, setTargetRole] = useState('');
@@ -76,6 +79,7 @@ export default function Day1CareerScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <AuroraBackground />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -169,7 +173,7 @@ export default function Day1CareerScreen() {
             <Animated.View entering={FadeInDown.duration(600)} style={styles.preview}>
               <Label style={styles.previewLabel}>TOP SKILL GAPS</Label>
               {analysis.gaps.slice(0, 3).map((gap) => (
-                <Card key={gap.skill} moduleColor={colors.career} style={styles.gapCard}>
+                <Card key={gap.skill} moduleColor={c.career} style={styles.gapCard}>
                   <Body style={styles.gapSkill}>{gap.skill}</Body>
                   <View style={styles.gapLevels}>
                     <Badge label={gap.currentLevel} variant="default" />
@@ -192,7 +196,7 @@ export default function Day1CareerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

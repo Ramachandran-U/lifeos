@@ -3,12 +3,13 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withTiming,
+  withSpring,
 } from 'react-native-reanimated';
 import { useEffect, useRef } from 'react';
-import { colors } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { SPRING } from '@/theme/motion';
 import { Body } from './Typography';
 
 interface StreakCounterProps {
@@ -16,14 +17,15 @@ interface StreakCounterProps {
 }
 
 export function StreakCounter({ count }: StreakCounterProps) {
+  const c = useColors();
   const scale = useSharedValue(1);
   const prevCount = useRef(count);
 
   useEffect(() => {
     if (count > prevCount.current) {
       scale.value = withSequence(
-        withTiming(1.3, { duration: 150 }),
-        withTiming(1, { duration: 150 }),
+        withSpring(1.3, SPRING.snappy),
+        withSpring(1, SPRING.standard),
       );
     }
     prevCount.current = count;
@@ -36,7 +38,7 @@ export function StreakCounter({ count }: StreakCounterProps) {
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
       <Body style={styles.flame}>🔥</Body>
-      <Body style={styles.count}>{count}</Body>
+      <Body style={[styles.count, { color: c.streak }]}>{count}</Body>
     </Animated.View>
   );
 }
@@ -53,6 +55,5 @@ const styles = StyleSheet.create({
   count: {
     fontFamily: fonts.heading,
     fontSize: fontSizes.xl,
-    color: colors.streak,
   },
 });

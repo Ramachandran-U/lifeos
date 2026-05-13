@@ -1,65 +1,42 @@
-// ─── AvatarRing ──────────────────────────────────────────────────────────────
-// Circular level ring with user initials in the centre. Animates the arc fill
-// from 0 → xp% on mount (900ms cubic-bezier).
-
-import { useEffect } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import Animated, {
-  useAnimatedProps,
-  useSharedValue,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedProps, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+import { useEffect } from 'react';
 import { useColors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { Body, Caption } from '@/components/ui/Typography';
 import { xpProgressInLevel } from '@/utils/gamification';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-interface AvatarRingProps {
+interface Props {
   xp: number;
   initials: string;
   size?: number;
 }
 
-export function AvatarRing({ xp, initials, size = 80 }: AvatarRingProps) {
+export function AvatarRing({ xp, initials, size = 72 }: Props) {
   const c = useColors();
   const { level, pct } = xpProgressInLevel(xp);
   const sw = size * 0.075;
   const r = (size - sw) / 2;
   const circ = 2 * Math.PI * r;
+  const progress = useSharedValue(0);
 
-  const anim = useSharedValue(0);
   useEffect(() => {
-    anim.value = withTiming(pct, {
-      duration: 900,
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    });
-  }, [pct, anim]);
+    progress.value = withTiming(pct, { duration: 1200, easing: Easing.out(Easing.cubic) });
+  }, [pct, progress]);
 
-  const animatedProps = useAnimatedProps(() => {
-    const dash = circ * anim.value;
-    return {
-      strokeDasharray: `${dash} ${circ - dash}`,
-    } as { strokeDasharray: string };
-  });
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDasharray: [circ * progress.value, circ - circ * progress.value].join(' '),
+  }));
+
+  const inner = size - sw * 2;
 
   return (
     <View style={{ width: size, height: size }}>
-      <Svg
-        width={size}
-        height={size}
-        style={{ transform: [{ rotate: '-90deg' }] }}
-      >
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={c.border}
-          strokeWidth={sw}
-        />
+      <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c.border} strokeWidth={sw} />
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
@@ -73,51 +50,23 @@ export function AvatarRing({ xp, initials, size = 80 }: AvatarRingProps) {
       </Svg>
       <View
         style={[
-          styles.inner,
+          StyleSheet.absoluteFill,
           {
-            top: sw,
-            left: sw,
-            width: size - sw * 2,
-            height: size - sw * 2,
+            margin: sw,
+            width: inner,
+            height: inner,
+            borderRadius: inner / 2,
             backgroundColor: c.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
           },
         ]}
       >
-        <Text
-          style={[
-            styles.initials,
-            { fontSize: size * 0.22, fontFamily: fonts.display },
-          ]}
-        >
+        <Body style={{ fontFamily: fonts.heading, fontSize: size * 0.22, color: '#FFF', lineHeight: size * 0.24 }}>
           {initials}
-        </Text>
-        <Text
-          style={[
-            styles.level,
-            { fontSize: size * 0.11, fontFamily: fonts.body },
-          ]}
-        >
-          Lv{level}
-        </Text>
+        </Body>
+        <Caption style={{ fontSize: Math.max(9, size * 0.11), color: 'rgba(255,255,255,0.75)' }}>Lv{level}</Caption>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  inner: {
-    position: 'absolute',
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    lineHeight: undefined,
-  },
-  level: {
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 1,
-  },
-});

@@ -12,8 +12,10 @@ export function useAI() {
     try {
       const result = await fn();
       return result;
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setError(message);
+      if (__DEV__) console.warn('[useAI]', err);
       return null;
     } finally {
       setLoading(false);

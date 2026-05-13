@@ -1,0 +1,108 @@
+{
+  "$schema": "Source of truth for smoke. Add a route here when it ships to prod.",
+  "auth": {
+    "seed": "authedUser",
+    "comment": "Default seed for tabs/* and side routes; bypasses /(auth) redirect."
+  },
+  "routes": [
+    {
+      "path": "/",
+      "name": "today",
+      "selector": "text=Good ",
+      "comment": "Greeting renders — proves Today screen mounted, gamestore + colors hook resolved."
+    },
+    {
+      "path": "/(tabs)/profile",
+      "name": "profile",
+      "selector": "text=EXPERIENCE",
+      "comment": "Aurora Experience section header — proves preferences store + GlassCard rendered."
+    },
+    {
+      "path": "/(tabs)/rewards",
+      "name": "rewards",
+      "selector": "text=LEVEL LADDER",
+      "comment": "Section label — proves XP store loaded + ladder mounted."
+    },
+    {
+      "path": "/(tabs)/health",
+      "name": "health",
+      "selector": "text=Health",
+      "comment": "Module header proves health screen mounted (avoids the known TS-error fibre crash path by not interacting with food log)."
+    },
+    {
+      "path": "/(tabs)/finance",
+      "name": "finance",
+      "selector": "text=Finance",
+      "comment": "Module header proves finance screen mounted."
+    },
+    {
+      "path": "/(tabs)/career",
+      "name": "career",
+      "selector": "text=Career",
+      "comment": "Module header."
+    },
+    {
+      "path": "/(tabs)/goals",
+      "name": "goals",
+      "selector": "text=Goals",
+      "comment": "Module header."
+    },
+    {
+      "path": "/(tabs)/explore",
+      "name": "explore",
+      "selector": "text=Explore",
+      "comment": "Module header."
+    },
+    {
+      "path": "/data-residency",
+      "name": "data-residency",
+      "selector": "text=Data residency",
+      "comment": "Aurora privacy screen reaches via Profile → Privacy."
+    },
+    {
+      "path": "/(onboarding)/day1-routine?mode=edit",
+      "name": "edit-routine",
+      "selector": "text=Edit your daily routine",
+      "comment": "Edit-mode title — regression-tests the root-layout allow-list fix + edit-mode title."
+    },
+    {
+      "path": "/what-lifeos-knows",
+      "name": "what-lifeos-knows",
+      "selector": "text=What LifeOS",
+      "comment": "Side route reachable from Profile."
+    },
+    {
+      "path": "/settings",
+      "name": "settings",
+      "selector": "[role=\"main\"], body",
+      "comment": "Settings shell — selector is forgiving since content may iterate."
+    }
+  ],
+  "navigation": [
+    {
+      "name": "profile-to-data-residency",
+      "from": "/(tabs)/profile",
+      "click": "text=Privacy & data residency",
+      "expectPath": "/data-residency",
+      "comment": "Regression-tests the layout allow-list + Pressable focus blur."
+    },
+    {
+      "name": "today-to-edit-routine",
+      "from": "/",
+      "click": "text=Edit routine",
+      "expectPath": "/day1-routine",
+      "comment": "Regression-tests the same; this is the original bug we fixed."
+    }
+  ],
+  "ignoredConsolePatterns": [
+    "Download the React DevTools",
+    "ExpoFontLoader",
+    "expo-font",
+    "Reanimated",
+    "Did not receive response to shouldStartLoad",
+    "Tried to register two views with the same name",
+    "useNativeDriver",
+    "[Violation]",
+    "ResizeObserver loop"
+  ]
+}

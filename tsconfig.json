@@ -14,5 +14,6 @@
       "@utils/*": ["src/utils/*"],
       "@types/*": ["src/types/*"]
     }
-  }
+  },
+  "exclude": ["node_modules", "workers", "admin"]
 }

@@ -7,6 +7,7 @@ import {
   webCreateUser,
   webGetUser,
   webGetUserByEmail,
+  webRewriteUserId,
   webUpdateUser,
   webSetSession,
   type WebUser,
@@ -15,6 +16,7 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type CreateUserData = {
+  id?: string;
   email: string;
   passwordHash: string;
   passwordSalt: string;
@@ -30,7 +32,7 @@ const isWeb = Platform.OS === 'web';
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function createUser(data: CreateUserData): Promise<string> {
-  const id = nanoid();
+  const id = data.id ?? nanoid();
   const now = new Date().toISOString();
 
   if (isWeb) {
@@ -86,28 +88,102 @@ export function updateUser(
   data: Partial<{
     name: string;
     age: number;
+    heightCm: number;
     visionStatement: string;
     wakeTime: string;
     sleepTime: string;
     workStartTime: string;
     workEndTime: string;
     onboardingStage: number;
+    primaryDomains: string[];
+    activatedModules: string[];
   }>,
 ): void {
   if (isWeb) {
     webUpdateUser(id, data);
     return;
   }
-  db.update(users)
-    .set({ ...data, updatedAt: new Date().toISOString() })
-    .where(eq(users.id, id))
-    .run();
+  const { primaryDomains, activatedModules, ...rest } = data;
+  const native: Record<string, unknown> = { ...rest, updatedAt: new Date().toISOString() };
+  if (primaryDomains !== undefined) native.primaryDomains = JSON.stringify(primaryDomains);
+  if (activatedModules !== undefined) native.activatedModules = JSON.stringify(activatedModules);
+  db.update(users).set(native).where(eq(users.id, id)).run();
 }
 
 export function getUserOnboardingStage(): number | undefined {
   if (isWeb) return webGetUser()?.onboardingStage;
   const user = db.select({ onboardingStage: users.onboardingStage }).from(users).limit(1).get();
   return user?.onboardingStage;
+}
+
+/**
+ * Sentinel stored in passwordHash for accounts that only authenticate via Google.
+ * Password sign-in paths must check for this and redirect to Google sign-in.
+ */
+export const GOOGLE_SSO_HASH = '__GOOGLE_SSO__';
+
+/** Sentinel stored in passwordHash for Supabase-authenticated accounts. */
+export const SUPABASE_AUTH_HASH = '__SUPABASE_AUTH__';
+
+/**
+ * Upsert a user from a Google profile. Returns the user id. If an account with
+ * the same email already exists (whether password or Google), reuses it; no
+ * account linking prompt yet — we trust Google's verified email.
+ */
+export async function upsertGoogleUser(profile: {
+  email: string;
+  name?: string;
+}): Promise<string> {
+  const existing = getUserByEmail(profile.email);
+  if (existing) {
+    if (profile.name && profile.name !== existing.name) {
+      updateUser(existing.id, { name: profile.name });
+    }
+    return existing.id;
+  }
+  const id = await createUser({
+    email: profile.email,
+    passwordHash: GOOGLE_SSO_HASH,
+    passwordSalt: '',
+    name: profile.name || profile.email.split('@')[0],
+  });
+  return id;
+}
+
+/**
+ * Create-or-update a local user row keyed on a Supabase auth user id. Existing
+ * queries read from this table so the rest of the app does not need to know
+ * where the id originated.
+ */
+export async function ensureLocalUserFromAuth(params: {
+  userId: string;
+  email: string;
+  name: string;
+}): Promise<void> {
+  const existing = getUserByEmail(params.email) ?? (isWeb ? webGetUser() : db.select().from(users).where(eq(users.id, params.userId)).get());
+  if (existing) {
+    if (existing.id === params.userId) {
+      if (params.name && params.name !== existing.name) {
+        updateUser(existing.id, { name: params.name });
+      }
+      return;
+    }
+    // Email exists under a different id (legacy local account). Rewrite its id
+    // so subsequent queries keyed on the Supabase user id resolve correctly.
+    if (isWeb) {
+      webRewriteUserId(existing.id, params.userId, params.name);
+      return;
+    }
+    db.update(users).set({ id: params.userId, name: params.name }).where(eq(users.id, existing.id)).run();
+    return;
+  }
+  await createUser({
+    id: params.userId,
+    email: params.email,
+    name: params.name,
+    passwordHash: SUPABASE_AUTH_HASH,
+    passwordSalt: '',
+  });
 }
 
 export function deleteAllUsers(): void {
