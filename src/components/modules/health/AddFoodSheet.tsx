@@ -16,6 +16,8 @@ import { recogniseFood } from '@/ai/functions';
 import { useAI } from '@/hooks/useAI';
 import { format } from 'date-fns';
 import type { FoodRecognition } from '@/ai/types';
+import { searchFoods, scaleMacros } from '@/utils/foodSearch';
+import type { FoodItem } from '@/data/foods';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -46,6 +48,41 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
 
+  // Bundled-DB search state. When the user picks a result we autofill the
+  // macro fields from its default serving; if they then change the quantity,
+  // we re-scale from the picked item rather than the raw text.
+  const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
+  const [pickedItem, setPickedItem] = useState<FoodItem | null>(null);
+
+  const handleNameChange = (next: string) => {
+    setFoodName(next);
+    if (pickedItem && next !== pickedItem.name) setPickedItem(null);
+    setSearchResults(next.trim().length >= 2 ? searchFoods(next) : []);
+  };
+
+  const handlePickResult = (item: FoodItem) => {
+    setPickedItem(item);
+    setFoodName(item.name);
+    setQuantity(String(item.defaultServing.quantityG));
+    setCalories(String(item.defaultServing.calories));
+    setProtein(String(item.defaultServing.protein));
+    setCarbs(String(item.defaultServing.carbs));
+    setFat(String(item.defaultServing.fat));
+    setSearchResults([]);
+  };
+
+  const handleQuantityChange = (next: string) => {
+    setQuantity(next);
+    if (!pickedItem) return;
+    const g = parseFloat(next);
+    if (!Number.isFinite(g) || g <= 0) return;
+    const scaled = scaleMacros(pickedItem.defaultServing, g);
+    setCalories(String(scaled.calories));
+    setProtein(String(scaled.protein));
+    setCarbs(String(scaled.carbs));
+    setFat(String(scaled.fat));
+  };
+
   const reset = () => {
     setMode('choose');
     setPhotoUri(null);
@@ -57,6 +94,8 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
     setProtein('');
     setCarbs('');
     setFat('');
+    setSearchResults([]);
+    setPickedItem(null);
   };
 
   const handleClose = () => {
@@ -247,8 +286,39 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
       <View style={styles.handle} />
       <Heading style={styles.title}>Add {mealType}</Heading>
       <View style={styles.form}>
-        <Input label="Food name" placeholder="e.g. Grilled chicken" value={foodName} onChangeText={setFoodName} />
-        <Input label="Quantity (g)" placeholder="100" value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
+        <Input
+          label="Food name"
+          placeholder="Type to search (dal, biryani, idli…)"
+          value={foodName}
+          onChangeText={handleNameChange}
+        />
+        {searchResults.length > 0 && (
+          <View style={styles.searchResults}>
+            {searchResults.map((item) => (
+              <Pressable key={item.id} style={styles.searchResult} onPress={() => handlePickResult(item)}>
+                <View style={styles.searchResultLeft}>
+                  <Body style={styles.searchResultName}>{item.name}</Body>
+                  <Caption>
+                    {item.defaultServing.label} · {item.defaultServing.calories} cal · P {item.defaultServing.protein}g · C {item.defaultServing.carbs}g · F {item.defaultServing.fat}g
+                  </Caption>
+                </View>
+                <Ionicons name="add-circle" size={24} color={c.health} />
+              </Pressable>
+            ))}
+          </View>
+        )}
+        {pickedItem && (
+          <Caption style={styles.pickedHint}>
+            From bundled DB · {pickedItem.source === 'curated-seed' ? 'approximate' : pickedItem.source.toUpperCase()} · macros auto-scale with quantity
+          </Caption>
+        )}
+        <Input
+          label="Quantity (g)"
+          placeholder="100"
+          value={quantity}
+          onChangeText={handleQuantityChange}
+          keyboardType="numeric"
+        />
         <Input label="Calories" placeholder="250" value={calories} onChangeText={setCalories} keyboardType="numeric" />
         <View style={styles.macroRow}>
           <View style={styles.macroInput}>
@@ -389,5 +459,34 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   macroInput: {
     flex: 1,
+  },
+  // Search results dropdown
+  searchResults: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: -spacing.xs,
+    overflow: 'hidden',
+  },
+  searchResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    gap: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  searchResultLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  searchResultName: {
+    fontFamily: fonts.bodyMedium,
+  },
+  pickedHint: {
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: -spacing.xs,
   },
 });
