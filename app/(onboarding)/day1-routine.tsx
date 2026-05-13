@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ import { planRoutineWithContext } from '@/ai/routinePlanner';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { track } from '@/utils/telemetry';
-import { updateUser } from '@/db/queries/users';
+import { getUser, updateUser } from '@/db/queries/users';
 import { createRoutineBlocks, deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import type { GeneratedRoutine } from '@/ai/types';
 
@@ -98,7 +98,34 @@ export default function Day1RoutineScreen() {
   const [workEnd, setWorkEnd] = useState('17:00');
   const [routine, setRoutine] = useState<GeneratedRoutine | null>(null);
 
+  // Seed pickers from the persisted user row so re-entering this screen (esp.
+  // in edit mode) doesn't silently revert wake/sleep/work times to defaults
+  // and feed those stale values to the AI when "Generate" is pressed.
+  useEffect(() => {
+    const user = getUser();
+    if (!user) return;
+    if (user.wakeTime) setWakeTime(user.wakeTime);
+    if (user.sleepTime) setSleepTime(user.sleepTime);
+    if (user.workStartTime) setWorkStart(user.workStartTime);
+    if (user.workEndTime) setWorkEnd(user.workEndTime);
+  }, []);
+
+  const scheduleError = (() => {
+    const toMin = (t: string) => {
+      const [h, m] = t.split(':').map((s) => parseInt(s, 10));
+      return h * 60 + (m || 0);
+    };
+    if (toMin(wakeTime) >= toMin(workStart)) {
+      return 'Wake time must be earlier than work start time.';
+    }
+    if (toMin(workEnd) >= toMin(sleepTime)) {
+      return 'Sleep time must be later than work end time.';
+    }
+    return null;
+  })();
+
   const handleGenerate = async () => {
+    if (scheduleError) return;
     const result = await call(() =>
       planRoutineWithContext({
         wakeTime,
@@ -179,10 +206,15 @@ export default function Day1RoutineScreen() {
           <WheelTimePicker label="Work ends" options={ALL_TIME_SLOTS} selected={workEnd} onSelect={setWorkEnd} formatValue={to12Hour} />
         </View>
 
+        {scheduleError && (
+          <Body style={styles.errorText}>{scheduleError}</Body>
+        )}
+
         {!routine && !loading && (
           <Button
             title="Generate my routine"
             onPress={handleGenerate}
+            disabled={!!scheduleError}
             style={styles.generateButton}
           />
         )}

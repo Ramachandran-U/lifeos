@@ -97,6 +97,11 @@ async function planRoutineAgentInner(
       'You are a routine planner. Given the user wake/sleep/work times, goals, recent-history context, ' +
       'and optional profile signals (chronotype, primary domains, fixed blocks, constraints, struggles, ' +
       'current habits, productive hours, dropped habits), propose 6–10 time-blocked routine blocks for today. ' +
+      'HARD CONSTRAINTS (never violate, even if defaults would be more natural): the FIRST block must start ' +
+      'AT OR AFTER schedule.wakeTime. The LAST block must end AT OR BEFORE schedule.sleepTime. Block times ' +
+      'between schedule.workStartTime and schedule.workEndTime should use module="work" unless a fixedBlock ' +
+      'overrides them. Do NOT default to 07:00 or any other common time — read the provided wakeTime ' +
+      'literally and start the first block exactly there or later. ' +
       'Honour fixed blocks verbatim. Place high-energy work inside the user\'s productive hours. Avoid ' +
       'reinstating dropped habits. If the recent-history context shows a pattern (e.g. skipped morning ' +
       'workouts, low-energy evenings), adapt the plan to it. ' +
@@ -175,7 +180,23 @@ async function planRoutineAgentInner(
   });
 
   // Step 4 — commit
-  const finalBlocks = critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks;
+  // Deterministic guard: even if the LLM ignored the wake/sleep bounds, drop
+  // anything outside the window so the generated routine never starts before
+  // the user is awake (or after they're asleep). This is the last line of
+  // defence — the propose+critique prompts already state the constraint.
+  const toMinutes = (hhmm: string): number => {
+    const [h, m] = hhmm.split(':').map((s) => parseInt(s, 10));
+    return h * 60 + (m || 0);
+  };
+  const wakeMin = toMinutes(input.wakeTime);
+  const sleepMin = toMinutes(input.sleepTime);
+  const inWindow = (b: { startTime: string; endTime: string }): boolean => {
+    const s = toMinutes(b.startTime);
+    const e = toMinutes(b.endTime);
+    return s >= wakeMin && e <= sleepMin && s < e;
+  };
+  const finalBlocks = (critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks)
+    .filter(inWindow);
   const briefingRaw = await callAI({
     system:
       'Write a 2–3 sentence briefing for the user explaining the shape of their day and the ' +
