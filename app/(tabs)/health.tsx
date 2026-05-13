@@ -48,6 +48,20 @@ import { FitDashboard } from '@/components/modules/health/FitDashboard';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 type Section = 'calories' | 'blood';
+type FoodEntry = {
+  id: string;
+  date: string;
+  mealType: string;
+  foodName: string;
+  quantityG: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fibre?: number;
+  source: string;
+  createdAt: string;
+};
 
 const CALORIE_TARGET = 2000;
 
@@ -55,7 +69,7 @@ export default function HealthScreen() {
   useScreenTracking('health');
   const c = useColors();
   const today = format(new Date(), 'yyyy-MM-dd');
-  const [foodEntries, setFoodEntries] = useState<ReturnType<typeof getFoodEntriesByDate>>([]);
+  const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [weightLogs, setWeightLogs] = useState<{ date: string; weight: number }[]>([]);
   const [heightCm, setHeightCm] = useState<number | null>(null);
   const [bloodReportResult, setBloodReportResult] = useState<BloodReportResult | null>(null);
@@ -74,7 +88,12 @@ export default function HealthScreen() {
   const advanceQuest = useGameStore((s) => s.advanceQuest);
 
   const loadData = useCallback(() => {
-    setFoodEntries(getFoodEntriesByDate(today));
+    setFoodEntries(
+      getFoodEntriesByDate(today).map((entry) => ({
+        ...entry,
+        fibre: entry.fibre ?? undefined,
+      })),
+    );
     const weights = getRecentWeightLogs(30);
     setWeightLogs(
       weights

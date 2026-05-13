@@ -47,6 +47,11 @@ import type { TxRecord } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 
+const webTextInputOutline = Platform.select({
+  web: { outlineStyle: 'none' as const } as object,
+  default: {},
+});
+
 const GOAL_TYPES = [
   { value: 'home', label: 'Home Down Payment', icon: 'home' },
   { value: 'retirement', label: 'Retirement', icon: 'umbrella' },
@@ -72,6 +77,14 @@ const RISK_PROFILES = [
 
 type FinanceTab = 'overview' | 'transactions' | 'goals';
 type SetupStep = 'type' | 'details' | 'generating' | null;
+
+type FinanceMilestone = {
+  id: string;
+  title: string;
+  targetAmount: number;
+  targetDate: string;
+  completedAt: string | null;
+};
 
 const CATEGORY_COLORS: Record<TransactionCategory, string> = {
   food_delivery: '#FF6B35',
@@ -149,7 +162,7 @@ export default function FinanceScreen() {
   const [goalId, setGoalId] = useState<string | null>(null);
   const [plan, setPlan] = useState<FinancialPlan | null>(null);
   const [insightText, setInsightText] = useState<WeeklyFinanceInsight | null>(null);
-  const [milestones, setMilestones] = useState<Array<{ id: string; title: string; targetAmount: number; targetDate: string; completedAt: string | null }>>([]);
+  const [milestones, setMilestones] = useState<FinanceMilestone[]>([]);
 
   const [selectedType, setSelectedType] = useState('');
   const [targetAmount, setTargetAmount] = useState(String(TARGET_PRESETS[2]));
@@ -179,7 +192,13 @@ export default function FinanceScreen() {
       setSelectedType(g.goalType);
       setTargetAmount(String(g.targetAmount ?? TARGET_PRESETS[2]));
       setMonthlySavings(String(g.monthlySavings ?? SAVINGS_PRESETS[2]));
-      let ms = getMilestonesByGoal(g.id);
+      let ms: FinanceMilestone[] = getMilestonesByGoal(g.id).map((m) => ({
+        id: m.id,
+        title: m.title,
+        targetAmount: m.targetAmount,
+        targetDate: m.targetDate,
+        completedAt: m.completedAt ?? null,
+      }));
 
       // Migration: earlier versions persisted milestones from a static mock
       // that didn't scale to the user's target — some overshot the goal and
@@ -928,7 +947,7 @@ function GoalsTab({
   completedAmount: number;
   monthlySavings: number;
   plan: FinancialPlan | null;
-  milestones: Array<{ id: string; title: string; targetAmount: number; targetDate: string; completedAt: string | null }>;
+  milestones: FinanceMilestone[];
   onCompleteMilestone: (id: string) => void;
   insightText: WeeklyFinanceInsight | null;
   onGetInsight: () => void;
@@ -1213,7 +1232,7 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       fontFamily: fonts.body,
       fontSize: fontSizes.lg,
       paddingVertical: 0,
-      ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
+      ...webTextInputOutline,
     },
     amountHint: { color: c.textMuted },
     chip: {
