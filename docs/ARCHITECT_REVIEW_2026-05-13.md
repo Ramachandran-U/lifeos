@@ -156,3 +156,7 @@ Full audit log lives in this branch's session transcript. Key signals that drove
 - 5 tables in `schema.ts` with no query files
 - `src/db/migrations` referenced by `drizzle.config.ts` but doesn't exist
 - 3 onboarding paths active simultaneously; `first_blueprint` badge fires from 3 different commit sites
+
+## Discovered defects
+
+- 2026-05-13 / T1 verification: `npx playwright test e2e/smoke.spec.ts` fails after Expo web is running because routes throw `SyntaxError: Cannot use 'import.meta' outside a module`; the profile navigation smoke also times out waiting for `text=Privacy & data residency`. This is outside the T1 TypeScript-fix scope and should be handled in T9 smoke triage.

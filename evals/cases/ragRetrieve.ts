@@ -7,18 +7,28 @@ const HitsSchema = z.array(
   z.object({ id: z.string(), text: z.string(), score: z.number() }).passthrough(),
 );
 
+type RetrievalOutput = Array<{
+  id: string;
+  text: string;
+  score: number;
+  [k: string]: unknown;
+}>;
+
 interface Input {
   query: string;
   corpus: { id: string; text: string }[];
   expectedTopId: string;
 }
 
-const suite: EvalSuite<Input, z.infer<typeof HitsSchema>> = {
+const suite: EvalSuite<Input, RetrievalOutput> = {
   name: 'ragRetrieve',
   threshold: 1.0,
   run: async ({ query, corpus }) => {
     const idx: IndexedItem[] = await indexItems(corpus);
-    return retrieveTopK(query, idx, 3);
+    const hits = await retrieveTopK(query, idx, 3);
+    return hits.map(
+      (hit): RetrievalOutput[number] => ({ ...hit }),
+    );
   },
   cases: [
     {
