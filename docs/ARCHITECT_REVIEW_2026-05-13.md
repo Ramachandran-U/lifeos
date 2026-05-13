@@ -160,3 +160,4 @@ Full audit log lives in this branch's session transcript. Key signals that drove
 ## Discovered defects
 
 - 2026-05-13 / T1 verification: `npx playwright test e2e/smoke.spec.ts` fails after Expo web is running because routes throw `SyntaxError: Cannot use 'import.meta' outside a module`; the profile navigation smoke also times out waiting for `text=Privacy & data residency`. This is outside the T1 TypeScript-fix scope and should be handled in T9 smoke triage.
+- 2026-05-13 / T4 verification: `npx tsc --noEmit` on the current `lifeosv1` base reports unrelated gamification errors: `XpBar`/`XPBar` casing and duplicate `xpForLevel`, `levelFromXP`, and `xpProgressInLevel` exports in `src/utils/gamification.ts`. This is outside the root ErrorBoundary scope.
