@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, Modal, Pressable, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, ScrollView, Image, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ import type { FoodRecognition } from '@/ai/types';
 import { searchFoods, scaleMacros } from '@/utils/foodSearch';
 import { lookupBarcode } from '@/utils/openFoodFacts';
 import { upgradeFoodRecognition } from '@/utils/upgradeFoodRecognition';
+import { BarcodeScannerWeb, isBarcodeDetectorSupported } from './BarcodeScannerWeb';
 import type { FoodItem } from '@/data/foods';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -60,6 +61,8 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   const [barcode, setBarcode] = useState('');
   const [barcodeBusy, setBarcodeBusy] = useState(false);
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
+  const [scannerOn, setScannerOn] = useState(false);
+  const canScan = isBarcodeDetectorSupported();
 
   const handleBarcodeLookup = async () => {
     const code = barcode.trim();
@@ -128,6 +131,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
     setPickedItem(null);
     setBarcode('');
     setBarcodeError(null);
+    setScannerOn(false);
   };
 
   const handleClose = () => {
@@ -274,22 +278,60 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
     </>
   );
 
+  // Once the camera fires a code, auto-lookup so the user doesn't have to
+  // press a second button. Done inline (not via state effect) so the call
+  // doesn't fire on every re-render.
+  const handleScannerDetect = (code: string) => {
+    setScannerOn(false);
+    setBarcode(code);
+    setBarcodeBusy(true);
+    setBarcodeError(null);
+    lookupBarcode(code)
+      .then((result) => {
+        if (!result) {
+          setBarcodeError(`Barcode ${code} not in Open Food Facts. Try a different one or enter macros manually.`);
+          return;
+        }
+        handlePickResult(result.item);
+        setMode('manual');
+        setBarcode('');
+      })
+      .catch((e) => setBarcodeError(e instanceof Error ? e.message : 'Lookup failed.'))
+      .finally(() => setBarcodeBusy(false));
+  };
+
   const renderBarcode = () => (
     <>
       <View style={styles.handle} />
       <Heading style={styles.title}>Look up barcode</Heading>
       <Caption style={styles.barcodeHint}>
-        Type the barcode digits from the package (8–13 digits). Powered by Open Food Facts —
-        works best for international brands; Indian packaged snacks may have gaps.
+        {scannerOn
+          ? 'Hold the package barcode inside the box. Detection is automatic.'
+          : Platform.OS === 'web' && canScan
+            ? 'Scan with your camera, or type the digits if you prefer. Powered by Open Food Facts — best for international brands; Indian packaged snacks may have gaps.'
+            : 'Type the barcode digits from the package (8–13 digits). Powered by Open Food Facts.'}
       </Caption>
+
+      {scannerOn && Platform.OS === 'web' ? (
+        <BarcodeScannerWeb
+          onScan={handleScannerDetect}
+          onError={(msg) => { setBarcodeError(msg); setScannerOn(false); }}
+        />
+      ) : null}
+
       <View style={styles.form}>
+        {Platform.OS === 'web' && canScan && !scannerOn ? (
+          <Button title="📷 Scan with camera" onPress={() => { setBarcodeError(null); setScannerOn(true); }} />
+        ) : null}
+        {scannerOn ? (
+          <Button title="Stop scanning" variant="ghost" onPress={() => setScannerOn(false)} />
+        ) : null}
         <Input
           label="Barcode"
           placeholder="e.g. 8901058851656"
           value={barcode}
           onChangeText={(t) => { setBarcode(t.replace(/[^\d]/g, '')); setBarcodeError(null); }}
           keyboardType="numeric"
-          autoFocus
         />
         {barcodeError ? <Body style={styles.barcodeError}>{barcodeError}</Body> : null}
         <Button
@@ -297,7 +339,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
           onPress={handleBarcodeLookup}
           disabled={!barcode.trim() || barcodeBusy}
         />
-        <Button title="Back" variant="ghost" onPress={() => { setMode('choose'); setBarcode(''); setBarcodeError(null); }} />
+        <Button title="Back" variant="ghost" onPress={() => { setMode('choose'); setBarcode(''); setBarcodeError(null); setScannerOn(false); }} />
       </View>
     </>
   );
