@@ -30,6 +30,50 @@ export interface PlanRoutineAgentInput extends RoutineInput {
   contextItems?: RagItem[];
 }
 
+// Valid module enum from GeneratedRoutineSchema. The AI occasionally
+// hallucinates synonyms (e.g. "personal", "wellness") which would otherwise
+// fail strict Zod parse and surface a raw error to the UI. We pre-process
+// each block's module through this map BEFORE the schema sees it.
+const VALID_MODULES = ['goal', 'health', 'finance', 'career', 'social', 'polymath', 'rest', 'work', 'meal'] as const;
+const MODULE_ALIASES: Record<string, (typeof VALID_MODULES)[number]> = {
+  goals: 'goal',
+  fitness: 'health',
+  exercise: 'health',
+  wellness: 'health',
+  workout: 'health',
+  sleep: 'rest',
+  break: 'rest',
+  relax: 'rest',
+  recovery: 'rest',
+  personal: 'rest',
+  hobby: 'polymath',
+  learning: 'polymath',
+  study: 'polymath',
+  reading: 'polymath',
+  mind: 'polymath',
+  money: 'finance',
+  job: 'career',
+  family: 'social',
+  friends: 'social',
+  food: 'meal',
+  breakfast: 'meal',
+  lunch: 'meal',
+  dinner: 'meal',
+  snack: 'meal',
+};
+const coerceModule = (m: unknown): string => {
+  if (typeof m !== 'string') return 'rest';
+  const k = m.toLowerCase().trim();
+  if ((VALID_MODULES as readonly string[]).includes(k)) return k;
+  return MODULE_ALIASES[k] ?? 'rest';
+};
+const sanitizeBlocks = (raw: unknown): unknown => {
+  if (!Array.isArray(raw)) return raw;
+  return raw.map((b) =>
+    b && typeof b === 'object' ? { ...b, module: coerceModule((b as { module?: unknown }).module) } : b,
+  );
+};
+
 const ProposeSchema = z.object({
   blocks: GeneratedRoutineSchema.shape.blocks,
   rationale: z.string(),
@@ -135,7 +179,11 @@ async function planRoutineAgentInner(
       },
     ],
   });
-  const proposed = ProposeSchema.parse(extractJson(proposeRaw));
+  const proposedRaw = extractJson(proposeRaw) as { blocks?: unknown; rationale?: unknown };
+  const proposed = ProposeSchema.parse({
+    ...proposedRaw,
+    blocks: sanitizeBlocks(proposedRaw.blocks),
+  });
   trace.push({
     kind: 'propose',
     blockCount: proposed.blocks.length,
@@ -172,7 +220,11 @@ async function planRoutineAgentInner(
       },
     ],
   });
-  const critique = CritiqueSchema.parse(extractJson(critiqueRaw));
+  const critiqueRawJson = extractJson(critiqueRaw) as { issues?: unknown; revisedBlocks?: unknown };
+  const critique = CritiqueSchema.parse({
+    ...critiqueRawJson,
+    revisedBlocks: sanitizeBlocks(critiqueRawJson.revisedBlocks),
+  });
   trace.push({
     kind: 'critique',
     issues: critique.issues,

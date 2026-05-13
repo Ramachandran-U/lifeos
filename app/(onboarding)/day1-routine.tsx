@@ -226,7 +226,13 @@ export default function Day1RoutineScreen() {
           </View>
         )}
 
-        {error && <Body style={styles.errorText}>{error}</Body>}
+        {error && (
+          <Body style={styles.errorText}>
+            {/^\s*\[?\s*\{/.test(error)
+              ? "We couldn't build that routine — the AI returned an unexpected shape. Try adjusting your wake/sleep/work times and tap Generate again."
+              : error}
+          </Body>
+        )}
 
         {routine && (
           <Animated.View entering={FadeInUp.duration(600)} style={styles.routinePreview}>
