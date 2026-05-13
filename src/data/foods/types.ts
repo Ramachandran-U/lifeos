@@ -7,10 +7,11 @@
  */
 
 export type FoodSource =
-  | 'ifct-2017'    // Indian Food Composition Tables 2017 (NIN)
-  | 'indb-2024'    // Indian Nutrient Databank 2024
-  | 'usda'         // USDA FoodData Central
-  | 'curated-seed' // Hand-curated approximations shipped with the app
+  | 'ifct-2017'        // Indian Food Composition Tables 2017 (NIN)
+  | 'indb-2024'        // Indian Nutrient Databank 2024
+  | 'usda'             // USDA FoodData Central
+  | 'open-food-facts'  // Open Food Facts (live lookup by barcode)
+  | 'curated-seed'     // Hand-curated approximations shipped with the app
 
 export interface FoodMacros {
   /** kcal */

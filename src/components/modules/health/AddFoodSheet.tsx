@@ -17,6 +17,8 @@ import { useAI } from '@/hooks/useAI';
 import { format } from 'date-fns';
 import type { FoodRecognition } from '@/ai/types';
 import { searchFoods, scaleMacros } from '@/utils/foodSearch';
+import { lookupBarcode } from '@/utils/openFoodFacts';
+import { upgradeFoodRecognition } from '@/utils/upgradeFoodRecognition';
 import type { FoodItem } from '@/data/foods';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -29,7 +31,7 @@ interface AddFoodSheetProps {
   onPhotoUsed?: () => void;
 }
 
-type Mode = 'choose' | 'manual' | 'scanning' | 'review';
+type Mode = 'choose' | 'manual' | 'scanning' | 'review' | 'barcode';
 
 export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed }: AddFoodSheetProps) {
   const c = useColors();
@@ -53,6 +55,34 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   // we re-scale from the picked item rather than the raw text.
   const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
   const [pickedItem, setPickedItem] = useState<FoodItem | null>(null);
+
+  // Barcode lookup state.
+  const [barcode, setBarcode] = useState('');
+  const [barcodeBusy, setBarcodeBusy] = useState(false);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
+
+  const handleBarcodeLookup = async () => {
+    const code = barcode.trim();
+    if (!code) return;
+    setBarcodeBusy(true);
+    setBarcodeError(null);
+    try {
+      const result = await lookupBarcode(code);
+      if (!result) {
+        setBarcodeError('Not found in Open Food Facts. Try entering it manually.');
+        return;
+      }
+      // Treat the OFF hit like a search result: pick it, prefill the manual
+      // form, and drop the user there so they can confirm + save.
+      handlePickResult(result.item);
+      setMode('manual');
+      setBarcode('');
+    } catch (e) {
+      setBarcodeError(e instanceof Error ? e.message : 'Lookup failed.');
+    } finally {
+      setBarcodeBusy(false);
+    }
+  };
 
   const handleNameChange = (next: string) => {
     setFoodName(next);
@@ -96,6 +126,8 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
     setFat('');
     setSearchResults([]);
     setPickedItem(null);
+    setBarcode('');
+    setBarcodeError(null);
   };
 
   const handleClose = () => {
@@ -119,8 +151,11 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
       setMode('scanning');
 
       const mediaType = asset.mimeType ?? 'image/jpeg';
-      const recognition = await call(() => recogniseFood(asset.base64!, mediaType));
-      if (recognition) {
+      const rawRecognition = await call(() => recogniseFood(asset.base64!, mediaType));
+      if (rawRecognition) {
+        // Upgrade AI macro estimates with DB lookups for confident name
+        // matches — empirically the model undershoots kcal by 20–40%.
+        const { recognition } = upgradeFoodRecognition(rawRecognition);
         setRecognised(recognition);
         setSelectedItems(recognition.items.map(() => true));
         setMode('review');
@@ -147,8 +182,11 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
       setMode('scanning');
 
       const mediaType = asset.mimeType ?? 'image/jpeg';
-      const recognition = await call(() => recogniseFood(asset.base64!, mediaType));
-      if (recognition) {
+      const rawRecognition = await call(() => recogniseFood(asset.base64!, mediaType));
+      if (rawRecognition) {
+        // Upgrade AI macro estimates with DB lookups for confident name
+        // matches — empirically the model undershoots kcal by 20–40%.
+        const { recognition } = upgradeFoodRecognition(rawRecognition);
         setRecognised(recognition);
         setSelectedItems(recognition.items.map(() => true));
         setMode('review');
@@ -221,7 +259,46 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
           <Caption>Pick a food photo</Caption>
         </Pressable>
       </View>
-      <Button title="Enter manually" variant="secondary" onPress={() => setMode('manual')} style={styles.manualBtn} />
+      <View style={styles.optionRow}>
+        <Pressable style={styles.optionCard} onPress={() => setMode('barcode')}>
+          <Ionicons name="barcode" size={32} color={c.health} />
+          <Body style={styles.optionLabel}>Barcode</Body>
+          <Caption>Scan a packaged product</Caption>
+        </Pressable>
+        <Pressable style={styles.optionCard} onPress={() => setMode('manual')}>
+          <Ionicons name="search" size={32} color={c.health} />
+          <Body style={styles.optionLabel}>Search</Body>
+          <Caption>~1,600 foods + macros</Caption>
+        </Pressable>
+      </View>
+    </>
+  );
+
+  const renderBarcode = () => (
+    <>
+      <View style={styles.handle} />
+      <Heading style={styles.title}>Look up barcode</Heading>
+      <Caption style={styles.barcodeHint}>
+        Type the barcode digits from the package (8–13 digits). Powered by Open Food Facts —
+        works best for international brands; Indian packaged snacks may have gaps.
+      </Caption>
+      <View style={styles.form}>
+        <Input
+          label="Barcode"
+          placeholder="e.g. 8901058851656"
+          value={barcode}
+          onChangeText={(t) => { setBarcode(t.replace(/[^\d]/g, '')); setBarcodeError(null); }}
+          keyboardType="numeric"
+          autoFocus
+        />
+        {barcodeError ? <Body style={styles.barcodeError}>{barcodeError}</Body> : null}
+        <Button
+          title={barcodeBusy ? 'Looking up…' : 'Look up'}
+          onPress={handleBarcodeLookup}
+          disabled={!barcode.trim() || barcodeBusy}
+        />
+        <Button title="Back" variant="ghost" onPress={() => { setMode('choose'); setBarcode(''); setBarcodeError(null); }} />
+      </View>
     </>
   );
 
@@ -346,6 +423,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
             {mode === 'scanning' && renderScanning()}
             {mode === 'review' && renderReview()}
             {mode === 'manual' && renderManual()}
+            {mode === 'barcode' && renderBarcode()}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -488,5 +566,13 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.textMuted,
     fontStyle: 'italic',
     marginTop: -spacing.xs,
+  },
+  barcodeHint: {
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  barcodeError: {
+    color: colors.error,
+    textAlign: 'center',
   },
 });
