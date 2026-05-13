@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LifeOS — Gamification UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { overflow: hidden; }
+  button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  @keyframes flamePulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.12) rotate(3deg); }
+  }
+  @keyframes slideInRight {
+    from { transform: translateX(24px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+  @keyframes levelNumPop {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  @keyframes fadeInUp {
+    from { transform: translateY(8px); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(-20px) rotate(0deg);   opacity: 0.8; }
+    100% { transform: translateY(60px)  rotate(180deg); opacity: 0;   }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+  }
+
+  /* Responsive: hide right-rail below 1100px */
+  @media (max-width: 1099px) { .right-rail { display: none !important; } }
+  /* Responsive: collapse sidebar below 900px */
+  @media (max-width: 899px)  { .sidebar    { display: none !important; } }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="lifeos-data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="lifeos-ui.jsx"></script>
+<script type="text/babel" src="lifeos-today.jsx"></script>
+<script type="text/babel" src="lifeos-rewards.jsx"></script>
+<script type="text/babel" src="lifeos-overlay.jsx"></script>
+
+<script type="text/babel">
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+function Sidebar({ c, page, setPage, onShowOverlay }) {
+  const { NAV_ITEMS, xpProgressInLevel, MOCK } = LIFEOS;
+  const prog = xpProgressInLevel(MOCK.totalXP);
+
+  return (
+    <div className="sidebar" style={{
+      width: 240, flexShrink: 0, height: '100%',
+      background: c.sidebarBg, borderRight: `1px solid ${c.sidebarBorder}`,
+      display: 'flex', flexDirection: 'column',
+      overflowY: 'auto',
+    }}>
+      {/* Logo */}
+      <div style={{ padding: '28px 20px 20px', borderBottom: `1px solid ${c.sidebarBorder}` }}>
+        <div style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 900, fontSize: 22, color: c.textPrimary, letterSpacing: -0.5 }}>
+          Life<span style={{ color: c.primary }}>OS</span>
+        </div>
+        <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: c.textMuted, marginTop: 2, letterSpacing: 0.5 }}>
+          AI Digital Life Architect
+        </div>
+      </div>
+
+      {/* User mini-card */}
+      <div style={{ padding: '16px 20px', borderBottom: `1px solid ${c.sidebarBorder}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AvatarRing xp={MOCK.totalXP} initials={MOCK.user.avatar} size={44} c={c} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontWeight: 600, fontSize: 13, color: c.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{MOCK.user.name}</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: c.xp }}>⚡ {MOCK.totalXP.toLocaleString()} XP</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: c.textMuted }}>Level {prog.level}</span>
+            <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 10, color: c.textMuted }}>{Math.round(prog.pct * 100)}%</span>
+          </div>
+          <div style={{ background: c.border, borderRadius: 999, height: 4, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: c.primary, borderRadius: 999, width: `${prog.pct * 100}%`, transition: 'width 1s cubic-bezier(0.34,1.56,0.64,1)' }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Nav items */}
+      <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {NAV_ITEMS.map(item => {
+          const active = page === item.id;
+          return (
+            <button key={item.id} onClick={() => setPage(item.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                background: active ? c.primary + '22' : 'transparent',
+                color: active ? c.primary : c.textSecondary,
+                fontFamily: "'DM Sans',sans-serif", fontSize: 14, fontWeight: active ? 600 : 400,
+                transition: 'background 0.15s, color 0.15s',
+                textAlign: 'left',
+              }}
+              onMouseEnter={e => !active && (e.currentTarget.style.background = c.border)}
+              onMouseLeave={e => !active && (e.currentTarget.style.background = 'transparent')}
+            >
+              <span style={{ fontSize: 18, width: 22, textAlign: 'center' }}>{item.emoji}</span>
+              {item.label}
+              {item.id === 'rewards' && (
+                <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: c.badge }} />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Level-up preview button */}
+      <div style={{ padding: '12px 10px', borderTop: `1px solid ${c.sidebarBorder}` }}>
+        <button onClick={onShowOverlay}
+          style={{
+            width: '100%', padding: '10px 12px', borderRadius: 12, border: `1px solid ${c.primary}44`,
+            background: c.primary + '11', color: c.primary, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+            fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600,
+          }}>
+          <span>🎉</span> Preview Level-Up
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Header bar ───────────────────────────────────────────────────────────────
+function Header({ c, theme, setTheme, page, setPage }) {
+  const labels = { today: 'Today', rewards: 'Rewards', goals: 'Goals', health: 'Health', finance: 'Finance', career: 'Career', social: 'Social', explore: 'Explore' };
+  return (
+    <div style={{
+      height: 56, flexShrink: 0, borderBottom: `1px solid ${c.border}`,
+      display: 'flex', alignItems: 'center', padding: '0 24px',
+      background: c.surface, gap: 16,
+    }}>
+      <span style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 16, color: c.textPrimary }}>{labels[page] || page}</span>
+      <div style={{ flex: 1 }} />
+      {/* Mini nav for collapsed sidebar */}
+      <div className="mobile-nav" style={{ display: 'none', gap: 4 }}>
+        {['today','rewards'].map(id => (
+          <button key={id} onClick={() => setPage(id)} style={{ background: page === id ? c.primary + '22' : 'none', border: 'none', borderRadius: 8, padding: '4px 10px', color: page === id ? c.primary : c.textSecondary, fontFamily: "'DM Sans',sans-serif", fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>
+            {labels[id]}
+          </button>
+        ))}
+      </div>
+      {/* Light/dark toggle */}
+      <button onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px',
+          borderRadius: 999, border: `1px solid ${c.border}`, background: c.card,
+          color: c.textSecondary, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 500, cursor: 'pointer',
+        }}>
+        {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+      </button>
+    </div>
+  );
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+function App() {
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "theme": "dark",
+    "defaultPage": "today",
+    "radarSize": 420,
+    "showRightRail": true
+  }/*EDITMODE-END*/;
+
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('lifeos_tweaks') || '{}'); } catch { return {}; } })();
+  const [tweaks, setTweaks] = React.useState({ ...TWEAK_DEFAULTS, ...saved });
+  const [theme, setTheme] = React.useState(tweaks.theme || 'dark');
+  const [page, setPage] = React.useState(() => localStorage.getItem('lifeos_page') || tweaks.defaultPage || 'today');
+  const [showOverlay, setShowOverlay] = React.useState(false);
+  const [showTweaks, setShowTweaks] = React.useState(false);
+
+  const c = theme === 'dark' ? LIFEOS.DARK : LIFEOS.LIGHT;
+
+  React.useEffect(() => { localStorage.setItem('lifeos_page', page); }, [page]);
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode')   setShowTweaks(true);
+      if (e.data?.type === '__deactivate_edit_mode') setShowTweaks(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const applyTweak = (key, val) => {
+    const next = { ...tweaks, [key]: val };
+    setTweaks(next);
+    localStorage.setItem('lifeos_tweaks', JSON.stringify(next));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: val } }, '*');
+    if (key === 'theme') setTheme(val);
+  };
+
+  const placeholderPage = (emoji, label) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
+      <span style={{ fontSize: 48 }}>{emoji}</span>
+      <span style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: 22, color: c.textPrimary }}>{label}</span>
+      <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: c.textMuted }}>Module coming soon</span>
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: c.background, color: c.textPrimary }}>
+      <Header c={c} theme={theme} setTheme={setTheme} page={page} setPage={setPage} />
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <Sidebar c={c} page={page} setPage={setPage} onShowOverlay={() => setShowOverlay(true)} />
+        <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+          {page === 'today'   && <TodayPage   c={c} setPage={setPage} />}
+          {page === 'rewards' && <RewardsPage c={c} />}
+          {page === 'goals'   && placeholderPage('🎯', 'Goals')}
+          {page === 'health'  && placeholderPage('💚', 'Health')}
+          {page === 'finance' && placeholderPage('💰', 'Finance')}
+          {page === 'career'  && placeholderPage('🚀', 'Career')}
+          {page === 'social'  && placeholderPage('🤝', 'Social')}
+          {page === 'explore' && placeholderPage('🔭', 'Explore')}
+        </div>
+      </div>
+
+      {showOverlay && <LevelUpOverlay c={c} onClose={() => setShowOverlay(false)} />}
+
+      {/* Tweaks Panel */}
+      {showTweaks && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, width: 280, zIndex: 999,
+          background: c.card, border: `1px solid ${c.border}`, borderRadius: 20,
+          padding: 20, boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+        }}>
+          <div style={{ fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 15, color: c.textPrimary, marginBottom: 16 }}>Tweaks</div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Theme */}
+            <div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: c.textMuted, marginBottom: 6, letterSpacing: 0.5 }}>THEME</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {['dark','light'].map(t => (
+                  <button key={t} onClick={() => applyTweak('theme', t)}
+                    style={{ flex: 1, padding: '7px 0', borderRadius: 10, border: `1px solid ${tweaks.theme === t ? c.primary : c.border}`, background: tweaks.theme === t ? c.primary + '22' : 'transparent', color: tweaks.theme === t ? c.primary : c.textSecondary, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                    {t === 'dark' ? '🌙 Dark' : '☀️ Light'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Default page */}
+            <div>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: c.textMuted, marginBottom: 6, letterSpacing: 0.5 }}>START PAGE</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {['today','rewards'].map(p => (
+                  <button key={p} onClick={() => { applyTweak('defaultPage', p); setPage(p); }}
+                    style={{ flex: 1, padding: '7px 0', borderRadius: 10, border: `1px solid ${page === p ? c.primary : c.border}`, background: page === p ? c.primary + '22' : 'transparent', color: page === p ? c.primary : c.textSecondary, fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Level-up overlay */}
+            <button onClick={() => setShowOverlay(true)}
+              style={{ width: '100%', padding: '10px 0', borderRadius: 12, border: `1px solid ${c.primary}55`, background: c.primary + '22', color: c.primary, fontFamily: "'DM Sans',sans-serif", fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              🎉 Trigger Level-Up Overlay
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">
+    <rect width="120" height="80" fill="#0D0D0D"/>
+    <rect x="8" y="8" width="24" height="64" rx="4" fill="#1A1A2E"/>
+    <rect x="38" y="8" width="74" height="64" rx="4" fill="#1F1F3A"/>
+    <circle cx="20" cy="24" r="8" fill="none" stroke="#5B4FE8" stroke-width="2"/>
+    <text x="20" y="28" text-anchor="middle" fill="white" font-size="7" font-weight="bold">7</text>
+    <polygon points="75,20 90,36 60,36" fill="none" stroke="#5B4FE8" stroke-width="1.5"/>
+    <text x="75" y="55" text-anchor="middle" fill="white" font-size="14" font-weight="bold">LifeOS</text>
+  </svg>
+</template>
+</body>
+</html>

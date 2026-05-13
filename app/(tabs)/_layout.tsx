@@ -16,6 +16,7 @@ function getTabConfig(c: ReturnType<typeof useColors>): Record<string, TabIcon> 
     finance: { name: 'wallet',   activeColor: c.finance   },
     career:  { name: 'briefcase',activeColor: c.career    },
     explore: { name: 'compass',  activeColor: c.polymath  },
+    rewards: { name: 'trophy',   activeColor: c.badge     },
   };
 }
 
@@ -55,6 +56,7 @@ export default function TabLayout() {
       <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
       <Tabs.Screen name="career"  options={{ title: 'Career'  }} />
       <Tabs.Screen name="explore" options={{ title: 'Explore' }} />
+      <Tabs.Screen name="rewards" options={{ title: 'Rewards' }} />
     </Tabs>
   );
 }

@@ -4,9 +4,12 @@ import {
   DomainScores,
   Streaks,
   BadgeId,
+  Quest,
+  DEFAULT_QUESTS,
   updateStreak,
   calculateDomainScore,
   checkBadges,
+  levelFromXP,
   XP_VALUES,
 } from '@/utils/gamification';
 
@@ -17,6 +20,8 @@ interface GameState {
   totalXP: number;
   weeklyXP: number;
   pendingBadges: BadgeId[];
+  pendingLevelUps: number[];
+  quests: Quest[];
 
   loadFromDB: (userId: string) => void;
   completeBlock: (userId: string, module: string, completedCount: number, totalCount: number) => void;
@@ -24,6 +29,8 @@ interface GameState {
   triggerStreak: (userId: string, streakType: keyof Streaks) => void;
   awardBadge: (userId: string, badgeId: BadgeId) => void;
   popBadge: () => BadgeId | undefined;
+  popLevelUp: () => number | undefined;
+  updateQuestProgress: (id: string, progress: number) => void;
 }
 
 const DEFAULT_STREAKS: Streaks = {
@@ -54,6 +61,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   totalXP: 0,
   weeklyXP: 0,
   pendingBadges: [],
+  pendingLevelUps: [],
+  quests: DEFAULT_QUESTS.map((q) => ({ ...q })),
 
   loadFromDB: (userId) => {
     const game = getOrCreateGamification(userId);
@@ -74,7 +83,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   completeBlock: (userId, module, completedCount, totalCount) => {
-    const { domainScores, badges, streaks, totalXP, weeklyXP } = get();
+    const { domainScores, badges, streaks, totalXP, weeklyXP, pendingLevelUps } = get();
     const domain = MODULE_TO_DOMAIN[module];
     if (!domain) return;
 
@@ -86,6 +95,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const newBadges = checkBadges(badges, { domainScores: newScores, streaks });
     const allBadges = [...badges, ...newBadges];
+
+    // Detect level crossings from old→new total XP
+    const oldLevel = levelFromXP(totalXP);
+    const newLevel = levelFromXP(newXP);
+    const crossed: number[] = [];
+    for (let l = oldLevel + 1; l <= newLevel; l++) crossed.push(l);
 
     updateGamification(userId, {
       domainScores: JSON.stringify(newScores),
@@ -100,15 +115,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       totalXP: newXP,
       weeklyXP: newWeeklyXP,
       pendingBadges: [...get().pendingBadges, ...newBadges],
+      pendingLevelUps: [...pendingLevelUps, ...crossed],
     });
   },
 
   addXP: (userId, amount) => {
-    const { totalXP, weeklyXP } = get();
+    const { totalXP, weeklyXP, pendingLevelUps } = get();
     const newTotal = totalXP + amount;
     const newWeekly = weeklyXP + amount;
+
+    const oldLevel = levelFromXP(totalXP);
+    const newLevel = levelFromXP(newTotal);
+    const crossed: number[] = [];
+    for (let l = oldLevel + 1; l <= newLevel; l++) crossed.push(l);
+
     updateGamification(userId, { totalXP: newTotal, weeklyXP: newWeekly });
-    set({ totalXP: newTotal, weeklyXP: newWeekly });
+    set({
+      totalXP: newTotal,
+      weeklyXP: newWeekly,
+      pendingLevelUps: [...pendingLevelUps, ...crossed],
+    });
   },
 
   triggerStreak: (userId, streakType) => {
@@ -149,5 +175,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     const [first, ...rest] = pendingBadges;
     set({ pendingBadges: rest });
     return first;
+  },
+
+  popLevelUp: () => {
+    const { pendingLevelUps } = get();
+    if (pendingLevelUps.length === 0) return undefined;
+    const [first, ...rest] = pendingLevelUps;
+    set({ pendingLevelUps: rest });
+    return first;
+  },
+
+  updateQuestProgress: (id, progress) => {
+    set({
+      quests: get().quests.map((q) =>
+        q.id === id ? { ...q, progress: Math.min(progress, q.total) } : q,
+      ),
+    });
   },
 }));
