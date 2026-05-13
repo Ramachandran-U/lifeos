@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p /tmp/lifeos-design)",
+      "Bash(cp \"C:/Users/RamachandranU/.claude/projects/C--personal-Project-X-lifeos--claude-worktrees-strange-greider-fa987b/32634dbc-db7d-4a6a-8f88-a7b00e3e8e87/tool-results/webfetch-1776740663609-ju28b0.bin\" /tmp/lifeos-design/bundle.bin)",
+      "Read(//tmp/lifeos-design/**)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
