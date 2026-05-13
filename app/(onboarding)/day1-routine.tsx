@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -8,9 +8,11 @@ import { format } from 'date-fns';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
+import { WheelTimePicker } from '@/components/ui/WheelTimePicker';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAI } from '@/hooks/useAI';
 import { planRoutineWithContext } from '@/ai/routinePlanner';
@@ -18,24 +20,28 @@ import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { track } from '@/utils/telemetry';
 import { updateUser } from '@/db/queries/users';
-import { createRoutineBlocks } from '@/db/queries/routine';
+import { createRoutineBlocks, deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import type { GeneratedRoutine } from '@/ai/types';
 
-const TIME_OPTIONS = [
-  '05:00', '05:30', '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00',
-];
+// All 48 half-hour slots in a 24-hour day. Stored as "HH:mm" so downstream
+// code (createRoutineBlocks, AI prompts, calendar sync) stays untouched.
+const ALL_TIME_SLOTS: string[] = (() => {
+  const out: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return out;
+})();
 
-const SLEEP_OPTIONS = [
-  '20:00', '20:30', '21:00', '21:30', '22:00', '22:30', '23:00', '23:30', '00:00',
-];
-
-const WORK_START_OPTIONS = [
-  '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00',
-];
-
-const WORK_END_OPTIONS = [
-  '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00',
-];
+function to12Hour(value: string): string {
+  const [hStr, mStr] = value.split(':');
+  const h = Number(hStr);
+  const period = h < 12 ? 'AM' : 'PM';
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour12}:${mStr} ${period}`;
+}
 
 function TimePicker({ options, selected, onSelect, label }: {
   options: string[];
@@ -80,6 +86,8 @@ export default function Day1RoutineScreen() {
     meal: c.warning,
   };
   const router = useRouter();
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isEditMode = mode === 'edit';
   const { call, loading, error } = useAI();
   const { userId, setOnboardingStage } = useUserStore();
   const { awardBadge } = useGameStore();
@@ -110,6 +118,12 @@ export default function Day1RoutineScreen() {
 
     const today = format(new Date(), 'yyyy-MM-dd');
 
+    // Edit mode — replace today's existing schedule rather than appending,
+    // so the user doesn't end up with duplicate blocks.
+    if (isEditMode) {
+      deleteRoutineBlocksByDate(today);
+    }
+
     createRoutineBlocks(
       routine.blocks.map((block) => ({
         date: today,
@@ -129,9 +143,12 @@ export default function Day1RoutineScreen() {
       onboardingStage: ONBOARDING_COMPLETE,
     });
     setOnboardingStage(ONBOARDING_COMPLETE);
-    track('onboarding_finished', { stage: ONBOARDING_COMPLETE });
-
-    awardBadge(userId, 'first_blueprint');
+    if (!isEditMode) {
+      track('onboarding_finished', { stage: ONBOARDING_COMPLETE });
+      awardBadge(userId, 'first_blueprint');
+    } else {
+      track('routine_edited', { blocks: routine.blocks.length });
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     router.replace('/(tabs)');
@@ -139,20 +156,27 @@ export default function Day1RoutineScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <AuroraBackground />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scroll}
       >
         <Animated.View entering={FadeInDown.duration(600)}>
-          <Heading style={styles.title}>Build your daily routine</Heading>
-          <Body style={styles.subtitle}>Tell us your schedule and we'll design your day</Body>
+          <Heading style={styles.title}>
+            {isEditMode ? 'Edit your daily routine' : 'Build your daily routine'}
+          </Heading>
+          <Body style={styles.subtitle}>
+            {isEditMode
+              ? 'Adjust your schedule — saving will replace today’s blocks.'
+              : "Tell us your schedule and we'll design your day"}
+          </Body>
         </Animated.View>
 
         <View style={styles.pickers}>
-          <TimePicker options={TIME_OPTIONS} selected={wakeTime} onSelect={setWakeTime} label="Wake time" />
-          <TimePicker options={SLEEP_OPTIONS} selected={sleepTime} onSelect={setSleepTime} label="Sleep time" />
-          <TimePicker options={WORK_START_OPTIONS} selected={workStart} onSelect={setWorkStart} label="Work starts" />
-          <TimePicker options={WORK_END_OPTIONS} selected={workEnd} onSelect={setWorkEnd} label="Work ends" />
+          <WheelTimePicker label="Wake time" options={ALL_TIME_SLOTS} selected={wakeTime} onSelect={setWakeTime} formatValue={to12Hour} />
+          <WheelTimePicker label="Sleep time" options={ALL_TIME_SLOTS} selected={sleepTime} onSelect={setSleepTime} formatValue={to12Hour} />
+          <WheelTimePicker label="Work starts" options={ALL_TIME_SLOTS} selected={workStart} onSelect={setWorkStart} formatValue={to12Hour} />
+          <WheelTimePicker label="Work ends" options={ALL_TIME_SLOTS} selected={workEnd} onSelect={setWorkEnd} formatValue={to12Hour} />
         </View>
 
         {!routine && !loading && (
@@ -259,7 +283,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   pickers: {
     marginTop: spacing.xl,
-    gap: spacing.lg,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    rowGap: spacing.lg,
   },
   generateButton: {
     marginTop: spacing.xl,

@@ -7,11 +7,20 @@ import { format, parseISO } from 'date-fns';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { radii } from '@/theme/radii';
 import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Text as AuroraText } from '@/components/ui/Text';
 import { Sparkline } from '@/components/ui/Sparkline';
 import { useUserStore } from '@/store/useUserStore';
-import { useThemeStore } from '@/store/useThemeStore';
+import {
+  usePreferencesStore,
+  type DensityMode,
+  type MotionIntensity,
+  type GamificationVisibility,
+} from '@/store/usePreferencesStore';
 import { useGameStore } from '@/store/useGameStore';
 import { getUser } from '@/db/queries/users';
 import { getUsageStats, type UsageRange, type UsageStats } from '@/db/queries/behaviour';
@@ -74,6 +83,48 @@ interface RowProps {
   iconColor?: string;
 }
 
+interface SegmentedPickerProps<T extends string> {
+  value: T;
+  options: { value: T; label: string; hint?: string }[];
+  onChange: (v: T) => void;
+  c: ReturnType<typeof useColors>;
+}
+
+function SegmentedPicker<T extends string>({ value, options, onChange, c }: SegmentedPickerProps<T>) {
+  return (
+    <View style={[styles.segmentLarge, { borderColor: c.border, backgroundColor: c.surfaceAlt }]}>
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <Pressable
+            key={opt.value}
+            onPress={() => onChange(opt.value)}
+            style={[
+              styles.segmentLargeBtn,
+              active && { backgroundColor: c.primary },
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+          >
+            <AuroraText
+              variant="caption"
+              color={active ? '#FFF' : c.textSecondary}
+              style={{ fontFamily: active ? fonts.bodyMedium : fonts.body }}
+            >
+              {opt.label}
+            </AuroraText>
+            {opt.hint ? (
+              <AuroraText variant="micro" color={active ? '#FFF' : c.textMuted}>
+                {opt.hint}
+              </AuroraText>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function Row({ icon, label, c, onPress, right, labelColor, iconColor }: RowProps) {
   return (
     <Pressable
@@ -98,7 +149,14 @@ export default function ProfileScreen() {
   const c = useColors();
   const router = useRouter();
   const { name, email } = useUserStore();
-  const { mode, toggle } = useThemeStore();
+  const themeMode = usePreferencesStore((s) => s.theme);
+  const toggleTheme = usePreferencesStore((s) => s.toggleTheme);
+  const density = usePreferencesStore((s) => s.density);
+  const setDensity = usePreferencesStore((s) => s.setDensity);
+  const motionIntensity = usePreferencesStore((s) => s.motionIntensity);
+  const setMotionIntensity = usePreferencesStore((s) => s.setMotionIntensity);
+  const gamification = usePreferencesStore((s) => s.gamification);
+  const setGamification = usePreferencesStore((s) => s.setGamification);
   const totalXP = useGameStore((s) => s.totalXP);
   const streaks = useGameStore((s) => s.streaks);
 
@@ -281,26 +339,102 @@ export default function ProfileScreen() {
           />
         </Card>
 
-        {/* Settings */}
-        <Card style={styles.card}>
-          <Label style={{ color: c.textMuted, letterSpacing: 1.5, marginBottom: spacing.xs }}>
-            SETTINGS
-          </Label>
-          <Row
-            icon="moon-outline"
-            label="Dark mode"
-            c={c}
-            right={
+        {/* Experience — Aurora preferences */}
+        <GlassCard style={styles.card}>
+          <SectionLabel>EXPERIENCE</SectionLabel>
+
+          <View style={styles.prefBlock}>
+            <View style={styles.prefHeader}>
+              <Ionicons name="moon-outline" size={18} color={c.textSecondary} />
+              <AuroraText variant="bodyLg">Theme</AuroraText>
+              <View style={{ flex: 1 }} />
               <Switch
-                value={mode === 'dark'}
-                onValueChange={toggle}
+                value={themeMode === 'dark'}
+                onValueChange={toggleTheme}
                 trackColor={{ false: c.border, true: c.primary }}
                 thumbColor="#FFF"
               />
-            }
-          />
+            </View>
+            <AuroraText variant="caption" muted>
+              Dark mode is the shipping experience. Light mode is a 1:1 token swap.
+            </AuroraText>
+          </View>
+
+          <View style={styles.prefBlock}>
+            <View style={styles.prefHeader}>
+              <Ionicons name="resize-outline" size={18} color={c.textSecondary} />
+              <AuroraText variant="bodyLg">Density</AuroraText>
+            </View>
+            <SegmentedPicker<DensityMode>
+              value={density}
+              onChange={setDensity}
+              c={c}
+              options={[
+                { value: 'compact', label: 'Compact', hint: '×0.85' },
+                { value: 'cozy', label: 'Cozy', hint: '×1.0' },
+                { value: 'spacious', label: 'Spacious', hint: '×1.18' },
+              ]}
+            />
+            <AuroraText variant="caption" muted>
+              {density === 'compact'
+                ? 'Pro mode — more above the fold.'
+                : density === 'spacious'
+                ? 'Headspace mode — more breathing room.'
+                : 'The shipping default.'}
+            </AuroraText>
+          </View>
+
+          <View style={styles.prefBlock}>
+            <View style={styles.prefHeader}>
+              <Ionicons name="pulse-outline" size={18} color={c.textSecondary} />
+              <AuroraText variant="bodyLg">Motion</AuroraText>
+            </View>
+            <SegmentedPicker<MotionIntensity>
+              value={motionIntensity}
+              onChange={setMotionIntensity}
+              c={c}
+              options={[
+                { value: 'off', label: 'Off' },
+                { value: 'subtle', label: 'Subtle' },
+                { value: 'normal', label: 'Normal' },
+                { value: 'bold', label: 'Bold' },
+              ]}
+            />
+            <AuroraText variant="caption" muted>
+              Honors your system reduce-motion setting automatically.
+            </AuroraText>
+          </View>
+
+          <View style={styles.prefBlock}>
+            <View style={styles.prefHeader}>
+              <Ionicons name="trophy-outline" size={18} color={c.textSecondary} />
+              <AuroraText variant="bodyLg">Gamification</AuroraText>
+            </View>
+            <SegmentedPicker<GamificationVisibility>
+              value={gamification}
+              onChange={setGamification}
+              c={c}
+              options={[
+                { value: 'full', label: 'Full' },
+                { value: 'minimal', label: 'Minimal' },
+                { value: 'off', label: 'Off' },
+              ]}
+            />
+            <AuroraText variant="caption" muted>
+              Streaks, XP and rewards. Off hides all gamification surfaces.
+            </AuroraText>
+          </View>
+        </GlassCard>
+
+        <Card style={styles.card}>
+          <SectionLabel>SETTINGS</SectionLabel>
           <Row icon="notifications-outline" label="Notifications" c={c} onPress={() => {}} />
-          <Row icon="lock-closed-outline" label="Privacy" c={c} onPress={() => {}} />
+          <Row
+            icon="lock-closed-outline"
+            label="Privacy & data residency"
+            c={c}
+            onPress={() => router.push('/data-residency')}
+          />
         </Card>
 
         <Card style={styles.card}>
@@ -414,6 +548,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+  },
+  segmentLarge: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: radii.control,
+    padding: 3,
+    gap: 3,
+  },
+  segmentLargeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: radii.tile,
+    alignItems: 'center',
+    gap: 2,
+  },
+  prefBlock: {
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  prefHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   logoutBtn: {
     flexDirection: 'row',

@@ -9,6 +9,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Body, Caption } from '@/components/ui/Typography';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { GoalCard } from '@/components/modules/goals/GoalCard';
 import { AddGoalSheet } from '@/components/modules/goals/AddGoalSheet';
 import { GoalDetailSheet } from '@/components/modules/goals/GoalDetailSheet';
@@ -143,7 +144,9 @@ export default function GoalsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <AuroraBackground />
+      <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
         <ModuleHeader title="Goals" icon="flag" color={c.goal} />
 
@@ -224,7 +227,8 @@ export default function GoalsScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

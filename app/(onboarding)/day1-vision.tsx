@@ -6,6 +6,7 @@ import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated'
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -53,6 +54,7 @@ export default function Day1VisionScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <AuroraBackground />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

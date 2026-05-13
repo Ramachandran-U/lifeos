@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUserStore';
 import { AchievementToast } from '@/components/shared/AchievementToast';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
+import { RewardOrchestrator } from '@/components/gamification/RewardOrchestrator';
 import { useGameStore } from '@/store/useGameStore';
 import { useFlagStore } from '@/store/useFlagStore';
 import { usePromptStore } from '@/store/usePromptStore';
@@ -94,6 +95,13 @@ export default function RootLayout() {
     const inWelcomeIntent = segments[0] === 'welcome-intent';
     const inGoogleCallback = segments[0] === 'google-auth-callback';
     const inReflect = segments[0] === 'evening-reflect';
+    // Editing the routine reuses the onboarding routine planner screen; an
+    // onboarded user landing on it must NOT get bounced back to (tabs).
+    const inEditRoutine = inOnboarding && (segments as string[])[1] === 'day1-routine';
+    const inDataResidency = segments[0] === 'data-residency';
+    const inWhatLifeosKnows = segments[0] === 'what-lifeos-knows';
+    const inSettings = segments[0] === 'settings';
+    const inTermsPrivacy = segments[0] === 'terms-privacy';
 
     if (!userId) {
       if (!inAuth && !inGoogleCallback) router.replace('/(auth)/sign-in');
@@ -104,7 +112,16 @@ export default function RootLayout() {
       // Legacy flow: existing users mid-onboarding keep the old screens
       if (!inOnboarding) router.replace('/(onboarding)/day1-vision');
     } else {
-      if (!inTabs && !inReflect) router.replace('/(tabs)');
+      const allowed =
+        inTabs ||
+        inReflect ||
+        inEditRoutine ||
+        inDataResidency ||
+        inWhatLifeosKnows ||
+        inSettings ||
+        inTermsPrivacy ||
+        inGoogleCallback;
+      if (!allowed) router.replace('/(tabs)');
     }
   }, [fontsLoaded, dbReady, userId, onboardingStage, segments, router]);
 
@@ -123,6 +140,7 @@ export default function RootLayout() {
             animation: 'fade',
           }}
         />
+        <RewardOrchestrator />
         <AchievementToast />
         <LevelUpOverlay level={pendingLevelUp} userName={name ?? undefined} onClose={dismissLevelUp} />
       </QueryClientProvider>

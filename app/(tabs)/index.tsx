@@ -15,8 +15,14 @@ import Animated, {
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { radii } from '@/theme/radii';
+import { useDensityScale } from '@/theme/density';
+import { usePreferencesStore } from '@/store/usePreferencesStore';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { getReflectionByDate } from '@/db/queries/reflections';
@@ -32,6 +38,8 @@ import { QuestCard } from '@/components/gamification/QuestCard';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
 import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
+import { cloneRoutineToDate } from '@/utils/starterRoutine';
+import { subDays } from 'date-fns';
 import { useFlagStore } from '@/store/useFlagStore';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { rebalanceRestOfToday, isRecoveryLow } from '@/ai/replanApply';
@@ -45,6 +53,8 @@ import { updateUser } from '@/db/queries/users';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { logBehaviourEvent, generateWeeklyInsight } from '@/db/queries/behaviour';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
+import { enqueueXPReward } from '@/store/useRewardQueueStore';
+import type { DomainKey } from '@/components/ui/DomainGlyph';
 
 export default function TodayScreen() {
   const c = useColors();
@@ -131,7 +141,14 @@ export default function TodayScreen() {
   };
 
   const loadData = useCallback(() => {
-    const todayBlocks = getRoutineBlocksByDate(today);
+    // Daily roll-forward — if today has no blocks but yesterday did, clone
+    // yesterday's schedule to today with fresh (unchecked) status. Idempotent.
+    let todayBlocks = getRoutineBlocksByDate(today);
+    if (todayBlocks.length === 0) {
+      const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+      cloneRoutineToDate(today, yesterday);
+      todayBlocks = getRoutineBlocksByDate(today);
+    }
     setBlocks(todayBlocks);
     if (userId) {
       const game = getOrCreateGamification(userId);
@@ -196,6 +213,8 @@ export default function TodayScreen() {
       const completed = todayBlocks.filter(b => b.id === blockId || b.status === 'completed').length;
       completeBlock(userId, mod, completed, todayBlocks.length || 1);
       addXP(userId, XP_VALUES.completeBlock);
+      // Aurora XP beat — flyaway chip near the top of the screen.
+      enqueueXPReward(XP_VALUES.completeBlock, mod as DomainKey);
       const streakMap: Record<string, 'workout' | 'learning' | 'social'> = {
         health: 'workout',
         polymath: 'learning',
@@ -253,7 +272,9 @@ export default function TodayScreen() {
     .map((w: string) => w[0]?.toUpperCase() ?? '')
     .join('');
 
-  const styles = makeStyles(c);
+  const densityScale = useDensityScale();
+  const gamification = usePreferencesStore((s) => s.gamification);
+  const styles = makeStyles(c, densityScale);
 
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
@@ -287,9 +308,13 @@ export default function TodayScreen() {
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
-          {/* Hex radar hero */}
+          {/* Hex radar hero — Aurora center stack overlays the radar */}
           <Animated.View style={[styles.heroWrap, heroStyle]}>
             <HexRadar scores={radarScores} size={340} />
+            <View pointerEvents="none" style={styles.heroOverlay}>
+              <AuroraText variant="micro" muted>LIFE BALANCE</AuroraText>
+              <AuroraText variant="display" numeric style={{ marginTop: 2 }}>{avgScore}</AuroraText>
+            </View>
           </Animated.View>
 
           {/* Header */}
@@ -307,36 +332,57 @@ export default function TodayScreen() {
             </Pressable>
             <View style={styles.headerCenter}>
               <Heading style={{ color: c.textPrimary }}>{greeting}, {name || 'there'}</Heading>
-              <Caption style={{ color: c.textSecondary }}>{format(new Date(), 'EEEE, MMMM d')}</Caption>
-              <View style={styles.xpRow}>
-                <View style={{ flex: 1 }}>
-                  <XpBar pct={prog.pct} color={c.primary} height={6} />
+              <AuroraText variant="micro" muted style={{ marginTop: 2 }}>
+                {format(new Date(), 'EEEE · MMMM d').toUpperCase()}
+              </AuroraText>
+              {gamification !== 'off' && (
+                <View style={styles.xpRow}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    {gamification === 'full' && (
+                      <View style={styles.xpLabelRow}>
+                        <AuroraText variant="micro" muted>
+                          {`L${prog.level} → L${prog.level + 1}`}
+                        </AuroraText>
+                        <AuroraText variant="caption" numeric color={c.xp}>
+                          {`${prog.current}/${prog.needed} XP`}
+                        </AuroraText>
+                      </View>
+                    )}
+                    <XpBar pct={prog.pct} color={c.primary} height={6} />
+                  </View>
                 </View>
-                <Caption style={{ color: c.textMuted }}>
-                  {prog.current}/{prog.needed} XP
-                </Caption>
-              </View>
+              )}
             </View>
           </View>
 
-          {/* Top Streaks */}
-          {topStreaks.some((s) => (s.count ?? 0) > 0) && (
+          {/* Streak rail — Aurora 5-up tile grid (hidden when gamification minimal/off) */}
+          {gamification === 'full' && topStreaks.some((s) => (s.count ?? 0) > 0) && (
             <View style={styles.streaksSection}>
-              <Body style={styles.sectionLabel}>TOP STREAKS</Body>
-              <View style={styles.streakList}>
+              <SectionLabel>{`STREAKS · ${topStreaks.filter((s) => (s.count ?? 0) > 0).length}`}</SectionLabel>
+              <View style={styles.streakGrid}>
                 {topStreaks.map((s) => {
                   const meta = STREAK_META[s.key];
                   const color = c[meta.colorKey];
+                  const active = (s.count ?? 0) > 0;
                   return (
                     <View
                       key={s.key}
-                      style={[styles.streakCard, { backgroundColor: c.card, borderColor: color + '33', borderLeftColor: color }]}
+                      style={[
+                        styles.streakTile,
+                        {
+                          backgroundColor: active ? color + '1F' : c.surfaceAlt,
+                          borderColor: active ? color + '44' : c.border,
+                        },
+                      ]}
                     >
-                      <View style={styles.streakLeft}>
-                        <Body style={{ fontSize: 16 }}>{meta.emoji}</Body>
-                        <Caption style={{ color: c.textSecondary, fontSize: fontSizes.sm }}>{meta.label}</Caption>
-                      </View>
-                      <StreakFlame count={s.count ?? 0} graceUsed={s.graceUsed ?? false} size="sm" />
+                      <StreakFlame
+                        count={s.count ?? 0}
+                        graceUsed={s.graceUsed ?? false}
+                        size="sm"
+                      />
+                      <AuroraText variant="micro" color={active ? color : c.textMuted}>
+                        {meta.label.toUpperCase()}
+                      </AuroraText>
                     </View>
                   );
                 })}
@@ -344,8 +390,8 @@ export default function TodayScreen() {
             </View>
           )}
 
-          {/* Active Quests */}
-          {quests.length > 0 && (
+          {/* Active Quests (hidden when gamification off) */}
+          {gamification === 'full' && quests.length > 0 && (
             <View style={styles.questsSection}>
               <Body style={styles.sectionLabel}>ACTIVE QUESTS</Body>
               <View style={styles.questList}>
@@ -358,32 +404,36 @@ export default function TodayScreen() {
 
           {blocks.length > 0 && new Date().getHours() >= 18 && !hasReflectedToday && (
             <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-              <Pressable onPress={() => router.push('/evening-reflect')}>
-                <Card style={[styles.reflectCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
-                  <View style={styles.reflectRow}>
-                    <Ionicons name="moon" size={22} color={c.primaryLight} />
-                    <View style={{ flex: 1 }}>
-                      <Label color={c.primaryLight}>WRAP UP TODAY</Label>
-                      <Body style={{ color: c.textSecondary, fontSize: fontSizes.sm, marginTop: 2 }}>
-                        60 seconds to reflect and preview tomorrow
-                      </Body>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={c.textMuted} />
+              <GlassCard
+                accent={c.polymath}
+                onPress={() => router.push('/evening-reflect')}
+                style={styles.reflectCard}
+              >
+                <View style={styles.reflectRow}>
+                  <View style={[styles.wrapBadge, { backgroundColor: c.polymath + '22', borderColor: c.polymath + '55' }]}>
+                    <AuroraText variant="h3" color={c.polymath}>✦</AuroraText>
                   </View>
-                </Card>
-              </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <AuroraText variant="bodyLg">Wrap up the day</AuroraText>
+                    <AuroraText variant="caption" muted style={{ marginTop: 2 }}>
+                      60 seconds · sets up tomorrow's plan
+                    </AuroraText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={c.textMuted} />
+                </View>
+              </GlassCard>
             </Animated.View>
           )}
           {hasReflectedToday && (
             <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-              <Card style={styles.reflectCard}>
+              <GlassCard accent={c.success} style={styles.reflectCard}>
                 <View style={styles.reflectRow}>
                   <Ionicons name="checkmark-circle" size={22} color={c.success} />
-                  <Body style={{ color: c.textSecondary, flex: 1 }}>
+                  <AuroraText variant="body" secondary style={{ flex: 1 }}>
                     Reflection logged. Tomorrow is ready.
-                  </Body>
+                  </AuroraText>
                 </View>
-              </Card>
+              </GlassCard>
             </Animated.View>
           )}
 
@@ -400,13 +450,13 @@ export default function TodayScreen() {
 
           {weeklyInsight && (
             <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-              <Card style={styles.insightCard}>
+              <GlassCard accent={c.primary} style={styles.insightCard}>
                 <View style={styles.insightHeader}>
-                  <Ionicons name="analytics-outline" size={18} color={c.primary} />
-                  <Label color={c.primary}>WEEKLY INSIGHT</Label>
+                  <Ionicons name="analytics-outline" size={14} color={c.primary} />
+                  <SectionLabel color={c.primary}>WEEKLY INSIGHT</SectionLabel>
                 </View>
-                <Body style={styles.insightText}>{weeklyInsight}</Body>
-              </Card>
+                <AuroraText variant="bodyLg" secondary>{weeklyInsight}</AuroraText>
+              </GlassCard>
             </Animated.View>
           )}
 
@@ -427,11 +477,27 @@ export default function TodayScreen() {
           {blocks.length > 0 ? (
             <View style={styles.blocksSection}>
               <View style={styles.routineHeader}>
-                <Body style={styles.sectionTitle}>Today's Routine</Body>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
+                  <AuroraText variant="h3">Today's flow</AuroraText>
+                  <AuroraText variant="micro" numeric color={c.success}>
+                    {`${completedCount}/${blocks.length} DONE`}
+                  </AuroraText>
+                </View>
                 <Pressable
                   style={[styles.editRoutineBtn, { borderColor: c.border, backgroundColor: c.surface }]}
-                  onPress={() => router.push('/(onboarding)/day1-routine')}
+                  onPress={() => {
+                    // Blur active element before navigating so the prior
+                    // screen can be aria-hidden without retaining focus on
+                    // the (now-invisible) button. Fixes the W3C aria-hidden
+                    // warning on web during route transitions.
+                    if (typeof document !== 'undefined') {
+                      (document.activeElement as HTMLElement | null)?.blur();
+                    }
+                    router.push('/(onboarding)/day1-routine?mode=edit');
+                  }}
                   hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit routine"
                 >
                   <Ionicons name="pencil" size={14} color={c.primary} />
                   <Caption style={{ color: c.primary, fontFamily: fonts.heading }}>Edit routine</Caption>
@@ -544,7 +610,7 @@ export default function TodayScreen() {
   );
 }
 
-function makeStyles(c: ReturnType<typeof useColors>) {
+function makeStyles(c: ReturnType<typeof useColors>, density = 1) {
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -557,9 +623,9 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       flex: 1,
     },
     scroll: {
-      paddingHorizontal: spacing.xl,
-      paddingBottom: spacing.xxxl,
-      gap: spacing.md,
+      paddingHorizontal: Math.round(spacing.xl * density),
+      paddingBottom: Math.round(spacing.xxxl * density),
+      gap: Math.round(spacing.md * density),
     },
     header: {
       flexDirection: 'row',
@@ -580,8 +646,20 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     radarWrap: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
     heroWrap: {
       alignItems: 'center',
+      justifyContent: 'center',
       paddingTop: spacing.sm,
       paddingBottom: spacing.xs,
+      position: 'relative',
+    },
+    heroOverlay: {
+      position: 'absolute',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    xpLabelRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
     },
     collapsedHeader: {
       position: 'absolute',
@@ -608,17 +686,29 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       alignSelf: 'flex-start',
     },
     streaksSection: { gap: spacing.sm },
-    streakList: { gap: 8 },
-    streakCard: {
+    streakGrid: {
       flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 12,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderLeftWidth: 3,
+      gap: 6,
+      flexWrap: 'wrap',
     },
-    streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    streakTile: {
+      flex: 1,
+      minWidth: 56,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      borderRadius: radii.control,
+      borderWidth: 1,
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    wrapBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+    },
     questsSection: { gap: spacing.sm },
     questList: { gap: 8 },
     insightCard: {

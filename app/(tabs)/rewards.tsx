@@ -5,6 +5,11 @@ import { useFocusEffect } from 'expo-router';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { radii } from '@/theme/radii';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Text as AuroraText } from '@/components/ui/Text';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
@@ -61,19 +66,20 @@ export default function RewardsScreen() {
 
   return (
     <View style={styles.root}>
+      <AuroraBackground />
       <SafeAreaView style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Hero */}
           <View style={styles.hero}>
             <LevelRing xp={totalXP} size={160} />
             <View style={styles.heroStats}>
-              <Text style={styles.xpBig}>
-                {totalXP.toLocaleString()}
-                <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 16, color: c.xp }}> XP</Text>
-              </Text>
-              <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.sm, color: c.textSecondary, marginTop: 2 }}>
-                Level {prog.level} · {prog.current.toLocaleString()} / {prog.needed.toLocaleString()} XP
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                <AuroraText variant="display" numeric>{totalXP.toLocaleString()}</AuroraText>
+                <AuroraText variant="caption" color={c.xp}>XP</AuroraText>
+              </View>
+              <AuroraText variant="micro" muted style={{ marginTop: 4 }}>
+                {`LEVEL ${prog.level} · ${prog.current.toLocaleString()} / ${prog.needed.toLocaleString()} XP`}
+              </AuroraText>
               <View style={{ marginTop: 12 }}>
                 <XpBar pct={prog.pct} color={c.xp} height={10} />
               </View>
@@ -86,18 +92,16 @@ export default function RewardsScreen() {
           </View>
 
           {/* Sparkline card */}
-          <View style={[styles.sparkCard, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={{ fontFamily: fonts.heading, fontSize: 11, color: c.textMuted, letterSpacing: 0.5, marginBottom: 8 }}>
-              7-DAY XP
-            </Text>
+          <GlassCard accent={c.xp} style={styles.sparkCard}>
+            <SectionLabel color={c.xp}>7-DAY XP</SectionLabel>
             <Sparkline data={MOCK_HISTORY} color={c.xp} width={280} height={60} />
-          </View>
+          </GlassCard>
 
           {/* Ladder */}
-          <Text style={styles.sectionLabel}>LEVEL LADDER</Text>
-          <View style={[styles.ladderWrap, { backgroundColor: c.card, borderColor: c.border }]}>
+          <SectionLabel>LEVEL LADDER</SectionLabel>
+          <GlassCard style={styles.ladderWrap}>
             <LevelLadder currentLevel={prog.level} />
-          </View>
+          </GlassCard>
 
           {/* Tabs */}
           <View style={[styles.tabBar, { borderBottomColor: c.border }]}>
@@ -177,13 +181,13 @@ export default function RewardsScreen() {
 
           {section === 'quests' && (
             <View style={{ gap: 16 }}>
-              <Text style={styles.sectionLabel}>DAILY QUESTS</Text>
+              <SectionLabel>DAILY QUESTS</SectionLabel>
               <View style={{ gap: 10 }}>
                 {quests.filter((q) => q.type === 'daily').map((q) => (
                   <QuestCard key={q.id} quest={q} />
                 ))}
               </View>
-              <Text style={styles.sectionLabel}>WEEKLY QUEST</Text>
+              <SectionLabel>WEEKLY QUEST</SectionLabel>
               <View style={{ gap: 10 }}>
                 {quests.filter((q) => q.type === 'weekly').map((q) => (
                   <QuestCard key={q.id} quest={q} />
@@ -201,14 +205,14 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
   const c = useColors();
   return (
     <View style={[sbStyles.box, { backgroundColor: c.card, borderColor: c.border }]}>
-      <Text style={{ fontFamily: fonts.body, fontSize: 10, color: c.textMuted, letterSpacing: 0.5 }}>{label}</Text>
-      <Text style={{ fontFamily: fonts.heading, fontSize: 18, color }}>{value}</Text>
+      <AuroraText variant="micro" muted>{label}</AuroraText>
+      <AuroraText variant="h3" numeric color={color}>{value}</AuroraText>
     </View>
   );
 }
 
 const sbStyles = StyleSheet.create({
-  box: { borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, flex: 1 },
+  box: { borderRadius: radii.control, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, flex: 1, gap: 2 },
 });
 
 function makeStyles(c: ReturnType<typeof useColors>) {

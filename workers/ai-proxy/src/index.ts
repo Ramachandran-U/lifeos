@@ -23,6 +23,7 @@ export interface Env {
   ANTHROPIC_API_KEY: string;
   GEMINI_API_KEY: string;
   OPENAI_API_KEY: string;
+  GROQ_API_KEY: string;
   SUPABASE_JWKS_URL: string;
   SUPABASE_PROJECT_REF: string;
   SUPABASE_URL: string;

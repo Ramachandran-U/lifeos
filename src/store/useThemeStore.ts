@@ -1,5 +1,8 @@
-import { create } from 'zustand';
-import { Platform } from 'react-native';
+// Legacy shim — kept so callers don't all need touching. New code should reach
+// for usePreferencesStore directly (it owns theme + density + motion intensity
+// + gamification visibility under a single persisted key).
+
+import { usePreferencesStore } from './usePreferencesStore';
 
 type ThemeMode = 'dark' | 'light';
 
@@ -9,28 +12,13 @@ interface ThemeState {
   toggle: () => void;
 }
 
-function loadPersistedMode(): ThemeMode {
-  if (Platform.OS === 'web') {
-    try {
-      const stored = localStorage.getItem('lifeos_theme');
-      if (stored === 'light' || stored === 'dark') return stored;
-    } catch {
-      // ignore
-    }
-  }
-  return 'dark';
+export function useThemeStore<T = ThemeState>(selector?: (s: ThemeState) => T): T {
+  return usePreferencesStore((s) => {
+    const shape: ThemeState = {
+      mode: s.theme,
+      setMode: s.setTheme,
+      toggle: s.toggleTheme,
+    };
+    return (selector ? selector(shape) : (shape as unknown as T));
+  });
 }
-
-export const useThemeStore = create<ThemeState>((set, get) => ({
-  mode: loadPersistedMode(),
-  setMode: (mode) => {
-    if (Platform.OS === 'web') {
-      try { localStorage.setItem('lifeos_theme', mode); } catch { /* ignore */ }
-    }
-    set({ mode });
-  },
-  toggle: () => {
-    const next = get().mode === 'dark' ? 'light' : 'dark';
-    get().setMode(next);
-  },
-}));

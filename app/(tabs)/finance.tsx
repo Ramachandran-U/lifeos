@@ -20,6 +20,8 @@ import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { FinanceGoalCard } from '@/components/modules/finance/FinanceGoalCard';
 import { MilestoneTracker } from '@/components/modules/finance/MilestoneTracker';
@@ -487,7 +489,9 @@ export default function FinanceScreen() {
     .reduce((sum, m) => sum + m.targetAmount, 0);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <AuroraBackground />
+      <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
         <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
 
@@ -567,7 +571,8 @@ export default function FinanceScreen() {
         onClose={() => setEditTx(null)}
         onPick={(cat) => editTx && handleSetCategory(editTx, cat)}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

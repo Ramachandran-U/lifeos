@@ -10,12 +10,25 @@ import type { Env } from './index';
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 const DEFAULTS = {
   anthropic: 'claude-haiku-4-5-20251001',
   gemini: 'gemini-flash-latest',
   openai: 'gpt-4o-mini',
+  // Free + fast Llama on Groq. Generous free tier (~14.4k req/day).
+  groq: 'llama-3.3-70b-versatile',
 } as const;
+
+// When the primary provider returns 5xx or 429, try the next one in line so a
+// single upstream outage (e.g. Gemini's "high demand 503") doesn't bubble up
+// as a user-facing error. Each entry must have its API key set or it's skipped.
+const FALLBACK_CHAIN: Record<string, Array<keyof typeof DEFAULTS>> = {
+  gemini:    ['gemini', 'groq', 'anthropic'],
+  groq:      ['groq', 'gemini', 'anthropic'],
+  anthropic: ['anthropic', 'groq', 'gemini'],
+  openai:    ['openai', 'groq', 'anthropic'],
+};
 
 const MAX_TOKENS_CAP = 2000;
 const CACHE_MIN_CHARS = 1024;
@@ -56,7 +69,8 @@ function pickModel(provider: keyof typeof DEFAULTS, requested: string | undefine
   const matches =
     (provider === 'anthropic' && requested.startsWith('claude-')) ||
     (provider === 'gemini' && requested.startsWith('gemini-')) ||
-    (provider === 'openai' && (requested.startsWith('gpt-') || requested.startsWith('o')));
+    (provider === 'openai' && (requested.startsWith('gpt-') || requested.startsWith('o'))) ||
+    (provider === 'groq' && (requested.startsWith('llama-') || requested.startsWith('gemma') || requested.startsWith('mixtral')));
   return matches ? requested : DEFAULTS[provider];
 }
 
@@ -133,6 +147,35 @@ async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResp
   };
 }
 
+async function callGroq(body: ClientRequest, env: Env): Promise<NormalisedResponse> {
+  const model = pickModel('groq', body.model);
+  const sys = flattenSystem(body);
+  const messages = [
+    ...(sys ? [{ role: 'system', content: sys }] : []),
+    ...body.messages,
+  ];
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: Math.min(body.maxTokens ?? 1200, MAX_TOKENS_CAP),
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new ProviderError('groq', res.status, text);
+  const parsed = JSON.parse(text);
+  return {
+    text: parsed.choices?.[0]?.message?.content ?? '',
+    usage: parsed.usage ?? null,
+    model: parsed.model ?? model,
+  };
+}
+
 async function callOpenAI(body: ClientRequest, env: Env): Promise<NormalisedResponse> {
   const model = pickModel('openai', body.model);
   const sys = flattenSystem(body);
@@ -194,34 +237,50 @@ export async function proxyClaude(
     });
   }
 
-  const provider = (env.LLM_PROVIDER ?? 'anthropic').toLowerCase();
+  const primary = (env.LLM_PROVIDER ?? 'anthropic').toLowerCase() as keyof typeof DEFAULTS;
+  const chain = FALLBACK_CHAIN[primary] ?? [primary, 'groq', 'anthropic'];
 
-  try {
-    let result: NormalisedResponse;
-    if (provider === 'gemini') {
-      if (!env.GEMINI_API_KEY) throw new ProviderError('gemini', 500, 'GEMINI_API_KEY not set');
-      result = await callGemini(body, env);
-    } else if (provider === 'openai') {
-      if (!env.OPENAI_API_KEY) throw new ProviderError('openai', 500, 'OPENAI_API_KEY not set');
-      result = await callOpenAI(body, env);
-    } else {
-      if (!env.ANTHROPIC_API_KEY) throw new ProviderError('anthropic', 500, 'ANTHROPIC_API_KEY not set');
-      result = await callAnthropic(body, env);
+  const errors: Array<{ provider: string; status: number; detail: string }> = [];
+
+  for (const provider of chain) {
+    // Skip providers without an API key configured.
+    if (provider === 'anthropic' && !env.ANTHROPIC_API_KEY) continue;
+    if (provider === 'gemini' && !env.GEMINI_API_KEY) continue;
+    if (provider === 'openai' && !env.OPENAI_API_KEY) continue;
+    if (provider === 'groq' && !env.GROQ_API_KEY) continue;
+
+    try {
+      let result: NormalisedResponse;
+      if (provider === 'gemini') result = await callGemini(body, env);
+      else if (provider === 'openai') result = await callOpenAI(body, env);
+      else if (provider === 'groq') result = await callGroq(body, env);
+      else result = await callAnthropic(body, env);
+
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...cors },
+      });
+    } catch (e) {
+      if (e instanceof ProviderError) {
+        errors.push({ provider: e.provider, status: e.status, detail: e.detail.slice(0, 200) });
+        // 5xx / 429 → try next in chain. Anything else (auth/400) → abort.
+        const isFailover = e.status === 429 || (e.status >= 500 && e.status < 600);
+        if (!isFailover) {
+          return new Response(
+            JSON.stringify({ error: `${e.provider} ${e.status}`, detail: e.detail.slice(0, 500) }),
+            { status: 502, headers: { 'Content-Type': 'application/json', ...cors } },
+          );
+        }
+        // else: continue loop
+      } else {
+        errors.push({ provider, status: 0, detail: e instanceof Error ? e.message : String(e) });
+      }
     }
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ...cors },
-    });
-  } catch (e) {
-    if (e instanceof ProviderError) {
-      return new Response(
-        JSON.stringify({ error: `${e.provider} ${e.status}`, detail: e.detail.slice(0, 500) }),
-        { status: 502, headers: { 'Content-Type': 'application/json', ...cors } },
-      );
-    }
-    return new Response(
-      JSON.stringify({ error: 'llm proxy failed', detail: e instanceof Error ? e.message : String(e) }),
-      { status: 502, headers: { 'Content-Type': 'application/json', ...cors } },
-    );
   }
+
+  // All providers exhausted.
+  return new Response(
+    JSON.stringify({ error: 'all llm providers failed', attempts: errors }),
+    { status: 502, headers: { 'Content-Type': 'application/json', ...cors } },
+  );
 }
