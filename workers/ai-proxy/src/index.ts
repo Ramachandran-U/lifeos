@@ -29,6 +29,11 @@ export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   DAILY_AI_REQUEST_LIMIT: string;
+  /** Hard upper bound for output tokens per /claude call. Tune from wrangler.toml
+   *  ([vars] MAX_TOKENS_CAP). Default 4096; raise toward 8000 when long-form
+   *  generations (goal hierarchies, week-52 routines) need it. Parsed and
+   *  bounded in claude.ts via resolveMaxTokensCap. */
+  MAX_TOKENS_CAP?: string;
   DAILY_CHATBOT_LIMIT: string;
   DAILY_VOICE_MINUTES_LIMIT: string;
   ALLOWED_ORIGINS: string;
