@@ -12,6 +12,7 @@ import { getUser, setWebSession, ensureLocalUserFromAuth } from '@/db/queries/us
 import { supabase } from '@/integrations/supabase/client';
 import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUserStore';
 import { AchievementToast } from '@/components/shared/AchievementToast';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
 import { RewardOrchestrator } from '@/components/gamification/RewardOrchestrator';
 import { useGameStore } from '@/store/useGameStore';
@@ -135,13 +136,15 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: '#0D0D0D' },
-            animation: 'fade',
-          }}
-        />
+        <ErrorBoundary>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#0D0D0D' },
+              animation: 'fade',
+            }}
+          />
+        </ErrorBoundary>
         <RewardOrchestrator />
         <AchievementToast />
         <LevelUpOverlay level={pendingLevelUp} userName={name ?? undefined} onClose={dismissLevelUp} />

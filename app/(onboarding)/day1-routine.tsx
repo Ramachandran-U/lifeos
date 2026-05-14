@@ -21,6 +21,7 @@ import { useGameStore } from '@/store/useGameStore';
 import { track } from '@/utils/telemetry';
 import { getUser, updateUser } from '@/db/queries/users';
 import { createRoutineBlocks, deleteRoutineBlocksByDate } from '@/db/queries/routine';
+import { getUserProfile, upsertUserProfile } from '@/db/queries/userProfile';
 import type { GeneratedRoutine } from '@/ai/types';
 
 // All 48 half-hour slots in a 24-hour day. Stored as "HH:mm" so downstream
@@ -169,6 +170,24 @@ export default function Day1RoutineScreen() {
       workEndTime: workEnd,
       onboardingStage: ONBOARDING_COMPLETE,
     });
+
+    // Mirror the same schedule onto the userProfile so the discovery-chat
+    // generator and what-lifeos-knows stay consistent with what the user
+    // entered here. Fire-and-forget — failure here must not block save.
+    void (async () => {
+      try {
+        const existing = await getUserProfile(userId);
+        if (existing) {
+          await upsertUserProfile(userId, {
+            ...existing,
+            schedule: { ...existing.schedule, wakeTime, sleepTime, workStartTime: workStart, workEndTime: workEnd },
+          });
+        }
+      } catch {
+        /* non-fatal */
+      }
+    })();
+
     setOnboardingStage(ONBOARDING_COMPLETE);
     if (!isEditMode) {
       track('onboarding_finished', { stage: ONBOARDING_COMPLETE });

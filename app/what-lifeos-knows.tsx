@@ -18,6 +18,7 @@ import { spacing } from '@/theme/spacing';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { useUserStore } from '@/store/useUserStore';
+import { updateUser } from '@/db/queries/users';
 import { getUserProfile, upsertUserProfile } from '@/db/queries/userProfile';
 import { markSlotsUserVerified } from '@/ai/profileMerge';
 import { refreshInferredPreferences } from '@/ai/profileLearning';
@@ -78,6 +79,19 @@ export default function WhatLifeOSKnowsScreen() {
       setSaving(true);
       try {
         await upsertUserProfile(userId, verified);
+        // Schedule edits MUST mirror onto the user row — the routine planner,
+        // the notifications scheduler, and the day1-routine editor all read
+        // user.wakeTime/sleepTime/workStartTime/workEndTime, not the profile.
+        // Without this mirror, editing wake time here silently fails to
+        // affect routine generation.
+        if (slots.includes('schedule')) {
+          const userUpdate: Parameters<typeof updateUser>[1] = {};
+          if (verified.schedule.wakeTime) userUpdate.wakeTime = verified.schedule.wakeTime;
+          if (verified.schedule.sleepTime) userUpdate.sleepTime = verified.schedule.sleepTime;
+          if (verified.schedule.workStartTime) userUpdate.workStartTime = verified.schedule.workStartTime;
+          if (verified.schedule.workEndTime) userUpdate.workEndTime = verified.schedule.workEndTime;
+          if (Object.keys(userUpdate).length > 0) updateUser(userId, userUpdate);
+        }
         if (Platform.OS !== 'web') Haptics.selectionAsync();
       } finally {
         setSaving(false);

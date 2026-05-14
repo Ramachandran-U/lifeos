@@ -1,0 +1,164 @@
+# Decision Log (ADR-style)
+
+> Format inspired by Architecture Decision Records. Decisions inferred from commits, code structure, and existing docs. Status: Adopted unless noted.
+
+## ADR-001 · Expo + React Native + Expo Router as the app shell
+
+- **Context:** Need iOS + Android + Web from a single codebase.
+- **Decision:** Expo SDK 52 + React Native 0.76 + Expo Router (file-based).
+- **Why:** Single team, fastest path to three surfaces; static web export via `expo export --platform web` reuses 95% of the native bundle.
+- **Tradeoffs:** Some RN-only APIs need web shims (`Platform.OS` branches); `react-native-web` has quirks (e.g. `onMomentumScrollEnd` — see [[Bug-WheelTimePicker-2026-05-14]]).
+- **Future implications:** Sticking with Expo means EAS is the natural next step for native builds; routes are file-based so refactors stay friendly.
+
+## ADR-002 · TypeScript strict, no `any`, no `as unknown`
+
+- **Context:** Single-author velocity; AI agents writing code; need compile-time safety.
+- **Decision:** Strict mode enforced; Zod at every boundary.
+- **Why:** Catches AI hallucinations and schema drift at parse time.
+- **Tradeoffs:** Slows initial scaffolding; rewards mature codebases.
+- **Future implications:** Type errors became actionable backlog items (Codex T1).
+
+## ADR-003 · Drizzle ORM over Prisma / raw SQL
+
+- **Context:** Need typed queries that compile to SQLite (native) and play nicely with a hand-rolled web fallback.
+- **Decision:** Drizzle.
+- **Why:** Lightweight, typed schemas, no codegen runtime, plays well with `expo-sqlite`.
+- **Tradeoffs:** Migrations require running `drizzle-kit` — currently a debt (no `src/db/migrations/` committed).
+
+## ADR-004 · Per-device SQLite as the primary store (Phase 1)
+
+- **Context:** Privacy-first product positioning; no Phase 1 server cost.
+- **Decision:** SQLite on native, localStorage on web (Dexie for high-volume transactions).
+- **Why:** "Your data never leaves your device" as a Phase 1 narrative.
+- **Tradeoffs:** No multi-device sync; lose data if browser storage cleared.
+- **Future implications:** Phase 2 will mirror sensitive data to Supabase Postgres (per-user RLS) for sync, while keeping the on-device store as primary.
+
+## ADR-005 · Cloudflare Worker proxy for all AI calls
+
+- **Context:** Anthropic key cannot live in client bundle; need rate-limiting, provider switching, eval reporting.
+- **Decision:** `workers/ai-proxy` Hono app on Cloudflare Workers; Supabase JWT auth.
+- **Why:** Edge latency; free tier; KV for hot config; can swap Anthropic for Gemini per task.
+- **Tradeoffs:** All AI traffic routes through one worker — quota + outage risk.
+- **Future implications:** Cost ledger can move from in-memory to KV-backed per user.
+
+## ADR-006 · Supabase for auth + admin Postgres
+
+- **Context:** Need email + Google sign-in, plus a shared Postgres for telemetry, prompts, eval reports, feature flags.
+- **Decision:** Supabase free tier.
+- **Why:** Hosted Postgres + Auth + RLS in one product; admin portal authenticates via the same Supabase project.
+- **Tradeoffs:** Vendor lock on auth flows; free-tier row limits.
+- **Future implications:** Phase 2 sync of user data lives here.
+
+## ADR-007 · Next.js Admin Portal (Vercel)
+
+- **Context:** Operate the product: flags, prompts, telemetry, schema failures, eval reports, push broadcasts, feedback.
+- **Decision:** Separate Next.js 14 App Router project at `admin/`, deployed on Vercel.
+- **Why:** Keep the consumer app focused; ops team (founder + AI) needs an editor surface.
+- **Tradeoffs:** Two deploy pipelines; two auth integrations.
+
+## ADR-008 · Cloudflare Pages for web distribution (not Vercel)
+
+- **Context:** Need free HTTPS hosting with a stable URL for the PWA.
+- **Decision:** Cloudflare Pages (project `lifeos-6r5`, alias `lifeos-6r5-eqa.pages.dev`).
+- **Why:** Free, permanent, same vendor as the worker; trivial wrangler integration.
+- **Tradeoffs:** No CI deploy yet; relies on local `npm run deploy`.
+
+## ADR-009 · Aurora Glass design language
+
+- **Context:** Need a bold, expressive visual identity that feels alive (Duolingo × Headspace).
+- **Decision:** Aurora theme — deep violet primary, six domain colours, glass surfaces, micro-animations on every state change.
+- **Why:** Differentiation in a crowded productivity space; gamification reads as premium.
+- **Tradeoffs:** Higher visual complexity = more performance work on web (Reanimated v3 + Skia not used here, but Aurora effects need care).
+
+## ADR-010 · Routine Builder is an agent, not a single-shot LLM call
+
+- **Context:** Single-shot prompts produced inconsistent routines and silently violated constraints.
+- **Decision:** Multi-step agent — propose → critique → commit, with RAG over recent behaviour.
+- **Why:** Self-critique catches obvious issues; recent-history retrieval personalises without overfitting.
+- **Tradeoffs:** Higher cost per generation (3 LLM calls); deterministic guards still needed.
+- **Future implications:** Migrating to native tool-use is a one-step swap of `callAI`.
+
+## ADR-011 · Deterministic guards around the LLM
+
+- **Context:** Even with prompt constraints, LLMs occasionally violate hard rules (e.g. block before wakeTime, hallucinated module names).
+- **Decision:** Post-LLM filters: drop blocks outside `[wake, sleep]`; coerce unknown module strings to a known synonym or fallback.
+- **Why:** Prompts are soft; UI errors leaking raw Zod messages is unacceptable.
+- **Tradeoffs:** Adds code complexity; some legitimate creativity may be filtered.
+- **Future implications:** Pattern should apply to every LLM-fed schema in the app.
+
+## ADR-012 · Domain priorities are an ordered array
+
+- **Context:** Original onboarding captured 1–3 unordered domains; AI couldn't weight them.
+- **Decision:** Make `primaryDomains: DomainId[]` ordered; first element = top priority. UI lets users reorder.
+- **Why:** Encodes priority without a new column.
+- **Tradeoffs:** Order semantics now load-bearing — easy to break in a refactor.
+- **Future implications:** Onboarding v2 should educate users on order, not just selection.
+
+## ADR-013 · WheelTimePicker on web requires drag + tap fallbacks
+
+- **Context:** Mouse-wheel / trackpad drag on `react-native-web` ScrollView often doesn't fire `onMomentumScrollEnd`, leaving the parent state stale.
+- **Decision:** Wire `onScrollEndDrag` to the same handler, and make each option a Pressable that scrolls + commits.
+- **Why:** Most reliable cross-input behaviour on web.
+- **Tradeoffs:** Slight visual complexity (rows are now interactive).
+
+## ADR-014 · Bundled food database (IFCT 2017 + INDB) instead of API
+
+- **Context:** Food logging needs sub-100ms search latency and offline functionality.
+- **Decision:** Ship ~1,600 items as a JSON bundle in the app.
+- **Why:** Privacy, latency, India-specific coverage; no API quota.
+- **Tradeoffs:** Bundle size; updates require app release. Open Food Facts is the fallback for packaged barcode-scanned items.
+
+## ADR-015 · Telemetry off by default
+
+- **Context:** Privacy-forward positioning.
+- **Decision:** `useTelemetryStore.enabled = false` until user opts in.
+- **Why:** Conservative default; trust signal.
+- **Tradeoffs:** Lower-quality usage signal in early adoption.
+
+## ADR-016 · Three onboarding flows (intentional for now)
+
+- **Context:** Legacy day1-* keeps existing users moving; discovery-paste lets ChatGPT/Claude users import; discovery-chat is the long-term path.
+- **Decision:** All three live simultaneously, gated by feature flag for v2.
+- **Why:** Cohort-level safety while v2 stabilises.
+- **Status:** **Adopted, but scheduled for retirement** — see §P2-9 in architect review.
+
+## ADR-017 · Cost ledger built but not surfaced
+
+- **Context:** Per-task cost accumulators in memory; only read by eval runner.
+- **Decision (pending):** Surface in admin OR demote to eval-only.
+- **Status:** **Open** — see §P2-11.
+
+## ADR-018 · No CI for web deploy (yet)
+
+- **Context:** `npm run deploy` runs locally with secrets on a single machine.
+- **Decision (current):** Manual deploy.
+- **Decision (planned):** GitHub Action with `EXPO_PUBLIC_*` + `CLOUDFLARE_API_TOKEN` secrets.
+- **Status:** **Living debt** — acceptable for solo founder velocity; non-negotiable before team grows.
+
+## ADR-019 · One commit per fix, one PR per task
+
+- **Context:** AI agents (Codex, Claude) need a tight feedback loop.
+- **Decision:** Branch per task (`codex/t<n>-...`); PR back to `lifeosv1`; verification gate (tsc, jest, evals, smoke) reported in the PR body.
+- **Why:** Reviewable, revertible, traceable.
+- **Tradeoffs:** Sometimes a tiny task gets a whole PR (e.g. T3 push-token was a 3-line no-op closure).
+
+## ADR-020 · Direct commits to `lifeosv1` allowed for solo founder
+
+- **Context:** Founder operates as TPM + engineer.
+- **Decision:** Direct push permitted for fixes; AI workstreams open PRs.
+- **Why:** Velocity over ceremony; recovery is one git command away.
+- **Tradeoffs:** No formal review on founder commits. Architect-review docs do the review work asynchronously.
+
+## ADR-021 · Anonymous device id for telemetry
+
+- **Context:** Want to measure feature use without user PII.
+- **Decision:** Generate a stable random `device_id` per install; ship with every telemetry event.
+- **Why:** Funnel analysis without identity exposure.
+- **Tradeoffs:** Can't tie events to a user without explicit join via Supabase user id.
+
+## ADR-022 · Phase 1 = no Plaid, no vector DB
+
+- **Context:** Pressure to integrate financial aggregator + retrieval store.
+- **Decision:** Deferred to Phase 2 / Phase 3.
+- **Why:** Free Phase 1; Gmail + bank parsers cover India market; RAG in-memory is fine at current scale.
+- **Tradeoffs:** US users blocked from finance; retrieval doesn't scale past ~thousands of items.
