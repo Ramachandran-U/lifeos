@@ -40,16 +40,15 @@ const darkLevels: Record<Elevation, ElevationStyle> = {
     boxShadow: '0 -20px 60px rgba(0,0,0,0.5)',
   },
   z3: {
-    backgroundColor: 'rgba(26,16,40,0.96)',
-    borderColor: 'rgba(165,132,255,0.4)',
+    backgroundColor: 'rgba(26,16,40,0.94)',
+    borderColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
-    shadowColor: '#A584FF',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 30,
-    elevation: 20,
-    boxShadow:
-      '0 30px 80px rgba(20,8,40,0.6), 0 0 60px rgba(165,132,255,0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.45,
+    shadowRadius: 32,
+    elevation: 18,
+    boxShadow: '0 16px 40px rgba(8,4,16,0.5)',
   },
 };
 
@@ -79,14 +78,14 @@ const lightLevels: Record<Elevation, ElevationStyle> = {
   },
   z3: {
     backgroundColor: '#FFFFFF',
-    borderColor: 'rgba(165,132,255,0.3)',
+    borderColor: 'rgba(20,8,40,0.10)',
     borderWidth: 1,
-    shadowColor: '#A584FF',
+    shadowColor: '#140828',
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.10,
     shadowRadius: 40,
     elevation: 16,
-    boxShadow: '0 16px 40px rgba(165,132,255,0.18), 0 0 40px rgba(165,132,255,0.15)',
+    boxShadow: '0 16px 40px rgba(20,8,40,0.10)',
   },
 };
 
