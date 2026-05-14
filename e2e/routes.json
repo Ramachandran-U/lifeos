@@ -66,6 +66,24 @@
       "comment": "Aurora privacy screen reaches via Profile → Privacy."
     },
     {
+      "path": "/how-it-works",
+      "name": "how-it-works",
+      "selector": "text=How LifeOS works",
+      "comment": "Help screen reached via Profile → How LifeOS works."
+    },
+    {
+      "path": "/terms-privacy",
+      "name": "terms-privacy",
+      "selector": "text=Terms & Privacy",
+      "comment": "Help screen reached via Profile → Terms & Privacy."
+    },
+    {
+      "path": "/feedback",
+      "name": "feedback",
+      "selector": "text=Send feedback",
+      "comment": "Help screen reached via Profile → Send feedback."
+    },
+    {
       "path": "/(onboarding)/day1-routine?mode=edit",
       "name": "edit-routine",
       "selector": "text=Edit your daily routine",
@@ -98,6 +116,27 @@
       "click": "text=Notifications",
       "expectPath": "/notifications-settings",
       "comment": "Profile → Notifications row navigates to new Aurora notifications screen."
+    },
+    {
+      "name": "profile-to-how-it-works",
+      "from": "/(tabs)/profile",
+      "click": "text=How LifeOS works",
+      "expectPath": "/how-it-works",
+      "comment": "Profile → How LifeOS works row reaches the help content screen."
+    },
+    {
+      "name": "profile-to-feedback",
+      "from": "/(tabs)/profile",
+      "click": "text=Send feedback",
+      "expectPath": "/feedback",
+      "comment": "Profile → Send feedback row reaches the in-app feedback form."
+    },
+    {
+      "name": "profile-to-terms-privacy",
+      "from": "/(tabs)/profile",
+      "click": "text=Terms & Privacy",
+      "expectPath": "/terms-privacy",
+      "comment": "Profile → Terms & Privacy row reaches the policy screen."
     },
     {
       "name": "today-to-edit-routine",
