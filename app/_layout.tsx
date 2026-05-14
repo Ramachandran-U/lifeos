@@ -98,7 +98,12 @@ export default function RootLayout() {
     const inOnboarding = segments[0] === '(onboarding)';
     const inTabs = segments[0] === '(tabs)';
     const inWelcomeIntent = segments[0] === 'welcome-intent';
-    const inGoogleCallback = segments[0] === 'google-auth-callback';
+    // Any OAuth callback route (Supabase Google sign-in, Gmail, Calendar, Fit).
+    // The callback page needs to render long enough to exchange the auth code;
+    // if the layout guard redirects away first, the user lands back on Today
+    // and the integration silently fails to connect.
+    const seg0 = (segments[0] ?? '') as string;
+    const inGoogleCallback = seg0 === 'google-auth-callback' || seg0.endsWith('-callback');
     const inReflect = segments[0] === 'evening-reflect';
     // Editing the routine reuses the onboarding routine planner screen; an
     // onboarded user landing on it must NOT get bounced back to (tabs).
