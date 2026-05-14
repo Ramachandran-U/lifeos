@@ -30,7 +30,30 @@ const FALLBACK_CHAIN: Record<string, Array<keyof typeof DEFAULTS>> = {
   openai:    ['openai', 'groq', 'anthropic'],
 };
 
-const MAX_TOKENS_CAP = 2000;
+// Output-token ceiling per provider call. Tunable via wrangler.toml [vars]
+// MAX_TOKENS_CAP without redeploying client code. Bounded to [DEFAULT_CAP,
+// HARD_CAP] so an accidental "100000" doesn't melt our credit budget and an
+// empty/0 value doesn't silently break long generations.
+const DEFAULT_MAX_TOKENS_CAP = 4096;
+const HARD_MAX_TOKENS_CAP = 8000;
+const DEFAULT_REQUEST_MAX_TOKENS = 1200;
+
+export function resolveMaxTokensCap(env: Pick<Env, 'MAX_TOKENS_CAP'>): number {
+  const raw = env.MAX_TOKENS_CAP;
+  if (!raw) return DEFAULT_MAX_TOKENS_CAP;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_MAX_TOKENS_CAP;
+  return Math.min(Math.max(parsed, DEFAULT_REQUEST_MAX_TOKENS), HARD_MAX_TOKENS_CAP);
+}
+
+export function resolveOutputTokens(
+  body: Pick<ClientRequest, 'maxTokens'>,
+  env: Pick<Env, 'MAX_TOKENS_CAP'>,
+): number {
+  const cap = resolveMaxTokensCap(env);
+  return Math.min(body.maxTokens ?? DEFAULT_REQUEST_MAX_TOKENS, cap);
+}
+
 const CACHE_MIN_CHARS = 1024;
 
 type SystemBlock = { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } };
@@ -85,7 +108,7 @@ async function callAnthropic(body: ClientRequest, env: Env): Promise<NormalisedR
     },
     body: JSON.stringify({
       model,
-      max_tokens: Math.min(body.maxTokens ?? 1200, MAX_TOKENS_CAP),
+      max_tokens: resolveOutputTokens(body, env),
       system: normaliseAnthropicSystem(body),
       messages: body.messages,
     }),
@@ -112,7 +135,7 @@ async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResp
     ...(sys ? { system_instruction: { parts: [{ text: sys }] } } : {}),
     contents,
     generationConfig: {
-      maxOutputTokens: Math.min(body.maxTokens ?? 1200, MAX_TOKENS_CAP),
+      maxOutputTokens: resolveOutputTokens(body, env),
     },
   });
 
@@ -163,7 +186,7 @@ async function callGroq(body: ClientRequest, env: Env): Promise<NormalisedRespon
     body: JSON.stringify({
       model,
       messages,
-      max_tokens: Math.min(body.maxTokens ?? 1200, MAX_TOKENS_CAP),
+      max_tokens: resolveOutputTokens(body, env),
     }),
   });
   const text = await res.text();
@@ -192,7 +215,7 @@ async function callOpenAI(body: ClientRequest, env: Env): Promise<NormalisedResp
     body: JSON.stringify({
       model,
       messages,
-      max_completion_tokens: Math.min(body.maxTokens ?? 1200, MAX_TOKENS_CAP),
+      max_completion_tokens: resolveOutputTokens(body, env),
     }),
   });
   const text = await res.text();
