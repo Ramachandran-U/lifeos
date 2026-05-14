@@ -38,6 +38,27 @@ export async function seedAuthedUser(page: Page) {
         updatedAt: now,
       };
       localStorage.setItem('lifeos_routine_blocks', JSON.stringify([block]));
+
+      // Seed two days of domain history. Today's React #185 bug only fired
+      // when yesterdaySnapshot() returned a non-null object — which requires
+      // ≥2 entries per domain. Without this seed the smoke would have passed
+      // and we would have shipped the loop again. zustand-persist shape:
+      // { state: { entries }, version: 0 }.
+      const yesterdayDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+      const history = {
+        state: {
+          entries: {
+            goals:   [{ date: yesterdayDate, score: 22 }, { date: today, score: 28 }],
+            health:  [{ date: yesterdayDate, score: 35 }, { date: today, score: 40 }],
+            finance: [{ date: yesterdayDate, score: 18 }, { date: today, score: 21 }],
+            career:  [{ date: yesterdayDate, score: 30 }, { date: today, score: 32 }],
+            social:  [{ date: yesterdayDate, score: 12 }, { date: today, score: 14 }],
+            mind:    [{ date: yesterdayDate, score: 25 }, { date: today, score: 30 }],
+          },
+        },
+        version: 0,
+      };
+      localStorage.setItem('lifeos_domain_history_v1', JSON.stringify(history));
     },
     { user: USER, userId: USER_ID },
   );
