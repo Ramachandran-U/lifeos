@@ -296,7 +296,21 @@ export default function TodayScreen() {
   }));
   const stagger = useStaggerDelay();
   const radarScores = gameDomainScores.goals !== undefined ? gameDomainScores : domainScores;
-  const yesterdayScores = useDomainHistoryStore((s) => s.yesterdaySnapshot());
+  // Select the raw entries (stable reference unless data actually changes) and
+  // derive the snapshot via useMemo. Selecting the result of `yesterdaySnapshot()`
+  // directly returns a new object every call, which zustand sees as a state
+  // change → re-render → re-select → infinite loop (React error #185).
+  const historyEntries = useDomainHistoryStore((s) => s.entries);
+  const yesterdayScores = useMemo(() => {
+    const out: Partial<typeof radarScores> = {};
+    let any = false;
+    for (const [key, arr] of Object.entries(historyEntries) as Array<[keyof typeof radarScores, Array<{ date: string; score: number }>]>) {
+      if (!arr || arr.length < 2) continue;
+      out[key] = arr[arr.length - 2]!.score;
+      any = true;
+    }
+    return any ? out : null;
+  }, [historyEntries]);
 
   return (
     <View style={styles.root}>
