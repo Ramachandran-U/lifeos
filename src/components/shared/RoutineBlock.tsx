@@ -89,9 +89,8 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     onComplete(id);
   };
 
-  const activeGlow = isActive && Platform.OS === 'web'
-    ? ({ boxShadow: `0 0 24px ${moduleColor}33, inset 0 0 0 1px ${moduleColor}55` } as unknown as object)
-    : undefined;
+  // Aurora Refined v2: resting glow removed. Halo moments live in motion
+  // scenes (BadgeUnlock, etc.) not steady state.
 
   // Two-layer animation wrapper: outer view owns the layout entry animation,
   // inner view owns the per-frame opacity/scale. Reanimated 4 warns when both
@@ -103,7 +102,6 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
         style={[
           styles.container,
           isActive && { borderColor: moduleColor + '66', backgroundColor: moduleColor + '11' },
-          activeGlow as object,
         ]}
       >
         {/* Time rail */}
@@ -112,9 +110,6 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
             style={[
               styles.dot,
               { backgroundColor: moduleColor },
-              isActive && Platform.OS === 'web'
-                ? ({ boxShadow: `0 0 12px ${moduleColor}` } as unknown as object)
-                : undefined,
             ]}
           />
           <Caption style={[styles.time, { color: isActive ? moduleColor : c.textMuted }]}>
@@ -155,9 +150,6 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
               style={[
                 styles.nowPill,
                 { backgroundColor: moduleColor },
-                Platform.OS === 'web'
-                  ? ({ boxShadow: `0 0 20px ${moduleColor}77` } as unknown as object)
-                  : undefined,
               ]}
             >
               <Caption style={styles.nowText}>NOW</Caption>
