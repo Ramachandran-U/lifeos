@@ -15,7 +15,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "evals": "jest --testPathPatterns=evals --runInBand",
-    "evals:live": "EVAL_REAL=true jest --testPathPatterns=evals --runInBand"
+    "evals:live": "EVAL_REAL=true jest --testPathPatterns=evals --runInBand",
+    "smoke": "cross-env SMOKE_BASE_URL=https://lifeos-6r5-eqa.pages.dev playwright test --project=smoke",
+    "smoke:local": "playwright test --project=smoke",
+    "verify": "tsc --noEmit && jest && npm run smoke"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
@@ -70,6 +73,7 @@
     "@playwright/test": "^1.59.1",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
+    "cross-env": "^10.1.0",
     "jest": "^30.3.0",
     "ts-jest": "^29.4.9",
     "typescript": "~5.9.2",
