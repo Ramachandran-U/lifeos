@@ -45,4 +45,6 @@ yarn-error.*
 expo.log
 ai-proxy.log
 test-results/
+smoke-output/
+playwright-report/
 .claude/

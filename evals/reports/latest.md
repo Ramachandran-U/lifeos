@@ -1,6 +1,6 @@
 # LifeOS AI Eval Report
 
-- Generated: 2026-05-12T16:25:37.701Z
+- Generated: 2026-05-14T09:07:04.489Z
 - Mode: **MOCK**
 
 ## Summary
@@ -30,12 +30,12 @@ _(No live calls — all suites ran in mock mode.)_
 ## Tracing
 
 - Spans recorded: **2** (0 errors)
-- Total wall time across spans: 1 ms
-- Avg span duration: 0.5 ms
+- Total wall time across spans: 4 ms
+- Avg span duration: 2.0 ms
 
 | Span name | Count | Total ms | Errors |
 |---|---|---|---|
-| `agent.planRoutine` | 2 | 1 | 0 |
+| `agent.planRoutine` | 2 | 4 | 0 |
 
 ## Per-case detail
 
