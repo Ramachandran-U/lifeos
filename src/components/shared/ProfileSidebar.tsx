@@ -223,14 +223,14 @@ export function ProfileSidebar({ visible, onClose }: ProfileSidebarProps) {
             icon="notifications-outline"
             label="Notifications"
             c={c}
-            onPress={() => {}}
+            onPress={() => { onClose(); router.push('/notifications-settings'); }}
           />
 
           <SidebarRow
             icon="lock-closed-outline"
-            label="Privacy"
+            label="Privacy & data residency"
             c={c}
-            onPress={() => {}}
+            onPress={() => { onClose(); router.push('/data-residency'); }}
           />
 
           <View style={[styles.divider, { backgroundColor: c.border }]} />
