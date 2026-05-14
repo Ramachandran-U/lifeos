@@ -306,9 +306,26 @@ export default function TodayScreen() {
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
-          {/* Hex radar hero — solid line is today, dashed faint line is yesterday. */}
+          {/* Hex radar hero — solid line is today, dashed faint line is yesterday.
+              Tapping a domain dot routes to the matching tab. */}
           <Animated.View style={[styles.heroWrap, heroStyle]}>
-            <HexRadar scores={radarScores} yesterdayScores={yesterdayScores as React.ComponentProps<typeof HexRadar>['yesterdayScores']} size={340} />
+            <HexRadar
+              scores={radarScores}
+              yesterdayScores={yesterdayScores as React.ComponentProps<typeof HexRadar>['yesterdayScores']}
+              size={340}
+              onDomainPress={(domain) => {
+                const route = (
+                  domain === 'goals' ? '/(tabs)/goals'
+                  : domain === 'health' ? '/(tabs)/health'
+                  : domain === 'finance' ? '/(tabs)/finance'
+                  : domain === 'career' ? '/(tabs)/career'
+                  : domain === 'mind' ? '/(tabs)/explore'
+                  : domain === 'social' ? '/(tabs)/life'
+                  : null
+                );
+                if (route) router.push(route);
+              }}
+            />
           </Animated.View>
 
           {/* Header */}
