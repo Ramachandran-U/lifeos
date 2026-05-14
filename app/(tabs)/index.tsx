@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
+  FadeIn,
   FadeInDown,
   useSharedValue,
   useAnimatedScrollHandler,
@@ -13,6 +14,7 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
@@ -292,6 +294,7 @@ export default function TodayScreen() {
     opacity: interpolate(scrollY.value, [120, 200], [0, 1], Extrapolation.CLAMP),
     transform: [{ translateY: interpolate(scrollY.value, [120, 200], [-16, 0], Extrapolation.CLAMP) }],
   }));
+  const stagger = useStaggerDelay();
   const radarScores = gameDomainScores.goals !== undefined ? gameDomainScores : domainScores;
   const yesterdayScores = useDomainHistoryStore((s) => s.yesterdaySnapshot());
 
@@ -308,7 +311,10 @@ export default function TodayScreen() {
         >
           {/* Hex radar hero — solid line is today, dashed faint line is yesterday.
               Tapping a domain dot routes to the matching tab. */}
-          <Animated.View style={[styles.heroWrap, heroStyle]}>
+          <Animated.View
+            entering={FadeIn.delay(280).duration(600)}
+            style={[styles.heroWrap, heroStyle]}
+          >
             <HexRadar
               scores={radarScores}
               yesterdayScores={yesterdayScores as React.ComponentProps<typeof HexRadar>['yesterdayScores']}
@@ -329,7 +335,7 @@ export default function TodayScreen() {
           </Animated.View>
 
           {/* Header */}
-          <View style={styles.header}>
+          <Animated.View entering={FadeIn.delay(0).duration(600)} style={styles.header}>
             <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={8}>
               <AvatarRing xp={totalXP} initials={initials || 'U'} size={64} />
             </Pressable>
@@ -364,7 +370,7 @@ export default function TodayScreen() {
                 </View>
               )}
             </View>
-          </View>
+          </Animated.View>
 
           {/* Streak rail — Aurora 5-up tile grid (hidden when gamification minimal/off) */}
           {gamification === 'full' && topStreaks.some((s) => (s.count ?? 0) > 0) && (
@@ -589,17 +595,21 @@ export default function TodayScreen() {
 
               {blocks
                 .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                .map((block) => (
-                  <RoutineBlock
+                .map((block, i) => (
+                  <Animated.View
                     key={block.id}
-                    id={block.id}
-                    startTime={block.startTime}
-                    endTime={block.endTime}
-                    title={block.title}
-                    module={block.module}
-                    status={block.status}
-                    onComplete={handleComplete}
-                  />
+                    entering={FadeIn.delay(420 + stagger(i)).duration(420)}
+                  >
+                    <RoutineBlock
+                      id={block.id}
+                      startTime={block.startTime}
+                      endTime={block.endTime}
+                      title={block.title}
+                      module={block.module}
+                      status={block.status}
+                      onComplete={handleComplete}
+                    />
+                  </Animated.View>
                 ))}
             </View>
           ) : (
@@ -610,6 +620,34 @@ export default function TodayScreen() {
             </View>
           )}
         </Animated.ScrollView>
+
+        {/* Sticky compact band — fades in after the hero has scrolled away. */}
+        <Animated.View
+          style={[styles.collapsedHeader, chipStyle]}
+          pointerEvents="box-none"
+        >
+          <View style={[styles.collapsedChip, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={6}>
+              <AvatarRing xp={totalXP} initials={initials || 'U'} size={32} />
+            </Pressable>
+            <View style={{ gap: 2 }}>
+              <AuroraText variant="caption">Today</AuroraText>
+              <AuroraText variant="micro" muted>
+                {`balance ${Math.round(
+                  (radarScores.goals + radarScores.health + radarScores.finance +
+                   radarScores.career + radarScores.social + radarScores.mind) / 6,
+                )} · ${completedCount} of ${blocks.length} done`}
+              </AuroraText>
+            </View>
+            <Pressable
+              onPress={() => setVoiceOpen(true)}
+              hitSlop={6}
+              style={{ marginLeft: spacing.sm, padding: 4 }}
+            >
+              <Ionicons name="mic" size={16} color={c.primary} />
+            </Pressable>
+          </View>
+        </Animated.View>
       </SafeAreaView>
 
       <VoiceAssistantSheet
