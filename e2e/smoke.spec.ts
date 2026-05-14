@@ -175,7 +175,14 @@ for (const nav of routesFile.navigation) {
     const captured = attachListeners(page, routesFile.ignoredConsolePatterns);
 
     await page.goto(nav.from, { waitUntil: 'networkidle', timeout: 30_000 });
-    await page.locator(nav.click).first().click();
+    // Wait for the clickable target to exist before scrolling/clicking. Routes
+    // like Privacy & data residency sit below the fold on small viewports,
+    // and the SETTINGS card may not render until preferences/theme stores
+    // have hydrated.
+    const target = page.locator(nav.click).first();
+    await target.waitFor({ state: 'visible', timeout: 10_000 });
+    await target.scrollIntoViewIfNeeded();
+    await target.click();
     // Give SPA router a beat to commit.
     await page.waitForTimeout(800);
 

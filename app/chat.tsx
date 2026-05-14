@@ -35,6 +35,11 @@ export default function ChatScreen() {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
 
+  // Cached profile-context block, keyed by profile.lastUpdated + today's date.
+  // Avoids re-running getUserProfile + getRoutineBlocksByDate + buildProfileContext
+  // on every send when nothing relevant has changed (§P2-10).
+  const contextCacheRef = useRef<{ key: string; block: string } | null>(null);
+
   useEffect(() => {
     if (!userId) return;
     setMessages(listChatMessages(userId));
@@ -57,10 +62,15 @@ export default function ChatScreen() {
 
     try {
       const system = usePromptStore.getState().getPrompt('chatbot_system', CHATBOT_SYSTEM_PROMPT);
-      const profile = await getUserProfile(userId);
       const today = format(new Date(), 'yyyy-MM-dd');
-      const todayBlocks = profile
-        ? getRoutineBlocksByDate(today)
+      const profile = await getUserProfile(userId);
+      const cacheKey = `${profile?.lastUpdated ?? 'none'}::${today}`;
+      let contextBlock = '';
+      if (profile) {
+        if (contextCacheRef.current?.key === cacheKey) {
+          contextBlock = contextCacheRef.current.block;
+        } else {
+          const todayBlocks = getRoutineBlocksByDate(today)
             .sort((a, b) => a.startTime.localeCompare(b.startTime))
             .map((b) => ({
               startTime: b.startTime,
@@ -68,11 +78,11 @@ export default function ChatScreen() {
               title: b.title,
               module: b.module,
               status: b.status,
-            }))
-        : [];
-      const contextBlock = profile
-        ? buildProfileContext(profile, { todayBlocks, todayDate: today })
-        : '';
+            }));
+          contextBlock = buildProfileContext(profile, { todayBlocks, todayDate: today });
+          contextCacheRef.current = { key: cacheKey, block: contextBlock };
+        }
+      }
       const history: { role: 'user' | 'assistant'; content: string }[] = [];
       if (contextBlock) {
         // Synthetic priming turn so the static system prompt stays cached.
