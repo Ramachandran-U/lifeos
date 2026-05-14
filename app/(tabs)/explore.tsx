@@ -14,6 +14,7 @@ import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { InterestCard } from '@/components/modules/polymath/InterestCard';
 import { AddInterestSheet } from '@/components/modules/polymath/AddInterestSheet';
 import { LogExplorationSheet } from '@/components/modules/polymath/LogExplorationSheet';
+import { DiscoverGrid, type DiscoverArea } from '@/components/modules/polymath/DiscoverGrid';
 import { usePolymathStore } from '@/store/usePolymathStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -32,7 +33,18 @@ export default function ExploreScreen() {
   const advanceQuest = useGameStore((s) => s.advanceQuest);
 
   const [showAdd, setShowAdd] = useState(false);
+  const [seed, setSeed] = useState<{ name?: string; category?: DiscoverArea['category'] } | undefined>(undefined);
   const [activeInterest, setActiveInterest] = useState<Interest | null>(null);
+
+  const handlePickArea = (area: DiscoverArea) => {
+    setSeed({ name: area.name, category: area.category });
+    setShowAdd(true);
+  };
+
+  const handleCloseAdd = () => {
+    setShowAdd(false);
+    setSeed(undefined);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -85,7 +97,13 @@ export default function ExploreScreen() {
         </Animated.View>
 
         <View style={styles.listHeader}>
-          <Label>INTERESTS</Label>
+          <Label>DISCOVER</Label>
+          <Caption>Tap to track</Caption>
+        </View>
+        <DiscoverGrid onPick={handlePickArea} />
+
+        <View style={styles.listHeader}>
+          <Label>YOUR INTERESTS</Label>
           <Pressable onPress={() => setShowAdd(true)} style={[styles.addBtn, { backgroundColor: c.polymathLight }]}>
             <Ionicons name="add" size={18} color={c.polymath} />
             <Label color={c.polymath}>Add</Label>
@@ -116,8 +134,9 @@ export default function ExploreScreen() {
 
       <AddInterestSheet
         visible={showAdd}
-        onClose={() => setShowAdd(false)}
+        onClose={handleCloseAdd}
         onAdd={handleAdd}
+        seed={seed}
       />
       <LogExplorationSheet
         visible={!!activeInterest}
