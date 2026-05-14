@@ -14,8 +14,14 @@
     {
       "path": "/(tabs)/profile",
       "name": "profile",
-      "selector": "text=EXPERIENCE",
-      "comment": "Aurora Experience section header — proves preferences store + GlassCard rendered."
+      "selector": "text=APPEARANCE",
+      "comment": "Appearance section header — proves preferences store + GlassCard rendered."
+    },
+    {
+      "path": "/notifications-settings",
+      "name": "notifications-settings",
+      "selector": "text=NUDGES",
+      "comment": "Aurora notifications screen reached via Profile → Notifications. Section label is unique."
     },
     {
       "path": "/(tabs)/rewards",
@@ -87,6 +93,13 @@
       "comment": "Regression-tests the layout allow-list + Pressable focus blur."
     },
     {
+      "name": "profile-to-notifications-settings",
+      "from": "/(tabs)/profile",
+      "click": "text=Notifications",
+      "expectPath": "/notifications-settings",
+      "comment": "Profile → Notifications row navigates to new Aurora notifications screen."
+    },
+    {
       "name": "today-to-edit-routine",
       "from": "/",
       "click": "text=Edit routine",
@@ -103,6 +116,9 @@
     "Tried to register two views with the same name",
     "useNativeDriver",
     "[Violation]",
-    "ResizeObserver loop"
+    "ResizeObserver loop",
+    "lifeos-ai-proxy.haloai.workers.dev",
+    "blocked by CORS policy",
+    "Failed to load resource: net::ERR_FAILED"
   ]
 }
