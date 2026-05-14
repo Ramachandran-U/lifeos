@@ -4,43 +4,50 @@
 
 ## Backlog
 
-- [ ] **Push token end-to-end verification** — confirm a device row in worker's `expo_push_tokens` after one app open (§P0-2)
-- [ ] **Drop zombie tables** `contacts`, `contact_interactions`, `habits`, `learning_resources`, `career_profiles` (§P1-5)
-- [ ] **Split `src/db/webStorage.ts`** (695 lines) into per-entity modules (§P1-6)
-- [ ] **Generate + commit Drizzle migrations** — `src/db/migrations/` is referenced but doesn't exist (§P1-7)
-- [ ] **Type telemetry event names** — promote to `EVENTS` const map; replace all `track('literal')` (§P1-8)
-- [ ] **Plan onboarding v2 graduation** — pick rollout % and retire day1-* + `discoverySeed` (§P2-9)
-- [ ] **Memoize `buildProfileContext`** in chat send loop (§P2-10)
-- [ ] **Decide on cost ledger** — surface in admin OR demote to eval-only (§P2-11)
-- [ ] **Reconcile docs** — `MASTER_BRIEF.md` differentiator #3, `CLAUDE.md` `expo-health` mention, `AI_FUNCTIONS.md` LLM_PROVIDER note (§P2-12)
-- [ ] **Native Gmail OAuth** — port web-only finance integration to native
+- [ ] **Push token end-to-end verification** — confirm a device row in worker's `expo_push_tokens` after one app open (§P0-2). Needs EAS native build.
+- [ ] **Swap `initDatabase` to Drizzle migrator** — baseline migration committed (§P1-7 part 2). Needs Metro `.sql` resolver setup.
+- [ ] **Plan onboarding v2 graduation** — pick rollout % and retire day1-* + `discoverySeed` (§P2-9). Product decision pending.
+- [ ] **Decide on cost ledger** — surface in admin OR demote to eval-only (§P2-11). Product decision pending.
+- [ ] **Native Gmail / Calendar / Fit OAuth** — port web-only integrations to native (Expo SecureStore for tokens)
 - [ ] **Offline web support** — service worker / PWA caching
 - [ ] **Multi-device sync** — Phase 2 commitment from CLAUDE.md
 - [ ] **Hex radar tap-through** — clicking a domain opens its module
 - [ ] **Voice on web** — parity with native voice assistant
 - [ ] **Native heightCm migration** — schema column exists; native UI to set/edit pending
+- [ ] **CI deploy** — GitHub Action with `EXPO_PUBLIC_*` + `CLOUDFLARE_API_TOKEN` secrets (Tech Debt #12)
+- [ ] **Parent `CLAUDE.md` `expo-health` reference removal** — outside repo, blocked by auto-mode classifier; manual edit needed
 
 ## Planned
 
-- [ ] **Root `ErrorBoundary`** — class component wrapping `<Stack>` in `app/_layout.tsx`; log via `track('ui_crash', ...)` (§P0-4)
 - [ ] **Gate `evening-reflect` tomorrow-generator with same wake/sleep bounds** that day1-routine now enforces
-- [ ] **Apply schedule sanitiser to `what-lifeos-knows.tsx`** edits so they update both `userProfile` AND user row's wake/sleep/work columns
 - [ ] **Add `EXPO_PUBLIC_*` env vars to deploy docs** — `EXPO_PUBLIC_AI_PROXY_URL`, `EXPO_PUBLIC_SUPABASE_*` (gitignored today)
-- [ ] **Smoke test fixes** — `import.meta` + Privacy-residency selector timeout (Discovered defects, doc-tracked)
 - [ ] **Goal comments surfacing** — table exists, UI pending
 - [ ] **Native push registration verification + retries**
+- [ ] **Tokens to Expo SecureStore on native** — OAuth tokens currently in plaintext localStorage (Tech Debt #14)
+- [ ] **Tests for the schedule SSOT invariant** — assert `what-lifeos-knows` schedule edits also update user row
 
 ## In Progress
 
-- [ ] **Architect punch-list working session** — T1 (TS errors) ✅ merged, T2 (indexes) ✅ merged, T3 (push) closed-as-no-op, remainder open
+- [ ] _Nothing in flight._ Next session pick: tests for the schedule SSOT invariant, OR CI deploy, OR a product call on §P2-9 / §P2-11.
 
 ## Blocked
 
-- [ ] **E2E smoke green-pass** — `npx playwright test e2e/smoke.spec.ts` fails after Expo web is running due to `SyntaxError: Cannot use 'import.meta' outside a module` (logged as Discovered defect in architect review)
-- [ ] **Push delivery validation** — requires authenticated native build + Supabase + worker access not available in CI
+- [ ] **Push delivery validation** (§P0-2) — requires an authenticated EAS native build; verification environment not codeable from desktop
+- [ ] **Migrator swap** (§P1-7 part 2) — requires Metro `.sql` resolver wiring + a real native device to test against
 
 ## Done (Recent)
 
+- [x] Split `src/db/webStorage.ts` (695 lines) into 12 per-entity modules + 2 shared helpers (§P1-6, `f004e13`, 2026-05-14)
+- [x] Smoke nav test now waits + scrolls before clicking; fixes Privacy & data residency timeout (`24edc46`, 2026-05-14)
+- [x] Doc reconciliation — `MASTER_BRIEF.md` differentiator #3 + `AI_FUNCTIONS.md` LLM_PROVIDER note (§P2-12, `24edc46`)
+- [x] Chat profile-context memo per session (§P2-10, `24edc46`)
+- [x] Drop zombie tables — `contacts`, `contact_interactions`, `habits`, `learning_resources`, `skill_gaps`, `career_profiles` (§P1-5, `c613024`, 2026-05-14)
+- [x] Drizzle baseline migration generated + post-processed to be `IF NOT EXISTS` idempotent (§P1-7 part 1, `c613024`)
+- [x] Typed telemetry events — `EVENTS` const map, `track()` is `EventName`, worker allowlist synced; previously 11 of 18 events silently 400'd in prod (§P1-8, `c613024`)
+- [x] Root `ErrorBoundary` wrapping `<Stack>`; logs `EVENTS.uiCrash` (§P0-4, `c63b83a`, 2026-05-14)
+- [x] Schedule single-source-of-truth — `what-lifeos-knows` + `day1-routine` both mirror to both stores (Tech Debt #17, `c63b83a`)
+- [x] 5 `planRoutineAgent` unit tests — wake-bound filter, sleep-bound filter, module coercion, critique override, empty-plan fallback (Tech Debt #18, `c63b83a`)
+- [x] Notion-import docs — 10 .md files reconstructing the project as an operational system (`c63b83a`)
 - [x] Fix WheelTimePicker so web mouse-wheel/drag actually commits the selection (`d2e4d27`, 2026-05-14)
 - [x] Sanitize AI module values to prevent Zod parse crash + friendly UI error (`3944ddd`, 2026-05-14)
 - [x] Honour wake/sleep — seed pickers from saved user row + hard prompt + deterministic guard (`cedaf2a`, 2026-05-14)

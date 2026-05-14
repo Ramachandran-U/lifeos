@@ -2,34 +2,37 @@
 
 ## Immediate (this sprint — by 2026-05-21)
 
-| Priority | Item | Source | Owner | Acceptance |
-|---|---|---|---|---|
-| P0 | Root `ErrorBoundary` wrapping `<Stack>` | §P0-4 | Codex T4 | Crashing screen no longer blanks app; `ui_crash` event logged in telemetry |
-| P0 | Push token end-to-end verified | §P0-2 | Manual + native build | One device row appears in worker's `expo_push_tokens` after first open |
-| P0 | Single-source-of-truth for wake/sleep/work | Tech Debt #17 | Engineering | `what-lifeos-knows` edits also update `users` row; routine planner reads one canonical source |
-| P0 | Smoke test green on deployed web | Discovered defects | Engineering | `npx playwright test e2e/smoke.spec.ts` passes against `https://lifeos-6r5-eqa.pages.dev` |
-| P1 | Drop zombie tables | §P1-5 | Codex T8 | `contacts`, `habits`, `learning_resources`, `career_profiles` removed; migration added |
+| Priority | Item | Source | Status |
+|---|---|---|---|
+| P0 | Root `ErrorBoundary` wrapping `<Stack>` | §P0-4 | ✅ Done (`c63b83a`, 2026-05-14) |
+| P0 | Single-source-of-truth for wake/sleep/work | Tech Debt #17 | ✅ Done (`c63b83a`, 2026-05-14) |
+| P0 | Drop zombie tables | §P1-5 | ✅ Done (`c613024`, 2026-05-14) |
+| P0 | Smoke nav test fix | Discovered defects | ✅ Partial (`24edc46`); full green-pass against deployed URL pending |
+| P0 | Push token end-to-end verified | §P0-2 | ⏳ Blocked — needs EAS native build |
+| P0 | Tests for schedule SSOT invariant | new | ⏳ Open |
+| P0 | CI deploy via GitHub Action | Tech Debt #12 | ⏳ Open |
 
 ## Short-Term (next 4 weeks)
 
-| Priority | Item | Source |
-|---|---|---|
-| P1 | Drizzle migrations generated + applied idempotently | §P1-7 |
-| P1 | `webStorage.ts` split per entity | §P1-6 |
-| P1 | Typed telemetry events (`EVENTS` const map) | §P1-8 |
-| P1 | Native OAuth — Gmail / Calendar / Fit on iOS + Android | Inferred |
-| P1 | Agent planner unit tests (mock LLM; assert deterministic guards) | Tech Debt #18 |
-| P2 | Memoize `buildProfileContext` per chat session | §P2-10 |
-| P2 | Goal-comments UI surfacing | Tech Debt #9 |
-| P2 | Tokens to Expo SecureStore on native | Tech Debt #14 |
+| Priority | Item | Source | Status |
+|---|---|---|---|
+| P1 | Drizzle migrations baseline + idempotent | §P1-7 | ✅ Baseline done; migrator swap pending (needs Metro `.sql` resolver) |
+| P1 | `webStorage.ts` split per entity | §P1-6 | ✅ Done (`f004e13`, 2026-05-14) |
+| P1 | Typed telemetry events (`EVENTS` const map) | §P1-8 | ✅ Done (`c613024`, 2026-05-14) |
+| P1 | Agent planner unit tests | Tech Debt #18 | ✅ Done (`c63b83a`, 2026-05-14) |
+| P1 | Memoize `buildProfileContext` per chat session | §P2-10 | ✅ Done (`24edc46`, 2026-05-14) |
+| P1 | Doc reconciliation | §P2-12 | ✅ MASTER_BRIEF + AI_FUNCTIONS done; parent CLAUDE.md `expo-health` ref still pending |
+| P1 | Native OAuth — Gmail / Calendar / Fit on iOS + Android | Inferred | ⏳ Open |
+| P2 | Goal-comments UI surfacing | Tech Debt #9 | ⏳ Open |
+| P2 | Tokens to Expo SecureStore on native | Tech Debt #14 | ⏳ Open |
+| P2 | Drizzle migrator swap (`initDatabase` → `runMigrations`) | §P1-7 part 2 | ⏳ Needs Metro plugin |
 
 ## Medium-Term (next quarter)
 
 | Priority | Item | Why |
 |---|---|---|
-| P2 | Onboarding v2 graduation — retire day1-* | §P2-9 |
-| P2 | Cost ledger surfaced in admin OR demoted to eval-only | §P2-11 |
-| P2 | Doc reconciliation pass | §P2-12 |
+| P2 | Onboarding v2 graduation — retire day1-* | §P2-9 (product call pending) |
+| P2 | Cost ledger surfaced in admin OR demoted to eval-only | §P2-11 (product call pending) |
 | P2 | CI deploy for web (GitHub Action with secrets) | Tech Debt #12 |
 | P2 | Multi-device sync (Phase 2 in CLAUDE.md) | Founder priority |
 | P2 | Voice assistant web parity | Voice epic |
@@ -50,14 +53,13 @@
 | Product | Family / household routine sharing (Phase 3) |
 | Product | Adaptive coaching — proactive nudges based on inferred patterns |
 
-## Refactor Priorities (ranked)
+## Refactor Priorities (ranked, post-2026-05-14)
 
-1. **Single source of truth for schedule** — wake/sleep/work in three places today.
-2. **Drizzle migrations** — schema split between `schema.ts` and raw SQL in `index.ts` is fragile.
-3. **`webStorage.ts` split** — 695 lines, edited every time a new entity arrives.
-4. **Onboarding consolidation** — three flows + duplicate `first_blueprint` badge sites.
-5. **Tokens to secure storage** — Gmail tokens in plaintext localStorage is the highest blast-radius security debt.
-6. **`Obsidian Context/` cleanup** — accidental commit; remove in a follow-up.
+1. **Drizzle migrator swap** — baseline committed; needs Metro `.sql` resolver. Until this lands, schema lives in two places.
+2. **Per-entity query duplication** — webStorage is now per-entity but each query file still has its own `Platform.OS === 'web'` branch. Co-locating native + web per entity would halve the count of files to edit.
+3. **Onboarding consolidation** — three flows + duplicate `first_blueprint` badge sites. Needs a rollout decision.
+4. **Tokens to secure storage** — Gmail/Calendar/Fit OAuth tokens in plaintext localStorage is the highest blast-radius security debt.
+5. **`Obsidian Context/` cleanup** — accidental commit; remove in a follow-up.
 
 ## Product Opportunities (founder-level)
 

@@ -4,11 +4,11 @@
 
 | Dimension | Rating | Trend | One-line Summary |
 |---|---|---|---|
-| Code organisation | A | → | Module boundaries clean; per-entity query files; per-engine module folders |
-| TypeScript strictness | A | ↑ | Strict mode; 0 errors since 2026-05-13 |
-| Test coverage — unit | B | → | 110 Jest tests; gamification + finance parsers covered; agent planner uncovered |
+| Code organisation | A | ↑ | webStorage now per-entity (12 files + 2 helpers); per-engine module folders; per-entity query files |
+| TypeScript strictness | A | → | Strict mode; 0 errors since 2026-05-13 |
+| Test coverage — unit | B+ | ↑ | 335 Jest tests; gamification + finance parsers + **agent planner** covered |
 | Test coverage — eval | A | → | 10/10 green; CI report surfaced in admin |
-| Test coverage — e2e | C | ↓ | Smoke broken against deployed web; routes scaffolded only |
+| Test coverage — e2e | C+ | ↑ | Smoke nav scroll/click fixed; `import.meta` neutraliser confirmed working in deployed bundle; green-pass against deployed URL still pending |
 | Documentation | A | ↑ | Master Brief, Tech Doc, AI Functions, Architect Review all current |
 | CI/CD | B | → | Eval CI green; manual web deploy is the gap |
 | Observability | B+ | ↑ | Worker tracing + per-task telemetry + admin schema-failure feed |
@@ -29,33 +29,40 @@
 6. **AI eval gating.** 10 cases run in CI; reports surface in admin; schema-failure feed catches model drift.
 7. **Telemetry opt-in by default.** Privacy posture is conservative; data residency screen is a real surface, not a placeholder.
 
-## Weaknesses
+## Weaknesses (post 2026-05-14 sweep)
 
-1. **Three sources of truth for schedule.** Already caused a real bug (10am wake → 7am routine). Until this is consolidated, every routine-related fix is suspect.
-2. **No root ErrorBoundary.** A single bad render unmounts the app — the doc claims protection that doesn't exist.
-3. **Push delivery unverified.** Wiring exists; no evidence tokens reach the worker; admin push broadcasts may be no-ops in production.
-4. **Web deploy is manual.** `npm run deploy` runs locally; secrets only exist on the deploying machine; we shipped a broken `.env` recently.
-5. **Three onboarding flows live simultaneously.** Three commit sites for `first_blueprint`; impossible to A/B test cleanly.
-6. **Zombie schema.** Five tables exist with no queries — schema drift between intent and reality.
-7. **OAuth tokens in plaintext localStorage.** Highest blast-radius security debt; native should use SecureStore.
-8. **`webStorage.ts` is 695 lines.** Adding any entity to the data model requires editing this monolith.
-9. **No tests for the agent planner.** propose → critique → commit is the single most important path in the app and isn't unit tested.
-10. **Single-machine deploy.** Bus factor + reproducibility risk.
+1. **Push delivery unverified.** Wiring exists; no evidence tokens reach the worker; admin push broadcasts may be no-ops in production. Gated on EAS native build.
+2. **Web deploy is manual.** `npm run deploy` runs locally; secrets only exist on the deploying machine; we shipped a broken `.env` recently. CI deploy is the next obvious step.
+3. **Three onboarding flows live simultaneously.** Three commit sites for `first_blueprint`; impossible to A/B test cleanly. Product call pending on retirement.
+4. **OAuth tokens in plaintext localStorage.** Highest blast-radius security debt; native should use SecureStore.
+5. **Per-entity query duplication.** webStorage is now per-entity (✅ split done) but every query file still has its own `Platform.OS === 'web'` branch. Two files to edit per new entity.
+6. **Drizzle migrator not wired.** Baseline migration committed but `initDatabase` still uses the hand-maintained `CREATE TABLE` block. Needs Metro `.sql` resolver to swap.
+7. **Single-machine deploy.** Bus factor + reproducibility risk.
 
-## Recommendations (ranked)
+### Resolved in 2026-05-14 sweep
+- ✅ Three sources of truth for schedule → user row is now canonical.
+- ✅ No root ErrorBoundary → live in `_layout.tsx`.
+- ✅ Zombie schema → 6 tables dropped.
+- ✅ `webStorage.ts` 695 lines → split into 12 per-entity modules + 2 helpers.
+- ✅ No tests for the agent planner → 5 Jest tests for the deterministic guards.
 
-| # | Recommendation | Effort | Impact |
-|---|---|---|---|
-| 1 | Add root ErrorBoundary + ui_crash telemetry | S | Big — turns silent crashes into actionable signal |
-| 2 | Consolidate schedule to a single source (user row); add a sync helper | S | Removes a class of bugs |
-| 3 | Write 3 Jest tests for `planRoutineAgent` covering wake-bound filter, module coercion, fixed-block honoring | M | Locks in correctness of the most-touched AI surface |
-| 4 | Verify push end-to-end with a dev EAS build, add a self-check banner if no token after 60s | M | Closes a P0 |
-| 5 | Drop zombie tables + add a Drizzle migration | M | Cleans schema; unblocks per-entity webStorage split |
-| 6 | Web deploy via GitHub Action with `EXPO_PUBLIC_*` repo secrets | M | Reproducible; un-blocks bus factor |
-| 7 | Tokens → Expo SecureStore on native; encrypted-at-rest plan for web | M | Material security improvement |
-| 8 | Onboarding v2 graduation: gate `welcome-intent` behind a default-true flag once metrics confirm parity; remove day1-* | M | Removes parallel maintenance |
-| 9 | Telemetry events typed via `EVENTS` const map | S | Compile-time guarantee against typos |
-| 10 | Smoke test fixes — `import.meta` and Privacy-residency selector | S | Restores e2e signal |
+## Recommendations (ranked, updated 2026-05-14)
+
+| # | Recommendation | Effort | Impact | Status |
+|---|---|---|---|---|
+| 1 | Verify push end-to-end with a dev EAS build, add a self-check banner if no token after 60s | M | Closes a P0 | ⏳ Open (needs EAS) |
+| 2 | Web deploy via GitHub Action with `EXPO_PUBLIC_*` repo secrets | M | Reproducible; un-blocks bus factor | ⏳ Open |
+| 3 | Tokens → Expo SecureStore on native; encrypted-at-rest plan for web | M | Material security improvement | ⏳ Open |
+| 4 | Onboarding v2 graduation: gate `welcome-intent` behind a default-true flag once metrics confirm parity; remove day1-* | M | Removes parallel maintenance | ⏳ Open (product call) |
+| 5 | Drizzle migrator swap — wire Metro `.sql` resolver, replace `initDatabase` CREATE TABLE block with `runMigrations()` | M | Single source of schema truth | ⏳ Open (needs device test) |
+| 6 | Add Jest tests for the schedule SSOT invariant | S | Locks in the new contract | ⏳ Open |
+| ✅ | Add root ErrorBoundary + ui_crash telemetry | — | — | Done `c63b83a` |
+| ✅ | Consolidate schedule to a single source (user row) | — | — | Done `c63b83a` |
+| ✅ | Write Jest tests for `planRoutineAgent` deterministic guards | — | — | Done `c63b83a` |
+| ✅ | Drop zombie tables + Drizzle baseline migration | — | — | Done `c613024` |
+| ✅ | Telemetry events typed via `EVENTS` const map | — | — | Done `c613024` |
+| ✅ | Smoke test fixes — `import.meta` and Privacy-residency selector | — | — | Done `24edc46` |
+| ✅ | Split `webStorage.ts` per entity | — | — | Done `f004e13` |
 
 ## Quality Gates To Add To Every PR
 

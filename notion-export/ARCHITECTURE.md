@@ -86,7 +86,10 @@ graph TD
 | Persistence | `src/db/schema.ts` | Drizzle schema (~20 tables) |
 | Persistence | `src/db/index.ts` | Native SQLite init + raw `CREATE TABLE` + indexes |
 | Persistence | `src/db/index.web.ts` | Web fallback proxy |
-| Persistence | `src/db/webStorage.ts` | localStorage-backed per-entity store |
+| Persistence | `src/db/webStorage.ts` | Barrel re-export over `src/db/webStorage/<entity>.ts` |
+| Persistence | `src/db/webStorage/_io.ts` | Shared `load()` / `save()` helpers |
+| Persistence | `src/db/webStorage/_keys.ts` | Every `lifeos_*` localStorage key in one place |
+| Persistence | `src/db/webStorage/{users,userProfile,routine,gamification,reflections,discovery,chat,goals,health,finance,polymath}.ts` | One module per entity (or pair of related entities) — interface + CRUD |
 | Persistence | `src/db/queries/*.ts` | Per-entity query files (users, goals, routine, health, finance, gamification, …) |
 | State | `src/store/useUserStore.ts` | Identity + onboardingStage + primaryDomains |
 | State | `src/store/useGameStore.ts` | XP, levels, streaks, badges, quests |
@@ -104,6 +107,8 @@ graph TD
 | Finance | `src/finance/insights.ts` | 4 Tier-1 detectors |
 | Design system | `src/theme/` | colours, typography, spacing, motion, elevation, radii, surfaces, density |
 | Design system | `src/components/ui/` | Button, Card, Input, GlassCard, AuroraGlow, etc. |
+| App shell | `src/components/shared/ErrorBoundary.tsx` | Class component wrapping root `<Stack>`; emits `EVENTS.uiCrash` |
+| Telemetry | `src/utils/telemetry.ts` | `track()` + typed `EVENTS` const map; worker allowlist must mirror these keys |
 | Gamification UI | `src/components/gamification/` | HexRadar, LevelRing, AvatarRing, XpBar, StreakFlame, etc. |
 | Worker | `workers/ai-proxy/src/` | Hono routes, auth, rate limit, Claude + Gemini routes |
 | Worker | `workers/ai-proxy/src/routes/admin/*` | flags, prompts, telemetry, push, feedback, evals |

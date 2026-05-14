@@ -15,7 +15,7 @@
 | Repo | `Ramachandran-U/lifeos`, default branch `lifeosv1` |
 | Maturity | Pre-production beta — web ships, admin portal v1 in operation |
 | Active Contributors | 1 founder + Claude Code + Codex/GPT-5.5 |
-| Status as of 2026-05-14 | Bug-fix sprint, design system stabilised, routine planner hardened |
+| Status as of 2026-05-14 (end of day) | Architect punch-list sweep complete; ErrorBoundary live; schedule single-source-of-truth; zombie tables dropped; webStorage split per-entity; typed telemetry; planner unit-tested |
 
 ## Purpose
 
@@ -57,7 +57,7 @@ Existing productivity apps optimise single dimensions — todos, fitness logs, b
 | Apr 27–28 2026 | ~12 | Admin portal v1 + 5-tab nav + voice + Supabase auth |
 | May 12 2026 | 11 | Admin portal phases 3/4/5, AI agentic+RAG, conversational onboarding v2 |
 | May 13 2026 | 14 | Architect punch-list, design-bundle gamification merge, food DB expansion, web bundle hardening |
-| May 14 2026 | 6 | UX bug fixes — priorities editor, wake/sleep validation, picker fix |
+| May 14 2026 | ~14 | UX bug fixes (priorities editor, wake/sleep validation, WheelTimePicker fix) + architect punch-list sweep (ErrorBoundary, schedule SSOT, planner unit tests, drop zombie tables, Drizzle baseline migration, typed `EVENTS` map + worker allowlist sync, chat profile-context memo, doc reconciliation, smoke nav scroll fix, webStorage 695-line split into 12 per-entity files) |
 
 **Trend**: high-velocity feature-flag-gated rollouts; recent shift toward correctness/UX hardening over new features.
 
@@ -65,9 +65,9 @@ Existing productivity apps optimise single dimensions — todos, fitness logs, b
 
 | Dimension | Rating | Note |
 |---|---|---|
-| TypeScript strictness | A | Pre-existing TS errors driven to zero by Codex T1 |
-| Test coverage (unit) | B | 110 Jest tests passing; evals 10/10 |
-| Test coverage (e2e) | C | Playwright smoke exists, several routes throwing |
+| TypeScript strictness | A | 0 errors since 2026-05-13 |
+| Test coverage (unit) | B+ | 335 Jest tests passing; agent planner now covered (5 tests); evals 10/10 |
+| Test coverage (e2e) | C+ | Playwright smoke nav fixed; `import.meta` neutraliser working in dist |
 | Documentation | A | Master Brief, Product Tech Doc, AI Functions, Architect Review all current |
 | CI/CD | B | Cloudflare deploy is manual; eval CI reports to admin |
 | Observability | B | Telemetry + worker tracing + admin schema-failure feed |
@@ -95,9 +95,12 @@ graph LR
 
 1. **CLAUDE.md is the source of truth.** Read it at session start. Conventions, tech stack, the "what not to do" list.
 2. **`primaryDomains` ordering encodes priority** — first item gets ~40% of non-work blocks; this is how the AI knows what matters most.
-3. **Web and native diverge on persistence** — every query has a `Platform.OS === 'web'` branch into `webStorage.ts`.
+3. **Web and native diverge on persistence** — every query has a `Platform.OS === 'web'` branch into `webStorage.ts`, which is now a barrel re-export over `src/db/webStorage/<entity>.ts`. Adding an entity = one new file.
 4. **AI calls always go through `src/ai/client.ts`** — never direct fetch to Anthropic. The Worker handles auth + rate limit + provider switching.
-5. **The Routine Builder is an agent, not a single-shot call** — propose → critique → commit, with deterministic post-LLM guards (drop blocks outside wake-sleep window, coerce hallucinated module names).
+5. **The Routine Builder is an agent, not a single-shot call** — propose → critique → commit, with deterministic post-LLM guards (drop blocks outside wake-sleep window, coerce hallucinated module names). Covered by 5 Jest tests.
+6. **Telemetry events are typed** — use `track(EVENTS.x, ...)`, never a string literal. The worker's allowlist mirrors the same keys.
+7. **A render crash no longer blanks the app** — `ErrorBoundary` in `app/_layout.tsx` shows a fallback and emits `EVENTS.uiCrash`.
+8. **Schedule has a single source of truth (user row).** `what-lifeos-knows` and `day1-routine` both write to the user row, and mirror to userProfile.
 
 ## Reference Files
 

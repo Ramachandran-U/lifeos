@@ -131,11 +131,11 @@
 
 **Outcomes:** design-bundle components merged in (lifeosv1 side won all conflicts). T1 + T2 from Codex shipped. Architect review punch-list authored. Multiple correctness fixes (badges, toast, web bundle).
 
-## Phase 6 · UX bug fix sprint (2026-05-14)
+## Phase 6 · UX bug fix sprint (2026-05-14 morning)
 
 **Goals:** fix four user-reported UX bugs and ship a priorities editor.
 
-**Major commits (single day):**
+**Major commits:**
 
 | Title | Commit |
 |---|---|
@@ -148,6 +148,33 @@
 
 **Outcomes:** real bug discovered behind the routine-time bug — the WheelTimePicker on web wasn't propagating selection. Priorities editor goes live. Routine planner now has both prompt-level and deterministic guards on wake/sleep bounds.
 
+## Phase 7 · Architect punch-list solo sweep (2026-05-14 afternoon)
+
+**Goals:** burn down the architect-review punch-list with Codex out for the week. Solo run by Claude.
+
+**Major commits:**
+
+| Title | Commit |
+|---|---|
+| Root `ErrorBoundary` + schedule SSOT + 5 planner tests + Notion export | `c63b83a` |
+| Drop zombie tables (contacts, contact_interactions, habits, learning_resources, skill_gaps, career_profiles) + Drizzle baseline migration + typed `EVENTS` map + worker allowlist sync | `c613024` |
+| Chat profile-context memo + MASTER_BRIEF + AI_FUNCTIONS reconcile + smoke nav scroll/click fix | `24edc46` |
+| `webStorage.ts` 695-line split into 12 per-entity modules + 2 shared helpers | `f004e13` |
+
+**Outcomes (architect-review items closed):**
+- §P0-4 ErrorBoundary
+- §P1-5 zombie tables
+- §P1-6 webStorage split
+- §P1-7 Drizzle baseline (migrator swap still pending)
+- §P1-8 typed telemetry events (also fixed prod silent-drop bug: 11 of 18 events were 400'd at the worker)
+- §P2-10 chat context memo
+- §P2-12 doc reconciliation (parent CLAUDE.md still has stale `expo-health` ref — blocked by auto-mode classifier)
+- Tech Debt #17 schedule SSOT
+- Tech Debt #18 planner unit tests
+- Discovered defects — smoke nav fix
+
+**Remaining open:** §P0-2 push verify (needs EAS), §P1-7 part 2 migrator swap (needs Metro plugin), §P2-9 onboarding v2 graduation (product call), §P2-11 cost ledger (product call).
+
 ## Velocity Heatmap
 
 | Week starting | Approx commits | Theme |
@@ -158,7 +185,7 @@
 | 2026-05-07 | 1 | Production deploy |
 | 2026-05-12 | 11 | Admin portal phases 3–5 + agentic AI + onboarding v2 |
 | 2026-05-13 | 14 | Architect punch-list + design merge + Codex T1/T2 + correctness fixes |
-| 2026-05-14 | 6 | Priorities editor + routine bound hardening + picker fix |
+| 2026-05-14 | ~14 | UX bug fixes (morning) + architect punch-list solo sweep (afternoon): ErrorBoundary, schedule SSOT, 5 planner tests, drop 6 zombie tables, Drizzle baseline, typed `EVENTS` map + worker allowlist sync, chat memo, doc reconcile, smoke nav fix, webStorage 695-line split |
 
 ## Recurring Incident Themes
 

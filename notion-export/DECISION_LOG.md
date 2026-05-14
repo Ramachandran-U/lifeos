@@ -156,7 +156,35 @@
 - **Why:** Funnel analysis without identity exposure.
 - **Tradeoffs:** Can't tie events to a user without explicit join via Supabase user id.
 
-## ADR-022 · Phase 1 = no Plaid, no vector DB
+## ADR-022 · Schedule single source of truth = user row
+
+- **Context:** Wake/sleep/work times lived in three places (user row, `userProfile.schedule`, transient picker state). Two write surfaces (`what-lifeos-knows`, `day1-routine`) only updated one each, causing the routine generator to read stale values.
+- **Decision (2026-05-14):** The user row is canonical. Both write surfaces mirror to the user row AND to `userProfile.schedule` on save.
+- **Why:** The routine generator + notifications + `day1-routine` editor seed all read from the user row. Mirroring keeps `userProfile.schedule` consistent for the v2 discovery-chat path.
+- **Tradeoffs:** Two writes per edit; if one fails (it's wrapped in try/catch) the other still lands.
+
+## ADR-023 · Typed telemetry events
+
+- **Context:** Stringly-typed `track('event_name')` calls — a typo silently 400'd the worker. We discovered 11 of 18 events were being dropped in production.
+- **Decision (2026-05-14):** `EVENTS` const map in `src/utils/telemetry.ts`. `track()` signature requires `EventName`. The worker's allowlist is the same 18 entries.
+- **Why:** Typos become compile-time errors; `git grep EVENTS.x` returns every emission site; adding an event is a single coordinated change.
+- **Tradeoffs:** Two places to update (client + worker) when adding events. Worth it for the typing.
+
+## ADR-024 · Per-entity web storage layout
+
+- **Context:** `src/db/webStorage.ts` had reached 695 lines and every new entity needed an edit in this monolith.
+- **Decision (2026-05-14):** Split into `src/db/webStorage/<entity>.ts` plus `_io.ts` (shared `load`/`save`) and `_keys.ts` (localStorage key registry). `webStorage.ts` is a barrel re-export so query files keep importing from `@/db/webStorage`.
+- **Why:** Adding an entity = one new file; reviewing an entity's data shape happens in one place.
+- **Tradeoffs:** Query files still have separate native/web branches (Tech Debt #2). Co-locating those would be the next step.
+
+## ADR-025 · Deterministic guards apply to LLM outputs at every boundary
+
+- **Context:** The routine planner already had post-LLM filters (drop blocks outside wake-sleep window; coerce hallucinated module strings). Same class of failure mode applies anywhere we Zod-parse model output.
+- **Decision (codifying existing practice):** Every LLM-fed Zod schema gets a sanitiser pre-pass for known-failure-mode fields, plus filters for hard invariants.
+- **Why:** Prompts are soft; production stability requires deterministic fallbacks.
+- **Future implications:** Same pattern should extend to financial classifier output, blood-report parsing, and discovery-chat slot filling.
+
+## ADR-026 · Phase 1 = no Plaid, no vector DB
 
 - **Context:** Pressure to integrate financial aggregator + retrieval store.
 - **Decision:** Deferred to Phase 2 / Phase 3.

@@ -46,15 +46,21 @@
 
 | Epic | Status | Priority | Description | Source |
 |---|---|---|---|---|
-| Architect punch-list — P0 | In Progress | P0 | TS errors (T1 done), indexes (T2 done), push token wiring, root ErrorBoundary | `docs/ARCHITECT_REVIEW_2026-05-13.md` |
-| Architect punch-list — P1 | Planned | P1 | Drop zombie tables, split webStorage, Drizzle migrations, typed telemetry events | same |
-| Architect punch-list — P2 | Planned | P2 | Onboarding v2 graduation, chat context memo, costLedger surface, doc reconciliation | same |
-| ErrorBoundary at root | Backlog | P0 | CLAUDE.md claims it exists; none found in `app/` or `src/` | §P0-4 |
-| Push-token end-to-end verify | Backlog | P0 | Wiring exists; device-side verification pending | §P0-2 |
-| Drizzle migrations | Backlog | P1 | `drizzle.config.ts` points to non-existent dir | §P1-7 |
-| Typed telemetry events | Backlog | P1 | Stringly-typed today; const map needed | §P1-8 |
-| Zombie tables drop | Backlog | P1 | `contacts`, `habits`, `learning_resources`, `career_profiles` have no queries | §P1-5 |
-| Onboarding v2 graduation | Backlog | P2 | Three flows active simultaneously | §P2-9 |
+| Architect punch-list — P0 | Done (except push verify) | P0 | TS errors ✅, indexes ✅, ErrorBoundary ✅, push verify ⏳ (needs EAS) | `docs/ARCHITECT_REVIEW_2026-05-13.md` |
+| Architect punch-list — P1 | Mostly Done | P1 | Zombie tables ✅, webStorage split ✅, Drizzle baseline ✅, typed telemetry ✅; migrator swap ⏳ | same |
+| Architect punch-list — P2 | Partial | P2 | Chat memo ✅, doc reconcile ✅; onboarding v2 graduation ⏳, costLedger decision ⏳ | same |
+| ErrorBoundary at root | Done | P0 | Live `c63b83a` 2026-05-14; emits `EVENTS.uiCrash` | §P0-4 |
+| Push-token end-to-end verify | Blocked | P0 | Wiring exists; needs EAS native build to validate | §P0-2 |
+| Drizzle baseline migration | Done | P1 | `0000_classy_doctor_spectrum.sql` with `IF NOT EXISTS` clauses | §P1-7 part 1 |
+| Drizzle migrator swap | Backlog | P1 | Needs Metro `.sql` resolver | §P1-7 part 2 |
+| Typed telemetry events | Done | P1 | `EVENTS` map + worker allowlist sync `c613024` 2026-05-14 | §P1-8 |
+| Zombie tables drop | Done | P1 | 6 tables dropped `c613024` 2026-05-14 | §P1-5 |
+| webStorage per-entity split | Done | P1 | 695-line file → 12 per-entity modules + 2 helpers `f004e13` 2026-05-14 | §P1-6 |
+| Schedule single source of truth | Done | P0 | User row canonical; both surfaces mirror `c63b83a` | Tech Debt #17 |
+| Planner agent unit tests | Done | P0 | 5 tests cover wake/sleep bounds + module coercion `c63b83a` | Tech Debt #18 |
+| Chat profile-context memo | Done | P2 | Cached per session `24edc46` 2026-05-14 | §P2-10 |
+| Doc reconciliation | Mostly Done | P2 | MASTER_BRIEF ✅, AI_FUNCTIONS ✅; parent CLAUDE.md ref still open (auto-mode block) | §P2-12 |
+| Onboarding v2 graduation | Backlog | P2 | Three flows active simultaneously — product call pending | §P2-9 |
 | Costs surfaced in admin | Backlog | P2 | Or decision to demote costLedger to eval-only | §P2-11 |
 | Native Gmail / OAuth | Backlog | P2 | Currently web-only | Inferred |
 | Multi-device sync | Backlog | P2 | Phase 2 ask in CLAUDE.md | Inferred |
