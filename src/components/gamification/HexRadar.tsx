@@ -18,7 +18,7 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
   const cx = size / 2;
   const cy = size / 2;
   const maxR = size * 0.42;
-  const rings = [0.25, 0.5, 0.75, 1.0];
+  const rings = [0.33, 0.66, 1.0];
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const pt = (angle: number, r: number) => ({
     x: cx + r * Math.cos(toRad(angle)),
@@ -48,9 +48,9 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
           <Path
             key={i}
             d={hexPath(pctR)}
-            fill={i === 3 ? c.primary + '10' : 'none'}
+            fill="none"
             stroke={c.border}
-            strokeWidth={i === 3 ? 1.5 : 1}
+            strokeWidth={i === rings.length - 1 ? 1.5 : 1}
             opacity={0.5 + i * 0.1}
           />
         ))}
@@ -74,12 +74,19 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
             d={yesterdayPath}
             fill="none"
             stroke={c.textMuted}
-            strokeWidth={1.5}
+            strokeWidth={1}
             strokeDasharray="4 3"
-            opacity={0.6}
+            opacity={0.4}
           />
         )}
-        <Path d={dataPath} fill={c.primary} fillOpacity={0.18} stroke={c.primary} strokeWidth={2} />
+        <Path
+          d={dataPath}
+          fill={c.primary}
+          fillOpacity={0.14}
+          stroke={c.primary}
+          strokeWidth={1.25}
+          strokeLinejoin="round"
+        />
         {DOMAIN_META.map((d) => {
           const score = scores[d.key] ?? 0;
           const yScore = yesterdayScores?.[d.key];
@@ -87,17 +94,19 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
           const pos = pt(d.angleDeg, maxR * Math.max(0.02, score / 100));
           const dotColor = improved ? c.success : c[d.colorKey];
           const isActive = activeDomain === d.key;
-          const r = 4 + (score / 100) * 5;
+          const r = 3;
           return (
             <G key={d.key} onPress={() => onDomainPress?.(d.key)}>
-              <Circle cx={pos.x} cy={pos.y} r={r + 8} fill={dotColor} opacity={0.15 + (isActive ? 0.15 : 0)} />
+              {isActive && (
+                <Circle cx={pos.x} cy={pos.y} r={r + 5} fill="none" stroke={dotColor} strokeWidth={1.25} opacity={0.6} />
+              )}
               <Circle
                 cx={pos.x}
                 cy={pos.y}
                 r={r}
                 fill={dotColor}
-                stroke={isActive ? '#fff' : dotColor}
-                strokeWidth={isActive ? 2 : 0}
+                stroke={isActive ? c.background : dotColor}
+                strokeWidth={isActive ? 1.5 : 0}
               />
             </G>
           );
