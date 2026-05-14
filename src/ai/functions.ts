@@ -126,6 +126,110 @@ export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
   }
 }
 
+// Common AI hallucinations — coerce to the closest valid enum before Zod parse.
+const CURRENT_LEVEL_ALIASES: Record<string, 'none' | 'beginner' | 'intermediate' | 'advanced'> = {
+  novice: 'beginner',
+  basic: 'beginner',
+  junior: 'beginner',
+  intermediary: 'intermediate',
+  proficient: 'intermediate',
+  senior: 'advanced',
+  expert: 'advanced',
+  master: 'advanced',
+};
+const REQUIRED_LEVEL_ALIASES: Record<string, 'beginner' | 'intermediate' | 'advanced' | 'expert'> = {
+  none: 'beginner',
+  novice: 'beginner',
+  basic: 'beginner',
+  junior: 'beginner',
+  intermediary: 'intermediate',
+  proficient: 'intermediate',
+  senior: 'advanced',
+  master: 'expert',
+};
+const RESOURCE_TYPE_ALIASES: Record<string, 'course' | 'book' | 'project' | 'person' | 'practice'> = {
+  video: 'course',
+  tutorial: 'course',
+  article: 'book',
+  blog: 'book',
+  paper: 'book',
+  podcast: 'book',
+  mentor: 'person',
+  community: 'person',
+  exercise: 'practice',
+  drill: 'practice',
+  challenge: 'project',
+  task: 'project',
+};
+const coerceCurrentLevel = (v: unknown): string => {
+  if (typeof v !== 'string') return 'none';
+  const k = v.toLowerCase().trim();
+  if (['none', 'beginner', 'intermediate', 'advanced'].includes(k)) return k;
+  return CURRENT_LEVEL_ALIASES[k] ?? 'none';
+};
+const coerceRequiredLevel = (v: unknown): string => {
+  if (typeof v !== 'string') return 'beginner';
+  const k = v.toLowerCase().trim();
+  if (['beginner', 'intermediate', 'advanced', 'expert'].includes(k)) return k;
+  return REQUIRED_LEVEL_ALIASES[k] ?? 'intermediate';
+};
+const coerceResourceType = (v: unknown): string => {
+  if (typeof v !== 'string') return 'course';
+  const k = v.toLowerCase().trim();
+  if (['course', 'book', 'project', 'person', 'practice'].includes(k)) return k;
+  return RESOURCE_TYPE_ALIASES[k] ?? 'course';
+};
+const coercePriorityNumber = (v: unknown): number => {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    if (!Number.isNaN(n)) return n;
+    const t = v.toLowerCase().trim();
+    if (t === 'high' || t === 'must') return 1;
+    if (t === 'medium' || t === 'should') return 2;
+    if (t === 'low' || t === 'nice') return 3;
+  }
+  return 5;
+};
+const coerceHours = (v: unknown): number => {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    if (!Number.isNaN(n)) return n;
+  }
+  return 0;
+};
+function sanitizeSkillGap(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw;
+  const r = raw as { gaps?: unknown; resources?: unknown };
+  const gaps = Array.isArray(r.gaps)
+    ? r.gaps.map((g) => {
+        if (!g || typeof g !== 'object') return g;
+        const x = g as Record<string, unknown>;
+        return {
+          ...x,
+          skill: typeof x.skill === 'string' ? x.skill : String(x.skill ?? ''),
+          currentLevel: coerceCurrentLevel(x.currentLevel),
+          requiredLevel: coerceRequiredLevel(x.requiredLevel),
+          priority: coercePriorityNumber(x.priority),
+        };
+      })
+    : [];
+  const resources = Array.isArray(r.resources)
+    ? r.resources.map((res) => {
+        if (!res || typeof res !== 'object') return res;
+        const x = res as Record<string, unknown>;
+        return {
+          ...x,
+          title: typeof x.title === 'string' ? x.title : String(x.title ?? ''),
+          type: coerceResourceType(x.type),
+          estimatedHours: coerceHours(x.estimatedHours),
+        };
+      })
+    : [];
+  return { gaps, resources };
+}
+
 export async function analyseSkillGap(input: CareerInput): Promise<SkillGapAnalysis> {
   if (isMock) return buildMockSkillGap(input.currentRole, input.targetRole, input.currentSkills);
 
@@ -138,7 +242,8 @@ export async function analyseSkillGap(input: CareerInput): Promise<SkillGapAnaly
   });
 
   try {
-    return SkillGapAnalysisSchema.parse(extractJson(response));
+    const sanitized = sanitizeSkillGap(extractJson(response));
+    return SkillGapAnalysisSchema.parse(sanitized);
   } catch (err) {
     recordSchemaFailure('analyseSkillGap', 'SkillGapAnalysis', response, err);
   }
