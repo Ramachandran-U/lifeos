@@ -124,6 +124,17 @@ for (const route of routesFile.routes) {
 
     let response;
     try {
+      // Bootstrap auth at root first. The layout guard redirects to
+      // /(auth)/sign-in until the zustand userId hydrates from seeded
+      // localStorage, then re-fires and routes to /(tabs). Visiting the
+      // target directly often loses the intended destination during this
+      // chain. Going to '/' first lets the chain settle on Today, after
+      // which a second navigation to the target URL is honoured.
+      if (route.path !== '/') {
+        await page.goto('/', { waitUntil: 'networkidle', timeout: 30_000 });
+        // Wait for any tabs route to confirm auth settled.
+        await page.waitForURL((url) => !url.pathname.includes('/(auth)/sign'), { timeout: 10_000 }).catch(() => undefined);
+      }
       response = await page.goto(route.path, { waitUntil: 'networkidle', timeout: 30_000 });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -174,6 +185,11 @@ for (const nav of routesFile.navigation) {
     await seedAuthedUser(page);
     const captured = attachListeners(page, routesFile.ignoredConsolePatterns);
 
+    // Bootstrap auth at root first — see route loop comment for rationale.
+    if (nav.from !== '/') {
+      await page.goto('/', { waitUntil: 'networkidle', timeout: 30_000 });
+      await page.waitForURL((url) => !url.pathname.includes('/(auth)/sign'), { timeout: 10_000 }).catch(() => undefined);
+    }
     await page.goto(nav.from, { waitUntil: 'networkidle', timeout: 30_000 });
     // Wait for the clickable target to exist before scrolling/clicking. Routes
     // like Privacy & data residency sit below the fold on small viewports,

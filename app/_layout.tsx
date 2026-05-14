@@ -77,8 +77,12 @@ export default function RootLayout() {
     }
     init();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
+    // Only act on an EXPLICIT sign-out. The INITIAL_SESSION event fires once
+    // with null on every boot for users without a Supabase session (e.g.
+    // legacy email/password accounts or seeded E2E users), and we don't
+    // want that to wipe the local user store.
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
         setWebSession(null);
         useUserStore.getState().reset();
       }

@@ -68,8 +68,8 @@
     {
       "path": "/what-lifeos-knows",
       "name": "what-lifeos-knows",
-      "selector": "text=What LifeOS",
-      "comment": "Side route reachable from Profile."
+      "selector": "text=I don't know you yet",
+      "comment": "Side route reachable from Profile. Empty-state copy renders for users without an extracted UserProfile (seeded E2E user)."
     },
     {
       "path": "/settings",
