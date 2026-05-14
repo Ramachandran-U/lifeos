@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -15,14 +15,22 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onAdd: (data: { name: string; category: Category; weeklyMinutesTarget: number }) => void;
+  seed?: { name?: string; category?: Category };
 }
 
-export function AddInterestSheet({ visible, onClose, onAdd }: Props) {
+export function AddInterestSheet({ visible, onClose, onAdd, seed }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<Category>('tech');
+  const [name, setName] = useState(seed?.name ?? '');
+  const [category, setCategory] = useState<Category>(seed?.category ?? 'tech');
   const [target, setTarget] = useState('60');
+
+  useEffect(() => {
+    if (visible && seed) {
+      if (seed.name !== undefined) setName(seed.name);
+      if (seed.category !== undefined) setCategory(seed.category);
+    }
+  }, [visible, seed]);
 
   const reset = () => {
     setName('');
