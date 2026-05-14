@@ -73,9 +73,9 @@ export function GlassCard({
             // a faint flat tint at the top-left.
             Platform.OS === 'web'
               ? ({
-                  background: `radial-gradient(ellipse at top left, ${accent}22, transparent 70%)`,
+                  background: `radial-gradient(ellipse at top left, ${accent}14, transparent 65%)`,
                 } as unknown as ViewStyle)
-              : { backgroundColor: accent + '12' },
+              : { backgroundColor: accent + '08' },
             { borderTopLeftRadius: radiusValue, borderTopRightRadius: radiusValue },
           ]}
         />
@@ -88,10 +88,13 @@ export function GlassCard({
     return (
       <Pressable
         onPress={onPress}
-        // Subtle press feedback. Reanimated isn't needed here — Pressable's
-        // built-in opacity feedback is enough for a card.
+        // Aurora Refined v2: soft scale press feedback instead of opacity dip.
         style={({ pressed }) => [
-          { borderRadius: radiusValue, opacity: pressed ? 0.92 : 1 },
+          {
+            borderRadius: radiusValue,
+            transform: [{ scale: pressed ? 0.985 : 1 }],
+            opacity: pressed ? 0.96 : 1,
+          },
         ]}
         accessibilityRole="button"
       >

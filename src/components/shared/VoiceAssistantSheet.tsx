@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TextInput, View, ScrollView } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { useVoice } from '@/hooks/useVoice';
+import { useStaggerDelay } from '@/theme/motion';
 
 interface VoiceAssistantSheetProps {
   visible: boolean;
@@ -21,6 +23,8 @@ export function VoiceAssistantSheet({
   const c = useColors();
   const [input, setInput] = useState('');
   const voice = useVoice({ systemInstruction });
+  // 50 ms step matches MOTION scene-06 chart for inner stagger.
+  const stagger = useStaggerDelay();
 
   useEffect(() => {
     if (visible) voice.connect();
@@ -49,7 +53,7 @@ export function VoiceAssistantSheet({
           style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}
           testID="voice-sheet"
         >
-          <View style={styles.header}>
+          <Animated.View entering={FadeIn.delay(700 + stagger(0, 50)).duration(320)} style={styles.header}>
             <View style={styles.headerLeft}>
               <Ionicons name="mic" size={20} color={c.primary} />
               <Heading style={{ color: c.textPrimary, fontSize: fontSizes.lg }}>Voice Assistant</Heading>
@@ -57,9 +61,9 @@ export function VoiceAssistantSheet({
             <Pressable onPress={onClose} hitSlop={8} testID="voice-close">
               <Ionicons name="close" size={22} color={c.textSecondary} />
             </Pressable>
-          </View>
+          </Animated.View>
 
-          <View style={styles.statusRow}>
+          <Animated.View entering={FadeIn.delay(700 + stagger(1, 50)).duration(320)} style={styles.statusRow}>
             <View
               style={[
                 styles.statusDot,
@@ -73,7 +77,7 @@ export function VoiceAssistantSheet({
               ]}
             />
             <Label color={c.textSecondary}>{statusLabel}</Label>
-          </View>
+          </Animated.View>
 
           <ScrollView
             style={[styles.transcript, { borderColor: c.border, backgroundColor: c.card }]}

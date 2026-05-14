@@ -1,13 +1,33 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { View, Pressable, StyleSheet, Platform } from 'react-native';
-import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors, DOMAIN_GLYPHS } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption } from '@/components/ui/Typography';
-import { SPRING, TIMING } from '@/theme/motion';
+import { EASING, SPRING, TIMING, useMotionScale } from '@/theme/motion';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+// Hold-to-confirm window. Not a motion-budget token — this is an input
+// gesture duration, not an animation curve.
+const HOLD_MS = 1000;
+// Reduce-motion / users with motionIntensity=off get a fast tap window.
+const REDUCED_HOLD_MS = 120;
+
+// Progress arc geometry (drawn on the status button when pressed).
+const ARC_RADIUS = 13;
+const ARC_CIRCUMFERENCE = 2 * Math.PI * ARC_RADIUS;
 
 const MODULE_LABELS: Record<string, string> = {
   goal: 'GOALS', health: 'HEALTH', finance: 'FINANCE', career: 'CAREER',
@@ -73,14 +93,30 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
 
   const opacity = useSharedValue(isCompleted ? 0.55 : 1);
   const scale = useSharedValue(1);
+  // pressP: 0 → 1 over the hold window. Drives the arc stroke-dashoffset.
+  const pressP = useSharedValue(0);
+
+  const motionScale = useMotionScale();
+  // When motion is off (reduce-motion or user pref), fall back to a short
+  // tap window so the button still feels responsive without an arc fill.
+  const holdMs = motionScale === 0 ? REDUCED_HOLD_MS : HOLD_MS;
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
   }));
 
-  const handleComplete = () => {
-    if (isCompleted) return;
+  // Progress arc: stroke-dashoffset goes from full-circumference (empty) to 0 (full).
+  const arcProps = useAnimatedProps(() => ({
+    strokeDashoffset: ARC_CIRCUMFERENCE * (1 - pressP.value),
+  }));
+
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const completedRef = useRef(false);
+
+  const commit = () => {
+    if (completedRef.current || isCompleted) return;
+    completedRef.current = true;
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     scale.value = withSpring(0.97, SPRING.standard, () => {
       scale.value = withSpring(1, SPRING.standard);
@@ -89,9 +125,24 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     onComplete(id);
   };
 
-  const activeGlow = isActive && Platform.OS === 'web'
-    ? ({ boxShadow: `0 0 24px ${moduleColor}33, inset 0 0 0 1px ${moduleColor}55` } as unknown as object)
-    : undefined;
+  const startHold = () => {
+    if (isCompleted || completedRef.current) return;
+    pressP.value = withTiming(1, { duration: holdMs, easing: EASING.inOut });
+    holdTimer.current = setTimeout(() => commit(), holdMs);
+  };
+
+  const cancelHold = () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    if (!completedRef.current) {
+      pressP.value = withTiming(0, { duration: 200, easing: EASING.out });
+    }
+  };
+
+  // Aurora Refined v2: resting glow removed. Halo moments live in motion
+  // scenes (BadgeUnlock, etc.) not steady state.
 
   // Two-layer animation wrapper: outer view owns the layout entry animation,
   // inner view owns the per-frame opacity/scale. Reanimated 4 warns when both
@@ -103,7 +154,6 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
         style={[
           styles.container,
           isActive && { borderColor: moduleColor + '66', backgroundColor: moduleColor + '11' },
-          activeGlow as object,
         ]}
       >
         {/* Time rail */}
@@ -112,9 +162,6 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
             style={[
               styles.dot,
               { backgroundColor: moduleColor },
-              isActive && Platform.OS === 'web'
-                ? ({ boxShadow: `0 0 12px ${moduleColor}` } as unknown as object)
-                : undefined,
             ]}
           />
           <Caption style={[styles.time, { color: isActive ? moduleColor : c.textMuted }]}>
@@ -144,26 +191,54 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
           </View>
         </View>
 
-        {/* Status control */}
-        <Pressable onPress={handleComplete} style={styles.statusBtn} hitSlop={8}>
+        {/* Status control — hold to complete (Aurora Refined v2 scene 02). */}
+        <Pressable
+          onPressIn={startHold}
+          onPressOut={cancelHold}
+          style={styles.statusBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityHint={isCompleted ? 'Completed' : 'Hold to complete'}
+        >
           {isCompleted ? (
             <View style={[styles.checkCircle, { backgroundColor: c.success + '26', borderColor: c.success + '66' }]}>
               <Ionicons name="checkmark" size={16} color={c.success} />
             </View>
-          ) : isActive ? (
-            <View
-              style={[
-                styles.nowPill,
-                { backgroundColor: moduleColor },
-                Platform.OS === 'web'
-                  ? ({ boxShadow: `0 0 20px ${moduleColor}77` } as unknown as object)
-                  : undefined,
-              ]}
-            >
-              <Caption style={styles.nowText}>NOW</Caption>
-            </View>
           ) : (
-            <View style={styles.emptyCircle} />
+            <View style={styles.statusInner}>
+              {isActive ? (
+                <View
+                  style={[
+                    styles.nowPill,
+                    { backgroundColor: moduleColor },
+                  ]}
+                >
+                  <Caption style={styles.nowText}>NOW</Caption>
+                </View>
+              ) : (
+                <View style={styles.emptyCircle} />
+              )}
+              {/* Press-progress arc — overlays the button face. */}
+              <Svg
+                width={32}
+                height={32}
+                style={styles.progressArc}
+                pointerEvents="none"
+              >
+                <AnimatedCircle
+                  cx={16}
+                  cy={16}
+                  r={ARC_RADIUS}
+                  stroke={moduleColor}
+                  strokeWidth={2}
+                  fill="none"
+                  strokeDasharray={ARC_CIRCUMFERENCE}
+                  animatedProps={arcProps}
+                  strokeLinecap="round"
+                  transform="rotate(-90 16 16)"
+                />
+              </Svg>
+            </View>
           )}
         </Pressable>
       </View>
@@ -173,6 +248,18 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
 }
 
 const makeStyles = (colors: AppColors) => StyleSheet.create({
+  statusInner: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  progressArc: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'stretch',

@@ -21,7 +21,7 @@ export function StreakRow({ streakKey, count, best, graceUsed }: Props) {
   const size = count >= 20 ? 'lg' : count >= 10 ? 'md' : 'sm';
 
   return (
-    <View style={[styles.card, { backgroundColor: c.card, borderColor: color + '33', borderLeftColor: color }]}>
+    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, borderLeftColor: color }]}>
       <View style={styles.flameCol}>
         <StreakFlame count={count} graceUsed={graceUsed} size={size} />
       </View>
@@ -40,7 +40,7 @@ export function StreakRow({ streakKey, count, best, graceUsed }: Props) {
           </View>
           <View style={styles.statsRow}>
             <Text style={{ fontFamily: fonts.body, fontSize: 11, color: c.textMuted }}>
-              Best: <Text style={{ color }}>{best}</Text>
+              Best: <Text style={{ color: c.textSecondary }}>{best}</Text>
             </Text>
             <Text style={{ fontFamily: fonts.body, fontSize: 11, color: c.textMuted }}>
               Now: <Text style={{ color: c.textPrimary }}>{count}</Text>
@@ -69,10 +69,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderLeftWidth: 3,
-    padding: 16,
+    borderLeftWidth: 2,
+    padding: 14,
   },
   flameCol: { width: 56, alignItems: 'center' },
   body: { flex: 1 },

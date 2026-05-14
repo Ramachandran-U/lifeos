@@ -3,7 +3,9 @@
 
 export const radii = {
   pill: 999,
+  xl: 28,
   card: 22,
+  lg: 20,
   control: 14,
   tile: 10,
   hairline: 4,

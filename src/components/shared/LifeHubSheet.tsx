@@ -1,10 +1,12 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Heading } from '@/components/ui/Typography';
+import { useStaggerDelay } from '@/theme/motion';
 
 type Hub = {
   route: '/(tabs)/goals' | '/(tabs)/health' | '/(tabs)/finance' | '/(tabs)/career';
@@ -29,6 +31,8 @@ interface LifeHubSheetProps {
 export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
   const c = useColors();
   const router = useRouter();
+  // 50 ms step matches the MOTION scene-06 chart for inner grid cascade.
+  const stagger = useStaggerDelay();
 
   const handlePick = (route: Hub['route']) => {
     onClose();
@@ -46,26 +50,31 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
         </Body>
 
         <View style={styles.grid}>
-          {HUBS.map((h) => (
-            <Pressable
+          {HUBS.map((h, i) => (
+            <Animated.View
               key={h.route}
-              onPress={() => handlePick(h.route)}
-              style={({ pressed }) => [
-                styles.tile,
-                {
-                  backgroundColor: c.card,
-                  borderColor: pressed ? c[h.colorKey] : c.border,
-                },
-              ]}
+              entering={FadeIn.delay(700 + stagger(i, 50)).duration(320)}
+              style={styles.tileWrap}
             >
-              <View style={[styles.iconBubble, { backgroundColor: c[h.colorKey] + '22' }]}>
-                <Ionicons name={h.icon} size={24} color={c[h.colorKey]} />
-              </View>
-              <Body style={[styles.tileLabel, { color: c.textPrimary }]}>{h.label}</Body>
-              <Body style={[styles.tileCaption, { color: c.textMuted }]} numberOfLines={1}>
-                {h.caption}
-              </Body>
-            </Pressable>
+              <Pressable
+                onPress={() => handlePick(h.route)}
+                style={({ pressed }) => [
+                  styles.tile,
+                  {
+                    backgroundColor: c.card,
+                    borderColor: pressed ? c[h.colorKey] : c.border,
+                  },
+                ]}
+              >
+                <View style={[styles.iconBubble, { backgroundColor: c[h.colorKey] + '22' }]}>
+                  <Ionicons name={h.icon} size={24} color={c[h.colorKey]} />
+                </View>
+                <Body style={[styles.tileLabel, { color: c.textPrimary }]}>{h.label}</Body>
+                <Body style={[styles.tileCaption, { color: c.textMuted }]} numberOfLines={1}>
+                  {h.caption}
+                </Body>
+              </Pressable>
+            </Animated.View>
           ))}
         </View>
       </View>
@@ -105,9 +114,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  tile: {
+  tileWrap: {
     flexBasis: '48%',
     flexGrow: 1,
+  },
+  tile: {
     borderRadius: 20,
     borderWidth: 1,
     padding: spacing.md,

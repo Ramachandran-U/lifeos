@@ -66,7 +66,7 @@ const HOURS_OPTIONS = [5, 10, 15, 20];
 export default function CareerScreen() {
   useScreenTracking('career');
   const c = useColors();
-  const { call, loading } = useAI();
+  const { call, loading, error } = useAI();
 
   // Setup form state
   const [currentRole,      setCurrentRole]      = useState('');
@@ -344,6 +344,13 @@ export default function CareerScreen() {
             onPress={handleAnalyse}
             disabled={!currentRole.trim() || !targetRole.trim() || loading}
           />
+          {error && (
+            <Caption style={{ color: c.error, marginTop: spacing.sm }}>
+              {/^\s*\[?\s*\{/.test(error)
+                ? "We couldn't read the AI's response. Try again or tweak the inputs."
+                : error}
+            </Caption>
+          )}
         </View>
       </Card>
 

@@ -22,7 +22,8 @@ import { suggestTomorrowTweak } from '@/ai/functions';
 import type { TomorrowTweak } from '@/ai/types';
 import { useUserStore } from '@/store/useUserStore';
 import { useFlagStore } from '@/store/useFlagStore';
-import { getUserProfile } from '@/db/queries/userProfile';
+import { getUserProfile, upsertUserProfile } from '@/db/queries/userProfile';
+import type { UserProfile } from '@/ai/types';
 import { generateAndSaveTomorrow, isRecoveryLow } from '@/ai/replanApply';
 import { deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import { getLatestSleepHours } from '@/db/queries/health';
@@ -60,6 +61,9 @@ export default function EveningReflectScreen() {
   const [tweakError, setTweakError] = useState<string | null>(null);
   const [tweakAccepted, setTweakAccepted] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [habitProposal, setHabitProposal] = useState<string | null>(null);
+  const [habitChoice, setHabitChoice] = useState<'drop' | 'keep' | 'smaller' | null>(null);
 
   const todayBlocks = useMemo(
     () => getRoutineBlocksByDate(today).sort((a, b) => a.startTime.localeCompare(b.startTime)),
@@ -119,10 +123,66 @@ export default function EveningReflectScreen() {
     setStep('mood');
   };
 
-  const goToTomorrow = () => {
+  const goToTomorrow = async () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStep('tomorrow');
     fetchTweak();
+
+    // Reflection-driven habit acceptance: surface ONE skipped-habit proposal
+    // when the inference layer flagged a habit AND it's in the user's current
+    // habit list AND the user actually skipped something this session.
+    // Conservative — only fires when we have explicit signal from both sides.
+    if (!userId) return;
+    const userSkippedSomething = Object.values(blockReviews).some((v) => v === 'skipped');
+    if (!userSkippedSomething) return;
+    try {
+      const p = await getUserProfile(userId);
+      if (!p) return;
+      setProfile(p);
+      const current = p.habits?.current ?? [];
+      const dropped = p.inferredPreferences?.droppedHabits ?? [];
+      const candidate = dropped.find((d) =>
+        current.some((c) => c.toLowerCase().includes(d.toLowerCase()) || d.toLowerCase().includes(c.toLowerCase())),
+      );
+      if (candidate) setHabitProposal(candidate);
+    } catch {
+      /* non-fatal */
+    }
+  };
+
+  const decideHabit = async (choice: 'drop' | 'keep' | 'smaller') => {
+    if (!userId || !profile || !habitProposal) return;
+    setHabitChoice(choice);
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    try {
+      let next: UserProfile = profile;
+      const matchHabit = (h: string) =>
+        h.toLowerCase().includes(habitProposal.toLowerCase()) || habitProposal.toLowerCase().includes(h.toLowerCase());
+      if (choice === 'drop') {
+        // Remove from current habits — keep on droppedHabits so planner avoids it.
+        next = {
+          ...profile,
+          habits: { ...profile.habits, current: profile.habits.current.filter((h) => !matchHabit(h)) },
+        };
+      } else if (choice === 'keep') {
+        // User overrides the auto-inference — remove from droppedHabits so planner re-includes.
+        next = {
+          ...profile,
+          inferredPreferences: {
+            ...profile.inferredPreferences,
+            droppedHabits: profile.inferredPreferences.droppedHabits.filter((d) => d !== habitProposal),
+          },
+        };
+      }
+      // 'smaller' leaves the profile alone — a behaviour event tells the planner to shrink it.
+      if (choice !== 'smaller') {
+        await upsertUserProfile(userId, next);
+        setProfile(next);
+      }
+      logBehaviourEvent(`habit_${choice}`, 'goal', { habit: habitProposal });
+    } catch {
+      /* non-fatal — UI already reflects the choice */
+    }
   };
 
   const applyTweak = () => {
@@ -293,6 +353,41 @@ export default function EveningReflectScreen() {
 
         {step === 'tomorrow' && (
           <Animated.View entering={FadeInDown.duration(400)} style={styles.list}>
+            {habitProposal && (
+              <Card style={[styles.tweakCard, { borderLeftWidth: 4, borderLeftColor: c.warning }]}>
+                <View style={styles.tweakHeader}>
+                  <Ionicons name="leaf-outline" size={18} color={c.warning} />
+                  <Label color={c.warning}>HABIT CHECK</Label>
+                </View>
+                <Body style={styles.tweakRationale}>
+                  You&apos;ve been skipping <Body style={{ fontFamily: fonts.heading }}>{habitProposal}</Body>. Want to drop it from your routine, keep pushing, or try a smaller version?
+                </Body>
+
+                {habitChoice === null && (
+                  <View style={[styles.tweakActions, { flexWrap: 'wrap' }]}>
+                    <Button title="Drop it" variant="secondary" onPress={() => decideHabit('drop')} style={{ flex: 1, minWidth: 110 }} />
+                    <Button title="Smaller" variant="secondary" onPress={() => decideHabit('smaller')} style={{ flex: 1, minWidth: 110 }} />
+                    <Button title="Keep" onPress={() => decideHabit('keep')} style={{ flex: 1, minWidth: 110 }} />
+                  </View>
+                )}
+                {habitChoice === 'drop' && (
+                  <Caption style={{ color: c.success, fontFamily: fonts.heading, marginTop: spacing.sm }}>
+                    ✓ Removed from your current habits. The planner will stop scheduling it.
+                  </Caption>
+                )}
+                {habitChoice === 'keep' && (
+                  <Caption style={{ color: c.success, fontFamily: fonts.heading, marginTop: spacing.sm }}>
+                    ✓ Sticking with it. The planner will keep it in rotation.
+                  </Caption>
+                )}
+                {habitChoice === 'smaller' && (
+                  <Caption style={{ color: c.success, fontFamily: fonts.heading, marginTop: spacing.sm }}>
+                    ✓ Noted — the planner will shrink the next instance.
+                  </Caption>
+                )}
+              </Card>
+            )}
+
             {tweakLoading && (
               <Card><Body style={styles.muted}>Thinking about tomorrow…</Body></Card>
             )}

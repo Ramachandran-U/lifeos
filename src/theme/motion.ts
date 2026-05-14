@@ -1,6 +1,31 @@
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Easing, Platform } from 'react-native';
+import { AccessibilityInfo, Easing, Easing as RNEasing, Platform } from 'react-native';
 import { usePreferencesStore, type MotionIntensity } from '@/store/usePreferencesStore';
+
+// Custom easings beyond Reanimated's built-ins.
+//   bounce — single-overshoot bounce. Streak +1 number tick.
+//   pulse  — drive via Reanimated withSequence; this curve is the "in" half.
+// Aurora Refined v2 — see docs/aurora-refined-v2/DELTA.md Phase 2.
+export const EASING = {
+  out:    RNEasing.out(RNEasing.cubic),
+  soft:   RNEasing.bezier(0.2, 0.7, 0.3, 1),
+  spring: RNEasing.bezier(0.34, 1.56, 0.64, 1),    // damped overshoot
+  bounce: RNEasing.bezier(0.34, 1.86, 0.64, 1),    // 6% overshoot, single oscillation
+  inOut:  RNEasing.bezier(0.4, 0, 0.2, 1),
+} as const;
+
+// Aurora Refined v2 motion budget — see docs/aurora-refined-v2/MOTION.md.
+// Every animation in the app should pick from these or compose them.
+export const MOTION_BUDGET = {
+  pressFeedback:    120,  // tap scale
+  microFeedback:    220,  // chip flash
+  reveal:           360,  // standard surface arrival
+  hero:             520,  // hero entry
+  morphLong:       1600,  // hex radar score morph
+  textReveal:      1900,  // AI insight typing (49 chars/sec)
+  staggerTight:      40,  // tight row stagger
+  stagger:           70,  // standard row stagger (timeline, sheet tiles)
+} as const;
 
 // Aurora Refined motion tokens — see DESIGN_DOC.md / ds-motion.jsx.
 // Two physical motions (springs) and four time-based motions cover every case.
