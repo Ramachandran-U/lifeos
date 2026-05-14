@@ -114,6 +114,7 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 - **Full-screen level-up overlay** + achievement toasts
 
 ### Polymath / Explore
+- **Discover grid** — Instagram-style 3-column masonry of curated areas (Astronomy, Jazz piano, Photography, Stoicism, Climbing, Spanish, AI & ML, etc.) with one 2×2 feature tile per block. Tap a tile to open the Add Interest sheet pre-filled with the suggestion's name + category.
 - Interests CRUD, weekly target tracking, exploration log with minute chips
 - Feeds XP, the learning streak, and the "mind" domain score
 
