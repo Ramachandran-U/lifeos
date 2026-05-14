@@ -1,7 +1,7 @@
 import { callAI } from './client';
 import { extractJson } from './extractJson';
 import { pickModel } from './modelRouter';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 
 /**
  * Emit an `ai_schema_failure` telemetry event and rethrow. Called from
@@ -25,7 +25,7 @@ function recordSchemaFailure(
 ): never {
   const detail = err instanceof Error ? err.message : String(err);
   const rawText = typeof raw === 'string' ? raw : JSON.stringify(raw ?? '');
-  track('ai_schema_failure', {
+  track(EVENTS.aiSchemaFailure, {
     task,
     schema,
     error: detail.slice(0, 200),

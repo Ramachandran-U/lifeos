@@ -2,7 +2,7 @@ import { AIRequest } from './types';
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import { recordUsage, computeCost } from './costLedger';
 import { startSpan, endSpan } from './tracing';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 
 const PROXY_URL =
   process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
@@ -46,7 +46,7 @@ async function callViaProxy(request: AIRequest): Promise<string> {
     const model = data.model ?? request.model ?? 'unknown';
     if (data.usage) {
       recordUsage({ model, task: request.task ?? 'unknown', usage: data.usage });
-      track('ai_call', {
+      track(EVENTS.aiCall, {
         task: request.task ?? 'unknown',
         model,
         input_tokens: data.usage.input_tokens,

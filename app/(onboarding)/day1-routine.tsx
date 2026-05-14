@@ -18,7 +18,7 @@ import { useAI } from '@/hooks/useAI';
 import { planRoutineWithContext } from '@/ai/routinePlanner';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 import { getUser, updateUser } from '@/db/queries/users';
 import { createRoutineBlocks, deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import { getUserProfile, upsertUserProfile } from '@/db/queries/userProfile';
@@ -190,10 +190,10 @@ export default function Day1RoutineScreen() {
 
     setOnboardingStage(ONBOARDING_COMPLETE);
     if (!isEditMode) {
-      track('onboarding_finished', { stage: ONBOARDING_COMPLETE });
+      track(EVENTS.onboardingFinished, { stage: ONBOARDING_COMPLETE });
       awardBadge(userId, 'first_blueprint');
     } else {
-      track('routine_edited', { blocks: routine.blocks.length });
+      track(EVENTS.routineEdited, { blocks: routine.blocks.length });
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 

@@ -111,31 +111,6 @@ export const bloodReports = sqliteTable('blood_reports', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
-// --- Contacts ---
-export const contacts = sqliteTable('contacts', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  nickname: text('nickname'),
-  relationshipType: text('relationship_type').notNull(), // inner_circle | close_friend | family | mentor | colleague | acquaintance
-  preferredCadenceDays: integer('preferred_cadence_days').notNull(),
-  lastContactDate: text('last_contact_date'),
-  notes: text('notes'),
-  birthday: text('birthday'), // MM-DD
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
-  deletedAt: text('deleted_at'),
-});
-
-// --- Contact Interactions ---
-export const contactInteractions = sqliteTable('contact_interactions', {
-  id: text('id').primaryKey(),
-  contactId: text('contact_id').notNull(),
-  date: text('date').notNull(), // YYYY-MM-DD
-  type: text('type').notNull(), // call | message | in_person | email | other
-  notes: text('notes'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-});
-
 // --- Interests ---
 export const interests = sqliteTable('interests', {
   id: text('id').primaryKey(),
@@ -160,46 +135,6 @@ export const explorationLog = sqliteTable('exploration_log', {
   minutesSpent: integer('minutes_spent').notNull(),
   notes: text('notes'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-});
-
-// --- Learning Resources ---
-export const learningResources = sqliteTable('learning_resources', {
-  id: text('id').primaryKey(),
-  careerProfileId: text('career_profile_id').notNull(),
-  title: text('title').notNull(),
-  type: text('type').notNull(), // course | book | project | person | practice
-  url: text('url'),
-  estimatedHours: real('estimated_hours'),
-  priority: integer('priority').notNull(),
-  status: text('status').notNull().default('not_started'), // not_started | in_progress | completed
-  completedAt: text('completed_at'),
-  weeklyMinutes: integer('weekly_minutes'),
-  notes: text('notes'),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
-});
-
-// --- Skill Gaps ---
-export const skillGaps = sqliteTable('skill_gaps', {
-  id: text('id').primaryKey(),
-  careerProfileId: text('career_profile_id').notNull(),
-  skill: text('skill').notNull(),
-  currentLevel: text('current_level').notNull(), // none | beginner | intermediate | advanced
-  requiredLevel: text('required_level').notNull(), // beginner | intermediate | advanced | expert
-  priority: integer('priority').notNull(),
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-});
-
-// --- Career Profiles ---
-export const careerProfiles = sqliteTable('career_profiles', {
-  id: text('id').primaryKey(),
-  currentRole: text('current_role').notNull(),
-  targetRole: text('target_role').notNull(),
-  timelineMonths: integer('timeline_months').notNull(),
-  currentSkills: text('current_skills'), // JSON string[]
-  status: text('status').notNull().default('active'), // active | completed
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
 
 // --- Financial Goals ---
@@ -228,21 +163,6 @@ export const financeMilestones = sqliteTable('finance_milestones', {
   targetDate: text('target_date').notNull(),
   completedAt: text('completed_at'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-});
-
-// --- Habits ---
-export const habits = sqliteTable('habits', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull(),
-  module: text('module').notNull(), // goal | health | finance | career | social | polymath
-  frequency: text('frequency').notNull().default('daily'), // daily | weekly
-  targetCount: integer('target_count').notNull().default(1),
-  currentStreak: integer('current_streak').notNull().default(0),
-  bestStreak: integer('best_streak').notNull().default(0),
-  lastCompletedDate: text('last_completed_date'),
-  status: text('status').notNull().default('active'), // active | paused | archived
-  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
-  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
 
 // --- Gamification ---

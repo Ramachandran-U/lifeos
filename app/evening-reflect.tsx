@@ -17,7 +17,7 @@ import { getRoutineBlocksByDate, updateRoutineBlock } from '@/db/queries/routine
 import { cloneRoutineToDate } from '@/utils/starterRoutine';
 import { upsertReflection, getReflectionByDate, type BlockReview } from '@/db/queries/reflections';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 import { suggestTomorrowTweak } from '@/ai/functions';
 import type { TomorrowTweak } from '@/ai/types';
 import { useUserStore } from '@/store/useUserStore';
@@ -150,7 +150,7 @@ export default function EveningReflectScreen() {
         tweakPayload: tweak,
       });
       logBehaviourEvent('reflection_completed', 'goal');
-      track('evening_reflect_completed', {
+      track(EVENTS.eveningReflectCompleted, {
         block_count: blockReviews.length,
         tweak_accepted: tweakAccepted,
       });
@@ -187,11 +187,11 @@ export default function EveningReflectScreen() {
               },
               softenForRecovery: soften,
             });
-            track('tomorrow_routine_generated', { soften, skipped: skippedIds.length });
+            track(EVENTS.tomorrowRoutineGenerated, { soften, skipped: skippedIds.length });
           }
         } catch (err) {
           // Non-fatal: tomorrow still has the cloned seed.
-          track('tomorrow_routine_failed', { error: err instanceof Error ? err.message.slice(0, 120) : 'unknown' });
+          track(EVENTS.tomorrowRoutineFailed, { error: err instanceof Error ? err.message.slice(0, 120) : 'unknown' });
         }
       }
 

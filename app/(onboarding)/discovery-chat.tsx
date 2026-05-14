@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { discoveryChatTurn } from '@/ai/functions';
 import { mergeProfilePatch } from '@/ai/profileMerge';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 import { emptyUserProfile, ROUTINE_CONFIDENCE_THRESHOLD, type UserProfile } from '@/ai/types';
 import { getOrInitUserProfile, upsertUserProfile } from '@/db/queries/userProfile';
 import { useUserStore } from '@/store/useUserStore';
@@ -59,7 +59,7 @@ export default function DiscoveryChatScreen() {
   useEffect(() => {
     return () => {
       if (turnsRef.current > 0 && !doneRef.current) {
-        track('discovery_chat_abandoned', {
+        track(EVENTS.discoveryChatAbandoned, {
           turns: turnsRef.current,
           last_stage: lastStageRef.current,
           confidence_overall: Math.round(lastConfidenceRef.current * 100) / 100,
@@ -113,7 +113,7 @@ export default function DiscoveryChatScreen() {
       for (const key of Object.keys(turn.patch ?? {}) as Array<keyof typeof turn.patch>) {
         if (key === 'confidenceDeltas') continue;
         if (turn.patch[key] === undefined) continue;
-        track('slot_filled', {
+        track(EVENTS.slotFilled, {
           slot: key,
           stage: turn.stage,
           confidence_overall: Math.round(mergedProfile.confidence.overall * 100) / 100,
@@ -122,7 +122,7 @@ export default function DiscoveryChatScreen() {
 
       if (turn.done || mergedProfile.confidence.overall >= ROUTINE_CONFIDENCE_THRESHOLD) {
         setDone(true);
-        track('discovery_chat_completed', {
+        track(EVENTS.discoveryChatCompleted, {
           turns: turnsRef.current,
           confidence_overall: Math.round(mergedProfile.confidence.overall * 100) / 100,
           unlocked_routine: mergedProfile.confidence.overall >= ROUTINE_CONFIDENCE_THRESHOLD,

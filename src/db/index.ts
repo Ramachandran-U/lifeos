@@ -163,29 +163,6 @@ export async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS contacts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      nickname TEXT,
-      relationship_type TEXT NOT NULL,
-      preferred_cadence_days INTEGER NOT NULL,
-      last_contact_date TEXT,
-      notes TEXT,
-      birthday TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      deleted_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS contact_interactions (
-      id TEXT PRIMARY KEY,
-      contact_id TEXT NOT NULL,
-      date TEXT NOT NULL,
-      type TEXT NOT NULL,
-      notes TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
     CREATE TABLE IF NOT EXISTS interests (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL DEFAULT '',
@@ -208,43 +185,6 @@ export async function initDatabase() {
       minutes_spent INTEGER NOT NULL,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS learning_resources (
-      id TEXT PRIMARY KEY,
-      career_profile_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      type TEXT NOT NULL,
-      url TEXT,
-      estimated_hours REAL,
-      priority INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'not_started',
-      completed_at TEXT,
-      weekly_minutes INTEGER,
-      notes TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS skill_gaps (
-      id TEXT PRIMARY KEY,
-      career_profile_id TEXT NOT NULL,
-      skill TEXT NOT NULL,
-      current_level TEXT NOT NULL,
-      required_level TEXT NOT NULL,
-      priority INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS career_profiles (
-      id TEXT PRIMARY KEY,
-      current_role TEXT NOT NULL,
-      target_role TEXT NOT NULL,
-      timeline_months INTEGER NOT NULL,
-      current_skills TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS financial_goals (
@@ -271,20 +211,6 @@ export async function initDatabase() {
       target_date TEXT NOT NULL,
       completed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS habits (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      module TEXT NOT NULL,
-      frequency TEXT NOT NULL DEFAULT 'daily',
-      target_count INTEGER NOT NULL DEFAULT 1,
-      current_streak INTEGER NOT NULL DEFAULT 0,
-      best_streak INTEGER NOT NULL DEFAULT 0,
-      last_completed_date TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS gamification (
@@ -363,4 +289,16 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE interests ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`);
   await safeAlter(`ALTER TABLE users ADD COLUMN height_cm REAL`);
   await safeAlter(`ALTER TABLE goals ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`);
+
+  // Drop zombie tables — never had queries, no UI, no roadmap commitment
+  // (architect-review §P1-5). Idempotent: DROP IF EXISTS is a no-op when the
+  // table is already gone on fresh installs.
+  await expo.execAsync(`
+    DROP TABLE IF EXISTS contacts;
+    DROP TABLE IF EXISTS contact_interactions;
+    DROP TABLE IF EXISTS habits;
+    DROP TABLE IF EXISTS learning_resources;
+    DROP TABLE IF EXISTS skill_gaps;
+    DROP TABLE IF EXISTS career_profiles;
+  `);
 }

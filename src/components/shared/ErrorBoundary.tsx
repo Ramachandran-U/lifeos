@@ -6,7 +6,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 
 interface Props {
   children: ReactNode;
@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }): void {
-    track('ui_crash', {
+    track(EVENTS.uiCrash, {
       message: error.message,
       stack: error.stack?.slice(0, 2000),
       componentStack: info.componentStack?.slice(0, 2000) ?? null,

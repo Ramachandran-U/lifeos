@@ -46,7 +46,7 @@ import { rebalanceRestOfToday, isRecoveryLow } from '@/ai/replanApply';
 import { refreshInferredPreferences } from '@/ai/profileLearning';
 import { getLatestSleepHours } from '@/db/queries/health';
 import { upsertUserProfile } from '@/db/queries/userProfile';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
 import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
 import { updateUser } from '@/db/queries/users';
@@ -176,7 +176,7 @@ export default function TodayScreen() {
     if (onboardingV2 && userId) {
       refreshInferredPreferences(userId).then((result) => {
         if (result?.hasSignal) {
-          track('profile_inference_run', {
+          track(EVENTS.profileInferenceRun, {
             events: result.sampleSize.events,
             blocks: result.sampleSize.blocks,
             productive_hours: result.preferences.productiveHours.length,
@@ -191,7 +191,7 @@ export default function TodayScreen() {
     const block = blocks.find(b => b.id === blockId);
     updateRoutineBlockStatus(blockId, 'completed');
     logBehaviourEvent('block_completed', block?.module ?? 'goal');
-    track('routine_block_completed', { module: block?.module ?? 'goal' });
+    track(EVENTS.routineBlockCompleted, { module: block?.module ?? 'goal' });
     // First-block-ever telemetry (v2 funnel). Stamps the profile so it fires once.
     if (onboardingV2 && userId) {
       (async () => {
@@ -200,7 +200,7 @@ export default function TodayScreen() {
           if (profile && !profile.firstBlockCompletedAt) {
             const stamped = { ...profile, firstBlockCompletedAt: new Date().toISOString() };
             await upsertUserProfile(userId, stamped);
-            track('first_block_completed', {
+            track(EVENTS.firstBlockCompleted, {
               module: block?.module ?? 'goal',
               source: profile.source,
             });
@@ -247,7 +247,7 @@ export default function TodayScreen() {
         lastMood: reflection?.mood ?? null,
       });
       const { rationale, changeCount } = await rebalanceRestOfToday({ profile, softenForRecovery: soften });
-      track('routine_replanned', { soften, changes: changeCount });
+      track(EVENTS.routineReplanned, { soften, changes: changeCount });
       setReplanRationale(changeCount > 0 ? rationale : 'Looks balanced — no changes needed.');
       loadData();
     } catch (err) {

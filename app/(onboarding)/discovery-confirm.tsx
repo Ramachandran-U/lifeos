@@ -17,7 +17,7 @@ import { ROUTINE_CONFIDENCE_THRESHOLD, type UserProfile, type DiscoveryExtractio
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { updateUser } from '@/db/queries/users';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 import * as Haptics from 'expo-haptics';
 
 type ConfirmSource =
@@ -99,7 +99,7 @@ export default function DiscoveryConfirmScreen() {
     setOnboardingStage(ONBOARDING_COMPLETE);
     // Generate + save today's routine — gated by ProfileNotReadyError on low confidence.
     const routine = await generateAndSaveRoutineForToday(profile);
-    track('routine_generated', {
+    track(EVENTS.routineGenerated, {
       source: 'discovery_confirm_v2',
       block_count: routine.blocks.length,
       confidence_overall: Math.round(profile.confidence.overall * 100) / 100,

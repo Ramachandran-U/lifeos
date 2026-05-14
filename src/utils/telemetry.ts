@@ -21,6 +21,35 @@ import { useTelemetryStore } from '@/store/useTelemetryStore';
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || '';
 const DEVICE_ID_KEY = 'lifeos_telemetry_device_id';
 
+/**
+ * Canonical event names. Use `EVENTS.x` at every call site so typos become
+ * compile-time errors and `git grep EVENTS.x` returns every emission point.
+ * String values MUST match the Worker's allowlist exactly — adding a new key
+ * here without updating the allowlist will result in a 400 server-side.
+ */
+export const EVENTS = {
+  aiCall: 'ai_call',
+  aiSchemaFailure: 'ai_schema_failure',
+  discoveryChatAbandoned: 'discovery_chat_abandoned',
+  discoveryChatCompleted: 'discovery_chat_completed',
+  eveningReflectCompleted: 'evening_reflect_completed',
+  firstBlockCompleted: 'first_block_completed',
+  goalCreated: 'goal_created',
+  onboardingFinished: 'onboarding_finished',
+  onboardingV2Started: 'onboarding_v2_started',
+  profileInferenceRun: 'profile_inference_run',
+  routineBlockCompleted: 'routine_block_completed',
+  routineEdited: 'routine_edited',
+  routineGenerated: 'routine_generated',
+  routineReplanned: 'routine_replanned',
+  slotFilled: 'slot_filled',
+  tomorrowRoutineFailed: 'tomorrow_routine_failed',
+  tomorrowRoutineGenerated: 'tomorrow_routine_generated',
+  uiCrash: 'ui_crash',
+} as const;
+
+export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
+
 let deviceIdMemo: string | null = null;
 let deviceIdLoadPromise: Promise<string> | null = null;
 
@@ -77,7 +106,7 @@ function generateUuid(): string {
  * Fire-and-forget event tracking. Returns immediately; the network write
  * happens in the background. Safe to call from any code path.
  */
-export function track(event: string, props: Record<string, unknown> = {}): void {
+export function track(event: EventName, props: Record<string, unknown> = {}): void {
   // Opt-in gate. Read directly from store to avoid hook coupling.
   const enabled = useTelemetryStore.getState().enabled;
   if (!enabled || !PROXY_URL) return;
@@ -87,7 +116,7 @@ export function track(event: string, props: Record<string, unknown> = {}): void 
   });
 }
 
-async function sendInBackground(event: string, props: Record<string, unknown>): Promise<void> {
+async function sendInBackground(event: EventName, props: Record<string, unknown>): Promise<void> {
   const deviceId = await loadOrCreateDeviceId();
   const body = {
     device_id: deviceId,

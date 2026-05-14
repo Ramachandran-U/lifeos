@@ -35,8 +35,8 @@ export function createGoal(data: GoalInsert) {
   const now = new Date().toISOString();
   // Fire-and-forget telemetry. `track` no-ops if user hasn't opted in.
   // Imported lazily to avoid a circular import via db init.
-  import('@/utils/telemetry').then(({ track }) =>
-    track('goal_created', {
+  import('@/utils/telemetry').then(({ track, EVENTS }) =>
+    track(EVENTS.goalCreated, {
       level: data.level,
       goal_type: data.goalType,
       ai_generated: data.aiGenerated,

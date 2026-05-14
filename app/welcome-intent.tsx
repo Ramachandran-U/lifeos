@@ -15,7 +15,7 @@ import { updateUser } from '@/db/queries/users';
 import { seedStarterRoutine } from '@/utils/starterRoutine';
 import { useFlagStore } from '@/store/useFlagStore';
 import { useGameStore } from '@/store/useGameStore';
-import { track } from '@/utils/telemetry';
+import { track, EVENTS } from '@/utils/telemetry';
 
 type Chip = { id: DomainId; emoji: string; label: string; color: string };
 
@@ -122,7 +122,7 @@ export default function WelcomeIntentScreen() {
           <Animated.View entering={FadeInDown.delay(750).duration(600)} style={styles.importRow}>
             <Pressable
               onPress={() => {
-                track('onboarding_v2_started', { entry: 'welcome_intent' });
+                track(EVENTS.onboardingV2Started, { entry: 'welcome_intent' });
                 router.push('/(onboarding)/discovery-chat');
               }}
               style={styles.importLink}

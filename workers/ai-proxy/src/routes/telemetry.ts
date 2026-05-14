@@ -16,25 +16,31 @@
 import type { Env } from '../index';
 import { pgInsert } from '../lib/supabase';
 
+// Kept in sync with `EVENTS` in src/utils/telemetry.ts on the client. Any
+// event the client emits MUST appear here or the worker will 400 it.
 const ALLOWED_EVENTS = new Set([
-  // Onboarding funnel
-  'onboarding_step_completed',
-  'onboarding_dropped',
-  'onboarding_finished',
-  // Core feature usage
-  'goal_created',
-  'routine_block_completed',
-  'evening_reflect_completed',
-  'food_logged',
-  'transaction_synced',
-  'discovery_import_started',
-  'discovery_import_extracted',
-  'discovery_import_seeded',
   // AI / quality
   'ai_call',
   'ai_schema_failure',
+  // Onboarding
+  'onboarding_finished',
+  'onboarding_v2_started',
+  'discovery_chat_completed',
+  'discovery_chat_abandoned',
+  'slot_filled',
+  // Core feature usage
+  'goal_created',
+  'routine_generated',
+  'routine_edited',
+  'routine_replanned',
+  'routine_block_completed',
+  'first_block_completed',
+  'tomorrow_routine_generated',
+  'tomorrow_routine_failed',
+  'evening_reflect_completed',
+  'profile_inference_run',
   // Reliability
-  'crash',
+  'ui_crash',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;
