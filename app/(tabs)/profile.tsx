@@ -339,9 +339,9 @@ export default function ProfileScreen() {
           />
         </Card>
 
-        {/* Experience — Aurora preferences */}
+        {/* Appearance — Aurora preferences */}
         <GlassCard style={styles.card}>
-          <SectionLabel>EXPERIENCE</SectionLabel>
+          <SectionLabel>APPEARANCE</SectionLabel>
 
           <View style={styles.prefBlock}>
             <View style={styles.prefHeader}>
@@ -434,7 +434,12 @@ export default function ProfileScreen() {
             c={c}
             onPress={() => router.push('/edit-priorities')}
           />
-          <Row icon="notifications-outline" label="Notifications" c={c} onPress={() => {}} />
+          <Row
+            icon="notifications-outline"
+            label="Notifications"
+            c={c}
+            onPress={() => router.push('/notifications-settings')}
+          />
           <Row
             icon="lock-closed-outline"
             label="Privacy & data residency"
@@ -447,14 +452,24 @@ export default function ProfileScreen() {
           <Label style={{ color: c.textMuted, letterSpacing: 1.5, marginBottom: spacing.xs }}>
             HELP
           </Label>
-          <Row icon="book-outline" label="How LifeOS works" c={c} onPress={() => {}} />
+          <Row
+            icon="book-outline"
+            label="How LifeOS works"
+            c={c}
+            onPress={() => router.push('/how-it-works')}
+          />
           <Row
             icon="chatbubble-ellipses-outline"
             label="Send feedback"
             c={c}
             onPress={() => Linking.openURL('mailto:support@lifeos.app')}
           />
-          <Row icon="shield-checkmark-outline" label="Terms & Privacy" c={c} onPress={() => {}} />
+          <Row
+            icon="shield-checkmark-outline"
+            label="Terms & Privacy"
+            c={c}
+            onPress={() => router.push('/terms-privacy')}
+          />
         </Card>
 
         {/* Logout */}
