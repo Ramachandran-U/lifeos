@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -63,27 +64,39 @@ const TOGGLES: ToggleDef[] = [
 
 const STORAGE_KEY = 'lifeos.notifications.prefs';
 
-function readPrefs(): Record<ToggleId, boolean> {
-  const defaults: Record<ToggleId, boolean> = {
-    daily_routine: true,
-    goal_task_reminder: true,
-    streak_at_risk: true,
-    social_overdue: true,
-  };
-  if (Platform.OS !== 'web') return defaults;
+const DEFAULT_PREFS: Record<ToggleId, boolean> = {
+  daily_routine: true,
+  goal_task_reminder: true,
+  streak_at_risk: true,
+  social_overdue: true,
+};
+
+// Storage is cross-platform: localStorage on web, AsyncStorage on native.
+// Previous implementation gated on `Platform.OS !== 'web'` and returned
+// defaults on native — so iOS/Android toggles appeared to persist within
+// a session but reset to all-on every cold start. The inverted guard was
+// the bug.
+async function loadPrefs(): Promise<Record<ToggleId, boolean>> {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaults;
-    return { ...defaults, ...(JSON.parse(raw) as Record<ToggleId, boolean>) };
+    const raw =
+      Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.localStorage.getItem(STORAGE_KEY)
+        : await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    return { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Record<ToggleId, boolean>) };
   } catch {
-    return defaults;
+    return DEFAULT_PREFS;
   }
 }
 
-function writePrefs(prefs: Record<ToggleId, boolean>) {
-  if (Platform.OS !== 'web') return;
+async function savePrefs(prefs: Record<ToggleId, boolean>): Promise<void> {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    const json = JSON.stringify(prefs);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, json);
+    } else {
+      await AsyncStorage.setItem(STORAGE_KEY, json);
+    }
   } catch {
     // ignore — preference persistence is best-effort
   }
@@ -92,8 +105,21 @@ function writePrefs(prefs: Record<ToggleId, boolean>) {
 export default function NotificationsSettingsScreen() {
   const c = useColors();
   const router = useRouter();
-  const [prefs, setPrefs] = useState<Record<ToggleId, boolean>>(() => readPrefs());
+  const [prefs, setPrefs] = useState<Record<ToggleId, boolean>>(DEFAULT_PREFS);
   const [permission, setPermission] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+
+  // Hydrate persisted prefs after mount. Defaults render immediately so the
+  // screen never flashes a loading state; the persisted values overwrite
+  // them once storage resolves (usually <10ms).
+  useEffect(() => {
+    let cancelled = false;
+    loadPrefs().then((stored) => {
+      if (!cancelled) setPrefs(stored);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     Notifications.getPermissionsAsync()
@@ -109,7 +135,7 @@ export default function NotificationsSettingsScreen() {
   const setToggle = useCallback(async (id: ToggleId, value: boolean) => {
     const next = { ...prefs, [id]: value };
     setPrefs(next);
-    writePrefs(next);
+    await savePrefs(next);
 
     if (!value) {
       await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
