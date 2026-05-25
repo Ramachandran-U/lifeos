@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -462,7 +462,7 @@ export default function ProfileScreen() {
             icon="chatbubble-ellipses-outline"
             label="Send feedback"
             c={c}
-            onPress={() => Linking.openURL('mailto:support@lifeos.app')}
+            onPress={() => router.push('/feedback')}
           />
           <Row
             icon="shield-checkmark-outline"

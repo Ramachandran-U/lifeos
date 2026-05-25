@@ -14,8 +14,14 @@
     {
       "path": "/(tabs)/profile",
       "name": "profile",
-      "selector": "text=EXPERIENCE",
-      "comment": "Aurora Experience section header — proves preferences store + GlassCard rendered."
+      "selector": "text=APPEARANCE",
+      "comment": "Appearance section header — proves preferences store + GlassCard rendered."
+    },
+    {
+      "path": "/notifications-settings",
+      "name": "notifications-settings",
+      "selector": "text=NUDGES",
+      "comment": "Aurora notifications screen reached via Profile → Notifications. Section label is unique."
     },
     {
       "path": "/(tabs)/rewards",
@@ -60,6 +66,24 @@
       "comment": "Aurora privacy screen reaches via Profile → Privacy."
     },
     {
+      "path": "/how-it-works",
+      "name": "how-it-works",
+      "selector": "text=How LifeOS works",
+      "comment": "Help screen reached via Profile → How LifeOS works."
+    },
+    {
+      "path": "/terms-privacy",
+      "name": "terms-privacy",
+      "selector": "text=Terms & Privacy",
+      "comment": "Help screen reached via Profile → Terms & Privacy."
+    },
+    {
+      "path": "/feedback",
+      "name": "feedback",
+      "selector": "text=Send feedback",
+      "comment": "Help screen reached via Profile → Send feedback."
+    },
+    {
       "path": "/(onboarding)/day1-routine?mode=edit",
       "name": "edit-routine",
       "selector": "text=Edit your daily routine",
@@ -87,6 +111,34 @@
       "comment": "Regression-tests the layout allow-list + Pressable focus blur."
     },
     {
+      "name": "profile-to-notifications-settings",
+      "from": "/(tabs)/profile",
+      "click": "text=Notifications",
+      "expectPath": "/notifications-settings",
+      "comment": "Profile → Notifications row navigates to new Aurora notifications screen."
+    },
+    {
+      "name": "profile-to-how-it-works",
+      "from": "/(tabs)/profile",
+      "click": "text=How LifeOS works",
+      "expectPath": "/how-it-works",
+      "comment": "Profile → How LifeOS works row reaches the help content screen."
+    },
+    {
+      "name": "profile-to-feedback",
+      "from": "/(tabs)/profile",
+      "click": "text=Send feedback",
+      "expectPath": "/feedback",
+      "comment": "Profile → Send feedback row reaches the in-app feedback form."
+    },
+    {
+      "name": "profile-to-terms-privacy",
+      "from": "/(tabs)/profile",
+      "click": "text=Terms & Privacy",
+      "expectPath": "/terms-privacy",
+      "comment": "Profile → Terms & Privacy row reaches the policy screen."
+    },
+    {
       "name": "today-to-edit-routine",
       "from": "/",
       "click": "text=Edit routine",
@@ -103,6 +155,9 @@
     "Tried to register two views with the same name",
     "useNativeDriver",
     "[Violation]",
-    "ResizeObserver loop"
+    "ResizeObserver loop",
+    "lifeos-ai-proxy.haloai.workers.dev",
+    "blocked by CORS policy",
+    "Failed to load resource: net::ERR_FAILED"
   ]
 }

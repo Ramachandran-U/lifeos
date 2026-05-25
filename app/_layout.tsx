@@ -113,6 +113,9 @@ export default function RootLayout() {
     const inSettings = segments[0] === 'settings';
     const inTermsPrivacy = segments[0] === 'terms-privacy';
     const inEditPriorities = segments[0] === 'edit-priorities';
+    const inNotificationsSettings = segments[0] === 'notifications-settings';
+    const inHowItWorks = segments[0] === 'how-it-works';
+    const inFeedback = segments[0] === 'feedback';
 
     if (!userId) {
       if (!inAuth && !inGoogleCallback) router.replace('/(auth)/sign-in');
@@ -132,6 +135,9 @@ export default function RootLayout() {
         inSettings ||
         inTermsPrivacy ||
         inEditPriorities ||
+        inNotificationsSettings ||
+        inHowItWorks ||
+        inFeedback ||
         inGoogleCallback;
       if (!allowed) router.replace('/(tabs)');
     }
