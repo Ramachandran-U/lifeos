@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -62,11 +63,12 @@ export default function FeedbackScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <Button title="Back" variant="ghost" onPress={() => router.back()} />
-            <Heading>Send feedback</Heading>
-            <View style={styles.spacer} />
-          </View>
+          <Pressable onPress={() => router.back()} style={styles.back} hitSlop={12}>
+            <Ionicons name="chevron-back" size={20} color={c.textSecondary} />
+            <Body style={{ color: c.textSecondary }}>Back</Body>
+          </Pressable>
+
+          <Heading style={styles.title}>Send feedback</Heading>
 
           <Card style={styles.section}>
             <Body style={styles.intro}>
@@ -122,13 +124,14 @@ const makeStyles = (colors: AppColors) =>
     container: { flex: 1, backgroundColor: colors.background },
     flex: { flex: 1 },
     scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.md },
-    header: {
+    back: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: spacing.sm,
+      gap: 4,
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
     },
-    spacer: { width: 60 },
+    title: { marginTop: spacing.sm, marginBottom: spacing.sm },
     section: { gap: spacing.sm },
     intro: { fontSize: 16 },
     captionText: { color: colors.textMuted },
