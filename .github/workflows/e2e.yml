@@ -1,0 +1,107 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'e2e/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/e2e.yml'
+  push:
+    branches: [lifeosv1, main]
+
+# Cancel in-progress runs on the same PR — newer push wins.
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Force every AI call to mock mode so CI doesn't burn API budget or
+      # require ANTHROPIC_API_KEY. The deployed bundle reads this at build
+      # time via the EXPO_PUBLIC_ prefix.
+      EXPO_PUBLIC_USE_AI_MOCK: 'true'
+      USE_AI_MOCK: 'true'
+      # Supabase client is instantiated at module-load (src/integrations/
+      # supabase/client.ts) and will throw "supabaseUrl is required" if
+      # missing — even though e2e tests bypass auth via seedAuthedUser.
+      # The URL is the real project (already public in wrangler.toml).
+      # The anon key is a stub; tests never actually hit Supabase because
+      # localStorage seed satisfies the app's session check first.
+      EXPO_PUBLIC_SUPABASE_URL: 'https://izojsgzlaehodwlqwyvf.supabase.co'
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'ci-stub-anon-key'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # Cache the Playwright browser binaries — they're ~300 MB and slow to
+      # re-download every run. Key on the @playwright/test version so a
+      # dependency bump invalidates automatically.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Build web export
+        run: npm run web:export
+
+      # Serve on 8081 to match the chromium project's hardcoded baseURL
+      # in playwright.config.ts. Smoke gets pointed at the same URL via
+      # SMOKE_BASE_URL below.
+      - name: Serve web export
+        run: npx serve dist -l 8081 --single &
+
+      - name: Wait for server
+        # Poll up to 60s; bail with a clear error if the port never opens.
+        # Using curl keeps the workflow free of an extra npm install for wait-on.
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8081/ >/dev/null 2>&1; then
+              echo "Server up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not start within 60s"; exit 1
+
+      - name: Run chromium project (career-strategy + voice-assistant)
+        run: npx playwright test --project=chromium
+
+      - name: Run smoke project (route walker)
+        run: npx playwright test --project=smoke
+        env:
+          SMOKE_BASE_URL: http://localhost:8081
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
