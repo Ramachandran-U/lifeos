@@ -59,7 +59,7 @@ lifeos/
 │   │   ├── health.tsx             # Calories, weight, blood reports
 │   │   ├── finance.tsx            # Transactions + goals (Gmail-integrated)
 │   │   ├── career.tsx             # Skill gaps & learning resources
-│   │   ├── explore.tsx            # Polymath (WIP)
+│   │   ├── explore.tsx            # Polymath: Instagram-style Discover grid + tracked interests
 │   │   └── rewards.tsx            # Gamification: LevelRing, ladder, badges, streaks, quests
 │   ├── gmail-callback.tsx         # OAuth redirect handlers (one per Google integration)
 │   ├── chat.tsx                   # "Ask LifeOS" chatbot (persisted to chat_messages)

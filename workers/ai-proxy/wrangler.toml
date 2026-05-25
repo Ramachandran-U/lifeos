@@ -21,6 +21,12 @@ DAILY_AI_REQUEST_LIMIT = "200"
 # usage data once telemetry lands.
 DAILY_CHATBOT_LIMIT = "30"
 DAILY_VOICE_MINUTES_LIMIT = "15"
+# Output-token ceiling per /claude call. Long-form generations (full 12-month
+# goal hierarchies, week-52 routine plans) need ~3000-4000 tokens; 4096 is the
+# current default. Raise toward 8000 (worker-enforced hard cap) as more
+# generations need it. Lower-bounded at 1200 in code so a typo can't break
+# short calls.
+MAX_TOKENS_CAP = "4096"
 # CORS allowlist — comma-separated. The Worker echoes the matching Origin back
 # (or "null" if not allowed). Mobile / native requests don't send Origin and
 # are unaffected. Use "*" only for local dev if you must — never in prod.
