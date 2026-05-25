@@ -8,9 +8,9 @@
 
 | System | Accuracy | Coverage | Avg latency (ms) | Projected $/1k calls |
 |---|---|---|---|---|
-| **Rule-based** | 96.7% | 100.0% | 0.13 | $0.0000 (offline) |
-| **Local classifier (k-NN char-3-gram)** | 96.7% | 96.7% | 1.27 | $0.0000 (offline) |
-| **LLM (claude-haiku-4-5-20251001)** | 0.0% | 100.0% | 0.10 | $0.1300 |
+| **Rule-based** | 96.7% | 100.0% | 0.20 | $0.0000 (offline) |
+| **Local classifier (k-NN char-3-gram)** | 96.7% | 96.7% | 1.43 | $0.0000 (offline) |
+| **LLM (claude-haiku-4-5-20251001)** | 0.0% | 100.0% | 0.07 | $0.1300 |
 
 ## Stacked pipeline (cache → rule → classifier → AI)
 
