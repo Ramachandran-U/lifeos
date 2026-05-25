@@ -184,7 +184,42 @@
 - **Why:** Prompts are soft; production stability requires deterministic fallbacks.
 - **Future implications:** Same pattern should extend to financial classifier output, blood-report parsing, and discovery-chat slot filling.
 
-## ADR-026 · Phase 1 = no Plaid, no vector DB
+## ADR-026 · Zustand selectors must return stable references
+
+- **Context:** `useDomainHistoryStore((s) => s.yesterdaySnapshot())` called a method that built a fresh object each invocation. Zustand compares selector results with `Object.is`. New object = "state changed" = re-render = re-select = infinite loop → React error #185.
+- **Decision (2026-05-14):** Selectors return raw store fields (stable refs). Any derived shape lives in `useMemo` in the consumer, keyed on the raw refs.
+- **Why:** Prevents this entire class of bug. Selectors are pure projections; derivations belong to consumers.
+- **Future implications:** The smoke seed now exercises this code path (2-day history). Pattern to apply everywhere a store exposes a method returning a derived object.
+
+## ADR-027 · OAuth callback whitelist matches any `*-callback` segment
+
+- **Context:** The root layout's auth guard whitelisted only `google-auth-callback`. Gmail / Calendar / Fit callbacks fell through to the "redirect to /(tabs)" branch, killing the callback view before its code-exchange could run. Users saw "landed on Today" instead of completing the connect flow.
+- **Decision (2026-05-14):** Treat any segment ending in `-callback` as in-OAuth-callback. Future integrations get the right behaviour automatically.
+- **Why:** The set of callback routes will grow; explicit per-callback flags don't scale.
+- **Tradeoffs:** A typo in a future route name like `xyz-callback` would also be whitelisted. Mitigated by the convention: callback routes are always under `app/<service>-callback.tsx`.
+
+## ADR-028 · Supabase auth listener only acts on SIGNED_OUT
+
+- **Context:** `supabase.auth.onAuthStateChange` fires INITIAL_SESSION on subscribe — with `null` for any boot without a Supabase session. The original handler reset the local user store on any falsy session, silently signing out legacy email/password users and any seeded E2E user on every reload.
+- **Decision (2026-05-14):** Only react to the explicit `SIGNED_OUT` event.
+- **Why:** Local auth (legacy email/password) is a real surface, not just dev fiction. The listener's job is to react to explicit sign-out, not to enforce Supabase-only auth.
+- **Future implications:** Once Supabase becomes the only auth, this can be tightened (or the listener removed entirely if a different teardown path exists).
+
+## ADR-029 · Aurora glow lives only in motion scenes
+
+- **Context:** Original design used domain-color halos on resting components (z3 cards, RoutineBlock active, streak rows, hex radar dots). Heavy glow read as "toy" and visually noisy.
+- **Decision (Aurora Refined v2, 2026-05-14):** Resting state uses pure shadow (#000 / #140828). Glow is reserved for celebration / transition scenes (LevelUpOverlay, BadgeUnlock, RewardOrchestrator).
+- **Why:** Premium feel = quiet steady state + intense moments. Constant glow erodes the impact of the moments.
+- **Tradeoffs:** Some screenshots from the original Aurora pass look "less expressive" — acceptable trade.
+
+## ADR-030 · Pre-commit gate = `npm run verify`
+
+- **Context:** Multiple bugs shipped this session were preventable: the React #185 loop would have failed smoke if the seed had 2 days of history; the auth-listener bug would have failed smoke if the seed user had no Supabase session (it does); the Aurora deploys were tested on stale browser state.
+- **Decision (2026-05-14):** `npm run verify` = `tsc --noEmit && jest && npm run smoke`. Documented in `docs/TESTING.md`. Smoke runs against the deployed canonical URL, not local — so it catches CORS, env, and bundle-vs-runtime drift.
+- **Why:** Local dev masks production-shaped failures; the deploy-URL smoke catches them.
+- **Future implications:** Once CI deploy lands (Tech Debt #12), `verify` becomes a GitHub Action prerequisite for merge.
+
+## ADR-031 · Phase 1 = no Plaid, no vector DB
 
 - **Context:** Pressure to integrate financial aggregator + retrieval store.
 - **Decision:** Deferred to Phase 2 / Phase 3.

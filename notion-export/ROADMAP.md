@@ -9,8 +9,14 @@
 | P0 | Drop zombie tables | §P1-5 | ✅ Done (`c613024`, 2026-05-14) |
 | P0 | Smoke nav test fix | Discovered defects | ✅ Partial (`24edc46`); full green-pass against deployed URL pending |
 | P0 | Push token end-to-end verified | §P0-2 | ⏳ Blocked — needs EAS native build |
-| P0 | Tests for schedule SSOT invariant | new | ⏳ Open |
+| P0 | Tests for schedule SSOT invariant | new | ✅ Done (`a529ba1`, 2026-05-14 — extracted to `scheduleSync.ts` + 6 tests) |
 | P0 | CI deploy via GitHub Action | Tech Debt #12 | ⏳ Open |
+| P0 | Aurora Refined v2 design pass | DELTA.md | ✅ Done (10 commits ending `4427722`, 2026-05-14) |
+| P0 | React #185 loop fix + smoke seed | new | ✅ Done (`0203eee` + `912a5f5`) |
+| P0 | OAuth callback whitelist | new | ✅ Done (`70aaa07`) |
+| P0 | Supabase listener fix | new | ✅ Done (`3f9cd4b`) |
+| P1 | analyseSkillGap sanitizer | new | ✅ Done (`b8ed72a`) |
+| P1 | `npm run verify` pre-commit gate | new | ✅ Done (`91eb8eb`) |
 
 ## Short-Term (next 4 weeks)
 

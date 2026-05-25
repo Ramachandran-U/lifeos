@@ -40,7 +40,15 @@
 | Web bundle parity | Done | P0 | `index.web.ts`, webStorage, import.meta neutraliser | `bd1ea75` `ee43bab` `dc37eec` | `src/db/webStorage.ts` `scripts/post-export-web.js` | 100 | — |
 | Domain Priorities Editor | Done | P0 | User-editable priority order; feeds AI weighting | `7fb86f6` `a39261c` | `app/edit-priorities.tsx` | 100 | Shipped 2026-05-14 |
 | Routine Time Bounds Hardening | Done | P0 | Honour wake/sleep, deterministic guards, picker fix | `cedaf2a` `3944ddd` `d2e4d27` | `src/ai/agent/planner.ts` `src/components/ui/WheelTimePicker.tsx` | 100 | Shipped 2026-05-14 |
-| HexRadar redesign | Done | P1 | Removed labels/numbers, yesterday faint outline, green delta | `1930b10` | `src/components/gamification/HexRadar.tsx` | 100 | — |
+| HexRadar redesign (v1) | Done | P1 | Removed labels/numbers, yesterday faint outline, green delta | `1930b10` | `src/components/gamification/HexRadar.tsx` | 100 | Superseded by Aurora v2 |
+| Hex Radar Tap-through + Reflection Habits | Done | P1 | Dots route to matching tab; evening-reflect surfaces drop/keep/smaller habit proposal | `e00809c` | `app/(tabs)/index.tsx` `app/evening-reflect.tsx` `src/components/gamification/HexRadar.tsx` | 100 | Shipped 2026-05-14 |
+| **Aurora Refined v2** | Done | P0 | Quieter glow + unified motion vocabulary + craft moments (long-press-complete, typed briefing reveal, mount stagger). 10 commits ending `4427722`. | `7144a02..4427722` | `src/theme/*` `src/components/gamification/*` `src/components/shared/*` `src/hooks/useTypedText.ts` `app/(tabs)/index.tsx` | 100 | Shipped 2026-05-14 evening. Glow audit clean. |
+| React #185 loop fix + smoke seed hardening | Done | P0 | `yesterdaySnapshot` zustand selector now stable; smoke seed exercises the bug class | `0203eee` `912a5f5` | `app/(tabs)/index.tsx` `e2e/helpers.ts` | 100 | Shipped 2026-05-14 |
+| OAuth callback whitelist | Done | P0 | Gmail/Calendar/Fit callbacks now allowed past auth guard | `70aaa07` | `app/_layout.tsx` | 100 | Shipped 2026-05-14 |
+| analyseSkillGap sanitizer + UI error | Done | P1 | Coerce Gemini hallucinations; surface useAI error on Career screen | `b8ed72a` | `src/ai/functions.ts` `app/(tabs)/career.tsx` | 100 | Shipped 2026-05-14 |
+| Supabase auth listener fix | Done | P0 | Only `SIGNED_OUT` resets local store (no more wiping legacy users on boot) | `3f9cd4b` | `app/_layout.tsx` | 100 | Shipped 2026-05-14 |
+| Pre-commit verify gate | Done | P1 | `npm run smoke` + `verify` scripts + docs/TESTING.md gate | `91eb8eb` | `package.json` `docs/TESTING.md` | 100 | Shipped 2026-05-14 |
+| scheduleSync extraction + tests | Done | P1 | SSOT mirroring centralised in `src/utils/scheduleSync.ts` with 6 invariant tests | `a529ba1` | `src/utils/scheduleSync.ts` `src/utils/__tests__/scheduleSync.test.ts` | 100 | Shipped 2026-05-14 |
 
 ## Pending / Backlog Epics
 

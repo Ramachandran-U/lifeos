@@ -6,9 +6,9 @@
 |---|---|---|---|
 | Code organisation | A | ↑ | webStorage now per-entity (12 files + 2 helpers); per-engine module folders; per-entity query files |
 | TypeScript strictness | A | → | Strict mode; 0 errors since 2026-05-13 |
-| Test coverage — unit | B+ | ↑ | 335 Jest tests; gamification + finance parsers + **agent planner** covered |
-| Test coverage — eval | A | → | 10/10 green; CI report surfaced in admin |
-| Test coverage — e2e | C+ | ↑ | Smoke nav scroll/click fixed; `import.meta` neutraliser confirmed working in deployed bundle; green-pass against deployed URL still pending |
+| Test coverage — unit | A- | ↑ | 356 Jest tests (gamification, finance parsers, agent planner, analyseSkillGap sanitizer, scheduleSync, etc.) |
+| Test coverage — eval | A | → | 30/30 green (mock mode); CI report surfaced in admin |
+| Test coverage — e2e | B | ↑↑ | Smoke 14/14 against deployed canonical URL; seed exercises the selector-returns-new-object bug class; `npm run smoke` + `npm run verify` are documented pre-commit gates |
 | Documentation | A | ↑ | Master Brief, Tech Doc, AI Functions, Architect Review all current |
 | CI/CD | B | → | Eval CI green; manual web deploy is the gap |
 | Observability | B+ | ↑ | Worker tracing + per-task telemetry + admin schema-failure feed |
@@ -39,12 +39,20 @@
 6. **Drizzle migrator not wired.** Baseline migration committed but `initDatabase` still uses the hand-maintained `CREATE TABLE` block. Needs Metro `.sql` resolver to swap.
 7. **Single-machine deploy.** Bus factor + reproducibility risk.
 
-### Resolved in 2026-05-14 sweep
-- ✅ Three sources of truth for schedule → user row is now canonical.
-- ✅ No root ErrorBoundary → live in `_layout.tsx`.
+### Resolved in 2026-05-14 sweep (morning + afternoon)
+- ✅ Three sources of truth for schedule → user row is now canonical, mirroring extracted to `src/utils/scheduleSync.ts` with 6 invariant tests.
+- ✅ No root ErrorBoundary → live in `_layout.tsx`, emits `EVENTS.uiCrash`.
 - ✅ Zombie schema → 6 tables dropped.
 - ✅ `webStorage.ts` 695 lines → split into 12 per-entity modules + 2 helpers.
 - ✅ No tests for the agent planner → 5 Jest tests for the deterministic guards.
+
+### Resolved in 2026-05-14 evening sweep (Aurora v2 + post-merge)
+- ✅ Aurora Refined v2 design pass shipped — 10 commits, glow audit clean.
+- ✅ React #185 infinite loop (yesterdaySnapshot zustand selector) → fixed via useMemo over entries; smoke seed now exercises the bug class.
+- ✅ OAuth callback routes bouncing to Today → layout guard now treats any `*-callback` segment as in-callback.
+- ✅ Supabase auth listener wiping legacy users on every boot → only `SIGNED_OUT` triggers reset, not INITIAL_SESSION-with-null.
+- ✅ `analyseSkillGap` silent failure on Gemini schema drift → sanitizer + UI error caption.
+- ✅ Pre-commit gate documented (`npm run verify` = tsc + jest + smoke).
 
 ## Recommendations (ranked, updated 2026-05-14)
 

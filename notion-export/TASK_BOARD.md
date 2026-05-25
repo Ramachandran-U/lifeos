@@ -24,11 +24,12 @@
 - [ ] **Goal comments surfacing** — table exists, UI pending
 - [ ] **Native push registration verification + retries**
 - [ ] **Tokens to Expo SecureStore on native** — OAuth tokens currently in plaintext localStorage (Tech Debt #14)
-- [ ] **Tests for the schedule SSOT invariant** — assert `what-lifeos-knows` schedule edits also update user row
+- [ ] **CI deploy** — GitHub Action with `EXPO_PUBLIC_*` + `CLOUDFLARE_API_TOKEN` secrets (Tech Debt #12)
+- [ ] **Set `ANTHROPIC_API_KEY` on Worker** — redundancy against Gemini outage; Gemini works today
 
 ## In Progress
 
-- [ ] _Nothing in flight._ Next session pick: tests for the schedule SSOT invariant, OR CI deploy, OR a product call on §P2-9 / §P2-11.
+- [ ] _Nothing in flight._ Next session pick: CI deploy via GitHub Action, OR `BloodReportCard.tsx:20` minor tokenisation, OR a product call on §P2-9 / §P2-11.
 
 ## Blocked
 
@@ -37,6 +38,17 @@
 
 ## Done (Recent)
 
+- [x] Eval reports refreshed; PR #22 merged (`ed95cbb`, 2026-05-14)
+- [x] `scheduleSync.ts` helpers extracted from inline callbacks + 6 Jest tests (`a529ba1`, 2026-05-14)
+- [x] Smoke seed gets 2-day domain history; React #185 class now catchable (`912a5f5`, 2026-05-14)
+- [x] `analyseSkillGap` sanitizer + UI error surfacing on Career screen (`b8ed72a`, 2026-05-14)
+- [x] OAuth callback whitelist — Gmail/Calendar/Fit callback routes allowed past auth guard (`70aaa07`, 2026-05-14)
+- [x] React #185 infinite loop fix — `yesterdaySnapshot` zustand selector now stable via useMemo over entries (`0203eee`, 2026-05-14)
+- [x] **Aurora Refined v2** — 10-commit design pass: theme z3 halo drop + radii scale, EASING tokens + MOTION_BUDGET, GlassCard quieter accent + XpBar/AvatarRing glow drop, HexRadar thinner stroke + flat dots + 3 grid rings, streak/flame/badge glow drop, RoutineBlock active-state glow drop, RoutineBlock long-press-to-complete with press-progress arc, Today mount stagger + scroll-driven sticky header, DailyBriefing typed reveal, unified sheets motion (10 commits ending `4427722`, 2026-05-14)
+- [x] Hex radar tap-through (dots → matching tab) + reflection-driven habit acceptance (`e00809c`, 2026-05-14)
+- [x] Supabase auth listener fixed — INITIAL_SESSION with null no longer wipes local user store; only SIGNED_OUT triggers reset (`3f9cd4b`, 2026-05-14)
+- [x] `npm run smoke`, `smoke:local`, `verify` scripts + cross-env dep + `docs/TESTING.md` pre-commit gate (`91eb8eb`, 2026-05-14)
+- [x] `.gitignore` covers `smoke-output/` + `playwright-report/` (`587e716`, 2026-05-14)
 - [x] Split `src/db/webStorage.ts` (695 lines) into 12 per-entity modules + 2 shared helpers (§P1-6, `f004e13`, 2026-05-14)
 - [x] Smoke nav test now waits + scrolls before clicking; fixes Privacy & data residency timeout (`24edc46`, 2026-05-14)
 - [x] Doc reconciliation — `MASTER_BRIEF.md` differentiator #3 + `AI_FUNCTIONS.md` LLM_PROVIDER note (§P2-12, `24edc46`)
