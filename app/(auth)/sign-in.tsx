@@ -10,6 +10,7 @@ import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
+import { AuroraAnimatedBackground } from '@/components/shared/AuroraAnimatedBackground';
 import { ensureLocalUserFromAuth, getUserByEmail, setWebSession } from '@/db/queries/users';
 import { useUserStore } from '@/store/useUserStore';
 import { signInWithEmail, signInWithApple, startGoogleSupabaseOAuth } from '@/integrations/supabase/auth';
@@ -97,7 +98,9 @@ export default function SignInScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <AuroraAnimatedBackground />
+      <SafeAreaView style={styles.flex}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -116,7 +119,7 @@ export default function SignInScreen() {
             <Body style={styles.subtitle}>Sign in to continue building your life.</Body>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.form}>
+          <Animated.View entering={FadeInDown.delay(500).duration(600)} style={[styles.form, styles.glassCard]}>
             <Input
               label="Email"
               placeholder="you@example.com"
@@ -173,7 +176,8 @@ export default function SignInScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -181,6 +185,19 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  glassCard: {
+    backgroundColor: colors.background + 'B3', // 70% bg over the aurora
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    ...(Platform.OS === 'web'
+      ? ({
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+        } as unknown as object)
+      : {}),
   },
   flex: {
     flex: 1,
