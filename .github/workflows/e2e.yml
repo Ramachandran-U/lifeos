@@ -30,6 +30,14 @@ jobs:
       # time via the EXPO_PUBLIC_ prefix.
       EXPO_PUBLIC_USE_AI_MOCK: 'true'
       USE_AI_MOCK: 'true'
+      # Supabase client is instantiated at module-load (src/integrations/
+      # supabase/client.ts) and will throw "supabaseUrl is required" if
+      # missing — even though e2e tests bypass auth via seedAuthedUser.
+      # The URL is the real project (already public in wrangler.toml).
+      # The anon key is a stub; tests never actually hit Supabase because
+      # localStorage seed satisfies the app's session check first.
+      EXPO_PUBLIC_SUPABASE_URL: 'https://izojsgzlaehodwlqwyvf.supabase.co'
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'ci-stub-anon-key'
 
     steps:
       - uses: actions/checkout@v4
