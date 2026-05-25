@@ -18,11 +18,10 @@ const STORAGE_KEY = 'lifeos.notifications.prefs';
 test.describe('Notifications settings — toggle persistence', () => {
   test.beforeEach(async ({ page }) => {
     await seedAuthedUser(page);
-    // Wipe any leftover prefs from a previous test so we always start at
-    // defaults (all-on) rather than inherited state.
-    await page.addInitScript((key: string) => {
-      localStorage.removeItem(key);
-    }, STORAGE_KEY);
+    // No need to wipe prefs — Playwright gives each test a fresh browser
+    // context, so localStorage starts empty. Don't use addInitScript here:
+    // it would re-run on page.reload() and erase the just-persisted value
+    // the reload assertion depends on.
   });
 
   test('toggle off → reload → still off', async ({ page }) => {
