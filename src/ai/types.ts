@@ -264,6 +264,37 @@ export interface CrossDisciplineLinkInput {
   interestB: { name: string; category: string };
 }
 
+// --- Behaviour Intelligence v2 Types ---
+
+export const MonthlyInsightReportSchema = z.object({
+  wins: z.array(z.string()).min(1).max(5),
+  patterns: z.array(z.string()).min(1).max(5),
+  slipping: z.array(z.string()).max(5),
+  oneAdjustment: z.string().min(1),
+});
+export type MonthlyInsightReport = z.infer<typeof MonthlyInsightReportSchema>;
+
+export interface MonthlyInsightReportInput {
+  windowDays: number;
+  totals: {
+    blocksCompleted: number;
+    blocksSkipped: number;
+    blocksPlanned: number;
+    completionRate: number; // 0..1
+  };
+  domainMinutes: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
+  inferredPreferences: {
+    productiveHours: number[];
+    preferredBlockMinutes: number | null;
+    droppedHabits: string[];
+    preferredRestDays: number[];
+  };
+  /** Top behaviour-event types over the window — derived from behaviour_events. */
+  topEvents: Array<{ type: string; count: number }>;
+}
+
 // --- Routine Types ---
 
 export const RoutineBlockSchema = z.object({

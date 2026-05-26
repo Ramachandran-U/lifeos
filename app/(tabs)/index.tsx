@@ -28,6 +28,8 @@ import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { WeeklyBalanceCard } from '@/components/shared/WeeklyBalanceCard';
+import { AdaptationCard } from '@/components/shared/AdaptationCard';
+import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
 import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
@@ -161,6 +163,8 @@ export default function TodayScreen() {
     }
     setWeeklyInsight(generateWeeklyInsight());
     setHasReflectedToday(getReflectionByDate(today) !== undefined);
+    // P3-04: re-run behaviour pattern detectors after any block list refresh.
+    useBehaviourSuggestionsStore.getState().refresh();
   }, [today, userId, loadGame]);
 
   const topStreaks = useMemo(() => {
@@ -504,6 +508,12 @@ export default function TodayScreen() {
           </Animated.View>
 
           {blocks.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+              <AdaptationCard onApplied={loadData} />
+            </Animated.View>
+          )}
+
+          {blocks.length > 0 && (
             <Animated.View entering={FadeInDown.delay(220).duration(400)}>
               <WeeklyBalanceCard
                 primaryDomains={primaryDomains}
@@ -525,6 +535,20 @@ export default function TodayScreen() {
                 <Body style={{ color: c.textPrimary, flex: 1 }}>
                   {planningWeek ? 'Planning your week…' : 'Plan my next 7 days'}
                 </Body>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/monthly-insight')}
+                style={({ pressed }) => [
+                  styles.weekPlanBtn,
+                  {
+                    backgroundColor: pressed ? c.card : c.surface,
+                    borderColor: c.border,
+                  },
+                ]}
+              >
+                <Ionicons name="bar-chart" size={16} color={c.primary} />
+                <Body style={{ color: c.textPrimary, flex: 1 }}>View your 28-day report</Body>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
             </Animated.View>
