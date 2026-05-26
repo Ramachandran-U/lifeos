@@ -97,6 +97,9 @@ import {
   MonthlyInsightReport,
   MonthlyInsightReportSchema,
   MonthlyInsightReportInput,
+  DailyBriefingResult,
+  DailyBriefingSchema,
+  DailyBriefingInput,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -123,6 +126,8 @@ import { INTEREST_SUGGESTIONS_PROMPT, CROSS_DISCIPLINE_LINK_PROMPT } from './pro
 import { buildMockInterestSuggestions, buildMockCrossDisciplineLink } from './mocks/polymath';
 import { MONTHLY_INSIGHT_REPORT_PROMPT } from './prompts/behaviour';
 import { buildMockMonthlyInsightReport } from './mocks/behaviour';
+import { DAILY_BRIEFING_PROMPT } from './prompts/briefing';
+import { buildMockDailyBriefing } from './mocks/briefing';
 import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine, buildMockWeekRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
@@ -724,5 +729,24 @@ export async function generateMonthlyInsightReport(
     return MonthlyInsightReportSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateMonthlyInsightReport', 'MonthlyInsightReport', response, err);
+  }
+}
+
+export async function generateDailyBriefing(input: DailyBriefingInput): Promise<DailyBriefingResult> {
+  if (isMock) return buildMockDailyBriefing(input);
+
+  const response = await callAI({
+    system: DAILY_BRIEFING_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateDailyBriefing'),
+    cacheSystem: true,
+    task: 'generateDailyBriefing',
+    maxTokens: 400,
+  });
+
+  try {
+    return DailyBriefingSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateDailyBriefing', 'DailyBriefing', response, err);
   }
 }

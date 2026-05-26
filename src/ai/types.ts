@@ -266,6 +266,25 @@ export interface CrossDisciplineLinkInput {
   interestB: { name: string; category: string };
 }
 
+// --- Proactive Daily Briefing (P4-02) ---
+
+export const DailyBriefingSchema = z.object({
+  // 1-3 short lines the user reads first thing. Joined with newlines for display.
+  lines: z.array(z.string()).min(1).max(3),
+});
+export type DailyBriefingResult = z.infer<typeof DailyBriefingSchema>;
+
+export interface DailyBriefingInput {
+  name: string | null;
+  topGoal: string | null;          // primary/life goal title, if any
+  blocksToday: number;
+  overdueContacts: number;         // social nudge driver (no names)
+  lifeScore: number;               // 0-100 composite
+  lifeScoreBand: string;           // e.g. "Building"
+  weeklyInsight: string | null;    // the existing behaviour-v1 insight, if any
+  topDomainYesterday: string | null; // domain that got the most time yesterday
+}
+
 // --- Behaviour Intelligence v2 Types ---
 
 export const MonthlyInsightReportSchema = z.object({
