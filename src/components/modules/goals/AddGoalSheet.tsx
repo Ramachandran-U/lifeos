@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -11,6 +11,8 @@ import { useAI } from '@/hooks/useAI';
 import { decomposeGoal } from '@/ai/functions';
 import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
+import { createGoal } from '@/db/queries/goals';
+import { persistHierarchy } from '@/utils/persistHierarchy';
 import type { GoalHierarchy } from '@/ai/types';
 
 interface AddGoalSheetProps {
@@ -21,57 +23,61 @@ interface AddGoalSheetProps {
 export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
-  const { call, loading, error } = useAI();
+  const { call, error } = useAI();
   const { userId, name } = useUserStore();
-  const { addGoal } = useGoalStore();
+  const loadGoals = useGoalStore((s) => s.loadGoals);
 
   const [goalText, setGoalText] = useState('');
   const [hierarchy, setHierarchy] = useState<GoalHierarchy | null>(null);
+  // BUG-012: a cold decompose call runs ~15-20s with no feedback. Show a
+  // "still working" hint after 8s, and let the user abandon the wait.
+  const [slowHint, setSlowHint] = useState(false);
+  const [decomposing, setDecomposing] = useState(false);
+  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelledRef = useRef(false);
+
+  const clearSlowTimer = () => {
+    if (slowTimer.current) { clearTimeout(slowTimer.current); slowTimer.current = null; }
+  };
 
   const handleDecompose = async () => {
     if (!goalText.trim()) return;
+    cancelledRef.current = false;
+    setSlowHint(false);
+    setDecomposing(true);
+    slowTimer.current = setTimeout(() => setSlowHint(true), 8000);
     const result = await call(() => decomposeGoal({ visionStatement: goalText, name }));
+    clearSlowTimer();
+    setSlowHint(false);
+    setDecomposing(false);
+    // If the user tapped Cancel while we were waiting, drop the late result.
+    if (cancelledRef.current) return;
     if (result) setHierarchy(result);
   };
 
   const handleSave = () => {
     if (!hierarchy || !userId) return;
 
-    const lifeGoalId = addGoal({
-      userId,
-      title: hierarchy.primaryGoal.title,
-      goalType: hierarchy.primaryGoal.type,
-      level: 'life',
-      aiGenerated: true,
-    });
-
-    const yearlyId = addGoal({
-      userId,
-      title: hierarchy.yearly.title,
-      goalType: hierarchy.primaryGoal.type,
-      level: 'yearly',
-      parentId: lifeGoalId,
-      aiGenerated: true,
-    });
-
-    for (const m of hierarchy.monthly) {
-      addGoal({
-        userId,
-        title: m.title,
-        description: m.milestone,
-        goalType: hierarchy.primaryGoal.type,
-        level: 'monthly',
-        parentId: yearlyId,
-        aiGenerated: true,
-      });
-    }
+    // Use the canonical persister so /goals and onboarding share ONE path and
+    // ALL five levels (life→yearly→monthly→weekly→daily) are saved. The inline
+    // version here previously dropped weekly + dailyTaskExamples. (BUG-001 #2)
+    persistHierarchy(userId, hierarchy, createGoal);
+    loadGoals(userId);
 
     setGoalText('');
     setHierarchy(null);
     onClose();
   };
 
+  const handleCancelDecompose = () => {
+    cancelledRef.current = true;
+    clearSlowTimer();
+    setSlowHint(false);
+    setDecomposing(false);
+  };
+
   const handleClose = () => {
+    handleCancelDecompose();
     setGoalText('');
     setHierarchy(null);
     onClose();
@@ -94,18 +100,23 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
             style={styles.input}
           />
 
-          {!hierarchy && !loading && (
+          {!hierarchy && !decomposing && (
             <Button title="Decompose goal" onPress={handleDecompose} disabled={!goalText.trim()} />
           )}
 
-          {loading && (
+          {decomposing && (
             <View style={styles.loadingContainer}>
               <LoadingDots />
-              <Body style={styles.loadingText}>Breaking down your goal...</Body>
+              <Body style={styles.loadingText}>
+                {slowHint
+                  ? 'Still working — big goals can take ~20s. Hang tight or cancel.'
+                  : 'Breaking down your goal...'}
+              </Body>
+              <Button title="Cancel" variant="ghost" onPress={handleCancelDecompose} />
             </View>
           )}
 
-          {error && <Body style={styles.errorText}>{error}</Body>}
+          {error && !decomposing && <Body style={styles.errorText}>{error}</Body>}
 
           {hierarchy && (
             <View style={styles.preview}>

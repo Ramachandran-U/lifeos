@@ -23,6 +23,12 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+// Module-level run-once guard for boot init. Without it, React StrictMode (dev)
+// + remounts fire init() more than once. Today's init is idempotent (flag/prompt
+// fetches are staleness-guarded), so this is future-proofing against a real
+// double-spend if warmup/analytics ever land in init(). (BUG-008)
+let didBootInit = false;
+
 export default function RootLayout() {
   const [fontsLoaded] = useAppFonts();
   const [dbReady, setDbReady] = useState(false);
@@ -36,6 +42,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function init() {
+      if (didBootInit) {
+        setDbReady(true);
+        return;
+      }
+      didBootInit = true;
       await initDatabase();
 
       // Hydrate local user row from any persisted Supabase session so existing
@@ -129,6 +140,9 @@ export default function RootLayout() {
     const inNotificationsSettings = segments[0] === 'notifications-settings';
     const inHowItWorks = segments[0] === 'how-it-works';
     const inFeedback = segments[0] === 'feedback';
+    // Ask-LifeOS chat is a full screen reachable post-onboarding; without this
+    // the guard below silently bounces /chat back to /(tabs). (BUG-010)
+    const inChat = segments[0] === 'chat';
 
     if (!userId) {
       if (!inAuth && !inGoogleCallback) router.replace('/(auth)/sign-in');
@@ -154,6 +168,7 @@ export default function RootLayout() {
         inNotificationsSettings ||
         inHowItWorks ||
         inFeedback ||
+        inChat ||
         inGoogleCallback;
       if (!allowed) router.replace('/(tabs)');
     }

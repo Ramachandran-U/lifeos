@@ -96,6 +96,12 @@
       "comment": "P3-04 monthly insight report screen title."
     },
     {
+      "path": "/chat",
+      "name": "chat",
+      "selector": "[role=\"main\"], body",
+      "comment": "BUG-010 regression: /chat must NOT bounce to / for an onboarded user. Forgiving selector — the assertion is that the URL stays /chat (route allow-listed)."
+    },
+    {
       "path": "/data-residency",
       "name": "data-residency",
       "selector": "text=Data residency",
