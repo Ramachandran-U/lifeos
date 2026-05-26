@@ -26,7 +26,10 @@ DAILY_VOICE_MINUTES_LIMIT = "15"
 # current default. Raise toward 8000 (worker-enforced hard cap) as more
 # generations need it. Lower-bounded at 1200 in code so a typo can't break
 # short calls.
-MAX_TOKENS_CAP = "4096"
+# Raised 4096 → 8000 (the worker's hard max). Large structured outputs — the
+# full goal hierarchy and the 7-day routine — were truncating mid-JSON at 4096
+# and surfacing as "Unbalanced JSON in AI response".
+MAX_TOKENS_CAP = "8000"
 # CORS allowlist — comma-separated. The Worker echoes the matching Origin back
 # (or "null" if not allowed). Mobile / native requests don't send Origin and
 # are unaffected. Use "*" only for local dev if you must — never in prod.

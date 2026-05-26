@@ -1,4 +1,8 @@
 import { View, StyleSheet, Platform } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { useThemeStore } from '@/store/useThemeStore';
 
 interface Bloom {
@@ -44,40 +48,63 @@ const WEB_GRADIENT_LIGHT = `
 const DARK_BASE = '#0A0612';
 const LIGHT_BASE = '#F7F4FC';
 
-export function AuroraBackground({ blooms }: { blooms?: Bloom[] }) {
+interface AuroraBackgroundProps {
+  blooms?: Bloom[];
+  /** Optional scroll offset (px). When provided, the background drifts with a
+   *  gentle parallax as the user scrolls — set by screens with a scroll view. */
+  scrollY?: SharedValue<number>;
+}
+
+export function AuroraBackground({ blooms, scrollY }: AuroraBackgroundProps) {
   const mode = useThemeStore((s) => s.mode);
   const isLight = mode === 'light';
   const resolvedBlooms = blooms ?? (isLight ? LIGHT_BLOOMS : DARK_BLOOMS);
   const baseColor = isLight ? LIGHT_BASE : DARK_BASE;
   const webGradient = isLight ? WEB_GRADIENT_LIGHT : WEB_GRADIENT_DARK;
 
+  // Parallax: background translates up at ~18% of scroll speed, clamped, so it
+  // feels alive without detaching from the content. No-op when scrollY absent.
+  const parallax = useAnimatedStyle(() => {
+    const y = scrollY ? scrollY.value : 0;
+    const t = Math.max(-90, Math.min(0, -y * 0.18));
+    return { transform: [{ translateY: t }] };
+  });
+
   if (Platform.OS === 'web') {
+    // Oversize the gradient layer top+bottom so the parallax translate never
+    // exposes the page behind it.
     return (
-      <View
+      <Animated.View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { backgroundImage: webGradient } as unknown as object]}
+        style={[
+          { position: 'absolute', left: 0, right: 0, top: -120, bottom: -120 },
+          { backgroundImage: webGradient } as unknown as object,
+          scrollY ? parallax : null,
+        ]}
       />
     );
   }
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: baseColor, overflow: 'hidden' }]}>
-      {resolvedBlooms.map((b, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            width: b.size,
-            height: b.size,
-            borderRadius: b.size / 2,
-            backgroundColor: b.color,
-            opacity: b.opacity ?? 0.25,
-            top: b.top as number | undefined,
-            left: b.left as number | undefined,
-            right: b.right as number | undefined,
-            bottom: b.bottom as number | undefined,
-          }}
-        />
-      ))}
+      <Animated.View style={[StyleSheet.absoluteFill, scrollY ? parallax : null]}>
+        {resolvedBlooms.map((b, i) => (
+          <View
+            key={i}
+            style={{
+              position: 'absolute',
+              width: b.size,
+              height: b.size,
+              borderRadius: b.size / 2,
+              backgroundColor: b.color,
+              opacity: b.opacity ?? 0.25,
+              top: b.top as number | undefined,
+              left: b.left as number | undefined,
+              right: b.right as number | undefined,
+              bottom: b.bottom as number | undefined,
+            }}
+          />
+        ))}
+      </Animated.View>
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -28,6 +28,9 @@ import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { WeeklyBalanceCard } from '@/components/shared/WeeklyBalanceCard';
+import { Confetti } from '@/components/shared/Confetti';
+import { DailySummarySheet } from '@/components/shared/DailySummarySheet';
+import { YesterdayLogSheet } from '@/components/shared/YesterdayLogSheet';
 import { AdaptationCard } from '@/components/shared/AdaptationCard';
 import { LifeScoreHero } from '@/components/shared/LifeScoreHero';
 import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
@@ -235,6 +238,24 @@ export default function TodayScreen() {
     loadData();
   };
 
+  const [showYesterday, setShowYesterday] = useState(false);
+  const handleYesterdayLogged = (mod: string) => {
+    // Backfilled completion — credit the domain score + XP, same as a same-day
+    // completion, so a forgotten check-in still counts.
+    if (!userId) return;
+    completeBlock(userId, mod, 1, 1);
+    addXP(userId, XP_VALUES.completeBlock);
+  };
+
+  const handleUncomplete = (blockId: string) => {
+    // Flip a mistakenly-completed block back to upcoming. We intentionally do
+    // NOT claw back the XP/streak already awarded — reversing the gamification
+    // ledger risks negative balances; re-completing simply won't double-award
+    // within the same day.
+    updateRoutineBlockStatus(blockId, 'upcoming');
+    loadData();
+  };
+
   const skippedCount = useMemo(() => blocks.filter((b) => b.status === 'skipped').length, [blocks]);
   const showReplanCta = onboardingV2 && skippedCount > 0 && !replanning;
 
@@ -296,6 +317,24 @@ export default function TodayScreen() {
   }, []);
 
   const completedCount = blocks.filter((b) => b.status === 'completed').length;
+  const allComplete = blocks.length > 0 && completedCount === blocks.length;
+
+  // Fire the confetti once per day when the last block flips to complete.
+  // celebratedRef holds the date we last celebrated, so re-focusing or
+  // un/re-checking a block doesn't re-trigger the burst.
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const celebratedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (allComplete && celebratedRef.current !== today) {
+      celebratedRef.current = today;
+      setShowConfetti(true);
+    }
+    if (!allComplete && celebratedRef.current === today) {
+      // User undid a block — allow the celebration to fire again later.
+      celebratedRef.current = null;
+    }
+  }, [allComplete, today]);
 
   // Avatar initials
   const initials = (name || 'U')
@@ -343,7 +382,7 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.root}>
-      <AuroraBackground />
+      <AuroraBackground scrollY={scrollY} />
       <SafeAreaView style={styles.container}>
 
         <Animated.ScrollView
@@ -462,6 +501,25 @@ export default function TodayScreen() {
             </View>
           )}
 
+          {allComplete && (
+            <Animated.View entering={FadeInDown.duration(400)}>
+              <GlassCard accent={c.success} onPress={() => setShowSummary(true)} style={styles.reflectCard}>
+                <View style={styles.reflectRow}>
+                  <View style={[styles.wrapBadge, { backgroundColor: c.success + '22', borderColor: c.success + '55' }]}>
+                    <Ionicons name="sparkles" size={18} color={c.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AuroraText variant="bodyLg">Every block done</AuroraText>
+                    <AuroraText variant="caption" muted style={{ marginTop: 2 }}>
+                      Tap for your daily summary
+                    </AuroraText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+                </View>
+              </GlassCard>
+            </Animated.View>
+          )}
+
           {blocks.length > 0 && new Date().getHours() >= 18 && !hasReflectedToday && (
             <Animated.View entering={FadeInDown.delay(180).duration(400)}>
               <GlassCard
@@ -556,6 +614,17 @@ export default function TodayScreen() {
               >
                 <Ionicons name="bar-chart" size={16} color={c.primary} />
                 <Body style={{ color: c.textPrimary, flex: 1 }}>View your 28-day report</Body>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+              <Pressable
+                onPress={() => setShowYesterday(true)}
+                style={({ pressed }) => [
+                  styles.weekPlanBtn,
+                  { backgroundColor: pressed ? c.card : c.surface, borderColor: c.border },
+                ]}
+              >
+                <Ionicons name="time-outline" size={16} color={c.primary} />
+                <Body style={{ color: c.textPrimary, flex: 1 }}>Log yesterday's progress</Body>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
             </Animated.View>
@@ -704,6 +773,7 @@ export default function TodayScreen() {
                       module={block.module}
                       status={block.status}
                       onComplete={handleComplete}
+                      onUncomplete={handleUncomplete}
                     />
                   </Animated.View>
                 ))}
@@ -750,6 +820,18 @@ export default function TodayScreen() {
         visible={voiceOpen}
         onClose={() => setVoiceOpen(false)}
         systemInstruction="You are the LifeOS Daily Briefing assistant. Be concise and actionable."
+      />
+
+      {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
+      <DailySummarySheet
+        visible={showSummary}
+        onClose={() => setShowSummary(false)}
+        blocks={blocks.map((b) => ({ title: b.title, module: b.module }))}
+      />
+      <YesterdayLogSheet
+        visible={showYesterday}
+        onClose={() => setShowYesterday(false)}
+        onLogged={handleYesterdayLogged}
       />
     </View>
   );
