@@ -57,10 +57,13 @@ export default function Day3HealthScreen() {
   const handleSave = () => {
     if (!userId) return;
     try {
-      // Persist height on the user row (one-shot fact, not a daily log).
-      if (heightNum > 0) {
-        updateUser(userId, { heightCm: heightNum });
-      }
+      // Persist one-shot facts on the user row: height, sleep target, and the
+      // chosen health goal. These feed the Health Hub + routine/health prompts.
+      updateUser(userId, {
+        ...(heightNum > 0 ? { heightCm: heightNum } : {}),
+        sleepTargetHours,
+        healthGoalType: goalType,
+      });
       // Weight is a daily log so the trend chart can render immediately.
       if (weightNum > 0) {
         createHealthLog({

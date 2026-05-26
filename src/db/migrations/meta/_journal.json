@@ -22,6 +22,13 @@
       "when": 1779148800000,
       "tag": "0002_polymath",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1779235200000,
+      "tag": "0003_health_onboarding",
+      "breakpoints": true
     }
   ]
 }

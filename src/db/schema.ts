@@ -15,6 +15,8 @@ export const users = sqliteTable('users', {
   sleepTime: text('sleep_time'),
   workStartTime: text('work_start_time'),
   workEndTime: text('work_end_time'),
+  sleepTargetHours: integer('sleep_target_hours'), // Day 3 onboarding: target hours/night
+  healthGoalType: text('health_goal_type'), // Day 3 onboarding: build_strength | lose_weight | gain_endurance | improve_sleep | reduce_stress | maintain
   onboardingStage: integer('onboarding_stage').notNull().default(0),
   primaryDomains: text('primary_domains'), // JSON string[] — user's chosen focus domains from welcome-intent
   activatedModules: text('activated_modules'), // JSON string[] — modules user has supplied data for

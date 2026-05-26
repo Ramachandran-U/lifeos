@@ -41,6 +41,18 @@ export interface ApplyResult {
   message: string;
 }
 
+/**
+ * A block is eligible for mutation only if it's strictly in the future (or
+ * today) AND not already done/skipped. The date check is belt-and-suspenders:
+ * getRoutineBlocksInRange already filters server-side, but if it ever returns
+ * a stray past block this guard stops us rewriting history.
+ */
+function isFutureMutable(b: { date: string; status: string }, fromDate: string): boolean {
+  if (b.date < fromDate) return false;
+  if (b.status === 'completed' || b.status === 'skipped') return false;
+  return true;
+}
+
 async function applyRewriteTime(
   a: Extract<SuggestionApply, { type: 'rewrite_time' }>,
 ): Promise<ApplyResult> {
@@ -50,7 +62,7 @@ async function applyRewriteTime(
   let affected = 0;
   for (const b of blocks) {
     if (!matches(b.title, a.titleSubstring)) continue;
-    if (b.status === 'completed' || b.status === 'skipped') continue;
+    if (!isFutureMutable(b, start)) continue;
     updateRoutineBlock(b.id, { startTime: a.newStartTime, endTime: a.newEndTime });
     affected += 1;
   }
@@ -66,7 +78,7 @@ async function applyShrinkDuration(
   let affected = 0;
   for (const b of blocks) {
     if (!matches(b.title, a.titleSubstring)) continue;
-    if (b.status === 'completed' || b.status === 'skipped') continue;
+    if (!isFutureMutable(b, start)) continue;
     const s = toMin(b.startTime);
     const e = toMin(b.endTime);
     if (e - s <= a.targetDurationMin) continue; // already short enough
@@ -85,7 +97,7 @@ async function applyDropTitle(
   let affected = 0;
   for (const b of blocks) {
     if (!matches(b.title, a.titleSubstring)) continue;
-    if (b.status === 'completed' || b.status === 'skipped') continue;
+    if (!isFutureMutable(b, start)) continue;
     deleteRoutineBlock(b.id);
     affected += 1;
   }

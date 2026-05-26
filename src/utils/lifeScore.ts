@@ -16,7 +16,7 @@
  * subtract.
  */
 
-import type { DomainScores, BadgeId } from '@/utils/gamification';
+import type { DomainScores } from '@/utils/gamification';
 import type { ScorePoint } from '@/store/useDomainHistoryStore';
 
 const PRIMARY_WEIGHT = 1.5;
@@ -66,11 +66,18 @@ export function computeLifeScoreTrend(
   perDomainHistory: Partial<Record<DomainKey, ScorePoint[]>>,
   primaryDomains: string[] = [],
 ): LifeScoreTrend {
-  // Build a date → per-domain map by walking each domain's series and
-  // carry-forwarding the most recent value.
+  // Pre-index each domain's series as date → score so the per-day walk is O(1)
+  // per lookup instead of a linear find. (Was O(domains × days²).)
   const allDates = new Set<string>();
+  const byDate: Record<DomainKey, Map<string, number>> = {
+    goals: new Map(), health: new Map(), finance: new Map(),
+    career: new Map(), social: new Map(), mind: new Map(),
+  };
   for (const d of DOMAIN_KEYS) {
-    for (const p of perDomainHistory[d] ?? []) allDates.add(p.date);
+    for (const p of perDomainHistory[d] ?? []) {
+      allDates.add(p.date);
+      byDate[d].set(p.date, p.score);
+    }
   }
   const sortedDates = Array.from(allDates).sort();
   const carry: Record<DomainKey, number> = {
@@ -88,9 +95,8 @@ export function computeLifeScoreTrend(
   const history: number[] = [];
   for (const date of sortedDates) {
     for (const d of DOMAIN_KEYS) {
-      const series = perDomainHistory[d] ?? [];
-      const pt = series.find((p) => p.date === date);
-      if (pt) carry[d] = pt.score;
+      const score = byDate[d].get(date);
+      if (score !== undefined) carry[d] = score;
     }
     history.push(computeLifeScore({ ...carry }, primaryDomains));
   }
@@ -135,7 +141,3 @@ export function lifeScoreBand(score: number): LifeScoreBand {
   if (score >= 35) return { label: 'Stalling',  description: 'A couple of domains are quiet. The routine needs trimming.' };
   return { label: 'Resetting',                  description: 'Early days. Log enough to give the system something to learn from.' };
 }
-
-// Avoid an unused-import warning while preserving the relevant import
-// for downstream consumers that already destructure BadgeId from here.
-export type _BadgeId = BadgeId;

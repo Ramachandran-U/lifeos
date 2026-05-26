@@ -94,6 +94,8 @@ export function updateUser(
     sleepTime: string;
     workStartTime: string;
     workEndTime: string;
+    sleepTargetHours: number;
+    healthGoalType: string;
     onboardingStage: number;
     primaryDomains: string[];
     activatedModules: string[];
