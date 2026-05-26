@@ -35,6 +35,7 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const [decomposing, setDecomposing] = useState(false);
   const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const clearSlowTimer = () => {
     if (slowTimer.current) { clearTimeout(slowTimer.current); slowTimer.current = null; }
@@ -43,10 +44,11 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const handleDecompose = async () => {
     if (!goalText.trim()) return;
     cancelledRef.current = false;
+    abortRef.current = new AbortController();
     setSlowHint(false);
     setDecomposing(true);
     slowTimer.current = setTimeout(() => setSlowHint(true), 8000);
-    const result = await call(() => decomposeGoal({ visionStatement: goalText, name }));
+    const result = await call(() => decomposeGoal({ visionStatement: goalText, name }, { signal: abortRef.current?.signal }));
     clearSlowTimer();
     setSlowHint(false);
     setDecomposing(false);
@@ -71,6 +73,7 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
 
   const handleCancelDecompose = () => {
     cancelledRef.current = true;
+    abortRef.current?.abort(); // truly cancels the in-flight request (BUG-012)
     clearSlowTimer();
     setSlowHint(false);
     setDecomposing(false);

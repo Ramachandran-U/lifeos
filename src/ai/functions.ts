@@ -129,7 +129,10 @@ import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from
 
 const isMock = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
 
-export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
+export async function decomposeGoal(
+  input: GoalInput,
+  opts?: { signal?: AbortSignal },
+): Promise<GoalHierarchy> {
   if (isMock) return buildMockGoalHierarchy(input.visionStatement, input.name);
 
   const response = await callAI({
@@ -143,6 +146,7 @@ export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
     // truncate mid-JSON ("Unbalanced JSON in AI response"). With the worker
     // cap raised to 8000, give it real headroom.
     maxTokens: 6000,
+    signal: opts?.signal,
   });
 
   try {

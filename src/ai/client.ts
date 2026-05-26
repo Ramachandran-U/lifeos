@@ -18,6 +18,7 @@ async function callViaProxy(request: AIRequest): Promise<string> {
 
     const response = await fetch(`${PROXY_URL}/claude`, {
       method: 'POST',
+      signal: request.signal,
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
