@@ -154,6 +154,11 @@ async function planRoutineAgentInner(
     model: pickModel('agent.propose'),
     cacheSystem: true,
     task: 'agent.propose',
+    // A full day is up to ~10 blocks + a rationale. The proxy default cap
+    // truncates that mid-JSON → extractJson throws "Unbalanced JSON in AI
+    // response". A wider wake→sleep window (common after editing times) makes
+    // it worse. Give the propose step room to finish the object.
+    maxTokens: 3000,
     messages: [
       {
         role: 'user',
@@ -201,6 +206,9 @@ async function planRoutineAgentInner(
     model: pickModel('agent.critique'),
     cacheSystem: true,
     task: 'agent.critique',
+    // Critique echoes a full revised block list back, so it needs even more
+    // headroom than propose — otherwise the revisedBlocks array truncates.
+    maxTokens: 3500,
     messages: [
       {
         role: 'user',

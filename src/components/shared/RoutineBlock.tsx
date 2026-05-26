@@ -20,10 +20,12 @@ import { EASING, SPRING, TIMING, useMotionScale } from '@/theme/motion';
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // Hold-to-confirm window. Not a motion-budget token — this is an input
-// gesture duration, not an animation curve.
-const HOLD_MS = 1000;
-// Reduce-motion / users with motionIntensity=off get a fast tap window.
-const REDUCED_HOLD_MS = 120;
+// gesture duration, not an animation curve. Kept short (250ms) so it fires
+// well before a mobile browser's native long-press text-selection / copy
+// menu (~500ms), which previously hijacked the gesture on web.
+const HOLD_MS = 250;
+// Reduce-motion / users with motionIntensity=off get a near-instant tap window.
+const REDUCED_HOLD_MS = 80;
 
 // Progress arc geometry (drawn on the status button when pressed).
 const ARC_RADIUS = 13;
@@ -324,7 +326,18 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   statusBtn: {
     alignSelf: 'center',
-  },
+    // Web: stop the press-and-hold from triggering native text selection /
+    // the iOS Safari callout (copy) menu, which used to hijack the gesture.
+    ...Platform.select({
+      web: {
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+        touchAction: 'manipulation',
+      },
+      default: {},
+    }),
+  } as object,
   emptyCircle: {
     width: 28,
     height: 28,

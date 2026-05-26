@@ -1,6 +1,6 @@
 import { Pressable } from 'react-native';
-import Svg, { Circle, Line, Path, G } from 'react-native-svg';
-import { useColors } from '@/theme/colors';
+import Svg, { Circle, Line, Path, G, Text as SvgText } from 'react-native-svg';
+import { useColors, DOMAIN_GLYPHS } from '@/theme/colors';
 import { DOMAIN_META } from '@/constants/gamification';
 import type { DomainKey } from '@/constants/gamification';
 
@@ -67,6 +67,28 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
               strokeWidth={1}
               opacity={0.35}
             />
+          );
+        })}
+        {/* Minimal domain glyph just beyond each vertex — clean wayfinding for
+            the 6 axes. Brightens on the active domain, dims otherwise. */}
+        {DOMAIN_META.map((d) => {
+          const label = pt(d.angleDeg, maxR * 1.12);
+          const isActive = activeDomain === d.key;
+          return (
+            <SvgText
+              key={`glyph-${d.key}`}
+              x={label.x}
+              y={label.y}
+              fill={c[d.colorKey]}
+              fillOpacity={isActive ? 1 : 0.7}
+              fontSize={13}
+              fontWeight="600"
+              textAnchor="middle"
+              alignmentBaseline="central"
+              onPress={() => onDomainPress?.(d.key)}
+            >
+              {DOMAIN_GLYPHS[d.colorKey]}
+            </SvgText>
           );
         })}
         {yesterdayPath && (
