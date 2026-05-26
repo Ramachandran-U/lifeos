@@ -100,6 +100,9 @@ import {
   DailyBriefingResult,
   DailyBriefingSchema,
   DailyBriefingInput,
+  TrajectoryAssessment,
+  TrajectoryAssessmentSchema,
+  TrajectoryAssessmentInput,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -128,6 +131,8 @@ import { MONTHLY_INSIGHT_REPORT_PROMPT } from './prompts/behaviour';
 import { buildMockMonthlyInsightReport } from './mocks/behaviour';
 import { DAILY_BRIEFING_PROMPT } from './prompts/briefing';
 import { buildMockDailyBriefing } from './mocks/briefing';
+import { TRAJECTORY_PROMPT } from './prompts/trajectory';
+import { buildMockTrajectoryAssessment } from './mocks/trajectory';
 import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine, buildMockWeekRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
@@ -748,5 +753,26 @@ export async function generateDailyBriefing(input: DailyBriefingInput): Promise<
     return DailyBriefingSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateDailyBriefing', 'DailyBriefing', response, err);
+  }
+}
+
+export async function assessTrajectory(
+  input: TrajectoryAssessmentInput,
+): Promise<TrajectoryAssessment> {
+  if (isMock) return buildMockTrajectoryAssessment(input);
+
+  const response = await callAI({
+    system: TRAJECTORY_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('assessTrajectory'),
+    cacheSystem: true,
+    task: 'assessTrajectory',
+    maxTokens: 600,
+  });
+
+  try {
+    return TrajectoryAssessmentSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('assessTrajectory', 'TrajectoryAssessment', response, err);
   }
 }

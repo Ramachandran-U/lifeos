@@ -12,6 +12,7 @@ import { Body, Caption } from '@/components/ui/Typography';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { GoalCard } from '@/components/modules/goals/GoalCard';
 import { AddGoalSheet } from '@/components/modules/goals/AddGoalSheet';
+import { TrajectoryCard } from '@/components/modules/goals/TrajectoryCard';
 import { GoalDetailSheet } from '@/components/modules/goals/GoalDetailSheet';
 import { MotivationBanner } from '@/components/shared/MotivationBanner';
 import { useUserStore } from '@/store/useUserStore';
@@ -55,6 +56,10 @@ export default function GoalsScreen() {
   }, [goals]);
 
   const dailyTasks = goals.filter((g) => g.level === 'daily' && g.status === 'active');
+
+  // P4-04: the 3-year vision is the root `life` goal. Show its on-track
+  // trajectory above the tree once it has at least one sub-goal.
+  const lifeGoal = useMemo(() => goals.find((g) => g.level === 'life' && !g.parentId), [goals]);
 
   const commentCounts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -161,6 +166,10 @@ export default function GoalsScreen() {
             );
           })}
         </View>
+
+        {lifeGoal && (
+          <TrajectoryCard lifeGoal={lifeGoal} goals={goals} />
+        )}
 
         {mainGoals.length === 0 ? (
           <View style={styles.emptyState}>

@@ -285,6 +285,28 @@ export interface DailyBriefingInput {
   topDomainYesterday: string | null; // domain that got the most time yesterday
 }
 
+// --- Long-Term Trajectory (P4-04) ---
+
+export const TrajectoryAssessmentSchema = z.object({
+  // One-sentence verdict the user reads first.
+  verdict: z.string().min(1),
+  // 1-3 concrete recalibration steps for the coming quarter.
+  recalibration: z.array(z.string()).min(1).max(3),
+});
+export type TrajectoryAssessment = z.infer<typeof TrajectoryAssessmentSchema>;
+
+export interface TrajectoryAssessmentInput {
+  visionTitle: string;
+  horizonMonths: number;
+  elapsedMonths: number;
+  expectedProgressPct: number; // 0-100
+  actualProgressPct: number; // 0-100
+  status: 'ahead' | 'on_track' | 'behind';
+  completedSubGoals: number;
+  totalSubGoals: number;
+  laggingTitles: string[];
+}
+
 // --- Behaviour Intelligence v2 Types ---
 
 export const MonthlyInsightReportSchema = z.object({
