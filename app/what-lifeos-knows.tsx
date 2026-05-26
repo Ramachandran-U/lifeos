@@ -29,6 +29,14 @@ import type {
   ProfileSlotConfidence,
 } from '@/ai/types';
 import { ROUTINE_CONFIDENCE_THRESHOLD } from '@/ai/types';
+import { DISCOVERY_USER_PROMPT } from '@/ai/prompts/discovery';
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+  }
+  return false;
+}
 
 const CHRONOTYPES: Array<{ id: Chronotype; label: string }> = [
   { id: 'lark', label: 'Morning person' },
@@ -61,6 +69,16 @@ export default function WhatLifeOSKnowsScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+
+  const handleCopyPrompt = async () => {
+    const ok = await copyToClipboard(DISCOVERY_USER_PROMPT);
+    if (ok) {
+      setPromptCopied(true);
+      if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => setPromptCopied(false), 1800);
+    }
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -161,6 +179,39 @@ export default function WhatLifeOSKnowsScreen() {
               ? '✓ Routine generation unlocked'
               : `${Math.max(0, Math.round((ROUTINE_CONFIDENCE_THRESHOLD - profile.confidence.overall) * 100))}% more to unlock routine generation`}
           </Caption>
+        </Card>
+
+        {/* --- Understand me better (LLM round-trip) --- */}
+        <Card style={styles.overallCard}>
+          <Label style={{ color: c.textMuted, letterSpacing: 1.5 }}>UNDERSTAND ME BETTER</Label>
+          <Body style={{ color: c.textSecondary, marginTop: spacing.xs }}>
+            Copy this prompt into ChatGPT, Claude, or any LLM. Answer its questions, then paste the
+            result back here — LifeOS will read it to fill in what it doesn't know yet.
+          </Body>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+            <Pressable
+              onPress={handleCopyPrompt}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { backgroundColor: pressed ? c.primary + 'cc' : c.primary, flex: 1 },
+              ]}
+            >
+              <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
+              <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+                {promptCopied ? 'Copied!' : 'Copy AI prompt'}
+              </Body>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(onboarding)/discovery-paste')}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { backgroundColor: pressed ? c.card : c.surface, borderColor: c.border, borderWidth: 1, flex: 1 },
+              ]}
+            >
+              <Ionicons name="clipboard-outline" size={16} color={c.textPrimary} />
+              <Body style={{ color: c.textPrimary }}>Paste results</Body>
+            </Pressable>
+          </View>
         </Card>
 
         {/* --- Identity --- */}
@@ -691,6 +742,16 @@ const makeStyles = (c: AppColors) =>
     title: { color: c.textPrimary, marginTop: spacing.sm },
     subtitle: { color: c.textSecondary, marginTop: spacing.xs, marginBottom: spacing.md },
     overallCard: { gap: spacing.xs },
+    actionBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: 12,
+      minHeight: 44,
+    },
     progressTrack: {
       height: 4,
       borderRadius: 2,

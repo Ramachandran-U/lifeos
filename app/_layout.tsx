@@ -113,9 +113,12 @@ export default function RootLayout() {
     // remain reachable even when onboardingStage === ONBOARDING_COMPLETE.
     const inProgressiveOnboarding =
       inOnboarding &&
-      ['day3-health', 'day7-finance', 'day7-social', 'day14-polymath'].includes(
-        (segments as string[])[1] ?? '',
-      );
+      [
+        'day3-health', 'day7-finance', 'day7-social', 'day14-polymath',
+        // Discovery round-trip is reachable post-onboarding from
+        // what-lifeos-knows ("Understand me better") to enrich the profile.
+        'discovery-paste', 'discovery-confirm',
+      ].includes((segments as string[])[1] ?? '');
     const inMonthlyInsight = segments[0] === 'monthly-insight';
     const inContactDetail = segments[0] === 'contact';
     const inDataResidency = segments[0] === 'data-residency';

@@ -16,7 +16,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { generateMonthlyInsightReport } from '@/ai/functions';
 import { buildMonthlyInsightInput } from '@/utils/monthlyInsightBuilder';
-import type { MonthlyInsightReport } from '@/ai/types';
+import { emptyUserProfile, type MonthlyInsightReport } from '@/ai/types';
 
 export default function MonthlyInsightScreen() {
   const c = useColors();
@@ -32,11 +32,11 @@ export default function MonthlyInsightScreen() {
     setLoading(true);
     setReport(null);
     try {
-      const profile = await getUserProfile(userId);
-      if (!profile) {
-        Alert.alert('No profile yet', 'Finish onboarding to generate your monthly report.');
-        return;
-      }
+      // The report only reads profile.inferredPreferences; the substance comes
+      // from routine blocks + behaviour events. Legacy users who onboarded via
+      // the day-1 flow (not discovery-chat) have no user_profiles row, so fall
+      // back to an empty profile rather than refusing to generate a report.
+      const profile = (await getUserProfile(userId)) ?? emptyUserProfile('form');
       const input = buildMonthlyInsightInput(profile);
       setMeta({ completionRate: input.totals.completionRate, planned: input.totals.blocksPlanned });
       const result = await generateMonthlyInsightReport(input);
