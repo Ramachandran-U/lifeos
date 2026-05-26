@@ -656,6 +656,20 @@ export default function TodayScreen() {
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
               <Pressable
+                onPress={() => router.push('/annual-review')}
+                style={({ pressed }) => [
+                  styles.weekPlanBtn,
+                  {
+                    backgroundColor: pressed ? c.card : c.surface,
+                    borderColor: c.border,
+                  },
+                ]}
+              >
+                <Ionicons name="sparkles-outline" size={16} color={c.primary} />
+                <Body style={{ color: c.textPrimary, flex: 1 }}>Your Annual Life Review</Body>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+              <Pressable
                 onPress={() => setShowYesterday(true)}
                 style={({ pressed }) => [
                   styles.weekPlanBtn,

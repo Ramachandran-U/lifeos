@@ -285,6 +285,35 @@ export interface DailyBriefingInput {
   topDomainYesterday: string | null; // domain that got the most time yesterday
 }
 
+// --- Annual Life Review (P4-03) ---
+
+export const AnnualReviewSchema = z.object({
+  // One honest, celebratory sentence summing up the year.
+  headline: z.string().min(1),
+  // Per-domain narrative (1-2 sentences each).
+  domains: z
+    .array(z.object({ domain: z.string().min(1), summary: z.string().min(1) }))
+    .min(1)
+    .max(6),
+  biggestWin: z.string().min(1),
+  growthArea: z.string().min(1),
+  themeForNextYear: z.string().min(1),
+});
+export type AnnualReview = z.infer<typeof AnnualReviewSchema>;
+
+export interface AnnualReviewInput {
+  windowDays: number;
+  name: string | null;
+  goals: { total: number; completed: number };
+  routine: { blocksPlanned: number; blocksCompleted: number; completionRate: number };
+  domainMinutes: Record<string, number>;
+  lifeScore: { current: number; start: number };
+  topStreaks: { key: string; count: number }[];
+  totalXP: number;
+  badgeCount: number;
+  social: { contacts: number; inCadencePct: number | null };
+}
+
 // --- Long-Term Trajectory (P4-04) ---
 
 export const TrajectoryAssessmentSchema = z.object({

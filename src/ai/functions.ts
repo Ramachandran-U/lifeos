@@ -103,6 +103,9 @@ import {
   TrajectoryAssessment,
   TrajectoryAssessmentSchema,
   TrajectoryAssessmentInput,
+  AnnualReview,
+  AnnualReviewSchema,
+  AnnualReviewInput,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -133,6 +136,8 @@ import { DAILY_BRIEFING_PROMPT } from './prompts/briefing';
 import { buildMockDailyBriefing } from './mocks/briefing';
 import { TRAJECTORY_PROMPT } from './prompts/trajectory';
 import { buildMockTrajectoryAssessment } from './mocks/trajectory';
+import { ANNUAL_REVIEW_PROMPT } from './prompts/annualReview';
+import { buildMockAnnualReview } from './mocks/annualReview';
 import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine, buildMockWeekRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
@@ -774,5 +779,24 @@ export async function assessTrajectory(
     return TrajectoryAssessmentSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('assessTrajectory', 'TrajectoryAssessment', response, err);
+  }
+}
+
+export async function generateAnnualReview(input: AnnualReviewInput): Promise<AnnualReview> {
+  if (isMock) return buildMockAnnualReview(input);
+
+  const response = await callAI({
+    system: ANNUAL_REVIEW_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateAnnualReview'),
+    cacheSystem: true,
+    task: 'generateAnnualReview',
+    maxTokens: 1800,
+  });
+
+  try {
+    return AnnualReviewSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateAnnualReview', 'AnnualReview', response, err);
   }
 }
