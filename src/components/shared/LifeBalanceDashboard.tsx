@@ -20,7 +20,7 @@ interface Scores {
   finance: number;
   career: number;
   social: number;
-  mind: number;
+  polymath: number;
 }
 
 interface LifeBalanceDashboardProps {
@@ -30,16 +30,16 @@ interface LifeBalanceDashboardProps {
 // ─── Domain config ────────────────────────────────────────────────────────────
 
 const DOMAIN_KEYS: (keyof Scores)[] = [
-  'goals', 'health', 'finance', 'career', 'social', 'mind',
+  'goals', 'health', 'finance', 'career', 'social', 'polymath',
 ];
 
 const DOMAIN_META: Record<keyof Scores, { label: string; colorKey: string }> = {
-  goals:   { label: 'Goals',   colorKey: 'goal'     },
-  health:  { label: 'Health',  colorKey: 'health'   },
-  finance: { label: 'Finance', colorKey: 'finance'  },
-  career:  { label: 'Career',  colorKey: 'career'   },
-  social:  { label: 'Social',  colorKey: 'social'   },
-  mind:    { label: 'Mind',    colorKey: 'polymath'  },
+  goals:    { label: 'Goals',   colorKey: 'goal'     },
+  health:   { label: 'Health',  colorKey: 'health'   },
+  finance:  { label: 'Finance', colorKey: 'finance'  },
+  career:   { label: 'Career',  colorKey: 'career'   },
+  social:   { label: 'Social',  colorKey: 'social'   },
+  polymath: { label: 'Mind',    colorKey: 'polymath' },
 };
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────

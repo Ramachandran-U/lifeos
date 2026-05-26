@@ -43,7 +43,7 @@ export function buildMockMonthlyInsightReport(input: MonthlyInsightReportInput):
   if (inferredPreferences.droppedHabits.length > 0) {
     slipping.push(`Dropped: ${inferredPreferences.droppedHabits.slice(0, 2).join(', ')}.`);
   }
-  const silentDomains = ['goals', 'health', 'finance', 'career', 'social', 'mind']
+  const silentDomains = ['goals', 'health', 'finance', 'career', 'social', 'polymath']
     .filter((d) => (domainMinutes?.[d as keyof typeof domainMinutes] ?? 0) === 0);
   if (silentDomains.length > 0) {
     slipping.push(`Zero time logged for: ${silentDomains.join(', ')}.`);

@@ -163,7 +163,7 @@ export async function generateAndSaveWeek(opts: {
   } catch { /* non-fatal */ }
 
   let lastWeekMinutes:
-    | { goals?: number; health?: number; finance?: number; career?: number; social?: number; mind?: number }
+    | { goals?: number; health?: number; finance?: number; career?: number; social?: number; polymath?: number }
     | undefined;
   try {
     const { computeLastWeekDomainMinutes } = await import('@/utils/routineBalance');

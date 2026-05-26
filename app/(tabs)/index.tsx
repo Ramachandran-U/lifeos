@@ -94,7 +94,7 @@ export default function TodayScreen() {
   const [replanning, setReplanning] = useState(false);
   const [replanRationale, setReplanRationale] = useState<string | null>(null);
   const [domainScores, setDomainScores] = useState({
-    goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0,
+    goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 0,
   });
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
   const [hasReflectedToday, setHasReflectedToday] = useState(false);
@@ -162,7 +162,11 @@ export default function TodayScreen() {
     setBlocks(todayBlocks);
     if (userId) {
       const game = getOrCreateGamification(userId);
-      try { setDomainScores(JSON.parse(game.domainScores)); } catch { /* keep defaults */ }
+      try {
+        const parsed = JSON.parse(game.domainScores) as Record<string, number>;
+        // Coalesce legacy `mind` → `polymath` (BUG-009 rename).
+        setDomainScores({ ...parsed, polymath: parsed.polymath ?? parsed.mind ?? 0 } as typeof domainScores);
+      } catch { /* keep defaults */ }
       loadGame(userId);
     }
     setWeeklyInsight(generateWeeklyInsight());
@@ -407,7 +411,7 @@ export default function TodayScreen() {
                   : domain === 'health' ? '/(tabs)/health'
                   : domain === 'finance' ? '/(tabs)/finance'
                   : domain === 'career' ? '/(tabs)/career'
-                  : domain === 'mind' ? '/(tabs)/explore'
+                  : domain === 'polymath' ? '/(tabs)/explore'
                   : domain === 'social' ? '/(tabs)/life'
                   : null
                 );
@@ -801,7 +805,7 @@ export default function TodayScreen() {
               <AuroraText variant="micro" muted>
                 {`balance ${Math.round(
                   (radarScores.goals + radarScores.health + radarScores.finance +
-                   radarScores.career + radarScores.social + radarScores.mind) / 6,
+                   radarScores.career + radarScores.social + radarScores.polymath) / 6,
                 )} · ${completedCount} of ${blocks.length} done`}
               </AuroraText>
             </View>

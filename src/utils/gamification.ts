@@ -12,7 +12,10 @@ export interface DomainScores {
   finance: number;
   career: number;
   social: number;
-  mind: number;
+  // Canonical name for the 6th domain is now `polymath` (matches the module
+  // key, DomainId, and color/glyph tokens). Legacy persisted data used `mind`;
+  // load paths coalesce mind→polymath. (BUG-009)
+  polymath: number;
 }
 
 export type BadgeId =
@@ -224,7 +227,7 @@ export const DOMAIN_META: { key: DomainKey; label: string; emoji: string; colorK
   { key: 'finance', label: 'Finance', emoji: '💰', colorKey: 'finance',  angle: 30   },
   { key: 'career',  label: 'Career',  emoji: '🚀', colorKey: 'career',   angle: 90   },
   { key: 'social',  label: 'Social',  emoji: '🤝', colorKey: 'social',   angle: 150  },
-  { key: 'mind',    label: 'Mind',    emoji: '🔭', colorKey: 'polymath', angle: -150 },
+  { key: 'polymath', label: 'Mind',   emoji: '🔭', colorKey: 'polymath', angle: -150 },
 ];
 
 // ─── Module metadata (used by QuestCard + RoutineBlock) ──────────────────────
