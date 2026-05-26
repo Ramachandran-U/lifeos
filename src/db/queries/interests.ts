@@ -44,6 +44,7 @@ export function createInterest(input: CreateInterestInput): string {
     explorationDepth: input.explorationDepth ?? 'taste',
     status: 'active',
     discoveredBy: input.discoveredBy ?? 'user',
+    timeProtected: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -62,6 +63,7 @@ export function createInterest(input: CreateInterestInput): string {
     explorationDepth: record.explorationDepth,
     status: record.status,
     discoveredBy: record.discoveredBy,
+    timeProtected: false,
     createdAt: now,
     updatedAt: now,
   }).run();

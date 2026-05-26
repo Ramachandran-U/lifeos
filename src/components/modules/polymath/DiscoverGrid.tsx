@@ -13,9 +13,11 @@ export interface DiscoverArea {
   icon: keyof typeof Ionicons.glyphMap;
   tint: string;
   blurb: string;
+  /** Set when the area was returned by the AI personalisation pass. */
+  whyThisFits?: string;
 }
 
-const AREAS: DiscoverArea[] = [
+export const FALLBACK_AREAS: DiscoverArea[] = [
   { name: 'Astronomy',        category: 'science',    icon: 'planet',        tint: '#7FB8FF', blurb: 'Stars, galaxies, cosmology' },
   { name: 'Jazz piano',       category: 'music',      icon: 'musical-notes', tint: '#FF99C5', blurb: 'Improvisation & theory' },
   { name: 'Photography',      category: 'arts',       icon: 'camera',        tint: '#FFD66B', blurb: 'Composition & light' },
@@ -32,11 +34,13 @@ const AREAS: DiscoverArea[] = [
 
 interface Props {
   onPick: (area: DiscoverArea) => void;
+  /** Override the default static list — used to render AI-personalised suggestions. */
+  areas?: DiscoverArea[];
 }
 
 const SCREEN_W = Dimensions.get('window').width;
 
-export function DiscoverGrid({ onPick }: Props) {
+export function DiscoverGrid({ onPick, areas }: Props) {
   const c = useColors();
   const styles = useMemo(() => makeStyles(c), [c]);
 
@@ -45,9 +49,11 @@ export function DiscoverGrid({ onPick }: Props) {
     onPick(area);
   };
 
+  const source = areas && areas.length > 0 ? areas : FALLBACK_AREAS;
+
   // Instagram-style: 3-col grid, one 2x2 feature tile per 8 tiles.
   // Feature index alternates left/right within each block of 8.
-  const tiles = AREAS.map((area, idx) => {
+  const tiles = source.map((area, idx) => {
     const block = Math.floor(idx / 8);
     const posInBlock = idx % 8;
     const featurePos = block % 2 === 0 ? 2 : 0; // col index for feature in this block

@@ -18,7 +18,8 @@
     "evals:live": "EVAL_REAL=true jest --testPathPatterns=evals --runInBand",
     "smoke": "cross-env SMOKE_BASE_URL=https://lifeos-6r5-eqa.pages.dev playwright test --project=smoke",
     "smoke:local": "playwright test --project=smoke",
-    "verify": "tsc --noEmit && jest && npm run smoke"
+    "verify": "tsc --noEmit && jest && npm run smoke",
+    "gen:onboarding-audio": "node scripts/generate-onboarding-audio.js"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
@@ -39,6 +40,7 @@
     "expo-av": "~16.0.8",
     "expo-calendar": "~15.0.8",
     "expo-constants": "~18.0.13",
+    "expo-contacts": "~15.0.11",
     "expo-crypto": "~15.0.8",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",
@@ -50,6 +52,7 @@
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-sharing": "~14.0.8",
+    "expo-speech": "~14.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",

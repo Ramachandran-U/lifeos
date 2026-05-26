@@ -82,6 +82,21 @@ import {
   ReplanRemainingDaySchema,
   GenerateTomorrowRoutineInput,
   GenerateTomorrowRoutineSchema,
+  ConversationStarters,
+  ConversationStartersSchema,
+  ConversationStartersInput,
+  InterestSuggestions,
+  InterestSuggestionsSchema,
+  InterestSuggestionsInput,
+  CrossDisciplineLink,
+  CrossDisciplineLinkSchema,
+  CrossDisciplineLinkInput,
+  GeneratedWeekRoutine,
+  GeneratedWeekRoutineSchema,
+  GenerateWeekRoutineInput,
+  MonthlyInsightReport,
+  MonthlyInsightReportSchema,
+  MonthlyInsightReportInput,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -92,7 +107,7 @@ import { TOMORROW_TWEAK_PROMPT } from './prompts/reflection';
 import { buildMockTomorrowTweak } from './mocks/reflection';
 import { GOAL_DECOMPOSITION_PROMPT, GOAL_DESCRIPTION_PROMPT } from './prompts/goals';
 import { SKILL_GAP_PROMPT, CAREER_STRATEGY_PROMPT, MOTIVATION_PROMPT } from './prompts/career';
-import { ROUTINE_GENERATION_PROMPT, REPLAN_REMAINING_DAY_PROMPT, GENERATE_TOMORROW_ROUTINE_PROMPT } from './prompts/routine';
+import { ROUTINE_GENERATION_PROMPT, REPLAN_REMAINING_DAY_PROMPT, GENERATE_TOMORROW_ROUTINE_PROMPT, GENERATE_WEEK_ROUTINE_PROMPT } from './prompts/routine';
 import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT, FOOD_RECOGNITION_PROMPT } from './prompts/health';
 import {
   FINANCIAL_PLAN_PROMPT,
@@ -102,7 +117,13 @@ import {
 } from './prompts/finance';
 import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals';
 import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
-import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine } from './mocks/routine';
+import { CONVERSATION_STARTERS_PROMPT } from './prompts/social';
+import { buildMockConversationStarters } from './mocks/social';
+import { INTEREST_SUGGESTIONS_PROMPT, CROSS_DISCIPLINE_LINK_PROMPT } from './prompts/polymath';
+import { buildMockInterestSuggestions, buildMockCrossDisciplineLink } from './mocks/polymath';
+import { MONTHLY_INSIGHT_REPORT_PROMPT } from './prompts/behaviour';
+import { buildMockMonthlyInsightReport } from './mocks/behaviour';
+import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine, buildMockWeekRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
 
@@ -594,5 +615,109 @@ export async function generateTomorrowRoutine(input: GenerateTomorrowRoutineInpu
     return GenerateTomorrowRoutineSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateTomorrowRoutine', 'GeneratedRoutine', response, err);
+  }
+}
+
+export async function generateConversationStarters(input: ConversationStartersInput): Promise<ConversationStarters> {
+  if (isMock) return buildMockConversationStarters(input);
+
+  // Privacy guard — strip anything that might leak a name from the optional
+  // context note before sending. Names are NEVER part of the payload.
+  const safePayload = {
+    relationshipType: input.relationshipType,
+    daysSinceContact: input.daysSinceContact,
+    contextNote: input.contextNote ? input.contextNote.slice(0, 200) : undefined,
+  };
+
+  const response = await callAI({
+    system: CONVERSATION_STARTERS_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(safePayload) }],
+    model: pickModel('generateConversationStarters'),
+    cacheSystem: true,
+    task: 'generateConversationStarters',
+  });
+
+  try {
+    return ConversationStartersSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateConversationStarters', 'ConversationStarters', response, err);
+  }
+}
+
+export async function suggestInterestAreas(input: InterestSuggestionsInput): Promise<InterestSuggestions> {
+  if (isMock) return buildMockInterestSuggestions(input);
+
+  const response = await callAI({
+    system: INTEREST_SUGGESTIONS_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('suggestInterestAreas'),
+    cacheSystem: true,
+    task: 'suggestInterestAreas',
+  });
+
+  try {
+    return InterestSuggestionsSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('suggestInterestAreas', 'InterestSuggestions', response, err);
+  }
+}
+
+export async function suggestCrossDisciplineLink(
+  input: CrossDisciplineLinkInput,
+): Promise<CrossDisciplineLink> {
+  if (isMock) return buildMockCrossDisciplineLink(input);
+
+  const response = await callAI({
+    system: CROSS_DISCIPLINE_LINK_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('suggestCrossDisciplineLink'),
+    cacheSystem: true,
+    task: 'suggestCrossDisciplineLink',
+  });
+
+  try {
+    return CrossDisciplineLinkSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('suggestCrossDisciplineLink', 'CrossDisciplineLink', response, err);
+  }
+}
+
+export async function generateWeekRoutine(input: GenerateWeekRoutineInput): Promise<GeneratedWeekRoutine> {
+  if (isMock) return buildMockWeekRoutine(input);
+
+  const response = await callAI({
+    system: GENERATE_WEEK_ROUTINE_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateWeekRoutine'),
+    cacheSystem: true,
+    task: 'generateWeekRoutine',
+    // 7 days of blocks comfortably exceeds the default; bump the cap.
+    maxTokens: 6000,
+  });
+
+  try {
+    return GeneratedWeekRoutineSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateWeekRoutine', 'GeneratedWeekRoutine', response, err);
+  }
+}
+
+export async function generateMonthlyInsightReport(
+  input: MonthlyInsightReportInput,
+): Promise<MonthlyInsightReport> {
+  if (isMock) return buildMockMonthlyInsightReport(input);
+
+  const response = await callAI({
+    system: MONTHLY_INSIGHT_REPORT_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateMonthlyInsightReport'),
+    cacheSystem: true,
+    task: 'generateMonthlyInsightReport',
+  });
+
+  try {
+    return MonthlyInsightReportSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateMonthlyInsightReport', 'MonthlyInsightReport', response, err);
   }
 }

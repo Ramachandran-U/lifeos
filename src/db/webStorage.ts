@@ -16,3 +16,4 @@ export * from './webStorage/goals';
 export * from './webStorage/health';
 export * from './webStorage/finance';
 export * from './webStorage/polymath';
+export * from './webStorage/social';

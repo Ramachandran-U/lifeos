@@ -32,5 +32,20 @@ export async function planRoutineWithContextDetailed(input: RoutineInput): Promi
     // tables exist yet), we just plan without history.
     contextItems = [];
   }
-  return planRoutineAgent({ ...input, contextItems });
+
+  // Adaptive-rebalance signal — only inject when the caller didn't already
+  // pass one. Empty / failing lookups are non-fatal.
+  let lastWeekDomainMinutes = input.lastWeekDomainMinutes;
+  if (!lastWeekDomainMinutes) {
+    try {
+      const { computeLastWeekDomainMinutes } = await import('@/utils/routineBalance');
+      lastWeekDomainMinutes = computeLastWeekDomainMinutes();
+    } catch { /* non-fatal */ }
+  }
+
+  // Default dayOfWeek to today if the caller didn't specify — keeps weekday/
+  // weekend differentiation working for the common single-day case.
+  const dayOfWeek = input.dayOfWeek ?? new Date().getDay();
+
+  return planRoutineAgent({ ...input, lastWeekDomainMinutes, dayOfWeek, contextItems });
 }

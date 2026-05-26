@@ -4,6 +4,24 @@ Recall trigger: when the user says **"fix the defects raised by solution archite
 
 Branch this was written against: `claude/interesting-rubin-97ecf6` at commit `7fa58a7`.
 
+## Status (as of 2026-05-14)
+
+The full sweep happened across two sessions on 2026-05-14. Items ticked below.
+
+**Open after sweep:**
+- §P0-2 part 2 — push token e2e verify needs an EAS native build to confirm a row reaches `expo_push_tokens` (gated on device build).
+- §P1-7 part 3 — swap `initDatabase()` to `runMigrations()` needs Metro `.sql` resolver wiring (requires babel/metro plugin work; deferred).
+- §P2-9 — onboarding v2 graduation: product call on rollout % pending.
+- §P2-11 — `costLedger` surface-vs-delete: product call pending.
+- Parent (cross-repo) `CLAUDE.md` `expo-health` line — auto-mode classifier blocks edits outside repo root; manual edit needed.
+
+**Discovered defects log** (added during the sweep, all resolved):
+- `2026-05-14 / T1 verification` — Playwright smoke had `import.meta` parse + Privacy-residency selector timeout. ✅ Resolved — `import.meta.env` neutraliser confirmed working in dist; smoke nav now waits + scrolls before clicking.
+- `2026-05-14 / Aurora v2 launch` — React #185 infinite loop from `useDomainHistoryStore.yesterdaySnapshot()` returning a fresh object each call. ✅ Fixed via select(entries) + useMemo. Smoke seed now exercises the bug class.
+- `2026-05-14 / Gmail Connect` — OAuth callback routes (Gmail, Calendar, Fit) were not whitelisted by the layout's auth guard; user landed on Today instead of completing the exchange. ✅ Fixed — any `*-callback` segment is now in-OAuth-callback.
+- `2026-05-14 / boot` — Supabase auth listener fired `INITIAL_SESSION` with `null` for any user without a Supabase session, silently signing out legacy email/password users. ✅ Fixed — only `SIGNED_OUT` triggers reset.
+- `2026-05-14 / Analyse my career path` — silent failure on Zod parse + no UI error surfacing. ✅ Fixed — sanitizer for common Gemini hallucinations + Career screen now renders `useAI`'s error.
+
 ---
 
 ## P0 — Do this week
@@ -12,14 +30,14 @@ Branch this was written against: `claude/interesting-rubin-97ecf6` at commit `7f
 
 All concentrated in 3 files. Strict-mode project — these signal the type checker is being implicitly ignored.
 
-- [ ] **`app/(tabs)/finance.tsx` (4 errors)**
+- [x] ✅ **`app/(tabs)/finance.tsx` (4 errors)**
   - L203/L205: `WebFinanceMilestone` shape diverges from the inline state type — missing `goalId` and `createdAt` fields. Pick one source of truth; either widen the inline type or narrow what `getFinanceMilestonesByGoal` returns.
   - L380/L409: `outlineStyle: 'none'` on `TextInput` is RN-web-only but typed against `TextStyle`. Wrap in `Platform.select({ web: { outlineStyle: 'none' as const }, default: {} })`.
 
-- [ ] **`app/(tabs)/health.tsx` (1 error)**
+- [x] ✅ **`app/(tabs)/health.tsx` (1 error)**
   - L187: `WebFoodEntry.fibre: number \| undefined` vs. an inline `number \| null`. Align — either `null` everywhere or `undefined` everywhere. Match the existing record shape (`undefined` is the web convention here).
 
-- [ ] **`evals/cases/ragRetrieve.ts` (1 error)**
+- [x] ✅ **`evals/cases/ragRetrieve.ts` (1 error)**
   - L19: output type lacks the index signature the eval suite's `Grader` shape expects. Add `[k: string]: unknown` or relax the suite generic.
 
 **Acceptance:** `npx tsc --noEmit 2>&1 | wc -l` returns 0.
@@ -28,7 +46,7 @@ All concentrated in 3 files. Strict-mode project — these signal the type check
 
 `src/utils/pushRegister.ts` has 0 imports. Admin push broadcasts currently reach **zero devices**.
 
-- [ ] Call `registerPushToken()` from `src/hooks/useNotifications.ts` after permission is granted.
+- [x] ✅ Call `registerPushToken()` from `src/hooks/useNotifications.ts` after permission is granted.
 - [ ] Verify a device row appears in the worker's `expo_push_tokens` table after one app open.
 - [ ] If push broadcast is not a roadmap item, delete `pushRegister.ts` and the worker route instead.
 
@@ -36,11 +54,11 @@ All concentrated in 3 files. Strict-mode project — these signal the type check
 
 `src/db/index.ts` only declares one `CREATE INDEX` (on `chat_messages`). Add for:
 
-- [ ] `routine_blocks (date)` — every Today load filters by date
-- [ ] `routine_blocks (date, status)` — replan + inference scan
-- [ ] `behaviour_events (created_at)` — weekly insight + inference job
-- [ ] `behaviour_events (event_type, created_at)` — funnel + inference
-- [ ] `goals (user_id, parent_id)` — hierarchy traversal
+- [x] ✅ `routine_blocks (date)` — every Today load filters by date
+- [x] ✅ `routine_blocks (date, status)` — replan + inference scan
+- [x] ✅ `behaviour_events (created_at)` — weekly insight + inference job
+- [x] ✅ `behaviour_events (event_type, created_at)` — funnel + inference
+- [x] ✅ `goals (user_id, parent_id)` — hierarchy traversal
 
 Use `CREATE INDEX IF NOT EXISTS` so reruns are safe. Match the pattern of the existing chat_messages_user_idx.
 
@@ -48,9 +66,9 @@ Use `CREATE INDEX IF NOT EXISTS` so reruns are safe. Match the pattern of the ex
 
 `CLAUDE.md` claims "Error boundaries on every screen." None found in `app/` or `src/`.
 
-- [ ] Create `src/components/shared/ErrorBoundary.tsx` (class component, since React Native still requires it).
-- [ ] Wrap `app/_layout.tsx`'s `<Stack>` in `<ErrorBoundary>`.
-- [ ] Log the caught error via `track('ui_crash', { error, stack })` so we see it in admin telemetry.
+- [x] ✅ Create `src/components/shared/ErrorBoundary.tsx` (class component, since React Native still requires it).
+- [x] ✅ Wrap `app/_layout.tsx`'s `<Stack>` in `<ErrorBoundary>`.
+- [x] ✅ Log the caught error via `track(EVENTS.uiCrash, { error, stack })` so we see it in admin telemetry.
 
 ---
 
@@ -60,9 +78,9 @@ Use `CREATE INDEX IF NOT EXISTS` so reruns are safe. Match the pattern of the ex
 
 Schema-only with no queries, no UI, no roadmap commitment:
 
-- [ ] `contacts`, `contact_interactions` (Social module — WIP for months)
-- [ ] `habits` (no habit-tracking surface anywhere)
-- [ ] `learning_resources`, `career_profiles` (Career tab uses `localStorage` via `careerStorage.ts`, never these SQLite tables)
+- [x] ✅ `contacts`, `contact_interactions` (Social module — WIP for months)
+- [x] ✅ `habits` (no habit-tracking surface anywhere)
+- [x] ✅ `learning_resources`, `skill_gaps`, `career_profiles` (Career tab uses `localStorage` via `careerStorage.ts`, never these SQLite tables)
 
 Remove from `src/db/schema.ts`, the `CREATE TABLE` block in `src/db/index.ts`, and any orphan web-storage helpers. Add a migration that drops them on existing installs (or leave the tables in place if migration risk > value — but stop pretending in `schema.ts`).
 
@@ -70,22 +88,22 @@ Remove from `src/db/schema.ts`, the `CREATE TABLE` block in `src/db/index.ts`, a
 
 Both files are >350 lines and have to be edited every time a new entity is added.
 
-- [ ] Split `src/db/webStorage.ts` (695 lines) into `src/db/webStorage/{users,routine,health,goals,...}.ts` with an `index.ts` re-export.
+- [x] ✅ Split `src/db/webStorage.ts` (695 lines) into `src/db/webStorage/{users,routine,health,goals,...}.ts` with an `index.ts` re-export.
 - [ ] Split the inline SQL `CREATE TABLE` block in `src/db/index.ts` into `src/db/migrations/init.ts` (or actual Drizzle migrations — see P1-7) so each entity owns its table definition.
 
 ### P1-7. Generate + commit actual Drizzle migrations
 
 `drizzle.config.ts` points to `./src/db/migrations` — the directory doesn't exist. Schema lives in two places (`schema.ts` + raw SQL in `index.ts`) and can drift silently.
 
-- [ ] Run `npx drizzle-kit generate` to produce the initial migration.
-- [ ] Commit `src/db/migrations/*.sql`.
+- [x] ✅ Run `npx drizzle-kit generate` to produce the initial migration.
+- [x] ✅ Commit `src/db/migrations/*.sql`.
 - [ ] Replace the hand-maintained `CREATE TABLE IF NOT EXISTS` block in `initDatabase()` with `runMigrations()` that applies migrations idempotently.
 
 ### P1-8. Type the telemetry event names
 
 Stringly-typed event names — a typo silently drops the event (worker allowlist swallows unknowns).
 
-- [ ] Promote event names to a const map in `src/utils/telemetry.ts`:
+- [x] ✅ Promote event names to a const map in `src/utils/telemetry.ts`:
   ```ts
   export const EVENTS = {
     onboardingV2Started: 'onboarding_v2_started',
@@ -100,7 +118,7 @@ Stringly-typed event names — a typo silently drops the event (worker allowlist
     // ...
   } as const;
   ```
-- [ ] Replace every literal in `track('...')` call sites with `track(EVENTS.x, …)`. Catches typos at compile time and gives a single grep target.
+- [x] ✅ Replace every literal in `track('...')` call sites with `track(EVENTS.x, …)`. Catches typos at compile time and gives a single grep target. Worker allowlist also synced — 11 of 18 events were silently 400'd in prod before this.
 
 ---
 
@@ -114,11 +132,11 @@ Three onboarding paths coexist (legacy `day1-*`, discovery import, v2 chat). `_l
 - [ ] Update `app/_layout.tsx` to route new users to `/welcome-intent` directly (it already exists as an entry — just stop bypassing it).
 - [ ] After v2 is the default, delete `app/(onboarding)/day1-vision.tsx`, `day1-career.tsx`, `day1-routine.tsx`, `src/db/queries/discoverySeed.ts`, and remove the `first_blueprint` badge duplication across three commit sites.
 
-### P2-10. Memoize `buildProfileContext` per chat session
+### P2-10. ✅ Memoize `buildProfileContext` per chat session
 
 `app/chat.tsx`'s `send()` re-runs `getUserProfile` + `getRoutineBlocksByDate` + `buildProfileContext` on every message. Cheap now (one SQLite read each), but wasteful.
 
-- [ ] Cache the context block in a `useRef` keyed by `profile.lastUpdated` + today's date. Rebuild only when either changes.
+- [x] ✅ Cache the context block in a `useRef` keyed by `profile.lastUpdated` + today's date. Rebuild only when either changes.
 
 ### P2-11. Surface `costLedger` or remove it
 
@@ -128,9 +146,9 @@ Three onboarding paths coexist (legacy `day1-*`, discovery import, v2 chat). `_l
 
 ### P2-12. Reconcile docs with backend posture
 
-- [ ] `MASTER_BRIEF.md` differentiator #3 still says "Everything lives on-device in SQLite — no backend, no data sharing." Worker + Supabase auth + opt-in telemetry contradict this verbatim. Rewrite to match the FAQ section already updated.
-- [ ] `CLAUDE.md` lists `expo-health` as a dependency for HealthKit. Actually you use Google Fit + manual logs. Remove the line.
-- [ ] `AI_FUNCTIONS.md` now mentions `LLM_PROVIDER` env var on the Worker for switching providers. Either add a test that exercises every provider path, or note in the doc that only Anthropic is wired in production.
+- [x] ✅ `MASTER_BRIEF.md` differentiator #3 — rewritten 2026-05-14 to acknowledge worker + Supabase + opt-in telemetry while affirming on-device for sensitive data.
+- [ ] `CLAUDE.md` lists `expo-health` as a dependency for HealthKit. Actually you use Google Fit + manual logs. Remove the line. — _Blocked: auto-mode classifier prevents editing files outside the project root. Manual edit needed._
+- [x] ✅ `AI_FUNCTIONS.md` LLM_PROVIDER note — clarified to reflect actual per-task `pickModel()` switch + that only Anthropic path is exercised in prod (Gemini code paths exist but unverified against live traffic).
 
 ---
 

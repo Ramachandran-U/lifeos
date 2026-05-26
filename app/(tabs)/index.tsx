@@ -27,6 +27,10 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { WeeklyBalanceCard } from '@/components/shared/WeeklyBalanceCard';
+import { AdaptationCard } from '@/components/shared/AdaptationCard';
+import { LifeScoreHero } from '@/components/shared/LifeScoreHero';
+import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
 import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
@@ -44,7 +48,7 @@ import { cloneRoutineToDate } from '@/utils/starterRoutine';
 import { subDays } from 'date-fns';
 import { useFlagStore } from '@/store/useFlagStore';
 import { getUserProfile } from '@/db/queries/userProfile';
-import { rebalanceRestOfToday, isRecoveryLow } from '@/ai/replanApply';
+import { rebalanceRestOfToday, isRecoveryLow, generateAndSaveWeek } from '@/ai/replanApply';
 import { refreshInferredPreferences } from '@/ai/profileLearning';
 import { getLatestSleepHours } from '@/db/queries/health';
 import { upsertUserProfile } from '@/db/queries/userProfile';
@@ -160,6 +164,8 @@ export default function TodayScreen() {
     }
     setWeeklyInsight(generateWeeklyInsight());
     setHasReflectedToday(getReflectionByDate(today) !== undefined);
+    // P3-04: re-run behaviour pattern detectors after any block list refresh.
+    useBehaviourSuggestionsStore.getState().refresh();
   }, [today, userId, loadGame]);
 
   const topStreaks = useMemo(() => {
@@ -231,6 +237,29 @@ export default function TodayScreen() {
 
   const skippedCount = useMemo(() => blocks.filter((b) => b.status === 'skipped').length, [blocks]);
   const showReplanCta = onboardingV2 && skippedCount > 0 && !replanning;
+
+  const [planningWeek, setPlanningWeek] = useState(false);
+
+  const handlePlanWeek = useCallback(async () => {
+    if (!userId || planningWeek) return;
+    setPlanningWeek(true);
+    try {
+      const profile = await getUserProfile(userId);
+      if (!profile) return;
+      await generateAndSaveWeek({
+        userId,
+        startDate: today,
+        profile,
+        primaryDomains,
+      });
+      loadData();
+    } catch (err) {
+      // Surface via the existing rationale slot — the screen already shows this.
+      setReplanRationale(err instanceof Error ? err.message : 'Week plan failed.');
+    } finally {
+      setPlanningWeek(false);
+    }
+  }, [userId, planningWeek, today, primaryDomains, loadData]);
 
   const handleReplan = useCallback(async () => {
     if (!userId || replanning) return;
@@ -478,6 +507,59 @@ export default function TodayScreen() {
               onCtaPress={blocks.length === 0 ? startOnboarding : undefined}
             />
           </Animated.View>
+
+          {blocks.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(140).duration(400)}>
+              <LifeScoreHero />
+            </Animated.View>
+          )}
+
+          {blocks.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+              <AdaptationCard onApplied={loadData} />
+            </Animated.View>
+          )}
+
+          {blocks.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(220).duration(400)}>
+              <WeeklyBalanceCard
+                primaryDomains={primaryDomains}
+                onRebalanceTomorrow={() => void handlePlanWeek()}
+              />
+              <Pressable
+                onPress={handlePlanWeek}
+                disabled={planningWeek}
+                style={({ pressed }) => [
+                  styles.weekPlanBtn,
+                  {
+                    backgroundColor: pressed ? c.card : c.surface,
+                    borderColor: c.border,
+                    opacity: planningWeek ? 0.6 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name="calendar" size={16} color={c.primary} />
+                <Body style={{ color: c.textPrimary, flex: 1 }}>
+                  {planningWeek ? 'Planning your week…' : 'Plan my next 7 days'}
+                </Body>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/monthly-insight')}
+                style={({ pressed }) => [
+                  styles.weekPlanBtn,
+                  {
+                    backgroundColor: pressed ? c.card : c.surface,
+                    borderColor: c.border,
+                  },
+                ]}
+              >
+                <Ionicons name="bar-chart" size={16} color={c.primary} />
+                <Body style={{ color: c.textPrimary, flex: 1 }}>View your 28-day report</Body>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+            </Animated.View>
+          )}
 
           {weeklyInsight && (
             <Animated.View entering={FadeInDown.delay(300).duration(400)}>
@@ -852,6 +934,15 @@ function makeStyles(c: ReturnType<typeof useColors>, density = 1) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
+    },
+    weekPlanBtn: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: 14,
+      borderWidth: 1,
     },
   });
 }

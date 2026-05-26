@@ -19,19 +19,35 @@ const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   other: 'sparkles',
 };
 
+const DEPTH_LABEL: Record<string, string> = {
+  taste: 'Taste',
+  hobbyist: 'Hobbyist',
+  deep_dive: 'Deep dive',
+};
+
 interface Props {
   interest: Interest;
   weeklyActual: number;
   onLog: () => void;
   onDelete: () => void;
+  onEditDepth: () => void;
+  onToggleProtect: () => void;
 }
 
-export function InterestCard({ interest, weeklyActual, onLog, onDelete }: Props) {
+export function InterestCard({
+  interest,
+  weeklyActual,
+  onLog,
+  onDelete,
+  onEditDepth,
+  onToggleProtect,
+}: Props) {
   const c = useColors();
   const styles = makeStyles(c);
   const ratio = progressRatio(weeklyActual, interest.weeklyMinutesTarget);
   const pct = Math.min(1, ratio);
   const iconName = CATEGORY_ICON[interest.category] ?? 'sparkles';
+  const protectedOn = !!interest.timeProtected;
 
   return (
     <Card moduleColor={c.polymath} style={styles.card}>
@@ -45,9 +61,39 @@ export function InterestCard({ interest, weeklyActual, onLog, onDelete }: Props)
         </Pressable>
       </View>
 
-      <Caption style={styles.meta}>
-        {interest.category.toUpperCase()} · {interest.explorationDepth}
-      </Caption>
+      <View style={styles.pillsRow}>
+        <Caption style={styles.categoryMeta}>{interest.category.toUpperCase()}</Caption>
+
+        <Pressable
+          onPress={onEditDepth}
+          style={[styles.pill, { backgroundColor: c.surface, borderColor: c.border }]}
+        >
+          <Caption style={{ color: c.textSecondary }}>
+            {DEPTH_LABEL[interest.explorationDepth] ?? interest.explorationDepth}
+          </Caption>
+          <Ionicons name="chevron-down" size={12} color={c.textMuted} />
+        </Pressable>
+
+        <Pressable
+          onPress={onToggleProtect}
+          style={[
+            styles.pill,
+            {
+              backgroundColor: protectedOn ? c.polymathLight : c.surface,
+              borderColor: protectedOn ? c.polymath : c.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={protectedOn ? 'lock-closed' : 'lock-open'}
+            size={12}
+            color={protectedOn ? c.polymath : c.textMuted}
+          />
+          <Caption style={{ color: protectedOn ? c.polymath : c.textSecondary }}>
+            {protectedOn ? 'Protected' : 'Protect time'}
+          </Caption>
+        </Pressable>
+      </View>
 
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${pct * 100}%` }]} />
@@ -80,9 +126,25 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   title: {
     fontSize: 17,
   },
-  meta: {
+  pillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  categoryMeta: {
     color: colors.textMuted,
     letterSpacing: 1,
+    marginRight: spacing.xs,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
   },
   progressTrack: {
     height: 8,

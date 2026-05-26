@@ -9,10 +9,10 @@ import { Body, Heading } from '@/components/ui/Typography';
 import { useStaggerDelay } from '@/theme/motion';
 
 type Hub = {
-  route: '/(tabs)/goals' | '/(tabs)/health' | '/(tabs)/finance' | '/(tabs)/career';
+  route: '/(tabs)/goals' | '/(tabs)/health' | '/(tabs)/finance' | '/(tabs)/career' | '/(tabs)/social';
   label: string;
   icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap;
-  colorKey: 'goal' | 'health' | 'finance' | 'career';
+  colorKey: 'goal' | 'health' | 'finance' | 'career' | 'social';
   caption: string;
 };
 
@@ -21,6 +21,7 @@ const HUBS: Hub[] = [
   { route: '/(tabs)/health',  label: 'Health',  icon: 'heart',     colorKey: 'health',  caption: 'Activity, sleep, vitals' },
   { route: '/(tabs)/finance', label: 'Finance', icon: 'wallet',    colorKey: 'finance', caption: 'Budgets, goals, spending' },
   { route: '/(tabs)/career',  label: 'Career',  icon: 'briefcase', colorKey: 'career',  caption: 'Skills, growth, upskilling' },
+  { route: '/(tabs)/social',  label: 'Social',  icon: 'people',    colorKey: 'social',  caption: 'Stay close to your people' },
 ];
 
 interface LifeHubSheetProps {

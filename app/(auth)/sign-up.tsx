@@ -8,6 +8,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
+import { AuroraAnimatedBackground } from '@/components/shared/AuroraAnimatedBackground';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { ensureLocalUserFromAuth, setWebSession } from '@/db/queries/users';
@@ -102,7 +103,9 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <AuroraAnimatedBackground />
+      <SafeAreaView style={styles.flex}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -123,7 +126,7 @@ export default function SignUpScreen() {
             </Body>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.form}>
+          <Animated.View entering={FadeInDown.delay(500).duration(600)} style={[styles.form, styles.glassCard]}>
             <Input
               label="Your name"
               placeholder="Alex"
@@ -196,7 +199,8 @@ export default function SignUpScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -204,6 +208,19 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  glassCard: {
+    backgroundColor: colors.background + 'B3',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    ...(Platform.OS === 'web'
+      ? ({
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+        } as unknown as object)
+      : {}),
   },
   flex: {
     flex: 1,

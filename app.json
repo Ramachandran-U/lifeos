@@ -32,6 +32,12 @@
           "calendarPermission": "LifeOS syncs your routine to your calendar."
         }
       ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "LifeOS reads your contacts only so you can pick people to add to your Social Hub. Names and details stay on this device and are never sent to any server."
+        }
+      ],
       "expo-web-browser"
     ],
     "ios": {

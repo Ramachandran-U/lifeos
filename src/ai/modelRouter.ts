@@ -31,6 +31,11 @@ export type AITask =
   | 'suggestTomorrowTweak'
   | 'replanRemainingDay'
   | 'generateTomorrowRoutine'
+  | 'generateWeekRoutine'
+  | 'generateConversationStarters'
+  | 'suggestInterestAreas'
+  | 'suggestCrossDisciplineLink'
+  | 'generateMonthlyInsightReport'
   | 'agent.propose'
   | 'agent.critique'
   | 'agent.brief';
@@ -40,6 +45,10 @@ const TASK_TIER: Record<AITask, Tier> = {
   describeGoal: 'cheap',
   generateMotivation: 'cheap',
   discoveryChatTurn: 'cheap',
+  generateConversationStarters: 'cheap',
+  suggestInterestAreas: 'planning',
+  suggestCrossDisciplineLink: 'planning',
+  generateMonthlyInsightReport: 'planning',
   'agent.brief': 'cheap',
 
   decomposeGoal: 'planning',
@@ -54,6 +63,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   suggestTomorrowTweak: 'planning',
   replanRemainingDay: 'planning',
   generateTomorrowRoutine: 'planning',
+  generateWeekRoutine: 'planning',
   'agent.propose': 'planning',
   'agent.critique': 'planning',
 

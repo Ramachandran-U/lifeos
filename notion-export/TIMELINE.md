@@ -175,6 +175,47 @@
 
 **Remaining open:** §P0-2 push verify (needs EAS), §P1-7 part 2 migrator swap (needs Metro plugin), §P2-9 onboarding v2 graduation (product call), §P2-11 cost ledger (product call).
 
+## Phase 8 · Aurora Refined v2 + post-merge stabilisation (2026-05-14 evening)
+
+**Goals:** redesign pass to quiet ambient glow and unify motion vocabulary; fix the bugs the redesign + earlier session work surfaced.
+
+**Aurora v2 design pass (10 commits, ending `4427722`):**
+
+| # | Title | Commit |
+|---|---|---|
+| 1 | Theme — drop primary halo on z3 elevation, extend radii scale | `7144a02` |
+| 2 | Motion — EASING tokens + MOTION_BUDGET constants | `0db66f8` |
+| 3 | UI — quiet GlassCard accent, drop XpBar / AvatarRing glow | `0f87111` |
+| 4 | HexRadar — thinner stroke, flat dots, three grid rings | `1ef0d2e` |
+| 5 | Gamification — drop glow from streak rows, flames, badges | `7792085` |
+| 6 | RoutineBlock — drop active-state glow shadows | `85f6faf` |
+| 7 | RoutineBlock — long-press-to-complete with press-progress arc | `637bd6d` |
+| 8 | Today — mount stagger + scroll-driven sticky header | `c75d550` |
+| 9 | Briefing — typed reveal for AI insight body | `27dc1cc` |
+| 10 | Sheets — unify enter/exit motion vocabulary | `4427722` |
+
+**Post-merge stabilisation:**
+
+| Title | Commit |
+|---|---|
+| Supabase auth listener — only react to SIGNED_OUT (legacy users were being wiped on boot) | `3f9cd4b` |
+| `npm run smoke` + `smoke:local` + `verify` scripts + cross-env dep + docs/TESTING.md gate | `91eb8eb` |
+| `.gitignore` covers smoke-output/ and playwright-report/ | `587e716` |
+| Hex radar tap-through + reflection-driven habit acceptance | `e00809c` |
+| React #185 infinite loop — yesterdaySnapshot zustand selector now stable via useMemo | `0203eee` |
+| OAuth callback whitelist — Gmail/Calendar/Fit allowed past auth guard | `70aaa07` |
+| analyseSkillGap sanitizer + UI error surfacing | `b8ed72a` |
+| Smoke seed gets 2-day domain history; selector-loop bug class now catchable | `912a5f5` |
+| scheduleSync.ts helpers extracted + 6 invariant tests | `a529ba1` |
+| Eval reports timestamp refresh | `ed95cbb` |
+
+**Outcomes:**
+- PRs #16 (Aurora v2 + fixes), #18 (smoke seed + scheduleSync tests), #22 (eval refresh) **all merged** to `lifeosv1`.
+- 6 new tech-debt entries resolved (zustand selectors, OAuth whitelist, supabase listener, analyseSkillGap, Aurora glow audit, schedule SSOT tested).
+- Smoke now catches the class of bug that escaped earlier (selector returning new object reference → infinite loop).
+- Unit test count 335 → 356 (+5 planner, +5 sanitizer, +6 scheduleSync, +5 misc).
+- `npm run verify` is the documented pre-commit gate.
+
 ## Velocity Heatmap
 
 | Week starting | Approx commits | Theme |

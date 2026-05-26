@@ -108,6 +108,16 @@ export default function RootLayout() {
     // Editing the routine reuses the onboarding routine planner screen; an
     // onboarded user landing on it must NOT get bounced back to (tabs).
     const inEditRoutine = inOnboarding && (segments as string[])[1] === 'day1-routine';
+    // Progressive onboarding (Day 3 / 7 / 14) — these screens are triggered by
+    // scheduled notifications AFTER the main onboarding completes. They must
+    // remain reachable even when onboardingStage === ONBOARDING_COMPLETE.
+    const inProgressiveOnboarding =
+      inOnboarding &&
+      ['day3-health', 'day7-finance', 'day7-social', 'day14-polymath'].includes(
+        (segments as string[])[1] ?? '',
+      );
+    const inMonthlyInsight = segments[0] === 'monthly-insight';
+    const inContactDetail = segments[0] === 'contact';
     const inDataResidency = segments[0] === 'data-residency';
     const inWhatLifeosKnows = segments[0] === 'what-lifeos-knows';
     const inSettings = segments[0] === 'settings';
@@ -130,6 +140,9 @@ export default function RootLayout() {
         inTabs ||
         inReflect ||
         inEditRoutine ||
+        inProgressiveOnboarding ||
+        inMonthlyInsight ||
+        inContactDetail ||
         inDataResidency ||
         inWhatLifeosKnows ||
         inSettings ||

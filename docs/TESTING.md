@@ -5,7 +5,7 @@ Minimal Jest + ts-jest setup for pure-logic tests. Component/integration tests n
 ## Run
 
 ```bash
-npm test             # unit tests (pure logic) — ~12s, 335 tests
+npm test             # unit tests (pure logic) — ~12s, 356 tests
 npm run test:watch   # watch mode
 npm run evals        # AI eval harness (mock mode, free, ~2s)
 npm run evals:live   # same but hits real LLMs (sets EVAL_REAL=true)
@@ -24,7 +24,7 @@ npm run verify
 
 This runs `tsc --noEmit && jest && npm run smoke` in order. Each gate must be green:
 - `tsc` — 0 errors (strict mode)
-- `jest` — full suite (currently 335 tests; planner agent, gamification, finance parsers, etc.)
+- `jest` — full suite (currently 356 tests; planner agent, analyseSkillGap sanitizer, scheduleSync invariants, gamification, finance parsers, etc.)
 - `smoke` — Playwright against `https://lifeos-6r5-eqa.pages.dev` (currently 14 tests; ~45s)
 
 The smoke runs against the deployed canonical URL, not the local build — so it catches CORS misconfigs, missing env vars, and bundle-vs-runtime drift that `npm run web` would mask.

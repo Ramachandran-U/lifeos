@@ -41,6 +41,9 @@ export const BADGE_META: Record<BadgeId, { label: string; emoji: string; desc: s
   goal_complete:      { label: 'Goal Crusher',      emoji: '🏆', desc: 'Completed your first major goal milestone' },
   week_1:             { label: 'Week One',          emoji: '📅', desc: 'Opened LifeOS for 7 consecutive days' },
   food_photo:         { label: 'Food Photographer', emoji: '📸', desc: 'Logged a meal using the camera feature' },
+  first_connection:   { label: 'First Connection',  emoji: '🤝', desc: 'Added your first contact to Social Hub' },
+  inner_orbit:        { label: 'Inner Orbit',       emoji: '🪐', desc: 'All inner-circle contacts inside cadence' },
+  polymath_starter:   { label: 'Polymath Starter',  emoji: '🔭', desc: 'Logged time on a deep-dive interest' },
 };
 
 export type StreakKey = 'workout' | 'learning' | 'foodTracking' | 'journaling' | 'social';

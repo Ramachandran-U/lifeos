@@ -192,6 +192,109 @@ export interface MotivationInput {
   context: string; // free-text summary of relevant user state
 }
 
+// --- Social Types ---
+// IMPORTANT: contact names NEVER appear in AI requests. Only relationship type
+// + days since contact + optional context note are sent.
+
+export const RelationshipTypeEnum = z.enum([
+  'inner_circle',
+  'close_friend',
+  'family',
+  'mentor',
+  'colleague',
+  'acquaintance',
+]);
+
+export const ConversationStartersSchema = z.object({
+  openers: z.array(z.string()).min(2).max(4),
+});
+
+export type ConversationStarters = z.infer<typeof ConversationStartersSchema>;
+
+export interface ConversationStartersInput {
+  relationshipType: z.infer<typeof RelationshipTypeEnum>;
+  daysSinceContact: number;
+  contextNote?: string; // optional user-supplied context — must not include the contact's name
+}
+
+// --- Polymath / Curiosity Types ---
+
+export const InterestCategoryEnum = z.enum([
+  'arts',
+  'science',
+  'tech',
+  'sports',
+  'music',
+  'writing',
+  'language',
+  'philosophy',
+  'other',
+]);
+export type InterestCategory = z.infer<typeof InterestCategoryEnum>;
+
+export const ExplorationDepthEnum = z.enum(['taste', 'hobbyist', 'deep_dive']);
+export type ExplorationDepth = z.infer<typeof ExplorationDepthEnum>;
+
+export const SuggestedAreaSchema = z.object({
+  name: z.string().min(1),
+  category: InterestCategoryEnum,
+  blurb: z.string().min(1),
+  whyThisFits: z.string().min(1),
+});
+export type SuggestedArea = z.infer<typeof SuggestedAreaSchema>;
+
+export const InterestSuggestionsSchema = z.object({
+  areas: z.array(SuggestedAreaSchema).min(4).max(10),
+});
+export type InterestSuggestions = z.infer<typeof InterestSuggestionsSchema>;
+
+export interface InterestSuggestionsInput {
+  existingInterests: Array<{ name: string; category: string }>;
+}
+
+export const CrossDisciplineLinkSchema = z.object({
+  headline: z.string().min(1).max(80),
+  description: z.string().min(1).max(400),
+  starterAction: z.string().min(1).max(160),
+});
+export type CrossDisciplineLink = z.infer<typeof CrossDisciplineLinkSchema>;
+
+export interface CrossDisciplineLinkInput {
+  interestA: { name: string; category: string };
+  interestB: { name: string; category: string };
+}
+
+// --- Behaviour Intelligence v2 Types ---
+
+export const MonthlyInsightReportSchema = z.object({
+  wins: z.array(z.string()).min(1).max(5),
+  patterns: z.array(z.string()).min(1).max(5),
+  slipping: z.array(z.string()).max(5),
+  oneAdjustment: z.string().min(1),
+});
+export type MonthlyInsightReport = z.infer<typeof MonthlyInsightReportSchema>;
+
+export interface MonthlyInsightReportInput {
+  windowDays: number;
+  totals: {
+    blocksCompleted: number;
+    blocksSkipped: number;
+    blocksPlanned: number;
+    completionRate: number; // 0..1
+  };
+  domainMinutes: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
+  inferredPreferences: {
+    productiveHours: number[];
+    preferredBlockMinutes: number | null;
+    droppedHabits: string[];
+    preferredRestDays: number[];
+  };
+  /** Top behaviour-event types over the window — derived from behaviour_events. */
+  topEvents: Array<{ type: string; count: number }>;
+}
+
 // --- Routine Types ---
 
 export const RoutineBlockSchema = z.object({
@@ -240,6 +343,17 @@ export interface RoutineInput {
     droppedHabits?: string[];
     preferredRestDays?: number[];
   };
+  /** Polymath interests the user has flagged "protect time" — the planner must
+   *  reserve at least the given weekly minutes for each, spread across the week. */
+  protectedInterests?: Array<{ name: string; weeklyMinutes: number }>;
+  /** Minutes spent per domain over the last 7 days. Used by the planner to
+   *  soften the dominant domain and bump silent primary domains. */
+  lastWeekDomainMinutes?: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
+  /** Day of the week for the routine being generated. 0 = Sunday … 6 = Saturday.
+   *  Used so weekend plans differ from weekday plans. */
+  dayOfWeek?: number;
 }
 
 // --- Finance Types ---
@@ -701,4 +815,34 @@ export interface GenerateTomorrowRoutineInput {
   };
   /** Optional recovery signal — true => soften the plan. */
   softenForRecovery?: boolean;
+  /** Minutes spent per domain over the last 7 days — used for adaptive rebalancing. */
+  lastWeekDomainMinutes?: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
+}
+
+// --- Week Routine (multi-day batch generation) ---
+
+export const WeekRoutineDaySchema = z.object({
+  date: z.string(),              // YYYY-MM-DD
+  dayOfWeek: z.number().min(0).max(6),
+  blocks: z.array(RoutineBlockSchema),
+  briefing: z.string(),
+});
+
+export const GeneratedWeekRoutineSchema = z.object({
+  days: z.array(WeekRoutineDaySchema).length(7),
+  weeklyOutline: z.string(), // 1-3 sentences explaining the week's shape
+});
+
+export type GeneratedWeekRoutine = z.infer<typeof GeneratedWeekRoutineSchema>;
+
+export interface GenerateWeekRoutineInput {
+  startDate: string;          // YYYY-MM-DD — first day in the week
+  profile: UserProfile;
+  primaryDomains: string[];
+  protectedInterests?: Array<{ name: string; weeklyMinutes: number }>;
+  lastWeekDomainMinutes?: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
 }

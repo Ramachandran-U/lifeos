@@ -7,13 +7,16 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Body } from '@/components/ui/Typography';
+import { AuroraAnimatedBackground } from '@/components/shared/AuroraAnimatedBackground';
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const c = useColors();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
+      <AuroraAnimatedBackground />
+      <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Animated.Text entering={FadeIn.duration(800)} style={[styles.logo, { color: c.primary }]}>
           LifeOS
@@ -33,7 +36,8 @@ export default function WelcomeScreen() {
           onPress={() => router.push('/(onboarding)/day1-vision')}
         />
       </Animated.View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

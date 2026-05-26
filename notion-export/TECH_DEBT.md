@@ -22,8 +22,13 @@ Severity scale: 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low.
 | 14 | OAuth tokens in localStorage | 🟠 High | `lifeos_gmail_tokens`, `lifeos_gcal_tokens`, `lifeos_gfit_tokens` stored in plain localStorage. | Expo SecureStore on native; encrypted-at-rest plan for web | XSS theft of bank-read OAuth tokens |
 | 15 | Schema-only height_cm column native, not surfaced | 🟢 Low | Native UI to set height pending; web flow updates it via `EditVitalsSheet`. | Mirror EditVitalsSheet on native; or move height to userProfile | Inconsistent UX between web and native |
 | 16 | Browser localStorage churn | 🟡 Medium | All web data lives in localStorage. Clearing cookies/incognito wipes everything. | Migrate to IndexedDB for high-value sets (already done for transactions). Add export/restore. | "Asked to set vitals every login" reports |
-| 17 | _resolved_ — Schedule single source of truth | — | Shipped 2026-05-14 (`c63b83a`). `what-lifeos-knows` mirrors schedule edits to user row; `day1-routine` mirrors them to userProfile. | — | — |
+| 17 | _resolved_ — Schedule single source of truth | — | Shipped 2026-05-14 (`c63b83a`); extracted to `src/utils/scheduleSync.ts` with 6 invariant tests in `a529ba1`. | — | — |
 | 18 | _resolved_ — Planner agent tests | — | Shipped 2026-05-14 (`c63b83a`). 5 Jest tests cover wake-bound filter, sleep-bound filter, module coercion, critique override, empty-plan fallback. | — | — |
+| 21 | _resolved_ — Zustand selector returning new object → React #185 loop | — | Shipped 2026-05-14 (`0203eee`). `useDomainHistoryStore.yesterdaySnapshot()` returned a fresh object per call; replaced with `select(entries)` + useMemo in the consumer. Smoke seed (`912a5f5`) exercises the bug class. | — | — |
+| 22 | _resolved_ — OAuth callback routes bouncing to Today | — | Shipped 2026-05-14 (`70aaa07`). Layout auth guard now treats any `*-callback` segment as in-callback, not just `google-auth-callback`. Fixes Gmail / Calendar / Fit Connect flows. | — | — |
+| 23 | _resolved_ — Supabase auth listener wiping local users on every boot | — | Shipped 2026-05-14 (`3f9cd4b`). `onAuthStateChange` was firing INITIAL_SESSION with null and calling `useUserStore.getState().reset()`, silently signing out any user without a Supabase session. Now only `SIGNED_OUT` triggers the reset. | — | — |
+| 24 | _resolved_ — `analyseSkillGap` silent failure on Gemini schema drift | — | Shipped 2026-05-14 (`b8ed72a`). Added a sanitizer that coerces known Gemini hallucinations (`novice` → `beginner`, `video` → `course`, `"high"` → `1`, etc.) before Zod parse; Career screen now renders the error from `useAI`. | — | — |
+| 25 | _resolved_ — Aurora glow audit | — | Shipped 2026-05-14 (10 commits ending `4427722`). Resting glow removed across z3, GlassCard, XpBar, AvatarRing, HexRadar, streak/flame/badge, RoutineBlock active-state. Only intentional glow remaining: `LevelUpOverlay` (celebration moment, per brief). | — | — |
 | 19 | `Obsidian Context/` mirror committed by mistake | 🟢 Low | A docs mirror got swept into a recent commit. | `git rm -r "Obsidian Context/"` in a follow-up | Duplicate docs drift |
 | 20 | XPBar / XpBar case-collision history | 🟢 Low | Already cleaned, but git history still shows a deleted-and-re-added file. | Avoid case-only renames going forward; document in CLAUDE.md | None going forward |
 
@@ -51,6 +56,14 @@ Severity scale: 🔴 Critical · 🟠 High · 🟡 Medium · 🟢 Low.
 | – | MASTER_BRIEF + AI_FUNCTIONS doc reconcile | `24edc46` | 2026-05-14 |
 | – | Smoke nav test scroll/click fix | `24edc46` | 2026-05-14 |
 | – | webStorage.ts (695 lines) split per entity | `f004e13` | 2026-05-14 |
+| – | Supabase listener no longer wipes legacy users on boot | `3f9cd4b` | 2026-05-14 |
+| – | npm run smoke / smoke:local / verify scripts | `91eb8eb` | 2026-05-14 |
+| – | Aurora Refined v2 design pass (10 commits, theme→sheets) | `7144a02..4427722` | 2026-05-14 |
+| – | React #185 yesterdaySnapshot infinite loop | `0203eee` | 2026-05-14 |
+| – | OAuth callback whitelist (Gmail/Calendar/Fit) | `70aaa07` | 2026-05-14 |
+| – | analyseSkillGap sanitizer + UI error surfacing | `b8ed72a` | 2026-05-14 |
+| – | Smoke seed 2-day domain history (catches selector-loop bug class) | `912a5f5` | 2026-05-14 |
+| – | scheduleSync helpers extracted + 6 invariant tests | `a529ba1` | 2026-05-14 |
 
 ## Debt-to-Capacity Snapshot
 

@@ -23,7 +23,10 @@ export type BadgeId =
   | 'life_balance'
   | 'goal_complete'
   | 'week_1'
-  | 'food_photo';
+  | 'food_photo'
+  | 'first_connection'
+  | 'inner_orbit'
+  | 'polymath_starter';
 
 export interface Streaks {
   workout: StreakData;
@@ -74,6 +77,8 @@ export function checkBadges(
     onboardingComplete?: boolean;
     consecutiveDays?: number;
     usedFoodPhoto?: boolean;
+    /** Inner-circle contacts: count of inner-circle contacts and how many are in cadence. */
+    innerCircle?: { total: number; inCadence: number };
   },
 ): BadgeId[] {
   const newBadges: BadgeId[] = [];
@@ -114,6 +119,15 @@ export function checkBadges(
 
   if (context.usedFoodPhoto && !currentBadges.includes('food_photo')) {
     newBadges.push('food_photo');
+  }
+
+  if (
+    context.innerCircle &&
+    context.innerCircle.total > 0 &&
+    context.innerCircle.inCadence === context.innerCircle.total &&
+    !currentBadges.includes('inner_orbit')
+  ) {
+    newBadges.push('inner_orbit');
   }
 
   return newBadges;
@@ -184,6 +198,9 @@ export const BADGE_META: Record<BadgeId, { label: string; emoji: string; desc: s
   goal_complete:      { label: 'Goal Crusher',      emoji: '🏆', desc: 'Completed your first major goal milestone' },
   week_1:             { label: 'Week One',          emoji: '📅', desc: 'Opened LifeOS for 7 consecutive days' },
   food_photo:         { label: 'Food Photographer', emoji: '📸', desc: 'Logged a meal using the camera feature' },
+  first_connection:   { label: 'First Connection',  emoji: '🤝', desc: 'Added your first contact to Social Hub' },
+  inner_orbit:        { label: 'Inner Orbit',       emoji: '🪐', desc: 'All inner-circle contacts inside cadence' },
+  polymath_starter:   { label: 'Polymath Starter',  emoji: '🔭', desc: 'Logged time on a deep-dive interest' },
 };
 
 // ─── Streak metadata ─────────────────────────────────────────────────────────

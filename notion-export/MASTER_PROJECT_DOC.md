@@ -15,7 +15,7 @@
 | Repo | `Ramachandran-U/lifeos`, default branch `lifeosv1` |
 | Maturity | Pre-production beta — web ships, admin portal v1 in operation |
 | Active Contributors | 1 founder + Claude Code + Codex/GPT-5.5 |
-| Status as of 2026-05-14 (end of day) | Architect punch-list sweep complete; ErrorBoundary live; schedule single-source-of-truth; zombie tables dropped; webStorage split per-entity; typed telemetry; planner unit-tested |
+| Status as of 2026-05-14 (post-merge sweep) | Aurora Refined v2 design pass shipped (10 commits); React #185 loop fix; OAuth callback whitelist; analyseSkillGap sanitizer; schedule-sync helpers extracted; smoke seed hardened. PRs #16, #18, #22 all merged to `lifeosv1`. |
 
 ## Purpose
 
@@ -57,7 +57,7 @@ Existing productivity apps optimise single dimensions — todos, fitness logs, b
 | Apr 27–28 2026 | ~12 | Admin portal v1 + 5-tab nav + voice + Supabase auth |
 | May 12 2026 | 11 | Admin portal phases 3/4/5, AI agentic+RAG, conversational onboarding v2 |
 | May 13 2026 | 14 | Architect punch-list, design-bundle gamification merge, food DB expansion, web bundle hardening |
-| May 14 2026 | ~14 | UX bug fixes (priorities editor, wake/sleep validation, WheelTimePicker fix) + architect punch-list sweep (ErrorBoundary, schedule SSOT, planner unit tests, drop zombie tables, Drizzle baseline migration, typed `EVENTS` map + worker allowlist sync, chat profile-context memo, doc reconciliation, smoke nav scroll fix, webStorage 695-line split into 12 per-entity files) |
+| May 14 2026 | ~30 | Morning: UX bug fixes (priorities editor, wake/sleep validation, WheelTimePicker fix). Afternoon: architect punch-list sweep (ErrorBoundary, schedule SSOT, planner unit tests, drop zombie tables, Drizzle baseline, typed `EVENTS`, chat memo, doc reconciliation, smoke nav fix, webStorage 695-line split). Evening: Aurora Refined v2 (10 commits — theme/EASING/GlassCard/HexRadar/streak/RoutineBlock long-press/Today stagger/typed briefing/sheets), React #185 yesterdaySnapshot loop fix, OAuth callback whitelist, analyseSkillGap sanitizer, supabase auth listener fix (only react to SIGNED_OUT), `npm run smoke` + `verify` scripts, smoke seed 2-day domain history, scheduleSync extraction + 6 tests. Three PRs (#16/#18/#22) all merged to lifeosv1. |
 
 **Trend**: high-velocity feature-flag-gated rollouts; recent shift toward correctness/UX hardening over new features.
 
@@ -66,8 +66,8 @@ Existing productivity apps optimise single dimensions — todos, fitness logs, b
 | Dimension | Rating | Note |
 |---|---|---|
 | TypeScript strictness | A | 0 errors since 2026-05-13 |
-| Test coverage (unit) | B+ | 335 Jest tests passing; agent planner now covered (5 tests); evals 10/10 |
-| Test coverage (e2e) | C+ | Playwright smoke nav fixed; `import.meta` neutraliser working in dist |
+| Test coverage (unit) | A- | 356 Jest tests passing (+21 today: planner 5, sanitizer 5, scheduleSync 6, plus suite drift); evals 30/30 (mock) |
+| Test coverage (e2e) | B | Smoke 14/14 green against deployed canonical URL; seed now exercises the zustand-selector-loop bug class |
 | Documentation | A | Master Brief, Product Tech Doc, AI Functions, Architect Review all current |
 | CI/CD | B | Cloudflare deploy is manual; eval CI reports to admin |
 | Observability | B | Telemetry + worker tracing + admin schema-failure feed |

@@ -12,6 +12,7 @@ export interface WebInterest {
   explorationDepth: string;
   status: string;
   discoveredBy: string;
+  timeProtected?: boolean;
   createdAt: string;
   updatedAt: string;
 }

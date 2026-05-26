@@ -109,6 +109,9 @@ graph TD
 | Design system | `src/components/ui/` | Button, Card, Input, GlassCard, AuroraGlow, etc. |
 | App shell | `src/components/shared/ErrorBoundary.tsx` | Class component wrapping root `<Stack>`; emits `EVENTS.uiCrash` |
 | Telemetry | `src/utils/telemetry.ts` | `track()` + typed `EVENTS` const map; worker allowlist must mirror these keys |
+| Schedule sync | `src/utils/scheduleSync.ts` | `mirrorScheduleToUser()` + `mirrorScheduleToProfile()` — the canonical SSOT helpers. Every surface that edits wake/sleep/work times calls these. |
+| Motion tokens | `src/theme/motion.ts` | `SPRING`, `TIMING_CFG`, `EASING`, `MOTION_BUDGET`; `useMotionScale`, `useStaggerDelay`, `useSpringConfig`, `useTimingConfig` hooks |
+| Typed reveal | `src/hooks/useTypedText.ts` | One-char-at-a-time text reveal; respects `useMotionScale()` (reduce-motion → instant) |
 | Gamification UI | `src/components/gamification/` | HexRadar, LevelRing, AvatarRing, XpBar, StreakFlame, etc. |
 | Worker | `workers/ai-proxy/src/` | Hono routes, auth, rate limit, Claude + Gemini routes |
 | Worker | `workers/ai-proxy/src/routes/admin/*` | flags, prompts, telemetry, push, feedback, evals |

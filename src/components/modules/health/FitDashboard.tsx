@@ -11,6 +11,7 @@ import type { DailyFitPoint, WorkoutSession } from '@/integrations/googleFit/cli
 import { computeFitInsights, weekOverWeekPct } from '@/utils/fitInsights';
 
 const STEP_GOAL = 8000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 interface FitDashboardProps {
   days: DailyFitPoint[];
@@ -48,15 +49,30 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
     return vals.length === 0 ? 0 : vals.reduce((s, n) => s + n, 0) / vals.length;
   };
 
+  // Detect "stale data" state: today is 0 AND last 7 days are all 0, but the
+  // wider window has activity. Common when Fit pairing drops mid-window or
+  // the user stops carrying their phone/watch. Without this hint the hero
+  // reads as "broken" rather than "no recent activity".
+  const stepsLast7Total = last7.reduce((s, d) => s + d.steps, 0);
+  const stepsAllTotal = days.reduce((s, d) => s + d.steps, 0);
+  const lastActiveDay = [...days].reverse().find((d) => d.steps > 0);
+  const daysSinceActive = lastActiveDay
+    ? Math.floor((Date.parse(today.date) - Date.parse(lastActiveDay.date)) / DAY_MS)
+    : null;
+  const noRecentActivity = today.steps === 0 && stepsLast7Total === 0 && stepsAllTotal > 0;
+
   const stepsSeries = last7.map((d) => d.steps);
   const activeSeries = last7.map((d) => d.activeMinutes);
   const heartPointSeries = last7.map((d) => d.heartPoints);
   const caloriesSeries = last7.map((d) => d.caloriesBurned);
 
-  const stepsPct = weekOverWeekPct(days, (d) => d.steps);
-  const activePct = weekOverWeekPct(days, (d) => d.activeMinutes);
-  const caloriesPct = weekOverWeekPct(days, (d) => d.caloriesBurned);
-  const hrPct = weekOverWeekPct(days, (d) => d.avgHeartRate ?? 0);
+  // When the current week is entirely empty, a "↓100%" trend is misleading
+  // (reads as "broken" rather than "no data"). Suppress all per-tile trend
+  // arrows in that case — the stale-data hint in the hero already explains it.
+  const stepsPct = noRecentActivity ? null : weekOverWeekPct(days, (d) => d.steps);
+  const activePct = noRecentActivity ? null : weekOverWeekPct(days, (d) => d.activeMinutes);
+  const caloriesPct = noRecentActivity ? null : weekOverWeekPct(days, (d) => d.caloriesBurned);
+  const hrPct = noRecentActivity ? null : weekOverWeekPct(days, (d) => d.avgHeartRate ?? 0);
 
   const goalPct = Math.min(100, Math.round((today.steps / STEP_GOAL) * 100));
   const hitDays = last7.filter((d) => d.steps >= STEP_GOAL).length;
@@ -84,7 +100,7 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
 
   return (
     <View style={styles.wrap}>
-      {/* Hero: today's step ring-ish progress */}
+      {/* Hero: today's step progress + stale-data hint when relevant. */}
       <Card style={styles.heroCard}>
         <View style={styles.heroRow}>
           <View style={{ flex: 1 }}>
@@ -96,9 +112,17 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${goalPct}%`, backgroundColor: c.health }]} />
             </View>
-            <Caption style={{ color: c.textSecondary }}>
-              {goalPct}% of goal · {hitDays}/7 days hit this week
-            </Caption>
+            {noRecentActivity ? (
+              <Caption style={{ color: c.warning, marginTop: 4 }}>
+                {daysSinceActive != null && daysSinceActive > 0
+                  ? `No activity logged for ${daysSinceActive} day${daysSinceActive === 1 ? '' : 's'} · ${stepsAllTotal.toLocaleString()} steps over 14d`
+                  : `No recent activity · ${stepsAllTotal.toLocaleString()} steps over 14d`}
+              </Caption>
+            ) : (
+              <Caption style={{ color: c.textSecondary }}>
+                {goalPct}% of goal · {hitDays}/7 days hit this week
+              </Caption>
+            )}
           </View>
         </View>
       </Card>
