@@ -1,15 +1,19 @@
 /**
- * Per-domain rolling 7-day score history.
+ * Per-domain rolling daily score history.
  *
  * The gamification table only stores *current* domain scores. To show a
  * delta ("↑5 since last week") and a sparkline on the Rewards screen, we
  * need history — but proper history tracking would require a new SQLite
  * column, a migration, and a cron-like daily snapshot job.
  *
- * This store is the small pragmatic version: a 7-entry rolling window per
+ * This store is the small pragmatic version: a rolling window per
  * domain, persisted via zustand-persist. `record(scores)` is idempotent
  * within a day (only the first call per UTC day pushes a new entry), so
  * it's safe to call on every app-focus event.
+ *
+ * The window is 90 days so the P4-01 Cross-Module Life Score can show
+ * 30- and 90-day trends. The Rewards screen continues to use the most
+ * recent 7 entries via `historyFor` / `deltaFor`.
  */
 
 import { create } from 'zustand';
@@ -18,7 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type { DomainScores } from '@/utils/gamification';
 
-const WINDOW_SIZE = 7;
+const WINDOW_SIZE = 90;
 
 export interface ScorePoint {
   /** YYYY-MM-DD (UTC) — the day this snapshot was taken. */
@@ -33,10 +37,12 @@ interface DomainHistoryState {
    * isn't already represented. Safe to call from every app-focus effect.
    */
   record: (scores: DomainScores) => void;
-  /** Convenience: 7-day score array for a domain, oldest first. */
+  /** Convenience: most recent 7-day score array for a domain, oldest first. */
   historyFor: (domain: keyof DomainScores) => number[];
-  /** Convenience: difference between latest and oldest in the window. */
-  deltaFor: (domain: keyof DomainScores) => number;
+  /** Full retained window (up to 90 days) for a domain, oldest first. */
+  fullHistoryFor: (domain: keyof DomainScores) => ScorePoint[];
+  /** Convenience: difference between the latest and the entry from N days ago. */
+  deltaFor: (domain: keyof DomainScores, days?: number) => number;
   /** Convenience: snapshot from the previous recorded day, or null if none. */
   yesterdaySnapshot: () => Partial<DomainScores> | null;
 }
@@ -79,13 +85,23 @@ export const useDomainHistoryStore = create<DomainHistoryState>()(
 
       historyFor: (domain) => {
         const arr = get().entries[domain] ?? [];
-        return arr.map((p) => p.score);
+        // Last 7 entries — the Rewards sparkline contract.
+        return arr.slice(-7).map((p) => p.score);
       },
 
-      deltaFor: (domain) => {
+      fullHistoryFor: (domain) => {
+        return get().entries[domain] ?? [];
+      },
+
+      deltaFor: (domain, days) => {
         const arr = get().entries[domain] ?? [];
         if (arr.length < 2) return 0;
-        return arr[arr.length - 1]!.score - arr[0]!.score;
+        if (typeof days !== 'number') {
+          return arr[arr.length - 1]!.score - arr[0]!.score;
+        }
+        const target = arr[Math.max(0, arr.length - 1 - days)];
+        if (!target) return 0;
+        return arr[arr.length - 1]!.score - target.score;
       },
 
       yesterdaySnapshot: () => {

@@ -29,6 +29,7 @@ import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { WeeklyBalanceCard } from '@/components/shared/WeeklyBalanceCard';
 import { AdaptationCard } from '@/components/shared/AdaptationCard';
+import { LifeScoreHero } from '@/components/shared/LifeScoreHero';
 import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
 import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
@@ -506,6 +507,12 @@ export default function TodayScreen() {
               onCtaPress={blocks.length === 0 ? startOnboarding : undefined}
             />
           </Animated.View>
+
+          {blocks.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(140).duration(400)}>
+              <LifeScoreHero />
+            </Animated.View>
+          )}
 
           {blocks.length > 0 && (
             <Animated.View entering={FadeInDown.delay(180).duration(400)}>
