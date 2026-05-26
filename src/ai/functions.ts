@@ -139,9 +139,10 @@ export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
     cacheSystem: true,
     task: 'decomposeGoal',
     // Full hierarchy = 12 monthly + ~12-52 weekly entries with task arrays +
-    // yearly + daily examples. Runs ~2.5-3.5k tokens; 1200 default truncates
-    // mid-JSON and surfaces as "Unbalanced JSON in AI response".
-    maxTokens: 4000,
+    // yearly + daily examples. A verbose model can exceed 4k tokens and
+    // truncate mid-JSON ("Unbalanced JSON in AI response"). With the worker
+    // cap raised to 8000, give it real headroom.
+    maxTokens: 6000,
   });
 
   try {

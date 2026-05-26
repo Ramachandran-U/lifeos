@@ -1,5 +1,47 @@
 import { load, save } from './_io';
-import { USERS_KEY, SESSION_KEY } from './_keys';
+import {
+  USERS_KEY,
+  SESSION_KEY,
+  GOALS_KEY,
+  GOAL_COMMENTS_KEY,
+  GAMIFICATION_KEY,
+  INTERESTS_KEY,
+  CONTACTS_KEY,
+  USER_PROFILES_KEY,
+  CHAT_MESSAGES_KEY,
+  DISCOVERY_IMPORTS_KEY,
+} from './_keys';
+
+// Every web store whose records carry a `userId` foreign key. When an account's
+// local id changes (e.g. an email/password signup later linked to a Supabase
+// auth id), these must be migrated in lockstep with the user row — otherwise
+// the records are orphaned and the user appears to lose all their data on
+// re-login. (Stores without a userId — routine blocks, health logs, food,
+// blood reports — are global and unaffected.)
+const USER_SCOPED_KEYS = [
+  GOALS_KEY,
+  GOAL_COMMENTS_KEY,
+  GAMIFICATION_KEY,
+  INTERESTS_KEY,
+  CONTACTS_KEY,
+  USER_PROFILES_KEY,
+  CHAT_MESSAGES_KEY,
+  DISCOVERY_IMPORTS_KEY,
+] as const;
+
+function migrateUserScopedData(oldId: string, newId: string): void {
+  for (const key of USER_SCOPED_KEYS) {
+    const rows = load<{ userId?: string }>(key);
+    let changed = false;
+    for (const row of rows) {
+      if (row.userId === oldId) {
+        row.userId = newId;
+        changed = true;
+      }
+    }
+    if (changed) save(key, rows);
+  }
+}
 
 export interface WebUser {
   id: string;
@@ -75,6 +117,9 @@ export function webRewriteUserId(oldId: string, newId: string, name?: string): v
     updatedAt: new Date().toISOString(),
   };
   save(USERS_KEY, users);
+  // Migrate every userId-scoped record so goals, streaks, contacts, interests,
+  // and the profile survive the id change instead of being orphaned.
+  migrateUserScopedData(oldId, newId);
 }
 
 export function webSetSession(userId: string | null): void {

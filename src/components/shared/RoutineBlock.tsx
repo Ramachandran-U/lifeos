@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
+import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors, DOMAIN_GLYPHS } from '@/theme/colors';
@@ -50,6 +51,8 @@ interface RoutineBlockProps {
   module: string;
   status: string;
   onComplete: (id: string) => void;
+  /** Swipe-left "Undo" on a completed block flips it back to upcoming. */
+  onUncomplete?: (id: string) => void;
   sub?: string;
   xp?: number;
 }
@@ -72,7 +75,7 @@ function durationLabel(start: string, end: string): string {
   return m ? `${h}h${m}m` : `${h}h`;
 }
 
-export function RoutineBlock({ id, startTime, endTime, title, module, status, onComplete, sub, xp }: RoutineBlockProps) {
+export function RoutineBlock({ id, startTime, endTime, title, module, status, onComplete, onUncomplete, sub, xp }: RoutineBlockProps) {
   const c = useColors();
   const styles = makeStyles(c);
   const MODULE_COLORS: Record<string, string> = {
@@ -146,10 +149,26 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
   // Aurora Refined v2: resting glow removed. Halo moments live in motion
   // scenes (BadgeUnlock, etc.) not steady state.
 
-  // Two-layer animation wrapper: outer view owns the layout entry animation,
-  // inner view owns the per-frame opacity/scale. Reanimated 4 warns when both
-  // coexist on the same node ("opacity may be overwritten by a layout animation").
-  return (
+  // Swipe-left → reveal an "Undo" action on a completed block.
+  const canUndo = isCompleted && !!onUncomplete;
+  const handleUndo = () => {
+    completedRef.current = false;
+    pressP.value = 0;
+    opacity.value = withTiming(1, { duration: TIMING.normal });
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onUncomplete?.(id);
+  };
+  const renderUndoAction = () => (
+    <Pressable onPress={handleUndo} style={styles.undoAction} accessibilityRole="button" accessibilityHint="Undo completion">
+      <Ionicons name="arrow-undo" size={18} color="#FFFFFF" />
+      <Caption style={styles.undoText}>Undo</Caption>
+    </Pressable>
+  );
+
+  const blockBody = (
+    // Two-layer animation wrapper: outer view owns the layout entry animation,
+    // inner view owns the per-frame opacity/scale. Reanimated 4 warns when both
+    // coexist on the same node ("opacity may be overwritten by a layout animation").
     <Animated.View entering={FadeIn.duration(300)}>
       <Animated.View style={animatedStyle}>
       <View
@@ -247,6 +266,19 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
       </Animated.View>
     </Animated.View>
   );
+
+  if (canUndo) {
+    return (
+      <Swipeable
+        renderRightActions={renderUndoAction}
+        overshootRight={false}
+        friction={2}
+      >
+        {blockBody}
+      </Swipeable>
+    );
+  }
+  return blockBody;
 }
 
 const makeStyles = (colors: AppColors) => StyleSheet.create({
@@ -365,5 +397,19 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontWeight: '800',
     color: '#0A0612',
     letterSpacing: 0.6,
+  },
+  undoAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    width: 84,
+    marginVertical: 2,
+    borderRadius: 18,
+    backgroundColor: colors.textMuted,
+  },
+  undoText: {
+    fontFamily: fonts.heading,
+    fontSize: 11,
+    color: '#FFFFFF',
   },
 });
