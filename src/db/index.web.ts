@@ -16,5 +16,7 @@ export const db = new Proxy({} as never, {
 }) as never;
 
 export async function initDatabase(): Promise<void> {
-  console.log('SQLite not available on web, skipping DB init');
+  // Web uses the localStorage-backed webStorage layer; there's no SQLite to
+  // migrate. Kept quiet in prod — only surfaces in dev. (BUG-008)
+  if (__DEV__) console.debug('[db] web: using webStorage, skipping SQLite init');
 }

@@ -23,12 +23,21 @@ export function webInsertRoutineBlock(block: WebRoutineBlock): void {
   save(ROUTINE_KEY, all);
 }
 
+// Sort on read (not write) for parity with an eventual SQL `ORDER BY date,
+// start_time`. Storage stays insertion-ordered; callers always get a stable
+// chronological order regardless of insert sequence. (BUG-014)
+function byDateThenStart(a: WebRoutineBlock, b: WebRoutineBlock): number {
+  return a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date);
+}
+
 export function webGetRoutineBlocksByDate(date: string): WebRoutineBlock[] {
-  return load<WebRoutineBlock>(ROUTINE_KEY).filter((b) => b.date === date);
+  return load<WebRoutineBlock>(ROUTINE_KEY).filter((b) => b.date === date).sort(byDateThenStart);
 }
 
 export function webGetRoutineBlocksInRange(startDate: string, endDate: string): WebRoutineBlock[] {
-  return load<WebRoutineBlock>(ROUTINE_KEY).filter((b) => b.date >= startDate && b.date <= endDate);
+  return load<WebRoutineBlock>(ROUTINE_KEY)
+    .filter((b) => b.date >= startDate && b.date <= endDate)
+    .sort(byDateThenStart);
 }
 
 export function webUpdateRoutineBlockStatus(id: string, status: string): void {

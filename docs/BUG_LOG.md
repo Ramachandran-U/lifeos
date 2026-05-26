@@ -50,6 +50,23 @@ Last updated: 2026-05-27
 
 ---
 
+## Batch 4 — verified QA handover (BUG-001/008–015)
+
+| # | Issue | Status | Resolution |
+|---|---|---|---|
+| BUG-001 #1 | Decomposed goals "don't persist" (userId orphaning on reload) | ✅ Already fixed | Resolved in Batch 3 `203acfe` — `webRewriteUserId` now migrates all userId-scoped stores |
+| BUG-001 #2 | AddGoalSheet dropped weekly + dailyTaskExamples | ✅ Fixed | AddGoalSheet now uses the canonical `persistHierarchy()` (saves all 5 levels); same path as onboarding |
+| BUG-008 | DB-init ran twice under StrictMode + web console noise | ✅ Fixed | Module-level `didBootInit` run-once guard; web init log gated to `__DEV__` |
+| BUG-009 | Three domain vocabularies; `mind`/Polymath unreachable from Life hub | 🟡 Mitigated | Added the 6th "Explore" hub card so the scored domain is reachable. **`mind` vs `polymath` enum rename + GOAL_TYPE→domain map is a product decision — not done blind (would need a `lifeos_domain_history_v1` migration).** Needs sign-off |
+| BUG-010 | `/chat` silently redirects to `/` | ✅ Fixed | Root-layout allowlist was missing `inChat` (report's `chatbot_beta` cause was wrong); added + smoke route |
+| BUG-011 | Prompt-injection in goal text | 🔁 Not a bug | Zod + React escaping hold; flagged Playwright injection regression as a follow-up |
+| BUG-012 | Decompose has no progress/cancel/timeout UI | ✅ Fixed (partial) | Delayed "still working ~20s" hint after 8s + a Cancel that abandons the result. **True server-side abort deferred** — needs `AbortSignal` threaded through the shared `callAI` |
+| BUG-013 | Onboarding bypass | 🔁 Not reproduced | Guard present (`_layout` stage checks). Recommend a fresh-account runtime check |
+| BUG-014 | Web routine blocks unsorted in storage | ✅ Fixed | Sort-on-read in `webGetRoutineBlocksByDate`/`InRange` (date, startTime) + unit test |
+| BUG-015 | "Did it" not persisted; mid-flow refresh loses selections | ✅ Fixed | evening-reflect writes an idempotent draft via `upsertReflection` on each change; hydrates on remount |
+
+---
+
 ## Known follow-ups (flagged, not yet scheduled)
 - **`generateWeekRoutine` ("Plan my next 7 days")** requests `maxTokens: 6000` but the worker caps client requests at 4096 → a 7-day plan truncates the same way. Durable fix: raise the worker's `MAX_TOKENS_CAP` env to 8000 (also fixes Batch-3 #6 headroom) or chunk generation.
 - **Worker `MAX_TOKENS_CAP`** default is 4096 (hard max 8000). Several large-output AI calls (goal hierarchy, week routine) sit near or above it. Raising the env var to 8000 + redeploying the worker is the single highest-leverage backend change.

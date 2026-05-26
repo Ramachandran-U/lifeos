@@ -113,9 +113,31 @@ export default function EveningReflectScreen() {
     }
   }, [loadTomorrow, tomorrow, today, mood, blockReviews, primaryDomains]);
 
+  // Persist an in-progress draft so a mid-flow refresh (before "Finish")
+  // doesn't lose Did/Skipped/Moved selections. Idempotent upsert — no
+  // behaviour event fires here (those are gated to finish()). (BUG-015)
+  const persistDraft = (nextReviews: Record<string, BlockReview>, nextMood: number | null) => {
+    upsertReflection({
+      date: today,
+      mood: nextMood,
+      blockReviews: nextReviews,
+      tweakAccepted,
+      tweakPayload: tweak,
+    });
+  };
+
   const setReview = (blockId: string, value: BlockReview) => {
     if (Platform.OS !== 'web') Haptics.selectionAsync();
-    setBlockReviews((prev) => ({ ...prev, [blockId]: value }));
+    setBlockReviews((prev) => {
+      const next = { ...prev, [blockId]: value };
+      persistDraft(next, mood);
+      return next;
+    });
+  };
+
+  const chooseMood = (value: number) => {
+    setMood(value);
+    persistDraft(blockReviews, value);
   };
 
   const goToMood = () => {
@@ -331,7 +353,7 @@ export default function EveningReflectScreen() {
                     key={m.v}
                     onPress={() => {
                       if (Platform.OS !== 'web') Haptics.selectionAsync();
-                      setMood(m.v);
+                      chooseMood(m.v);
                     }}
                     style={[
                       styles.moodBtn,
