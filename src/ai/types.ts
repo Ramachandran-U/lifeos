@@ -217,6 +217,53 @@ export interface ConversationStartersInput {
   contextNote?: string; // optional user-supplied context — must not include the contact's name
 }
 
+// --- Polymath / Curiosity Types ---
+
+export const InterestCategoryEnum = z.enum([
+  'arts',
+  'science',
+  'tech',
+  'sports',
+  'music',
+  'writing',
+  'language',
+  'philosophy',
+  'other',
+]);
+export type InterestCategory = z.infer<typeof InterestCategoryEnum>;
+
+export const ExplorationDepthEnum = z.enum(['taste', 'hobbyist', 'deep_dive']);
+export type ExplorationDepth = z.infer<typeof ExplorationDepthEnum>;
+
+export const SuggestedAreaSchema = z.object({
+  name: z.string().min(1),
+  category: InterestCategoryEnum,
+  blurb: z.string().min(1),
+  whyThisFits: z.string().min(1),
+});
+export type SuggestedArea = z.infer<typeof SuggestedAreaSchema>;
+
+export const InterestSuggestionsSchema = z.object({
+  areas: z.array(SuggestedAreaSchema).min(4).max(10),
+});
+export type InterestSuggestions = z.infer<typeof InterestSuggestionsSchema>;
+
+export interface InterestSuggestionsInput {
+  existingInterests: Array<{ name: string; category: string }>;
+}
+
+export const CrossDisciplineLinkSchema = z.object({
+  headline: z.string().min(1).max(80),
+  description: z.string().min(1).max(400),
+  starterAction: z.string().min(1).max(160),
+});
+export type CrossDisciplineLink = z.infer<typeof CrossDisciplineLinkSchema>;
+
+export interface CrossDisciplineLinkInput {
+  interestA: { name: string; category: string };
+  interestB: { name: string; category: string };
+}
+
 // --- Routine Types ---
 
 export const RoutineBlockSchema = z.object({
@@ -265,6 +312,9 @@ export interface RoutineInput {
     droppedHabits?: string[];
     preferredRestDays?: number[];
   };
+  /** Polymath interests the user has flagged "protect time" — the planner must
+   *  reserve at least the given weekly minutes for each, spread across the week. */
+  protectedInterests?: Array<{ name: string; weeklyMinutes: number }>;
 }
 
 // --- Finance Types ---

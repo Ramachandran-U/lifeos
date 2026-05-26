@@ -20,6 +20,7 @@ import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { track, EVENTS } from '@/utils/telemetry';
 import { getUser, updateUser } from '@/db/queries/users';
+import { getInterestsByUser } from '@/db/queries/interests';
 import { createRoutineBlocks, deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import { mirrorScheduleToProfile } from '@/utils/scheduleSync';
 import type { GeneratedRoutine } from '@/ai/types';
@@ -127,12 +128,21 @@ export default function Day1RoutineScreen() {
 
   const handleGenerate = async () => {
     if (scheduleError) return;
+
+    // Reserve weekly minutes for any interest the user has flagged "protect time".
+    const protectedInterests = userId
+      ? getInterestsByUser(userId)
+          .filter((i) => i.timeProtected && i.status !== 'deleted')
+          .map((i) => ({ name: i.name, weeklyMinutes: i.weeklyMinutesTarget }))
+      : [];
+
     const result = await call(() =>
       planRoutineWithContext({
         wakeTime,
         sleepTime,
         workStartTime: workStart,
         workEndTime: workEnd,
+        protectedInterests: protectedInterests.length > 0 ? protectedInterests : undefined,
       })
     );
 

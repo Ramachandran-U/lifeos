@@ -85,6 +85,12 @@ import {
   ConversationStarters,
   ConversationStartersSchema,
   ConversationStartersInput,
+  InterestSuggestions,
+  InterestSuggestionsSchema,
+  InterestSuggestionsInput,
+  CrossDisciplineLink,
+  CrossDisciplineLinkSchema,
+  CrossDisciplineLinkInput,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -107,6 +113,8 @@ import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals'
 import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
 import { CONVERSATION_STARTERS_PROMPT } from './prompts/social';
 import { buildMockConversationStarters } from './mocks/social';
+import { INTEREST_SUGGESTIONS_PROMPT, CROSS_DISCIPLINE_LINK_PROMPT } from './prompts/polymath';
+import { buildMockInterestSuggestions, buildMockCrossDisciplineLink } from './mocks/polymath';
 import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
@@ -619,5 +627,43 @@ export async function generateConversationStarters(input: ConversationStartersIn
     return ConversationStartersSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateConversationStarters', 'ConversationStarters', response, err);
+  }
+}
+
+export async function suggestInterestAreas(input: InterestSuggestionsInput): Promise<InterestSuggestions> {
+  if (isMock) return buildMockInterestSuggestions(input);
+
+  const response = await callAI({
+    system: INTEREST_SUGGESTIONS_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('suggestInterestAreas'),
+    cacheSystem: true,
+    task: 'suggestInterestAreas',
+  });
+
+  try {
+    return InterestSuggestionsSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('suggestInterestAreas', 'InterestSuggestions', response, err);
+  }
+}
+
+export async function suggestCrossDisciplineLink(
+  input: CrossDisciplineLinkInput,
+): Promise<CrossDisciplineLink> {
+  if (isMock) return buildMockCrossDisciplineLink(input);
+
+  const response = await callAI({
+    system: CROSS_DISCIPLINE_LINK_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('suggestCrossDisciplineLink'),
+    cacheSystem: true,
+    task: 'suggestCrossDisciplineLink',
+  });
+
+  try {
+    return CrossDisciplineLinkSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('suggestCrossDisciplineLink', 'CrossDisciplineLink', response, err);
   }
 }

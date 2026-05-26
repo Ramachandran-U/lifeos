@@ -32,6 +32,8 @@ export type AITask =
   | 'replanRemainingDay'
   | 'generateTomorrowRoutine'
   | 'generateConversationStarters'
+  | 'suggestInterestAreas'
+  | 'suggestCrossDisciplineLink'
   | 'agent.propose'
   | 'agent.critique'
   | 'agent.brief';
@@ -42,6 +44,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   generateMotivation: 'cheap',
   discoveryChatTurn: 'cheap',
   generateConversationStarters: 'cheap',
+  suggestInterestAreas: 'planning',
+  suggestCrossDisciplineLink: 'planning',
   'agent.brief': 'cheap',
 
   decomposeGoal: 'planning',

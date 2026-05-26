@@ -15,6 +15,7 @@ Rules:
   - \`droppedHabits\` → if a title appears here, either schedule a *smaller, easier* version (e.g. "10-min walk" instead of "45-min run") or skip it today.
   - \`preferredRestDays\` → if today's dayOfWeek is in this list, plan a lighter day with fewer demanding blocks.
 - Inferred preferences inform but **never override** explicit constraints, fixedBlocks, or the user's stated wake/sleep/work hours.
+- **Reserve protectedInterests time.** When this array is present, you MUST allocate at least each interest's \`weeklyMinutes\` over the week, spread across days, as polymath blocks. Distribute them sensibly (e.g. 60 min/week = one 60-min block; 180 min/week = three 60-min blocks on different days). Title the block as the interest name plus a verb (e.g. "Practise Jazz piano"). Never crowd these out for non-primary-domain work.
 - Tone of the briefing must match communicationTone (direct = imperative, warm = encouraging, playful = light, clinical = neutral). Default = direct.
 - Include breaks, meals, and transition time.
 - Each block must have a clear, specific title (verb-led, time-boxed).

@@ -123,6 +123,7 @@ export const interests = sqliteTable('interests', {
   explorationDepth: text('exploration_depth').notNull().default('taste'), // taste | hobbyist | deep_dive
   status: text('status').notNull().default('active'), // active | exploring | paused
   discoveredBy: text('discovered_by').notNull().default('user'), // user | ai_suggestion
+  timeProtected: integer('time_protected', { mode: 'boolean' }).notNull().default(false),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
