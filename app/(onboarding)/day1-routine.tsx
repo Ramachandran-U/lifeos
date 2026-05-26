@@ -9,6 +9,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { NarrationToggle } from '@/components/shared/NarrationToggle';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -210,6 +211,7 @@ export default function Day1RoutineScreen() {
         style={styles.flex}
         contentContainerStyle={styles.scroll}
       >
+        {!isEditMode && <NarrationToggle scriptId="day1-routine" />}
         <Animated.View entering={FadeInDown.duration(600)}>
           <Heading style={styles.title}>
             {isEditMode ? 'Edit your daily routine' : 'Build your daily routine'}

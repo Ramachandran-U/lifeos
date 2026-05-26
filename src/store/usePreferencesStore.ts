@@ -11,12 +11,15 @@ export interface PreferencesState {
   density: DensityMode;
   motionIntensity: MotionIntensity;
   gamification: GamificationVisibility;
+  narrationEnabled: boolean;
 
   setTheme: (m: ThemeMode) => void;
   toggleTheme: () => void;
   setDensity: (d: DensityMode) => void;
   setMotionIntensity: (m: MotionIntensity) => void;
   setGamification: (g: GamificationVisibility) => void;
+  setNarrationEnabled: (v: boolean) => void;
+  toggleNarration: () => void;
 }
 
 const STORAGE_KEY = 'lifeos_preferences_v1';
@@ -27,6 +30,7 @@ interface PersistedShape {
   density?: DensityMode;
   motionIntensity?: MotionIntensity;
   gamification?: GamificationVisibility;
+  narrationEnabled?: boolean;
 }
 
 function loadPersisted(): PersistedShape {
@@ -54,31 +58,40 @@ function persist(state: PersistedShape) {
 
 const initial = loadPersisted();
 
-export const usePreferencesStore = create<PreferencesState>((set, get) => ({
-  theme: initial.theme ?? 'dark',
-  density: initial.density ?? 'cozy',
-  motionIntensity: initial.motionIntensity ?? 'normal',
-  gamification: initial.gamification ?? 'full',
+export const usePreferencesStore = create<PreferencesState>((set, get) => {
+  const snapshot = () => {
+    const { theme, density, motionIntensity, gamification, narrationEnabled } = get();
+    return { theme, density, motionIntensity, gamification, narrationEnabled };
+  };
 
-  setTheme: (theme) => {
-    set({ theme });
-    const { density, motionIntensity, gamification } = get();
-    persist({ theme, density, motionIntensity, gamification });
-  },
-  toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),
-  setDensity: (density) => {
-    set({ density });
-    const { theme, motionIntensity, gamification } = get();
-    persist({ theme, density, motionIntensity, gamification });
-  },
-  setMotionIntensity: (motionIntensity) => {
-    set({ motionIntensity });
-    const { theme, density, gamification } = get();
-    persist({ theme, density, motionIntensity, gamification });
-  },
-  setGamification: (gamification) => {
-    set({ gamification });
-    const { theme, density, motionIntensity } = get();
-    persist({ theme, density, motionIntensity, gamification });
-  },
-}));
+  return {
+    theme: initial.theme ?? 'dark',
+    density: initial.density ?? 'cozy',
+    motionIntensity: initial.motionIntensity ?? 'normal',
+    gamification: initial.gamification ?? 'full',
+    narrationEnabled: initial.narrationEnabled ?? true,
+
+    setTheme: (theme) => {
+      set({ theme });
+      persist(snapshot());
+    },
+    toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),
+    setDensity: (density) => {
+      set({ density });
+      persist(snapshot());
+    },
+    setMotionIntensity: (motionIntensity) => {
+      set({ motionIntensity });
+      persist(snapshot());
+    },
+    setGamification: (gamification) => {
+      set({ gamification });
+      persist(snapshot());
+    },
+    setNarrationEnabled: (narrationEnabled) => {
+      set({ narrationEnabled });
+      persist(snapshot());
+    },
+    toggleNarration: () => get().setNarrationEnabled(!get().narrationEnabled),
+  };
+});

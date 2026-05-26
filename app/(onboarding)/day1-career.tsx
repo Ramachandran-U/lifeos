@@ -7,6 +7,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { NarrationToggle } from '@/components/shared/NarrationToggle';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -89,6 +90,7 @@ export default function Day1CareerScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+          <NarrationToggle scriptId="day1-career" />
           <Animated.View entering={FadeInDown.duration(600)}>
             <Heading style={styles.title}>Career growth</Heading>
             <Body style={styles.subtitle}>Where are you, and where do you want to be?</Body>

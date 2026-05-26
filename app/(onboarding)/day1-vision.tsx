@@ -7,6 +7,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { NarrationToggle } from '@/components/shared/NarrationToggle';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -67,6 +68,7 @@ export default function Day1VisionScreen() {
           <Animated.Text entering={FadeIn.duration(800)} style={styles.logo}>
             LifeOS
           </Animated.Text>
+          <NarrationToggle scriptId="day1-vision" />
 
           <Animated.View entering={FadeInDown.delay(300).duration(600)}>
             <Heading style={styles.title}>What's your vision for your life?</Heading>
