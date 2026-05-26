@@ -34,9 +34,21 @@ for (const f of fs.readdirSync('public')) {
 }
 
 // 2. Rename the assets/node_modules directory.
+// Wrapped in try/catch so a Windows file-lock or pre-existing TO_DIR can't
+// short-circuit the import.meta neutralization in step 3 — that one is
+// load-bearing for the bundle to even parse in the browser. If the rename
+// fails, the deploy will skip the fonts (an aesthetic issue), but the app
+// will at least boot.
 if (fs.existsSync(FROM_DIR)) {
-  fs.rmSync(TO_DIR, { recursive: true, force: true });
-  fs.renameSync(FROM_DIR, TO_DIR);
+  try {
+    fs.rmSync(TO_DIR, { recursive: true, force: true });
+    fs.renameSync(FROM_DIR, TO_DIR);
+  } catch (err) {
+    console.warn(
+      `post-export-web: WARN — failed to rename ${FROM_REF} → ${TO_REF}: ${err && err.message ? err.message : err}. ` +
+      `Continuing with step 3; fonts under this path may be skipped by Cloudflare Pages.`,
+    );
+  }
 }
 
 // 3. Rewrite path refs + neutralize import.meta.env in every JS/HTML file.
