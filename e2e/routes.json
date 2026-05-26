@@ -54,6 +54,42 @@
       "comment": "Module header."
     },
     {
+      "path": "/(tabs)/social",
+      "name": "social",
+      "selector": "text=Social",
+      "comment": "P3-01 Social Hub module header. Proves contacts + computeSocialScore mount without the user having any contacts."
+    },
+    {
+      "path": "/(onboarding)/day3-health",
+      "name": "day3-health",
+      "selector": "text=DAY 3",
+      "comment": "P3-05 follow-up: Day 3 Health onboarding eyebrow. Verifies the previously 404'd notification deep-link now resolves."
+    },
+    {
+      "path": "/(onboarding)/day7-finance",
+      "name": "day7-finance",
+      "selector": "text=DAY 7",
+      "comment": "P3-05 Day 7 Finance onboarding eyebrow."
+    },
+    {
+      "path": "/(onboarding)/day7-social",
+      "name": "day7-social",
+      "selector": "text=DAY 7",
+      "comment": "P3-05 Day 7 Social onboarding eyebrow."
+    },
+    {
+      "path": "/(onboarding)/day14-polymath",
+      "name": "day14-polymath",
+      "selector": "text=DAY 14",
+      "comment": "P3-05 Day 14 Polymath onboarding eyebrow."
+    },
+    {
+      "path": "/monthly-insight",
+      "name": "monthly-insight",
+      "selector": "text=Last 28 days",
+      "comment": "P3-04 monthly insight report screen title."
+    },
+    {
       "path": "/data-residency",
       "name": "data-residency",
       "selector": "text=Data residency",
