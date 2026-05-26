@@ -185,15 +185,17 @@ Every function is Zod-validated. Validation failures emit an `ai_schema_failure`
 
 ## 10. Roadmap / Phasing
 
-- **Phase 1 (shipping now):** Onboarding (incl. Discovery Import), Goals, Health, Finance (+ Gmail/UPI ingest, INR), Career (incl. Elite Career Strategist + Save Path), Polymath, full gamification overhaul (Rewards tab, levels, hex radar, quests, badges). Google Calendar + Google Fit integrations. Ask LifeOS chatbot + voice assistant. Aurora Glass redesign. PWA on Cloudflare Pages with Supabase Google sign-in. Cloudflare Worker `ai-proxy` + admin portal (flags + prompt registry).
-- **Phase 2:** Optional cloud sync of app data (Supabase). Social module complete. RAG + agent flows graduating from scaffolds.
-- **Phase 3:** Plaid integration for broader finance coverage; native HealthKit / Health Connect integration.
+- **Phase 1 (shipped):** Onboarding (incl. Discovery Import), Goals, Health, Finance (+ Gmail/UPI ingest, INR), Career (incl. Elite Career Strategist + Save Path), Polymath, full gamification overhaul (Rewards tab, levels, hex radar, quests, badges). Google Calendar + Google Fit integrations. Ask LifeOS chatbot + voice assistant. Aurora Glass redesign. PWA on Cloudflare Pages with Supabase Google sign-in. Cloudflare Worker `ai-proxy` + admin portal (flags + prompt registry).
+- **Phase 2 (shipped):** Finance Engine depth (full plan generator + weekly insights). Photo Food Recognition. Push notification depth (goal / streak / social nudges). Behaviour Intelligence v1 (observe + weekly insight).
+- **Phase 3 (shipped):** Social Life Intelligence Engine with on-device contacts and AI-personalised conversation starters that never see names. Curiosity & Polymath Engine with AI-driven Discover grid + cross-discipline link card + protected-time toggle. Routine Builder v2 with weekday/weekend differentiation, energy-required matching, adaptive rebalance signal + multi-day generation, and a "Plan my next 7 days" entry point. Behaviour Intelligence v2 (Adapt) with approve/dismiss adaptation cards and a 28-day monthly insight report. Day 3 / 7 / 14 progressive onboarding screens. (See `TASKS.md` P3-01 through P3-05.)
+- **Phase 4 (in flight):** Cross-Module Life Score with 30/90-day trend hero ✅. Proactive Daily Briefing, Annual Life Review, Long-Term Trajectory Tracking still to come. (See `TASKS.md` P4-01 through P4-04.)
+- **Future:** Plaid integration for broader finance coverage; native HealthKit / Health Connect integration; optional cloud sync (Supabase) of app data.
 
 ## 11. Metrics / Proof Points for Decks
 
 - **6 life engines** feeding 1 master planner
-- **14 AI functions**, all Zod-validated, all with mock fallbacks
-- **8 badges, 5 streaks, 12+ level tiers, 2–3 daily + 1 weekly quest**
+- **19 AI functions**, all Zod-validated, all with mock fallbacks (added in Phase 3/4: `generateConversationStarters`, `suggestInterestAreas`, `suggestCrossDisciplineLink`, `generateWeekRoutine`, `generateMonthlyInsightReport`)
+- **11 badges, 5 streaks, 12+ level tiers, 2–3 daily + 1 weekly quest**
 - **3-screen onboarding** (or 1-step Discovery Import) **→ full AI-generated routine**
 - **3 banks + UPI** supported for Gmail-based transaction ingest (HDFC, ICICI, Axis) — extensible via regex
 - **iOS, Android, and Web (PWA on Cloudflare Pages)** from a single codebase
