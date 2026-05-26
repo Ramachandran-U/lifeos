@@ -4,7 +4,42 @@ import {
   parseAxis,
   detectSource,
   parseTransactionEmail,
+  normalizeUpiMerchant,
 } from '../emailParsers';
+
+describe('normalizeUpiMerchant', () => {
+  it('extracts the tail name + p2a channel for person-to-account UPI', () => {
+    const out = normalizeUpiMerchant('UPI/P2A/812943987621/ANJALI HARI');
+    expect(out.channel).toBe('p2a');
+    expect(out.merchant).toBe('ANJALI HARI');
+  });
+
+  it('extracts the tail name + p2m channel for person-to-merchant UPI', () => {
+    const out = normalizeUpiMerchant('UPI/P2M/647451728232/TONI AND GUY');
+    expect(out.channel).toBe('p2m');
+    expect(out.merchant).toBe('TONI AND GUY');
+  });
+
+  it('strips the "not initiated by you" boilerplate tail', () => {
+    const out = normalizeUpiMerchant(
+      'UPI/P2M/138042056437/RAMESH TALAWAR If this transaction was not initiated by you, call us.',
+    );
+    expect(out.merchant).toBe('RAMESH TALAWAR');
+    expect(out.channel).toBe('p2m');
+  });
+
+  it('drops the unique RRN so two transactions to the same payee share a merchant key', () => {
+    const a = normalizeUpiMerchant('UPI/P2M/111111111111/SWIGGY');
+    const b = normalizeUpiMerchant('UPI/P2M/222222222222/SWIGGY');
+    expect(a.merchant).toBe(b.merchant);
+  });
+
+  it('returns no channel for a plain merchant string', () => {
+    const out = normalizeUpiMerchant('AMAZON PAY');
+    expect(out.channel).toBeUndefined();
+    expect(out.merchant).toBe('AMAZON PAY');
+  });
+});
 
 describe('detectSource', () => {
   it.each([
@@ -50,6 +85,17 @@ To know your available balance, outstanding amount and transactions in detail, p
     const out = parseHdfc(body)!;
     expect(out.direction).toBe('credit');
     expect(out.amount).toBe(50000);
+  });
+
+  it('handles lakh-scale amounts with multiple comma groups', () => {
+    const out = parseHdfc('Rs. 1,25,000.00 has been debited from A/c XX1234 to BUILDER PAYMENTS on 2026-04-20.')!;
+    expect(out.amount).toBe(12500000); // ₹1,25,000 → paise
+    expect(out.direction).toBe('debit');
+  });
+
+  it('rounds fractional paise correctly', () => {
+    const out = parseHdfc('Rs. 99.99 has been debited from A/c XX1234 to APP STORE on 2026-04-20.')!;
+    expect(out.amount).toBe(9999);
   });
 
   it('returns null on non-matching body', () => {

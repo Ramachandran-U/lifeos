@@ -102,6 +102,13 @@ describe('checkBadges', () => {
     expect(checkBadges([], { domainScores })).toContain('life_balance');
     expect(checkBadges([], { domainScores: { ...domainScores, social: 60 } })).not.toContain('life_balance');
   });
+  it('awards inner_orbit only when every inner-circle contact is in cadence', () => {
+    expect(checkBadges([], { innerCircle: { total: 3, inCadence: 3 } })).toContain('inner_orbit');
+    expect(checkBadges([], { innerCircle: { total: 3, inCadence: 2 } })).not.toContain('inner_orbit');
+  });
+  it('does not award inner_orbit when the inner circle is empty', () => {
+    expect(checkBadges([], { innerCircle: { total: 0, inCadence: 0 } })).not.toContain('inner_orbit');
+  });
 });
 
 describe('calculateDomainScore', () => {
