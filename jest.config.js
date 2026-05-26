@@ -13,8 +13,13 @@ module.exports = {
     '^@react-native-async-storage/async-storage$': '<rootDir>/jest.mocks/async-storage.ts',
   },
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', { isolatedModules: true, tsconfig: { jsx: 'react' } }],
+    // `isolatedModules` moved into the inline tsconfig (ts-jest deprecated the
+    // top-level option). Scoped to the test transform only — does NOT touch the
+    // app's tsconfig.json, so `tsc --noEmit` behaviour is unchanged.
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react', isolatedModules: true } }],
   },
   // Pure-logic tests only for now; RN component tests need jest-expo preset.
-  testPathIgnorePatterns: ['/node_modules/', '/app/', '/src/components/'],
+  // `.claude/worktrees/**` holds throwaway agent worktrees with their own
+  // duplicate test files — exclude them so they don't pollute discovery + counts.
+  testPathIgnorePatterns: ['/node_modules/', '/app/', '/src/components/', '/\\.claude/'],
 };
