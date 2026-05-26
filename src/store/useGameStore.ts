@@ -79,7 +79,7 @@ const DEFAULT_STREAKS: Streaks = {
 };
 
 const DEFAULT_SCORES: DomainScores = {
-  goals: 15, health: 15, finance: 15, career: 15, social: 15, mind: 15,
+  goals: 15, health: 15, finance: 15, career: 15, social: 15, polymath: 15,
 };
 
 const MODULE_TO_DOMAIN: Record<string, keyof DomainScores> = {
@@ -88,7 +88,7 @@ const MODULE_TO_DOMAIN: Record<string, keyof DomainScores> = {
   finance: 'finance',
   career: 'career',
   social: 'social',
-  polymath: 'mind',
+  polymath: 'polymath',
 };
 
 const persistedQuests = loadPersistedQuests();
@@ -118,7 +118,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         finance: Math.max(15, parsed.finance ?? 0),
         career: Math.max(15, parsed.career ?? 0),
         social: Math.max(15, parsed.social ?? 0),
-        mind: Math.max(15, parsed.mind ?? 0),
+        // Read-alias: coalesce legacy `mind` into `polymath` so existing
+        // gamification rows aren't zeroed by the BUG-009 rename.
+        polymath: Math.max(15, parsed.polymath ?? (parsed as { mind?: number }).mind ?? 0),
       };
     } catch { /* keep default */ }
     // Merge OVER the defaults — a fresh user's row stores streaks as '{}',

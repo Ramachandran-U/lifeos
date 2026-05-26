@@ -2,7 +2,7 @@ import type { AppColors } from '@/theme/colors';
 import type { BadgeId } from '@/utils/gamification';
 
 export type ModuleKey = 'goal' | 'health' | 'finance' | 'career' | 'social' | 'polymath';
-export type DomainKey = 'goals' | 'health' | 'finance' | 'career' | 'social' | 'mind';
+export type DomainKey = 'goals' | 'health' | 'finance' | 'career' | 'social' | 'polymath';
 
 export type ColorKey = Extract<keyof AppColors, 'goal' | 'health' | 'finance' | 'career' | 'social' | 'polymath'>;
 
@@ -20,7 +20,7 @@ export const DOMAIN_META: DomainMeta[] = [
   { key: 'finance', label: 'Finance', emoji: '💰', colorKey: 'finance',  angleDeg: 30   },
   { key: 'career',  label: 'Career',  emoji: '🚀', colorKey: 'career',   angleDeg: 90   },
   { key: 'social',  label: 'Social',  emoji: '🤝', colorKey: 'social',   angleDeg: 150  },
-  { key: 'mind',    label: 'Mind',    emoji: '🔭', colorKey: 'polymath', angleDeg: -150 },
+  { key: 'polymath', label: 'Mind',   emoji: '🔭', colorKey: 'polymath', angleDeg: -150 },
 ];
 
 export const MODULE_META: Record<ModuleKey, { label: string; emoji: string; colorKey: ColorKey }> = {

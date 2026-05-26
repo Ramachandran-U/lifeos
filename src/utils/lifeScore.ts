@@ -23,11 +23,11 @@ const PRIMARY_WEIGHT = 1.5;
 const SECONDARY_WEIGHT = 1.0;
 
 type DomainKey = keyof DomainScores;
-const DOMAIN_KEYS: DomainKey[] = ['goals', 'health', 'finance', 'career', 'social', 'mind'];
+const DOMAIN_KEYS: DomainKey[] = ['goals', 'health', 'finance', 'career', 'social', 'polymath'];
 
 const DOMAIN_TO_PRIMARY_KEY: Record<DomainKey, string> = {
   goals: 'goals', health: 'health', finance: 'finance',
-  career: 'career', social: 'social', mind: 'polymath',
+  career: 'career', social: 'social', polymath: 'polymath',
 };
 
 function isPrimary(domain: DomainKey, primaryDomains: string[]): boolean {
@@ -71,7 +71,7 @@ export function computeLifeScoreTrend(
   const allDates = new Set<string>();
   const byDate: Record<DomainKey, Map<string, number>> = {
     goals: new Map(), health: new Map(), finance: new Map(),
-    career: new Map(), social: new Map(), mind: new Map(),
+    career: new Map(), social: new Map(), polymath: new Map(),
   };
   for (const d of DOMAIN_KEYS) {
     for (const p of perDomainHistory[d] ?? []) {
@@ -82,7 +82,7 @@ export function computeLifeScoreTrend(
   const sortedDates = Array.from(allDates).sort();
   const carry: Record<DomainKey, number> = {
     goals: current.goals, health: current.health, finance: current.finance,
-    career: current.career, social: current.social, mind: current.mind,
+    career: current.career, social: current.social, polymath: current.polymath,
   };
   // Initialise carry with the EARLIEST known value per domain — gives 0/0
   // domains a sensible starting line rather than today's value (which would

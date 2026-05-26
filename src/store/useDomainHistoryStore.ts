@@ -120,6 +120,18 @@ export const useDomainHistoryStore = create<DomainHistoryState>()(
       name: 'lifeos_domain_history_v1',
       storage,
       partialize: (state) => ({ entries: state.entries }),
+      // BUG-009: the 6th domain key was renamed `mind` → `polymath`. Migrate
+      // any persisted history so existing score trends aren't orphaned.
+      version: 2,
+      migrate: (persisted: unknown) => {
+        const state = (persisted ?? {}) as { entries?: Record<string, unknown> };
+        const entries = state.entries ?? {};
+        if (entries.mind && !entries.polymath) {
+          entries.polymath = entries.mind;
+          delete entries.mind;
+        }
+        return { entries } as { entries: DomainHistoryState['entries'] };
+      },
     },
   ),
 );

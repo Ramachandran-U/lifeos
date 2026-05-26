@@ -3,7 +3,7 @@ import type { DomainScores } from '../gamification';
 import type { ScorePoint } from '@/store/useDomainHistoryStore';
 
 const scores = (over: Partial<DomainScores> = {}): DomainScores => ({
-  goals: 50, health: 50, finance: 50, career: 50, social: 50, mind: 50, ...over,
+  goals: 50, health: 50, finance: 50, career: 50, social: 50, polymath: 50, ...over,
 });
 
 describe('computeLifeScore', () => {
@@ -12,17 +12,17 @@ describe('computeLifeScore', () => {
   });
 
   it('clamps within 0..100 and rounds', () => {
-    expect(computeLifeScore(scores({ goals: 100, health: 100, finance: 100, career: 100, social: 100, mind: 100 }))).toBe(100);
-    expect(computeLifeScore(scores({ goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0 }))).toBe(0);
+    expect(computeLifeScore(scores({ goals: 100, health: 100, finance: 100, career: 100, social: 100, polymath: 100 }))).toBe(100);
+    expect(computeLifeScore(scores({ goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 0 }))).toBe(0);
   });
 
   it('weights primary domains 1.5x', () => {
     // All domains 0 except health=100. Flat avg = 100/6 ≈ 17.
-    const flat = computeLifeScore(scores({ goals: 0, health: 100, finance: 0, career: 0, social: 0, mind: 0 }));
+    const flat = computeLifeScore(scores({ goals: 0, health: 100, finance: 0, career: 0, social: 0, polymath: 0 }));
     // With health as primary (weight 1.5), the 100 pulls harder:
     // (100*1.5) / (1.5 + 5*1.0) = 150 / 6.5 ≈ 23.
     const weighted = computeLifeScore(
-      scores({ goals: 0, health: 100, finance: 0, career: 0, social: 0, mind: 0 }),
+      scores({ goals: 0, health: 100, finance: 0, career: 0, social: 0, polymath: 0 }),
       ['health'],
     );
     expect(weighted).toBeGreaterThan(flat);
@@ -31,7 +31,7 @@ describe('computeLifeScore', () => {
 
   it('maps mind domain to the polymath primary key', () => {
     const weighted = computeLifeScore(
-      scores({ goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 100 }),
+      scores({ goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 100 }),
       ['polymath'],
     );
     expect(weighted).toBe(23); // same arithmetic as the health case

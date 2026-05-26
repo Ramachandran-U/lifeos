@@ -10,31 +10,31 @@ export const MODULE_TO_DOMAIN: Record<string, DomainKey> = {
   finance: 'finance',
   career: 'career',
   social: 'social',
-  polymath: 'mind',
+  polymath: 'polymath',
 };
 
-export const DOMAIN_ORDER: DomainKey[] = ['goals', 'health', 'finance', 'career', 'social', 'mind'];
+export const DOMAIN_ORDER: DomainKey[] = ['goals', 'health', 'finance', 'career', 'social', 'polymath'];
 
 export const DOMAIN_LABEL: Record<DomainKey, string> = {
-  goals:   'Goals',
-  health:  'Health',
-  finance: 'Finance',
-  career:  'Career',
-  social:  'Social',
-  mind:    'Mind',
+  goals:    'Goals',
+  health:   'Health',
+  finance:  'Finance',
+  career:   'Career',
+  social:   'Social',
+  polymath: 'Mind',
 };
 
 export const DOMAIN_COLOR_KEY: Record<DomainKey, 'goal' | 'health' | 'finance' | 'career' | 'social' | 'polymath'> = {
-  goals:   'goal',
-  health:  'health',
-  finance: 'finance',
-  career:  'career',
-  social:  'social',
-  mind:    'polymath',
+  goals:    'goal',
+  health:   'health',
+  finance:  'finance',
+  career:   'career',
+  social:   'social',
+  polymath: 'polymath',
 };
 
 function emptyMinutes(): Record<DomainKey, number> {
-  return { goals: 0, health: 0, finance: 0, career: 0, social: 0, mind: 0 };
+  return { goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 0 };
 }
 
 interface RoutineBlockLike {

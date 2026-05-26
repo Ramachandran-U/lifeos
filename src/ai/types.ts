@@ -283,7 +283,7 @@ export interface MonthlyInsightReportInput {
     completionRate: number; // 0..1
   };
   domainMinutes: Partial<{
-    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+    goals: number; health: number; finance: number; career: number; social: number; polymath: number;
   }>;
   inferredPreferences: {
     productiveHours: number[];
@@ -349,7 +349,7 @@ export interface RoutineInput {
   /** Minutes spent per domain over the last 7 days. Used by the planner to
    *  soften the dominant domain and bump silent primary domains. */
   lastWeekDomainMinutes?: Partial<{
-    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+    goals: number; health: number; finance: number; career: number; social: number; polymath: number;
   }>;
   /** Day of the week for the routine being generated. 0 = Sunday … 6 = Saturday.
    *  Used so weekend plans differ from weekday plans. */
@@ -817,7 +817,7 @@ export interface GenerateTomorrowRoutineInput {
   softenForRecovery?: boolean;
   /** Minutes spent per domain over the last 7 days — used for adaptive rebalancing. */
   lastWeekDomainMinutes?: Partial<{
-    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+    goals: number; health: number; finance: number; career: number; social: number; polymath: number;
   }>;
 }
 
@@ -843,6 +843,6 @@ export interface GenerateWeekRoutineInput {
   primaryDomains: string[];
   protectedInterests?: Array<{ name: string; weeklyMinutes: number }>;
   lastWeekDomainMinutes?: Partial<{
-    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+    goals: number; health: number; finance: number; career: number; social: number; polymath: number;
   }>;
 }

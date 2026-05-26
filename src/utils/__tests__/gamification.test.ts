@@ -98,7 +98,7 @@ describe('checkBadges', () => {
     expect(b).toContain('streak_30_any');
   });
   it('awards life_balance only when all 6 domain scores > 60', () => {
-    const domainScores = { goals: 70, health: 65, finance: 80, career: 90, social: 61, mind: 75 };
+    const domainScores = { goals: 70, health: 65, finance: 80, career: 90, social: 61, polymath: 75 };
     expect(checkBadges([], { domainScores })).toContain('life_balance');
     expect(checkBadges([], { domainScores: { ...domainScores, social: 60 } })).not.toContain('life_balance');
   });

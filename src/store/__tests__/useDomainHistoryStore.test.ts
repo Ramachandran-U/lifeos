@@ -2,7 +2,7 @@ import { useDomainHistoryStore } from '../useDomainHistoryStore';
 import type { DomainScores } from '@/utils/gamification';
 
 const scores = (over: Partial<DomainScores> = {}): DomainScores => ({
-  goals: 50, health: 50, finance: 50, career: 50, social: 50, mind: 50, ...over,
+  goals: 50, health: 50, finance: 50, career: 50, social: 50, polymath: 50, ...over,
 });
 
 // The store records under "today" (UTC). To exercise multi-day behaviour we
@@ -78,7 +78,7 @@ describe('useDomainHistoryStore selectors over synthetic history', () => {
   });
 
   it('deltaFor returns 0 when fewer than 2 entries exist', () => {
-    useDomainHistoryStore.setState({ entries: { mind: [{ date: '2026-01-01', score: 42 }] } });
-    expect(useDomainHistoryStore.getState().deltaFor('mind')).toBe(0);
+    useDomainHistoryStore.setState({ entries: { polymath: [{ date: '2026-01-01', score: 42 }] } });
+    expect(useDomainHistoryStore.getState().deltaFor('polymath')).toBe(0);
   });
 });

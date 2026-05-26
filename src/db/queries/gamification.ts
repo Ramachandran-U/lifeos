@@ -18,7 +18,7 @@ const DEFAULT_DOMAIN_SCORES = JSON.stringify({
   finance: 0,
   career: 0,
   social: 0,
-  mind: 0,
+  polymath: 0,
 });
 
 const DEFAULT_STREAKS = JSON.stringify({
