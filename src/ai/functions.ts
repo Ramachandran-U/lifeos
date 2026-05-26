@@ -91,6 +91,9 @@ import {
   CrossDisciplineLink,
   CrossDisciplineLinkSchema,
   CrossDisciplineLinkInput,
+  GeneratedWeekRoutine,
+  GeneratedWeekRoutineSchema,
+  GenerateWeekRoutineInput,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -101,7 +104,7 @@ import { TOMORROW_TWEAK_PROMPT } from './prompts/reflection';
 import { buildMockTomorrowTweak } from './mocks/reflection';
 import { GOAL_DECOMPOSITION_PROMPT, GOAL_DESCRIPTION_PROMPT } from './prompts/goals';
 import { SKILL_GAP_PROMPT, CAREER_STRATEGY_PROMPT, MOTIVATION_PROMPT } from './prompts/career';
-import { ROUTINE_GENERATION_PROMPT, REPLAN_REMAINING_DAY_PROMPT, GENERATE_TOMORROW_ROUTINE_PROMPT } from './prompts/routine';
+import { ROUTINE_GENERATION_PROMPT, REPLAN_REMAINING_DAY_PROMPT, GENERATE_TOMORROW_ROUTINE_PROMPT, GENERATE_WEEK_ROUTINE_PROMPT } from './prompts/routine';
 import { BLOOD_REPORT_PROMPT, MEAL_SUGGESTION_PROMPT, FOOD_RECOGNITION_PROMPT } from './prompts/health';
 import {
   FINANCIAL_PLAN_PROMPT,
@@ -115,7 +118,7 @@ import { CONVERSATION_STARTERS_PROMPT } from './prompts/social';
 import { buildMockConversationStarters } from './mocks/social';
 import { INTEREST_SUGGESTIONS_PROMPT, CROSS_DISCIPLINE_LINK_PROMPT } from './prompts/polymath';
 import { buildMockInterestSuggestions, buildMockCrossDisciplineLink } from './mocks/polymath';
-import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine } from './mocks/routine';
+import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine, buildMockWeekRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
 
@@ -665,5 +668,25 @@ export async function suggestCrossDisciplineLink(
     return CrossDisciplineLinkSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('suggestCrossDisciplineLink', 'CrossDisciplineLink', response, err);
+  }
+}
+
+export async function generateWeekRoutine(input: GenerateWeekRoutineInput): Promise<GeneratedWeekRoutine> {
+  if (isMock) return buildMockWeekRoutine(input);
+
+  const response = await callAI({
+    system: GENERATE_WEEK_ROUTINE_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateWeekRoutine'),
+    cacheSystem: true,
+    task: 'generateWeekRoutine',
+    // 7 days of blocks comfortably exceeds the default; bump the cap.
+    maxTokens: 6000,
+  });
+
+  try {
+    return GeneratedWeekRoutineSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateWeekRoutine', 'GeneratedWeekRoutine', response, err);
   }
 }

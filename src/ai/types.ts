@@ -315,6 +315,14 @@ export interface RoutineInput {
   /** Polymath interests the user has flagged "protect time" — the planner must
    *  reserve at least the given weekly minutes for each, spread across the week. */
   protectedInterests?: Array<{ name: string; weeklyMinutes: number }>;
+  /** Minutes spent per domain over the last 7 days. Used by the planner to
+   *  soften the dominant domain and bump silent primary domains. */
+  lastWeekDomainMinutes?: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
+  /** Day of the week for the routine being generated. 0 = Sunday … 6 = Saturday.
+   *  Used so weekend plans differ from weekday plans. */
+  dayOfWeek?: number;
 }
 
 // --- Finance Types ---
@@ -776,4 +784,34 @@ export interface GenerateTomorrowRoutineInput {
   };
   /** Optional recovery signal — true => soften the plan. */
   softenForRecovery?: boolean;
+  /** Minutes spent per domain over the last 7 days — used for adaptive rebalancing. */
+  lastWeekDomainMinutes?: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
+}
+
+// --- Week Routine (multi-day batch generation) ---
+
+export const WeekRoutineDaySchema = z.object({
+  date: z.string(),              // YYYY-MM-DD
+  dayOfWeek: z.number().min(0).max(6),
+  blocks: z.array(RoutineBlockSchema),
+  briefing: z.string(),
+});
+
+export const GeneratedWeekRoutineSchema = z.object({
+  days: z.array(WeekRoutineDaySchema).length(7),
+  weeklyOutline: z.string(), // 1-3 sentences explaining the week's shape
+});
+
+export type GeneratedWeekRoutine = z.infer<typeof GeneratedWeekRoutineSchema>;
+
+export interface GenerateWeekRoutineInput {
+  startDate: string;          // YYYY-MM-DD — first day in the week
+  profile: UserProfile;
+  primaryDomains: string[];
+  protectedInterests?: Array<{ name: string; weeklyMinutes: number }>;
+  lastWeekDomainMinutes?: Partial<{
+    goals: number; health: number; finance: number; career: number; social: number; mind: number;
+  }>;
 }

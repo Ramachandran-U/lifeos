@@ -2,15 +2,17 @@ import { format } from 'date-fns';
 import {
   createRoutineBlocks,
   deleteRoutineBlock,
+  deleteRoutineBlocksByDate,
   getRoutineBlocksByDate,
   updateRoutineBlock,
 } from '@/db/queries/routine';
-import { replanRemainingDay, generateTomorrowRoutine } from './functions';
+import { replanRemainingDay, generateTomorrowRoutine, generateWeekRoutine } from './functions';
 import type {
   ReplanRemainingDay,
   ReplanRemainingDayInput,
   GenerateTomorrowRoutineInput,
   GeneratedRoutine,
+  GeneratedWeekRoutine,
   UserProfile,
 } from './types';
 
@@ -93,11 +95,20 @@ export async function generateAndSaveTomorrow(opts: {
   softenForRecovery?: boolean;
 }): Promise<GeneratedRoutine> {
   const tomorrow = format(new Date(Date.now() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+  // Pull last-week domain minutes so the tomorrow planner can rebalance.
+  // Dynamic import to avoid pulling the DB layer into modules that don't
+  // already touch it (keeps Metro happy on web).
+  const { computeLastWeekDomainMinutes } = await import('@/utils/routineBalance');
+  let lastWeekDomainMinutes: GenerateTomorrowRoutineInput['lastWeekDomainMinutes'] | undefined;
+  try {
+    lastWeekDomainMinutes = computeLastWeekDomainMinutes();
+  } catch { /* DB might not be ready on first launch — non-fatal */ }
   const routine = await generateTomorrowRoutine({
     tomorrowDate: tomorrow,
     profile: opts.profile,
     todayReview: opts.todayReview,
     softenForRecovery: opts.softenForRecovery,
+    lastWeekDomainMinutes,
   });
   createRoutineBlocks(
     routine.blocks.map((b) => ({
@@ -126,4 +137,61 @@ export function isRecoveryLow(opts: {
   if (opts.skippedTodayCount >= 3) return true;
   if (opts.lastMood !== null && opts.lastMood <= 2) return true;
   return false;
+}
+
+/**
+ * Generate a full 7-day routine starting from `startDate` and persist every day's
+ * blocks. Existing blocks on overlapping dates are deleted first so the user
+ * never ends up with duplicates. Returns the AI response for UI rendering.
+ *
+ * Pulls protectedInterests + lastWeekDomainMinutes automatically so callers
+ * only need to pass the profile and primaryDomains.
+ */
+export async function generateAndSaveWeek(opts: {
+  userId: string;
+  startDate: string;
+  profile: UserProfile;
+  primaryDomains: string[];
+}): Promise<GeneratedWeekRoutine> {
+  let protectedInterests: { name: string; weeklyMinutes: number }[] | undefined;
+  try {
+    const { getInterestsByUser } = await import('@/db/queries/interests');
+    protectedInterests = getInterestsByUser(opts.userId)
+      .filter((i) => i.timeProtected && i.status !== 'deleted')
+      .map((i) => ({ name: i.name, weeklyMinutes: i.weeklyMinutesTarget }));
+    if (protectedInterests.length === 0) protectedInterests = undefined;
+  } catch { /* non-fatal */ }
+
+  let lastWeekMinutes:
+    | { goals?: number; health?: number; finance?: number; career?: number; social?: number; mind?: number }
+    | undefined;
+  try {
+    const { computeLastWeekDomainMinutes } = await import('@/utils/routineBalance');
+    lastWeekMinutes = computeLastWeekDomainMinutes();
+  } catch { /* non-fatal */ }
+
+  const week = await generateWeekRoutine({
+    startDate: opts.startDate,
+    profile: opts.profile,
+    primaryDomains: opts.primaryDomains,
+    protectedInterests,
+    lastWeekDomainMinutes: lastWeekMinutes,
+  });
+
+  // Persist — wipe each day first to avoid duplicates if the user regenerates.
+  for (const day of week.days) {
+    deleteRoutineBlocksByDate(day.date);
+    createRoutineBlocks(
+      day.blocks.map((b) => ({
+        date: day.date,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        title: b.title,
+        module: b.module,
+        energyRequired: b.energyRequired,
+      })),
+    );
+  }
+
+  return week;
 }
