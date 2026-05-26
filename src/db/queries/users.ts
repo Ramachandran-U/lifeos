@@ -2,7 +2,17 @@ import { Platform } from 'react-native';
 import { eq } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '../index';
-import { users } from '../schema';
+import {
+  users,
+  goals,
+  goalComments,
+  interests,
+  gamification,
+  contacts,
+  userProfiles,
+  chatMessages,
+  discoveryImports,
+} from '../schema';
 import {
   webCreateUser,
   webGetUser,
@@ -157,6 +167,24 @@ export async function upsertGoogleUser(profile: {
  * queries read from this table so the rest of the app does not need to know
  * where the id originated.
  */
+/**
+ * Native (SQLite) twin of webRewriteUserId. Rewrites the user row id AND every
+ * userId-scoped foreign key so goals, streaks, contacts, interests, and the
+ * profile survive the id change instead of being orphaned (the data-loss the
+ * web fix already closed; this is the native parity — BUG-001 #1).
+ */
+function rewriteUserIdNative(oldId: string, newId: string, name?: string): void {
+  db.update(users).set(name ? { id: newId, name } : { id: newId }).where(eq(users.id, oldId)).run();
+  db.update(goals).set({ userId: newId }).where(eq(goals.userId, oldId)).run();
+  db.update(goalComments).set({ userId: newId }).where(eq(goalComments.userId, oldId)).run();
+  db.update(interests).set({ userId: newId }).where(eq(interests.userId, oldId)).run();
+  db.update(gamification).set({ userId: newId }).where(eq(gamification.userId, oldId)).run();
+  db.update(contacts).set({ userId: newId }).where(eq(contacts.userId, oldId)).run();
+  db.update(userProfiles).set({ userId: newId }).where(eq(userProfiles.userId, oldId)).run();
+  db.update(chatMessages).set({ userId: newId }).where(eq(chatMessages.userId, oldId)).run();
+  db.update(discoveryImports).set({ userId: newId }).where(eq(discoveryImports.userId, oldId)).run();
+}
+
 export async function ensureLocalUserFromAuth(params: {
   userId: string;
   email: string;
@@ -176,7 +204,7 @@ export async function ensureLocalUserFromAuth(params: {
       webRewriteUserId(existing.id, params.userId, params.name);
       return;
     }
-    db.update(users).set({ id: params.userId, name: params.name }).where(eq(users.id, existing.id)).run();
+    rewriteUserIdNative(existing.id, params.userId, params.name);
     return;
   }
   await createUser({

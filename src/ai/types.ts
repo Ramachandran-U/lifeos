@@ -34,6 +34,8 @@ export interface AIRequest {
   cacheSystem?: boolean;
   /** Tag used for cost-ledger attribution. */
   task?: string;
+  /** Optional cancellation — aborts the underlying fetch. (BUG-012) */
+  signal?: AbortSignal;
 }
 
 // --- Goal Types ---
