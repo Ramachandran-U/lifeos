@@ -156,14 +156,27 @@ export async function scheduleStreakAtRiskNotification() {
   });
 }
 
-export async function scheduleSocialOverdueNudge() {
+export async function scheduleSocialOverdueNudge(overdueCount?: number) {
   await cancelNotification('social_overdue');
+
+  // Personalised body when we know the current overdue count; otherwise the
+  // generic version (used the first time before any contacts exist).
+  let body = 'You haven\'t reached out to anyone this week. A quick message can make someone\'s day.';
+  if (typeof overdueCount === 'number' && overdueCount > 0) {
+    body =
+      overdueCount === 1
+        ? 'One person in your circle is overdue. A short message tonight will close the loop.'
+        : `${overdueCount} people in your circle are overdue. Pick one to reach out to tonight.`;
+  } else if (overdueCount === 0) {
+    // No-op — caller should skip the schedule when nobody is overdue.
+    return;
+  }
 
   await Notifications.scheduleNotificationAsync({
     identifier: 'social_overdue',
     content: {
       title: 'Reconnect with someone',
-      body: 'You haven\'t reached out to anyone this week. A quick message can make someone\'s day.',
+      body,
       data: { screen: 'social' },
     },
     trigger: {
@@ -172,6 +185,29 @@ export async function scheduleSocialOverdueNudge() {
       minute: 0,
     },
   });
+}
+
+/**
+ * Refresh the body text of the social_overdue notification with the live
+ * overdue count — but ONLY if the user has already opted in (i.e. an existing
+ * social_overdue notification is scheduled). Never enables the notification
+ * for a user who has it turned off.
+ *
+ * Call this from the Social Hub on focus.
+ */
+export async function refreshSocialOverdueBody(overdueCount: number): Promise<void> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const exists = scheduled.some((n) => n.identifier === 'social_overdue');
+    if (!exists) return;
+    if (overdueCount === 0) {
+      await Notifications.cancelScheduledNotificationAsync('social_overdue').catch(() => {});
+      return;
+    }
+    await scheduleSocialOverdueNudge(overdueCount);
+  } catch {
+    // Non-fatal — notifications are best-effort.
+  }
 }
 
 export async function cancelAllCustomNotifications() {
@@ -199,7 +235,7 @@ export function useNotificationNavigation() {
       } else if (screen === 'goals') {
         router.push('/(tabs)/goals');
       } else if (screen === 'social') {
-        router.push('/(tabs)/explore' as never);
+        router.push('/(tabs)/social');
       } else if (screen === 'daily_routine' || screen === 'today') {
         router.push('/(tabs)');
       }

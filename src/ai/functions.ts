@@ -82,6 +82,9 @@ import {
   ReplanRemainingDaySchema,
   GenerateTomorrowRoutineInput,
   GenerateTomorrowRoutineSchema,
+  ConversationStarters,
+  ConversationStartersSchema,
+  ConversationStartersInput,
 } from './types';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
@@ -102,6 +105,8 @@ import {
 } from './prompts/finance';
 import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals';
 import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
+import { CONVERSATION_STARTERS_PROMPT } from './prompts/social';
+import { buildMockConversationStarters } from './mocks/social';
 import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
@@ -588,5 +593,31 @@ export async function generateTomorrowRoutine(input: GenerateTomorrowRoutineInpu
     return GenerateTomorrowRoutineSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateTomorrowRoutine', 'GeneratedRoutine', response, err);
+  }
+}
+
+export async function generateConversationStarters(input: ConversationStartersInput): Promise<ConversationStarters> {
+  if (isMock) return buildMockConversationStarters(input);
+
+  // Privacy guard — strip anything that might leak a name from the optional
+  // context note before sending. Names are NEVER part of the payload.
+  const safePayload = {
+    relationshipType: input.relationshipType,
+    daysSinceContact: input.daysSinceContact,
+    contextNote: input.contextNote ? input.contextNote.slice(0, 200) : undefined,
+  };
+
+  const response = await callAI({
+    system: CONVERSATION_STARTERS_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(safePayload) }],
+    model: pickModel('generateConversationStarters'),
+    cacheSystem: true,
+    task: 'generateConversationStarters',
+  });
+
+  try {
+    return ConversationStartersSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateConversationStarters', 'ConversationStarters', response, err);
   }
 }

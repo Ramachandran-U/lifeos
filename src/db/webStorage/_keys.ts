@@ -22,3 +22,5 @@ export const FINANCIAL_GOALS_KEY = 'lifeos_financial_goals';
 export const FINANCE_MILESTONES_KEY = 'lifeos_finance_milestones';
 export const INTERESTS_KEY = 'lifeos_interests';
 export const EXPLORATION_LOG_KEY = 'lifeos_exploration_log';
+export const CONTACTS_KEY = 'lifeos_contacts';
+export const CONTACT_INTERACTIONS_KEY = 'lifeos_contact_interactions';

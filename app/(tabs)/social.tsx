@@ -1,0 +1,217 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useColors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+import { fonts, fontSizes } from '@/theme/typography';
+import { Body, Caption, Heading } from '@/components/ui/Typography';
+import { ModuleHeader } from '@/components/ui/ModuleHeader';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { useUserStore } from '@/store/useUserStore';
+import { useGameStore } from '@/store/useGameStore';
+import { useScreenTracking } from '@/hooks/useScreenTracking';
+import {
+  getContactsByUser,
+  computeOverdue,
+  computeSocialScore,
+  RELATIONSHIP_META,
+  RELATIONSHIP_TIERS,
+  type Contact,
+  type RelationshipType,
+} from '@/db/queries/social';
+import { SocialScoreCard } from '@/components/modules/social/SocialScoreCard';
+import { ContactRow } from '@/components/modules/social/ContactRow';
+import { AddContactSheet } from '@/components/modules/social/AddContactSheet';
+import { refreshSocialOverdueBody } from '@/hooks/useNotifications';
+
+export default function SocialScreen() {
+  useScreenTracking('social');
+  const c = useColors();
+  const router = useRouter();
+  const userId = useUserStore((s) => s.userId);
+  const awardBadge = useGameStore((s) => s.awardBadge);
+
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [addOpen, setAddOpen] = useState(false);
+
+  const reload = useCallback(() => {
+    if (!userId) return;
+    setContacts(getContactsByUser(userId));
+  }, [userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
+
+  const { score, overdue, byTier } = useMemo(() => {
+    const overdueList: Contact[] = [];
+    const inCadence: Contact[] = [];
+    contacts.forEach((c) => (computeOverdue(c).isOverdue ? overdueList.push(c) : inCadence.push(c)));
+    // Sort overdue by most-overdue first.
+    overdueList.sort((a, b) => computeOverdue(b).daysSinceContact! - computeOverdue(a).daysSinceContact!);
+    const byTier: Record<RelationshipType, Contact[]> = {
+      inner_circle: [], close_friend: [], family: [], mentor: [], colleague: [], acquaintance: [],
+    };
+    inCadence.forEach((c) => {
+      const t = c.relationshipType as RelationshipType;
+      if (byTier[t]) byTier[t].push(c);
+    });
+    return {
+      score: computeSocialScore(contacts),
+      overdue: overdueList,
+      byTier,
+    };
+  }, [contacts]);
+
+  useEffect(() => {
+    // Keep the 6 PM nudge body in sync with the live overdue count.
+    // No-op when the user has the social_overdue notification turned off.
+    void refreshSocialOverdueBody(overdue.length);
+  }, [overdue.length]);
+
+  const handleCreated = () => {
+    if (!userId) return;
+    const wasEmpty = contacts.length === 0;
+    reload();
+    if (wasEmpty) awardBadge(userId, 'first_connection');
+  };
+
+  return (
+    <View style={[styles.root, { backgroundColor: c.background }]}>
+      <AuroraBackground />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <ModuleHeader title="Social" icon="people" color={c.social} />
+
+          <Caption style={{ color: c.textMuted, marginBottom: spacing.md }}>
+            Stay close to people who matter. Names stay on this device.
+          </Caption>
+
+          <SocialScoreCard
+            score={score}
+            totalContacts={contacts.length}
+            overdueCount={overdue.length}
+          />
+
+          {overdue.length > 0 ? (
+            <View style={styles.section}>
+              <SectionLabel>Overdue</SectionLabel>
+              <View style={styles.list}>
+                {overdue.map((contact) => (
+                  <ContactRow
+                    key={contact.id}
+                    contact={contact}
+                    onPress={() => router.push({ pathname: '/contact/[id]', params: { id: contact.id } })}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {RELATIONSHIP_TIERS.map((tier) => {
+            const list = byTier[tier];
+            if (list.length === 0) return null;
+            return (
+              <View key={tier} style={styles.section}>
+                <SectionLabel>{RELATIONSHIP_META[tier].label}</SectionLabel>
+                <View style={styles.list}>
+                  {list.map((contact) => (
+                    <ContactRow
+                      key={contact.id}
+                      contact={contact}
+                      onPress={() => router.push({ pathname: '/contact/[id]', params: { id: contact.id } })}
+                    />
+                  ))}
+                </View>
+              </View>
+            );
+          })}
+
+          {contacts.length === 0 ? (
+            <View style={[styles.empty, { borderColor: c.border }]}>
+              <View style={[styles.emptyIcon, { backgroundColor: c.social + '22' }]}>
+                <Ionicons name="people-outline" size={28} color={c.social} />
+              </View>
+              <Heading style={{ color: c.textPrimary, textAlign: 'center' }}>
+                Build your inner orbit
+              </Heading>
+              <Caption style={{ color: c.textMuted, textAlign: 'center' }}>
+                Add the people you actually want to stay close to.{'\n'}
+                We'll quietly tell you when it's been too long.
+              </Caption>
+            </View>
+          ) : null}
+
+          <View style={{ height: spacing.xxl }} />
+        </ScrollView>
+
+        <Pressable
+          onPress={() => setAddOpen(true)}
+          style={({ pressed }) => [
+            styles.fab,
+            {
+              backgroundColor: c.social,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}
+        >
+          <Ionicons name="add" size={26} color="#1A0612" />
+        </Pressable>
+      </SafeAreaView>
+
+      {userId ? (
+        <AddContactSheet
+          visible={addOpen}
+          userId={userId}
+          onClose={() => setAddOpen(false)}
+          onCreated={handleCreated}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  scroll: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl,
+  },
+  section: { marginTop: spacing.lg, gap: spacing.sm },
+  list: { gap: spacing.xs },
+  empty: {
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  emptyIcon: {
+    width: 56, height: 56, borderRadius: 28,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 6,
+  },
+});

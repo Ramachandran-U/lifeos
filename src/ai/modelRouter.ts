@@ -31,6 +31,7 @@ export type AITask =
   | 'suggestTomorrowTweak'
   | 'replanRemainingDay'
   | 'generateTomorrowRoutine'
+  | 'generateConversationStarters'
   | 'agent.propose'
   | 'agent.critique'
   | 'agent.brief';
@@ -40,6 +41,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   describeGoal: 'cheap',
   generateMotivation: 'cheap',
   discoveryChatTurn: 'cheap',
+  generateConversationStarters: 'cheap',
   'agent.brief': 'cheap',
 
   decomposeGoal: 'planning',

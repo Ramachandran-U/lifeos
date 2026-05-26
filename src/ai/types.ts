@@ -192,6 +192,31 @@ export interface MotivationInput {
   context: string; // free-text summary of relevant user state
 }
 
+// --- Social Types ---
+// IMPORTANT: contact names NEVER appear in AI requests. Only relationship type
+// + days since contact + optional context note are sent.
+
+export const RelationshipTypeEnum = z.enum([
+  'inner_circle',
+  'close_friend',
+  'family',
+  'mentor',
+  'colleague',
+  'acquaintance',
+]);
+
+export const ConversationStartersSchema = z.object({
+  openers: z.array(z.string()).min(2).max(4),
+});
+
+export type ConversationStarters = z.infer<typeof ConversationStartersSchema>;
+
+export interface ConversationStartersInput {
+  relationshipType: z.infer<typeof RelationshipTypeEnum>;
+  daysSinceContact: number;
+  contextNote?: string; // optional user-supplied context — must not include the contact's name
+}
+
 // --- Routine Types ---
 
 export const RoutineBlockSchema = z.object({

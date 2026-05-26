@@ -219,6 +219,33 @@ export const userProfiles = sqliteTable('user_profiles', {
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- Contacts (Social — on-device only, never synced) ---
+export const contacts = sqliteTable('contacts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  nickname: text('nickname'),
+  relationshipType: text('relationship_type').notNull(), // inner_circle | close_friend | family | mentor | colleague | acquaintance
+  preferredCadenceDays: integer('preferred_cadence_days').notNull(),
+  lastContactDate: text('last_contact_date'), // YYYY-MM-DD
+  notes: text('notes'),
+  birthday: text('birthday'), // MM-DD
+  source: text('source').notNull().default('manual'), // manual | phone_import
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+  deletedAt: text('deleted_at'),
+});
+
+// --- Contact Interactions (Social — on-device only) ---
+export const contactInteractions = sqliteTable('contact_interactions', {
+  id: text('id').primaryKey(),
+  contactId: text('contact_id').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD
+  type: text('type').notNull(), // call | message | in_person | email | other
+  notes: text('notes'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),
