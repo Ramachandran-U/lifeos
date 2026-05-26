@@ -121,7 +121,12 @@ export const useGameStore = create<GameState>((set, get) => ({
         mind: Math.max(15, parsed.mind ?? 0),
       };
     } catch { /* keep default */ }
-    try { streaks = JSON.parse(game.streaks); } catch { /* keep default */ }
+    // Merge OVER the defaults — a fresh user's row stores streaks as '{}',
+    // and replacing wholesale would drop every per-type key (workout,
+    // learning, …). triggerStreak would then call updateStreak(undefined)
+    // and throw on `streak.lastDate`, so the streak never saves. Merging
+    // guarantees all five keys are always present.
+    try { streaks = { ...DEFAULT_STREAKS, ...JSON.parse(game.streaks) }; } catch { /* keep default */ }
     try { badges = JSON.parse(game.badges); } catch { /* keep default */ }
 
     // Retroactive first_blueprint award. The badge used to only be granted

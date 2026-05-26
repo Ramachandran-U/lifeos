@@ -86,7 +86,11 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
         });
       }
     };
-    ws.onerror = () => opts.onEvent({ type: 'error', message: 'websocket error' });
+    ws.onerror = () =>
+      opts.onEvent({
+        type: 'error',
+        message: "Couldn't reach the voice service. It may be momentarily unavailable — try again shortly.",
+      });
     ws.onclose = () => {
       open = false;
       opts.onEvent({ type: 'close' });

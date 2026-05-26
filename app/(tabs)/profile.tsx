@@ -162,6 +162,7 @@ export default function ProfileScreen() {
 
   const [range, setRange] = useState<UsageRange>('day');
   const [stats, setStats] = useState<UsageStats | null>(null);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
 
   const refresh = useCallback(() => {
     setStats(getUsageStats(range));
@@ -339,10 +340,25 @@ export default function ProfileScreen() {
           />
         </Card>
 
-        {/* Appearance — Aurora preferences */}
+        {/* Appearance — Aurora preferences (collapsed by default) */}
         <GlassCard style={styles.card}>
-          <SectionLabel>APPEARANCE</SectionLabel>
+          <Pressable
+            onPress={() => setAppearanceOpen((v) => !v)}
+            style={styles.collapseHeader}
+            accessibilityRole="button"
+            accessibilityHint={appearanceOpen ? 'Collapse appearance settings' : 'Expand appearance settings'}
+          >
+            <SectionLabel>APPEARANCE</SectionLabel>
+            <View style={{ flex: 1 }} />
+            <Ionicons
+              name={appearanceOpen ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={c.textMuted}
+            />
+          </Pressable>
 
+          {appearanceOpen && (
+          <>
           <View style={styles.prefBlock}>
             <View style={styles.prefHeader}>
               <Ionicons name="moon-outline" size={18} color={c.textSecondary} />
@@ -424,6 +440,8 @@ export default function ProfileScreen() {
               Streaks, XP and rewards. Off hides all gamification surfaces.
             </AuroraText>
           </View>
+          </>
+          )}
         </GlassCard>
 
         <Card style={styles.card}>
@@ -588,6 +606,10 @@ const styles = StyleSheet.create({
   prefBlock: {
     gap: spacing.xs,
     paddingVertical: spacing.sm,
+  },
+  collapseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   prefHeader: {
     flexDirection: 'row',
