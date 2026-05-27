@@ -249,6 +249,34 @@ export const contactInteractions = sqliteTable('contact_interactions', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- Expeditions (Explore v2 — journey definitions, immutable) ---
+export const expeditions = sqliteTable('expeditions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  theme: text('theme').notNull(),
+  domain: text('domain').notNull().default('polymath'),
+  steps: text('steps').notNull().default('[]'), // JSON ExpeditionStep[]
+  totalSteps: integer('total_steps').notNull(),
+  source: text('source').notNull(), // ai | curated | spark
+  seedSparkId: text('seed_spark_id'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Expedition Progress (one row per user per expedition; synced) ---
+export const expeditionProgress = sqliteTable('expedition_progress', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  expeditionId: text('expedition_id').notNull(),
+  status: text('status').notNull().default('active'), // active | completed | abandoned
+  currentStep: integer('current_step').notNull().default(0),
+  completedSteps: text('completed_steps').notNull().default('[]'), // JSON int[]
+  startedAt: text('started_at').notNull(),
+  lastActivityAt: text('last_activity_at').notNull(),
+  completedAt: text('completed_at'),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Cognitive Insights (Phase 2 cognitive engine) ---
 export const cognitiveInsights = sqliteTable('cognitive_insights', {
   id: text('id').primaryKey(),

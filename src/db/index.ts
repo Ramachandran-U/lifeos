@@ -250,6 +250,34 @@ export async function initDatabase() {
     );
     CREATE INDEX IF NOT EXISTS cognitive_insights_lookup_idx ON cognitive_insights (user_id, kind, domain, created_at);
 
+    CREATE TABLE IF NOT EXISTS expeditions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      theme TEXT NOT NULL,
+      domain TEXT NOT NULL DEFAULT 'polymath',
+      steps TEXT NOT NULL DEFAULT '[]',
+      total_steps INTEGER NOT NULL,
+      source TEXT NOT NULL,
+      seed_spark_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS expeditions_user_idx ON expeditions (user_id);
+
+    CREATE TABLE IF NOT EXISTS expedition_progress (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      expedition_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      current_step INTEGER NOT NULL DEFAULT 0,
+      completed_steps TEXT NOT NULL DEFAULT '[]',
+      started_at TEXT NOT NULL,
+      last_activity_at TEXT NOT NULL,
+      completed_at TEXT,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS expedition_progress_unique_idx ON expedition_progress (user_id, expedition_id);
+
     CREATE TABLE IF NOT EXISTS daily_reflections (
       id TEXT PRIMARY KEY,
       date TEXT NOT NULL,

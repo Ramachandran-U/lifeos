@@ -25,6 +25,20 @@ export interface ExpeditionStep {
   estMinutes: number;
 }
 
+/** The journey definition — immutable once created (so it never conflicts on sync). */
+export interface Expedition {
+  id: string;
+  userId: string;
+  title: string;
+  theme: string;
+  domain: string; // 'polymath' by default
+  steps: ExpeditionStep[];
+  totalSteps: number;
+  source: 'ai' | 'curated' | 'spark';
+  seedSparkId: string | null;
+  createdAt: string;
+}
+
 export interface ExpeditionProgress {
   id: string;
   userId: string;
