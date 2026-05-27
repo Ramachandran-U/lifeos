@@ -285,6 +285,16 @@ export interface DailyBriefingInput {
   topDomainYesterday: string | null; // domain that got the most time yesterday
 }
 
+// --- Monthly Money Review (finance) ---
+
+export const MonthlyMoneyReviewSchema = z.object({
+  headline: z.string().min(1),
+  wins: z.array(z.string()).min(1).max(3),
+  leaks: z.array(z.string()).min(1).max(3),
+  oneAdjustment: z.string().min(1),
+});
+export type MonthlyMoneyReview = z.infer<typeof MonthlyMoneyReviewSchema>;
+
 // --- Annual Life Review (P4-03) ---
 
 export const AnnualReviewSchema = z.object({

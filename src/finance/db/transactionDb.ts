@@ -84,9 +84,25 @@ export async function upsertTransactions(records: TxRecord[]): Promise<number> {
     .where('rawEmailId')
     .anyOf(records.map((r) => r.rawEmailId))
     .toArray();
-  const existingIds = new Set(existing.map((r) => r.rawEmailId));
-  const fresh = records.filter((r) => !existingIds.has(r.rawEmailId));
+  const existingByEmail = new Map(existing.map((r) => [r.rawEmailId, r]));
+  const fresh = records.filter((r) => !existingByEmail.has(r.rawEmailId));
+
+  // Re-categorisation on re-sync: the first sync may have left rows as 'other'
+  // (the per-sync AI cap was hit, or the merchant cache was cold). A later sync
+  // resolves more merchants, so upgrade any existing 'other' row whose merchant
+  // now has a real category — but never touch a user's manual correction.
+  const upgrades = records
+    .map((r) => {
+      const ex = existingByEmail.get(r.rawEmailId);
+      if (ex && !ex.userCorrected && ex.category === 'other' && r.category !== 'other') {
+        return { ...ex, category: r.category };
+      }
+      return null;
+    })
+    .filter((r): r is TxRecord => r !== null);
+
   if (fresh.length > 0) await financeDb.transactions.bulkPut(fresh);
+  if (upgrades.length > 0) await financeDb.transactions.bulkPut(upgrades);
   return fresh.length;
 }
 

@@ -21,7 +21,7 @@ import type { AnnualReview } from '@/ai/types';
 
 function reviewToText(name: string | null, r: AnnualReview): string {
   const lines = [
-    `LifeOS — Annual Life Review${name ? ` for ${name}` : ''}`,
+    `LifeOS — Your journey so far${name ? `, ${name}` : ''}`,
     '',
     r.headline,
     '',
@@ -126,9 +126,9 @@ export default function AnnualReviewScreen() {
 
         <ScrollView contentContainerStyle={styles.scroll}>
           <Caption style={{ color: c.primary, fontFamily: fonts.heading, letterSpacing: 1 }}>
-            ANNUAL LIFE REVIEW
+            LOOKING BACK
           </Caption>
-          <Heading style={[styles.title, { color: c.textPrimary }]}>Your year in review</Heading>
+          <Heading style={[styles.title, { color: c.textPrimary }]}>Your journey so far</Heading>
 
           {loading ? (
             <Card style={styles.loadCard}>

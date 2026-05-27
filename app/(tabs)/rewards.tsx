@@ -14,7 +14,7 @@ import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
 import { xpProgressInLevel } from '@/utils/gamification';
-import { BADGE_META, DOMAIN_META, STREAK_META, type StreakKey } from '@/constants/gamification';
+import { BADGE_META, DOMAIN_META, STREAK_META, type StreakKey, type Quest } from '@/constants/gamification';
 import { LevelRing } from '@/components/gamification/LevelRing';
 import { XpBar } from '@/components/gamification/XpBar';
 import { Sparkline } from '@/components/gamification/Sparkline';
@@ -22,6 +22,7 @@ import { LevelLadder } from '@/components/gamification/LevelLadder';
 import { BadgeTile } from '@/components/gamification/BadgeTile';
 import { StreakRow } from '@/components/gamification/StreakRow';
 import { QuestCard } from '@/components/gamification/QuestCard';
+import { QuestDetailSheet } from '@/components/gamification/QuestDetailSheet';
 import { DomainMiniCard } from '@/components/gamification/DomainMiniCard';
 import type { BadgeId } from '@/utils/gamification';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -51,6 +52,7 @@ export default function RewardsScreen() {
   const deltaFor = useDomainHistoryStore((s) => s.deltaFor);
   const quests = useGameStore((s) => s.quests);
   const [section, setSection] = useState<Section>('overview');
+  const [openQuest, setOpenQuest] = useState<Quest | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -184,19 +186,26 @@ export default function RewardsScreen() {
               <SectionLabel>DAILY QUESTS</SectionLabel>
               <View style={{ gap: 10 }}>
                 {quests.filter((q) => q.type === 'daily').map((q) => (
-                  <QuestCard key={q.id} quest={q} />
+                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
                 ))}
               </View>
               <SectionLabel>WEEKLY QUEST</SectionLabel>
               <View style={{ gap: 10 }}>
                 {quests.filter((q) => q.type === 'weekly').map((q) => (
-                  <QuestCard key={q.id} quest={q} />
+                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
                 ))}
               </View>
             </View>
           )}
         </ScrollView>
       </SafeAreaView>
+
+      <QuestDetailSheet
+        quest={openQuest}
+        visible={openQuest !== null}
+        onClose={() => setOpenQuest(null)}
+        onChanged={() => { if (userId) loadGame(userId); }}
+      />
     </View>
   );
 }

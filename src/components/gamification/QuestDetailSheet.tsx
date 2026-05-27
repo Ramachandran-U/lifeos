@@ -1,0 +1,180 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Modal, View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { format } from 'date-fns';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useColors, type AppColors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+import { fonts, fontSizes } from '@/theme/typography';
+import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
+import { XpBar } from './XpBar';
+import { XpChip } from './XpChip';
+import { MODULE_META, type Quest } from '@/constants/gamification';
+import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
+import { useGameStore } from '@/store/useGameStore';
+import { useUserStore } from '@/store/useUserStore';
+import { XP_VALUES } from '@/utils/gamification';
+
+// What the user actually does to move each quest forward, plus where to do it
+// when there's no checkable routine block today.
+const QUEST_HOWTO: Record<string, { how: string; route?: string }> = {
+  q_food: { how: 'Log each meal from the Health tab. Every logged meal ticks this quest.', route: '/(tabs)/health' },
+  q_routine: { how: 'Complete the routine blocks scheduled for today. Each one counts.', route: '/(tabs)' },
+  q_learn: { how: 'Finish a learning resource in Explore to complete this week’s quest.', route: '/(tabs)/explore' },
+};
+
+interface Props {
+  quest: Quest | null;
+  visible: boolean;
+  onClose: () => void;
+  /** Called after a block is completed so the parent can refresh quest state. */
+  onChanged?: () => void;
+}
+
+export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) {
+  const c = useColors();
+  const styles = makeStyles(c);
+  const router = useRouter();
+  const userId = useUserStore((s) => s.userId);
+  const completeBlock = useGameStore((s) => s.completeBlock);
+  const addXP = useGameStore((s) => s.addXP);
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  type BlockRow = { id: string; title: string; startTime: string; endTime: string; status: string; module: string };
+  const [blocks, setBlocks] = useState<BlockRow[]>([]);
+
+  const refresh = useCallback(() => {
+    if (!quest) return;
+    const all = getRoutineBlocksByDate(today) as BlockRow[];
+    setBlocks(all.filter((b) => b.module === quest.module));
+  }, [quest, today]);
+
+  // Refresh whenever the sheet opens (it's a modal, not a navigated screen, so
+  // focus effects don't fire on open).
+  useEffect(() => {
+    if (visible) refresh();
+  }, [visible, refresh]);
+
+  if (!quest) return null;
+  const meta = MODULE_META[quest.module];
+  const color = c[meta.colorKey];
+  const pct = quest.total > 0 ? quest.progress / quest.total : 0;
+  const done = pct >= 1;
+  const howto = QUEST_HOWTO[quest.id];
+  const pending = blocks.filter((b) => b.status !== 'completed');
+
+  const handleComplete = (blockId: string) => {
+    if (!userId) return;
+    updateRoutineBlockStatus(blockId, 'completed');
+    const moduleBlocks = blocks.filter((b) => b.module === quest.module);
+    const completed = moduleBlocks.filter((b) => b.id === blockId || b.status === 'completed').length;
+    completeBlock(userId, quest.module, completed, moduleBlocks.length || 1);
+    addXP(userId, XP_VALUES.completeBlock);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    refresh();
+    onChanged?.();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <View style={styles.handle} />
+          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+            <View style={styles.header}>
+              <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
+                <Body style={{ fontSize: 20 }}>{meta.emoji}</Body>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Label color={color}>{quest.type === 'daily' ? 'DAILY QUEST' : 'WEEKLY QUEST'}</Label>
+                <Heading style={[styles.title, { color: c.textPrimary }]}>{quest.title}</Heading>
+              </View>
+              <XpChip amount={quest.xp} />
+            </View>
+
+            <View style={styles.progressRow}>
+              <View style={{ flex: 1 }}>
+                <XpBar pct={pct} color={color} height={6} />
+              </View>
+              <Caption style={{ color: c.textMuted }}>{quest.progress}/{quest.total}</Caption>
+            </View>
+
+            {howto && <Body style={[styles.how, { color: c.textSecondary }]}>{howto.how}</Body>}
+
+            {done ? (
+              <View style={[styles.doneBanner, { backgroundColor: color + '18', borderColor: color + '55' }]}>
+                <Ionicons name="checkmark-circle" size={18} color={color} />
+                <Body style={{ color: c.textPrimary }}>Quest complete — nice work!</Body>
+              </View>
+            ) : pending.length > 0 ? (
+              <View style={styles.taskList}>
+                <Label style={{ color: c.textMuted }}>TODAY'S TASKS</Label>
+                {pending.map((b) => (
+                  <View key={b.id} style={[styles.taskRow, { borderColor: c.border }]}>
+                    <View style={{ flex: 1 }}>
+                      <Body style={{ color: c.textPrimary }} numberOfLines={2}>{b.title}</Body>
+                      <Caption style={{ color: c.textMuted }}>{b.startTime}–{b.endTime}</Caption>
+                    </View>
+                    <Pressable
+                      onPress={() => handleComplete(b.id)}
+                      style={[styles.doBtn, { backgroundColor: color }]}
+                    >
+                      <Ionicons name="checkmark" size={16} color="#fff" />
+                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Done</Caption>
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  onClose();
+                  if (howto?.route) router.push(howto.route);
+                }}
+                style={[styles.goBtn, { backgroundColor: color }]}
+              >
+                <Body style={{ color: '#fff', fontFamily: fonts.heading }}>
+                  Go to {meta.label}
+                </Body>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+              </Pressable>
+            )}
+
+            <Pressable onPress={onClose} style={styles.closeBtn}>
+              <Body style={{ color: c.textSecondary }}>Close</Body>
+            </Pressable>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const makeStyles = (c: AppColors) => StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: c.border,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    maxHeight: '85%',
+  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.md },
+  scroll: { gap: spacing.md, paddingBottom: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  iconBox: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: fontSizes.lg, marginTop: 2 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  how: { lineHeight: 21 },
+  doneBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: 14, borderWidth: 1 },
+  taskList: { gap: spacing.sm },
+  taskRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderWidth: 1, borderRadius: 14 },
+  doBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: 10 },
+  goBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md, borderRadius: 14 },
+  closeBtn: { alignItems: 'center', paddingVertical: spacing.sm },
+});

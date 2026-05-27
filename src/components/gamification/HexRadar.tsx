@@ -1,12 +1,23 @@
-import { Pressable } from 'react-native';
-import Svg, { Circle, Line, Path, G, Text as SvgText } from 'react-native-svg';
-import { useColors, DOMAIN_GLYPHS } from '@/theme/colors';
+import { Pressable, View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, Line, Path, G } from 'react-native-svg';
+import { useColors } from '@/theme/colors';
 import { DOMAIN_META } from '@/constants/gamification';
-import type { DomainKey } from '@/constants/gamification';
+import type { DomainKey, ColorKey } from '@/constants/gamification';
+
+const DOMAIN_ICONS: Record<ColorKey, keyof typeof Ionicons.glyphMap> = {
+  goal:     'flag',
+  health:   'barbell',
+  finance:  'cash',
+  career:   'briefcase',
+  social:   'people',
+  polymath: 'compass',
+};
+
+const ICON_SIZE = 17;
 
 interface Props {
   scores: Record<DomainKey, number>;
-  /** Optional snapshot of yesterday's scores — drawn as a faint outline behind today's. */
   yesterdayScores?: Record<DomainKey, number> | null;
   size?: number;
   activeDomain?: DomainKey | null;
@@ -42,8 +53,8 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
   const yesterdayPath = yesterdayScores ? scorePath(yesterdayScores) : null;
 
   return (
-    <Pressable disabled style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         {rings.map((pctR, i) => (
           <Path
             key={i}
@@ -67,28 +78,6 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
               strokeWidth={1}
               opacity={0.35}
             />
-          );
-        })}
-        {/* Minimal domain glyph just beyond each vertex — clean wayfinding for
-            the 6 axes. Brightens on the active domain, dims otherwise. */}
-        {DOMAIN_META.map((d) => {
-          const label = pt(d.angleDeg, maxR * 1.12);
-          const isActive = activeDomain === d.key;
-          return (
-            <SvgText
-              key={`glyph-${d.key}`}
-              x={label.x}
-              y={label.y}
-              fill={c[d.colorKey]}
-              fillOpacity={isActive ? 1 : 0.7}
-              fontSize={13}
-              fontWeight="600"
-              textAnchor="middle"
-              alignmentBaseline="central"
-              onPress={() => onDomainPress?.(d.key)}
-            >
-              {DOMAIN_GLYPHS[d.colorKey]}
-            </SvgText>
           );
         })}
         {yesterdayPath && (
@@ -134,6 +123,39 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
           );
         })}
       </Svg>
-    </Pressable>
+
+      {DOMAIN_META.map((d) => {
+        const label = pt(d.angleDeg, maxR * 1.12);
+        const isActive = activeDomain === d.key;
+        const iconColor = d.key === 'career' ? c.textPrimary : c[d.colorKey];
+        return (
+          <Pressable
+            key={`icon-${d.key}`}
+            onPress={() => onDomainPress?.(d.key)}
+            hitSlop={8}
+            style={[
+              styles.icon,
+              {
+                left: label.x - ICON_SIZE / 2,
+                top: label.y - ICON_SIZE / 2,
+                opacity: isActive ? 1 : 0.75,
+              },
+            ]}
+          >
+            <Ionicons name={DOMAIN_ICONS[d.colorKey]} size={ICON_SIZE} color={iconColor} />
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  icon: {
+    position: 'absolute',
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

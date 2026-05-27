@@ -1,0 +1,177 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, View, Pressable } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useColors } from '@/theme/colors';
+import { spacing } from '@/theme/spacing';
+import { fonts, fontSizes } from '@/theme/typography';
+import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
+import { Card } from '@/components/ui/Card';
+import { SectionLabel } from '@/components/ui/SectionLabel';
+import { LoadingDots } from '@/components/ui/LoadingDots';
+import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { useTransactionStore } from '@/finance/store/useTransactionStore';
+import { useMoneyReviewStore, currentMonthKey } from '@/finance/store/useMoneyReviewStore';
+import { buildMoneyReviewInput } from '@/finance/moneyReview';
+import { generateMoneyReview } from '@/ai/functions';
+import type { MonthlyMoneyReview } from '@/ai/types';
+
+export default function FinanceReviewScreen() {
+  const c = useColors();
+  const router = useRouter();
+  const transactions = useTransactionStore((s) => s.transactions);
+  const load = useTransactionStore((s) => s.load);
+  const cache = useMoneyReviewStore((s) => s.cache);
+  const setCache = useMoneyReviewStore((s) => s.setCache);
+
+  const [loading, setLoading] = useState(false);
+  const [report, setReport] = useState<MonthlyMoneyReview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
+
+  useEffect(() => {
+    if (transactions.length === 0) void load();
+  }, [transactions.length, load]);
+
+  const generate = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (inFlight.current) return;
+      const monthKey = currentMonthKey();
+      if (!opts?.force && cache?.monthKey === monthKey) {
+        setReport(cache.review);
+        return;
+      }
+      if (transactions.length === 0) return;
+      inFlight.current = true;
+      setLoading(true);
+      setReport(null);
+      setError(null);
+      try {
+        const input = buildMoneyReviewInput(
+          transactions.map((t) => ({ date: t.date, amount: t.amount, direction: t.direction, merchant: t.merchant, category: t.category })),
+        );
+        const result = await generateMoneyReview(input);
+        setReport(result);
+        setCache({ monthKey, review: result });
+      } catch (err) {
+        // Alert.alert is a no-op on web — surface the error inline instead so
+        // a rate-limit / schema failure isn't a silent blank screen.
+        setError(err instanceof Error ? err.message : 'Could not generate the review.');
+      } finally {
+        setLoading(false);
+        inFlight.current = false;
+      }
+    },
+    [transactions, cache, setCache],
+  );
+
+  useEffect(() => {
+    void generate();
+  }, [generate]);
+
+  return (
+    <View style={{ flex: 1, backgroundColor: c.background }}>
+      <AuroraBackground />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <View style={styles.topRow}>
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/finance'))}
+            hitSlop={12}
+          >
+            <Ionicons name="chevron-back" size={26} color={c.textPrimary} />
+          </Pressable>
+          <Pressable onPress={() => generate({ force: true })} hitSlop={12} disabled={loading}>
+            <Ionicons name="refresh" size={20} color={loading ? c.textMuted : c.finance} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <Label color={c.finance}>MONTHLY MONEY REVIEW</Label>
+          <Heading style={[styles.title, { color: c.textPrimary }]}>Where your money went</Heading>
+
+          {loading ? (
+            <Card style={styles.loadCard}>
+              <LoadingDots />
+              <Caption style={{ color: c.textMuted, marginTop: spacing.sm }}>Reading this month's transactions…</Caption>
+            </Card>
+          ) : report ? (
+            <>
+              <Animated.View entering={FadeInDown.duration(300)}>
+                <Card moduleColor={c.finance}>
+                  <Body style={[styles.headline, { color: c.textPrimary }]}>{report.headline}</Body>
+                </Card>
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(80).duration(300)}>
+                <Card moduleColor={c.success}>
+                  <SectionLabel color={c.success}>WINS</SectionLabel>
+                  <View style={styles.list}>
+                    {report.wins.map((w, i) => (
+                      <Body key={i} style={{ color: c.textPrimary }}>• {w}</Body>
+                    ))}
+                  </View>
+                </Card>
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(160).duration(300)}>
+                <Card moduleColor={c.warning}>
+                  <SectionLabel color={c.warning}>WHERE IT WENT</SectionLabel>
+                  <View style={styles.list}>
+                    {report.leaks.map((l, i) => (
+                      <Body key={i} style={{ color: c.textPrimary }}>• {l}</Body>
+                    ))}
+                  </View>
+                </Card>
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(240).duration(300)}>
+                <Card moduleColor={c.primary}>
+                  <SectionLabel color={c.primary}>ONE ADJUSTMENT</SectionLabel>
+                  <Body style={[styles.adjustment, { color: c.textPrimary }]}>{report.oneAdjustment}</Body>
+                </Card>
+              </Animated.View>
+            </>
+          ) : error ? (
+            <Card moduleColor={c.error} style={styles.loadCard}>
+              <Ionicons name="alert-circle-outline" size={28} color={c.error} />
+              <Body style={{ color: c.textPrimary, textAlign: 'center', marginTop: spacing.sm }}>
+                Couldn't build your review
+              </Body>
+              <Caption style={{ color: c.textMuted, textAlign: 'center', marginTop: spacing.xs }}>{error}</Caption>
+              <Pressable onPress={() => generate({ force: true })} style={[styles.retryBtn, { backgroundColor: c.finance }]}>
+                <Body style={{ color: '#fff', fontFamily: fonts.heading }}>Try again</Body>
+              </Pressable>
+            </Card>
+          ) : transactions.length === 0 ? (
+            <Caption style={{ color: c.textMuted, marginTop: spacing.lg }}>
+              No transactions yet this month — sync your inbox on the Finance tab first.
+            </Caption>
+          ) : (
+            <Caption style={{ color: c.textMuted, marginTop: spacing.lg }}>
+              Preparing your review…
+            </Caption>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
+  title: { fontSize: fontSizes.xxl, marginTop: 2, marginBottom: spacing.xs },
+  loadCard: { alignItems: 'center', paddingVertical: spacing.xl },
+  headline: { fontFamily: fonts.heading, fontSize: fontSizes.lg, lineHeight: 26 },
+  list: { marginTop: spacing.xs, gap: spacing.xs },
+  adjustment: { fontFamily: fonts.heading, fontSize: fontSizes.lg, marginTop: spacing.xs },
+  retryBtn: { marginTop: spacing.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: 12 },
+});

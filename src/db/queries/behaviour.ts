@@ -75,7 +75,12 @@ export function getUsageStats(range: UsageRange): UsageStats {
   if (range === 'day') {
     cutoff.setHours(0, 0, 0, 0);
   } else {
-    cutoff.setDate(cutoff.getDate() - 6);
+    // "This week" = the current calendar week starting Monday, so the 7
+    // buckets line up with the Mon→Sun labels on the chart. (Previously this
+    // was a rolling 7-day window mislabelled as Mon→Sun, so e.g. yesterday's
+    // activity showed under the wrong weekday.)
+    const dowMon0 = (cutoff.getDay() + 6) % 7; // 0 = Monday … 6 = Sunday
+    cutoff.setDate(cutoff.getDate() - dowMon0);
     cutoff.setHours(0, 0, 0, 0);
   }
   const cutoffMs = cutoff.getTime();
@@ -116,10 +121,10 @@ export function getUsageStats(range: UsageRange): UsageStats {
     if (range === 'day') {
       buckets[e.hour] += durationMs;
     } else {
+      // Calendar weekday bucket: Mon=0 … Sun=6, matching the chart labels.
       const eventDate = new Date(e.createdAt);
-      eventDate.setHours(0, 0, 0, 0);
-      const dayIndex = Math.floor((eventDate.getTime() - cutoffMs) / 86_400_000);
-      if (dayIndex >= 0 && dayIndex < 7) buckets[dayIndex] += durationMs;
+      const dayIndex = (eventDate.getDay() + 6) % 7;
+      buckets[dayIndex] += durationMs;
     }
   }
 
