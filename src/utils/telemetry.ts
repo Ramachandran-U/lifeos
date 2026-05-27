@@ -60,6 +60,10 @@ export const EVENTS = {
   expeditionAbandoned: 'expedition_abandoned',
   constellationSynapseFormed: 'constellation_synapse_formed',
   curiosityStreakDay: 'curiosity_streak_day',
+  priorityChange: 'priority_change',
+  priorityReplanNow: 'priority_replan_now',
+  priorityReplanTomorrow: 'priority_replan_tomorrow',
+  priorityUndo: 'priority_undo',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
