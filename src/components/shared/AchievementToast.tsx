@@ -21,6 +21,9 @@ const BADGE_INFO: Record<BadgeId, { icon: string; name: string; subtitle: string
   first_connection: { icon: '🤝', name: 'First Connection', subtitle: 'You added someone to your Social Hub' },
   inner_orbit: { icon: '🪐', name: 'Inner Orbit', subtitle: "You're in cadence with everyone in your inner circle" },
   polymath_starter: { icon: '🔭', name: 'Polymath Starter', subtitle: 'You logged time on a deep-dive interest' },
+  expedition_complete: { icon: '🧭', name: 'Expeditioner', subtitle: 'You completed your first expedition' },
+  synapse_formed: { icon: '⚡', name: 'Synapse', subtitle: 'You formed a cross-discipline link' },
+  curiosity_streak_7: { icon: '🌟', name: 'Curious Week', subtitle: 'A full week of daily sparks' },
 };
 
 export function AchievementToast() {

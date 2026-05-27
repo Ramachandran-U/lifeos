@@ -44,6 +44,8 @@ export type AITask =
   | 'generateConversationStarters'
   | 'suggestInterestAreas'
   | 'suggestCrossDisciplineLink'
+  | 'generateDailySpark'
+  | 'generateExpedition'
   | 'generateMonthlyInsightReport'
   | 'generateDailyBriefing'
   | 'assessTrajectory'
@@ -61,6 +63,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   generateConversationStarters: 'cheap',
   suggestInterestAreas: 'planning',
   suggestCrossDisciplineLink: 'planning',
+  generateDailySpark: 'cheap', // one short call per day — keep it cheap
+  generateExpedition: 'planning', // structure matters — worth the better model
   generateMonthlyInsightReport: 'planning',
   generateDailyBriefing: 'cheap',
   assessTrajectory: 'planning',

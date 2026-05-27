@@ -24,3 +24,7 @@ export const INTERESTS_KEY = 'lifeos_interests';
 export const EXPLORATION_LOG_KEY = 'lifeos_exploration_log';
 export const CONTACTS_KEY = 'lifeos_contacts';
 export const CONTACT_INTERACTIONS_KEY = 'lifeos_contact_interactions';
+export const COGNITIVE_INSIGHTS_KEY = 'lifeos_cognitive_insights';
+export const EXPEDITIONS_KEY = 'lifeos_expeditions';
+export const EXPEDITION_PROGRESS_KEY = 'lifeos_expedition_progress';
+export const SPARKS_KEY = 'lifeos_sparks';

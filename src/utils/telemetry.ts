@@ -46,6 +46,20 @@ export const EVENTS = {
   tomorrowRoutineFailed: 'tomorrow_routine_failed',
   tomorrowRoutineGenerated: 'tomorrow_routine_generated',
   uiCrash: 'ui_crash',
+  // Explore v2 — sparks + expeditions + constellation
+  domainNudgeShown: 'domain_nudge_shown',
+  domainNudgeAccepted: 'domain_nudge_accepted',
+  domainNudgeDismissed: 'domain_nudge_dismissed',
+  sparkShown: 'spark_shown',
+  sparkSaved: 'spark_saved',
+  sparkDismissed: 'spark_dismissed',
+  sparkThreadPulled: 'spark_thread_pulled',
+  expeditionStarted: 'expedition_started',
+  expeditionStepCompleted: 'expedition_step_completed',
+  expeditionCompleted: 'expedition_completed',
+  expeditionAbandoned: 'expedition_abandoned',
+  constellationSynapseFormed: 'constellation_synapse_formed',
+  curiosityStreakDay: 'curiosity_streak_day',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

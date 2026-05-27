@@ -103,6 +103,18 @@ export function categorizeByRule(merchant: string): TransactionCategory | null {
   return null;
 }
 
+/**
+ * Per-sync AI budget, sized to stay within ~40% of the categorizer model's
+ * free-tier limit. The proxy routes categorization to `gemini-flash-latest`
+ * behind a single shared key, so the free tier (~10 RPM / ~250 RPD) is GLOBAL
+ * across all users. At BATCH_SIZE=25, MAX_AI_ITEMS_PER_SYNC=50 → at most 2 AI
+ * requests per sync (~20% of the 10 RPM, ~50 syncs/day within 40% of RPD),
+ * leaving headroom for concurrent users rather than burning the whole budget
+ * in one burst. Raise cautiously if first-sync coverage feels low.
+ */
+export const MAX_AI_ITEMS_PER_SYNC = 50;
+export const AI_BATCH_SIZE = 25;
+
 interface CategorizeOpts {
   /** Maximum number of items sent to the AI in this sync. Default 50. */
   maxAiItems?: number;
@@ -127,8 +139,8 @@ export async function categorizeBatch(
   items: Array<{ merchant: string; amount: number; direction: 'debit' | 'credit'; channel?: 'p2a' | 'p2m' }>,
   opts: CategorizeOpts = {},
 ): Promise<TransactionCategory[]> {
-  const maxAiItems = opts.maxAiItems ?? 50;
-  const batchSize = opts.batchSize ?? 25;
+  const maxAiItems = opts.maxAiItems ?? MAX_AI_ITEMS_PER_SYNC;
+  const batchSize = opts.batchSize ?? AI_BATCH_SIZE;
   const results: TransactionCategory[] = new Array(items.length).fill('other');
   const cacheWrites: MerchantCacheRecord[] = [];
   const now = Date.now();

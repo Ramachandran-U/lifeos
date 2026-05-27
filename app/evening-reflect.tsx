@@ -27,6 +27,7 @@ import type { UserProfile } from '@/ai/types';
 import { generateAndSaveTomorrow, isRecoveryLow } from '@/ai/replanApply';
 import { deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import { getLatestSleepHours } from '@/db/queries/health';
+import { DomainNudgeCard } from '@/components/shared/DomainNudgeCard';
 
 type Step = 'blocks' | 'mood' | 'tomorrow';
 
@@ -409,6 +410,8 @@ export default function EveningReflectScreen() {
                 )}
               </Card>
             )}
+
+            {userId && <DomainNudgeCard userId={userId} tomorrow={tomorrow} />}
 
             {tweakLoading && (
               <Card><Body style={styles.muted}>Thinking about tomorrow…</Body></Card>

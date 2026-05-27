@@ -364,6 +364,11 @@ export async function generateFinancialPlan(input: FinanceInput): Promise<Financ
     model: pickModel('generateFinancialPlan'),
     cacheSystem: true,
     task: 'generateFinancialPlan',
+    // summary + monthlyTarget + 3-6 strategies + 3-5 milestones + 3 weekly
+    // tips, each with prose, blows past the worker's 1200-token default and
+    // truncates mid-JSON ("Unbalanced JSON" → schema failure → the Finance
+    // "Generate my plan" button silently returns to the form). Give it room.
+    maxTokens: 3000,
   });
 
   try {

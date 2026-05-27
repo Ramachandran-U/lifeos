@@ -108,7 +108,7 @@ function formatRelative(iso: string | null): string {
 export default function FinanceScreen() {
   useScreenTracking('finance');
   const c = useColors();
-  const { call, loading } = useAI();
+  const { call, loading, error } = useAI();
   const { userId } = useUserStore();
   const addXP = useGameStore((s) => s.addXP);
   const styles = makeStyles(c);
@@ -458,6 +458,11 @@ export default function FinanceScreen() {
               ))}
             </View>
 
+            {error && (
+              <Body style={styles.planError}>
+                {error} — please try again.
+              </Body>
+            )}
             <Button title="Generate my plan" onPress={handleGeneratePlan} style={styles.continueBtn} />
           </ScrollView>
         </SafeAreaView>
@@ -1485,6 +1490,7 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     insightButton: { marginTop: spacing.sm },
     loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
     loadingText: { color: c.textSecondary },
+    planError: { color: c.error, textAlign: 'center', marginBottom: spacing.sm },
   });
 }
 
