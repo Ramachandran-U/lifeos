@@ -25,10 +25,10 @@ export interface GradientMeshProps {
   period: number;
 }
 
-const ORB_SIZE = 300;
+const ORB_SIZE = 420;
 const ORB_RADIUS = ORB_SIZE / 2;
-/** Amplitude of the elliptical orbit in px. */
 const ORBIT_AMP = 40;
+const BLUR_RADIUS = 120;
 
 /**
  * A single mesh orb: a large blurred circle that orbits on an elliptical
@@ -78,7 +78,8 @@ function MeshOrb({
           top: `${stop.cy * 100}%`,
           marginLeft: -ORB_RADIUS,
           marginTop: -ORB_RADIUS,
-        },
+          filter: `blur(${BLUR_RADIUS}px)`,
+        } as Record<string, unknown>,
         orbitStyle,
       ]}
     />
