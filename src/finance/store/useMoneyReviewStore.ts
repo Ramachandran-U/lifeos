@@ -12,6 +12,9 @@ import type { MonthlyMoneyReview } from '@/ai/types';
 interface CachedReview {
   monthKey: string; // YYYY-MM
   review: MonthlyMoneyReview;
+  /** Transaction count at generation time — if current count differs, the
+   *  review is stale (new transactions synced since it was generated). */
+  txCount?: number;
 }
 
 interface MoneyReviewState {

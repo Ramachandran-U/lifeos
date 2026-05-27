@@ -153,6 +153,21 @@ export async function generateAndSaveWeek(opts: {
   profile: UserProfile;
   primaryDomains: string[];
 }): Promise<GeneratedWeekRoutine> {
+  // The profile's schedule fields may be null (mirror from the users table is
+  // fire-and-forget and can silently fail). The users table is canonical for
+  // wake/work/sleep times, so backfill any gaps before sending to the AI —
+  // otherwise the model defaults to 07:00 regardless of what the user set.
+  try {
+    const { getUser } = await import('@/db/queries/users');
+    const user = getUser();
+    if (user) {
+      const s = opts.profile.schedule;
+      if (!s.wakeTime && user.wakeTime) s.wakeTime = user.wakeTime;
+      if (!s.sleepTime && user.sleepTime) s.sleepTime = user.sleepTime;
+      if (!s.workStartTime && user.workStartTime) s.workStartTime = user.workStartTime;
+      if (!s.workEndTime && user.workEndTime) s.workEndTime = user.workEndTime;
+    }
+  } catch { /* non-fatal — profile defaults still apply */ }
   let protectedInterests: { name: string; weeklyMinutes: number }[] | undefined;
   try {
     const { getInterestsByUser } = await import('@/db/queries/interests');

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -37,6 +38,11 @@ const ALL_TIME_SLOTS: string[] = (() => {
   }
   return out;
 })();
+
+function toMin(t: string): number {
+  const [h, m] = t.split(':').map((s) => parseInt(s, 10));
+  return h * 60 + (m || 0);
+}
 
 function to12Hour(value: string): string {
   const [hStr, mStr] = value.split(':');
@@ -100,6 +106,7 @@ export default function Day1RoutineScreen() {
   const [workStart, setWorkStart] = useState('09:00');
   const [workEnd, setWorkEnd] = useState('17:00');
   const [routine, setRoutine] = useState<GeneratedRoutine | null>(null);
+  const [filterDebug, setFilterDebug] = useState<string | null>(null);
 
   // Seed pickers from the persisted user row so re-entering this screen (esp.
   // in edit mode) doesn't silently revert wake/sleep/work times to defaults
@@ -114,10 +121,6 @@ export default function Day1RoutineScreen() {
   }, []);
 
   const scheduleError = (() => {
-    const toMin = (t: string) => {
-      const [h, m] = t.split(':').map((s) => parseInt(s, 10));
-      return h * 60 + (m || 0);
-    };
     if (toMin(wakeTime) >= toMin(workStart)) {
       return 'Wake time must be earlier than work start time.';
     }
@@ -130,6 +133,22 @@ export default function Day1RoutineScreen() {
   const handleGenerate = async () => {
     if (scheduleError) return;
 
+    // Persist the user's schedule BEFORE generating so the users table is always
+    // up-to-date (the post-generate handleSave was too late — "Plan my next 7
+    // days" reads from the users table, and a stale record means it uses the old
+    // wake time). This also surfaces the correct times if the user abandons
+    // without saving.
+    if (userId) {
+      updateUser(userId, {
+        wakeTime,
+        sleepTime,
+        workStartTime: workStart,
+        workEndTime: workEnd,
+      });
+    }
+
+    if (__DEV__) console.log('[routine] generating with schedule:', { wakeTime, sleepTime, workStart, workEnd });
+
     // Reserve weekly minutes for any interest the user has flagged "protect time".
     const protectedInterests = userId
       ? getInterestsByUser(userId)
@@ -137,7 +156,7 @@ export default function Day1RoutineScreen() {
           .map((i) => ({ name: i.name, weeklyMinutes: i.weeklyMinutesTarget }))
       : [];
 
-    const result = await call(() =>
+    const raw = await call(() =>
       planRoutineWithContext({
         wakeTime,
         sleepTime,
@@ -147,8 +166,29 @@ export default function Day1RoutineScreen() {
       })
     );
 
-    if (result) {
-      setRoutine(result);
+    if (raw) {
+      const wMin = toMin(wakeTime);
+      const sMin = toMin(sleepTime);
+      const safeBlocks = raw.blocks.filter((b) => {
+        const bs = toMin(b.startTime);
+        const be = toMin(b.endTime);
+        return bs >= wMin && be <= sMin && bs < be;
+      });
+
+      console.warn(
+        `[routine-guard] wakeTime=${wakeTime}(${wMin}) sleepTime=${sleepTime}(${sMin}) ` +
+        `raw=${raw.blocks.length} blocks (starts: ${raw.blocks.map(b => b.startTime).join(',')}) ` +
+        `safe=${safeBlocks.length} blocks (starts: ${safeBlocks.map(b => b.startTime).join(',')})`,
+      );
+      setFilterDebug(
+        `Guard: wake=${wakeTime} sleep=${sleepTime} | AI gave ${raw.blocks.length} blocks → ${safeBlocks.length} kept`,
+      );
+
+      if (safeBlocks.length === 0) {
+        setRoutine(null);
+      } else {
+        setRoutine({ ...raw, blocks: safeBlocks });
+      }
     }
   };
 
@@ -204,6 +244,8 @@ export default function Day1RoutineScreen() {
     router.replace('/(tabs)');
   };
 
+  const pickersLocked = loading || routine !== null;
+
   return (
     <SafeAreaView style={styles.container}>
       <AuroraBackground />
@@ -211,6 +253,17 @@ export default function Day1RoutineScreen() {
         style={styles.flex}
         contentContainerStyle={styles.scroll}
       >
+        {/* Back button (edit mode only — onboarding flow has no back) */}
+        {isEditMode && (
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+            hitSlop={12}
+            style={styles.backBtn}
+          >
+            <Ionicons name="chevron-back" size={26} color={c.textPrimary} />
+          </Pressable>
+        )}
+
         {!isEditMode && <NarrationToggle scriptId="day1-routine" />}
         <Animated.View entering={FadeInDown.duration(600)}>
           <Heading style={styles.title}>
@@ -218,12 +271,14 @@ export default function Day1RoutineScreen() {
           </Heading>
           <Body style={styles.subtitle}>
             {isEditMode
-              ? 'Adjust your schedule — saving will replace today’s blocks.'
+              ? "Adjust your schedule — saving will replace today’s blocks."
               : "Tell us your schedule and we'll design your day"}
           </Body>
         </Animated.View>
 
-        <View style={styles.pickers}>
+        {/* Lock pickers once generating / generated so the user can't change
+            times while the AI is working or after the result is shown. */}
+        <View style={[styles.pickers, { opacity: pickersLocked ? 0.5 : 1 }]} pointerEvents={pickersLocked ? 'none' : 'auto'}>
           <WheelTimePicker label="Wake time" options={ALL_TIME_SLOTS} selected={wakeTime} onSelect={setWakeTime} formatValue={to12Hour} />
           <WheelTimePicker label="Sleep time" options={ALL_TIME_SLOTS} selected={sleepTime} onSelect={setSleepTime} formatValue={to12Hour} />
           <WheelTimePicker label="Work starts" options={ALL_TIME_SLOTS} selected={workStart} onSelect={setWorkStart} formatValue={to12Hour} />
@@ -256,6 +311,12 @@ export default function Day1RoutineScreen() {
               ? "We couldn't build that routine — the AI returned an unexpected shape. Try adjusting your wake/sleep/work times and tap Generate again."
               : error}
           </Body>
+        )}
+
+        {filterDebug && (
+          <Caption style={{ color: '#FF6B35', marginTop: spacing.sm, textAlign: 'center' }}>
+            {filterDebug}
+          </Caption>
         )}
 
         {routine && (
@@ -335,6 +396,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   scroll: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,
+  },
+  backBtn: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
   },
   title: {
     marginTop: spacing.xl,

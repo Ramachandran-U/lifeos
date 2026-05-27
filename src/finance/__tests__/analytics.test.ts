@@ -36,6 +36,15 @@ describe('cadenceDays', () => {
     // gaps: 7, 7, 90 → median 7
     expect(cadenceDays(['2026-01-01', '2026-01-08', '2026-01-15', '2026-04-15'])).toBe(7);
   });
+  it('returns null for empty input', () => {
+    expect(cadenceDays([])).toBeNull();
+  });
+  it('returns the gap for exactly 2 dates', () => {
+    expect(cadenceDays(['2026-01-01', '2026-01-04'])).toBe(3);
+  });
+  it('handles consecutive days (cadence = 1)', () => {
+    expect(cadenceDays(['2026-05-01', '2026-05-02', '2026-05-03'])).toBe(1);
+  });
 });
 
 describe('categoryRollup', () => {
