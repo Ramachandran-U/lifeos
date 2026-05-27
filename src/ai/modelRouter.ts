@@ -36,6 +36,9 @@ export type AITask =
   | 'suggestInterestAreas'
   | 'suggestCrossDisciplineLink'
   | 'generateMonthlyInsightReport'
+  | 'generateDailyBriefing'
+  | 'assessTrajectory'
+  | 'generateAnnualReview'
   | 'agent.propose'
   | 'agent.critique'
   | 'agent.brief';
@@ -49,6 +52,9 @@ const TASK_TIER: Record<AITask, Tier> = {
   suggestInterestAreas: 'planning',
   suggestCrossDisciplineLink: 'planning',
   generateMonthlyInsightReport: 'planning',
+  generateDailyBriefing: 'cheap',
+  assessTrajectory: 'planning',
+  generateAnnualReview: 'reasoning',
   'agent.brief': 'cheap',
 
   decomposeGoal: 'planning',

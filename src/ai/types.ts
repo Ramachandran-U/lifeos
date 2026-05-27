@@ -266,6 +266,76 @@ export interface CrossDisciplineLinkInput {
   interestB: { name: string; category: string };
 }
 
+// --- Proactive Daily Briefing (P4-02) ---
+
+export const DailyBriefingSchema = z.object({
+  // 1-3 short lines the user reads first thing. Joined with newlines for display.
+  lines: z.array(z.string()).min(1).max(3),
+});
+export type DailyBriefingResult = z.infer<typeof DailyBriefingSchema>;
+
+export interface DailyBriefingInput {
+  name: string | null;
+  topGoal: string | null;          // primary/life goal title, if any
+  blocksToday: number;
+  overdueContacts: number;         // social nudge driver (no names)
+  lifeScore: number;               // 0-100 composite
+  lifeScoreBand: string;           // e.g. "Building"
+  weeklyInsight: string | null;    // the existing behaviour-v1 insight, if any
+  topDomainYesterday: string | null; // domain that got the most time yesterday
+}
+
+// --- Annual Life Review (P4-03) ---
+
+export const AnnualReviewSchema = z.object({
+  // One honest, celebratory sentence summing up the year.
+  headline: z.string().min(1),
+  // Per-domain narrative (1-2 sentences each).
+  domains: z
+    .array(z.object({ domain: z.string().min(1), summary: z.string().min(1) }))
+    .min(1)
+    .max(6),
+  biggestWin: z.string().min(1),
+  growthArea: z.string().min(1),
+  themeForNextYear: z.string().min(1),
+});
+export type AnnualReview = z.infer<typeof AnnualReviewSchema>;
+
+export interface AnnualReviewInput {
+  windowDays: number;
+  name: string | null;
+  goals: { total: number; completed: number };
+  routine: { blocksPlanned: number; blocksCompleted: number; completionRate: number };
+  domainMinutes: Record<string, number>;
+  lifeScore: { current: number; start: number };
+  topStreaks: { key: string; count: number }[];
+  totalXP: number;
+  badgeCount: number;
+  social: { contacts: number; inCadencePct: number | null };
+}
+
+// --- Long-Term Trajectory (P4-04) ---
+
+export const TrajectoryAssessmentSchema = z.object({
+  // One-sentence verdict the user reads first.
+  verdict: z.string().min(1),
+  // 1-3 concrete recalibration steps for the coming quarter.
+  recalibration: z.array(z.string()).min(1).max(3),
+});
+export type TrajectoryAssessment = z.infer<typeof TrajectoryAssessmentSchema>;
+
+export interface TrajectoryAssessmentInput {
+  visionTitle: string;
+  horizonMonths: number;
+  elapsedMonths: number;
+  expectedProgressPct: number; // 0-100
+  actualProgressPct: number; // 0-100
+  status: 'ahead' | 'on_track' | 'behind';
+  completedSubGoals: number;
+  totalSubGoals: number;
+  laggingTitles: string[];
+}
+
 // --- Behaviour Intelligence v2 Types ---
 
 export const MonthlyInsightReportSchema = z.object({

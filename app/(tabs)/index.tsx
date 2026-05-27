@@ -36,6 +36,11 @@ import { LifeScoreHero } from '@/components/shared/LifeScoreHero';
 import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
 import { getReflectionByDate } from '@/db/queries/reflections';
 import { DailyBriefing } from '@/components/shared/DailyBriefing';
+import { useDailyBriefing } from '@/hooks/useDailyBriefing';
+import { getGoalsByUser } from '@/db/queries/goals';
+import { getContactsByUser, computeOverdue } from '@/db/queries/social';
+import { computeLifeScore, lifeScoreBand } from '@/utils/lifeScore';
+import type { DailyBriefingInput } from '@/ai/types';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -323,6 +328,36 @@ export default function TodayScreen() {
   const completedCount = blocks.filter((b) => b.status === 'completed').length;
   const allComplete = blocks.length > 0 && completedCount === blocks.length;
 
+  // P4-02: assemble the morning briefing input from the slices the Today
+  // screen already has loaded. The hook generates 1-3 lines once per day and
+  // caches them; we fall back to the static blocks-count line below if it's
+  // still generating or failed.
+  const briefingInput = useMemo<DailyBriefingInput | null>(() => {
+    if (!userId) return null;
+    const goals = getGoalsByUser(userId);
+    const lifeGoal = goals.find((g) => g.level === 'life') ?? goals[0];
+    const overdueContacts = getContactsByUser(userId)
+      .filter((ct) => computeOverdue(ct).isOverdue).length;
+    const score = computeLifeScore(domainScores, primaryDomains);
+    const yesterday = useDomainHistoryStore.getState().yesterdaySnapshot();
+    const topDomainYesterday = yesterday
+      ? Object.entries(yesterday).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] ?? null
+      : null;
+    return {
+      name,
+      topGoal: lifeGoal?.title ?? null,
+      blocksToday: blocks.length,
+      overdueContacts,
+      lifeScore: score,
+      lifeScoreBand: lifeScoreBand(score).label,
+      weeklyInsight,
+      topDomainYesterday,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, blocks.length, domainScores, primaryDomains, name, weeklyInsight]);
+
+  const briefingText = useDailyBriefing(briefingInput, today);
+
   // Fire the confetti once per day when the last block flips to complete.
   // celebratedRef holds the date we last celebrated, so re-focusing or
   // un/re-checking a block doesn't re-trigger the burst.
@@ -561,9 +596,9 @@ export default function TodayScreen() {
 
           <Animated.View entering={FadeInDown.delay(200).duration(400)}>
             <DailyBriefing
-              text={blocks.length > 0
+              text={briefingText ?? (blocks.length > 0
                 ? `You have ${blocks.length} blocks planned today. ${completedCount} completed so far. Keep going!`
-                : 'No routine set up yet. Complete onboarding to get your personalised daily plan.'
+                : 'No routine set up yet. Complete onboarding to get your personalised daily plan.')
               }
               ctaLabel={blocks.length === 0 ? 'Complete onboarding' : undefined}
               onCtaPress={blocks.length === 0 ? startOnboarding : undefined}
@@ -618,6 +653,20 @@ export default function TodayScreen() {
               >
                 <Ionicons name="bar-chart" size={16} color={c.primary} />
                 <Body style={{ color: c.textPrimary, flex: 1 }}>View your 28-day report</Body>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/annual-review')}
+                style={({ pressed }) => [
+                  styles.weekPlanBtn,
+                  {
+                    backgroundColor: pressed ? c.card : c.surface,
+                    borderColor: c.border,
+                  },
+                ]}
+              >
+                <Ionicons name="sparkles-outline" size={16} color={c.primary} />
+                <Body style={{ color: c.textPrimary, flex: 1 }}>Your Annual Life Review</Body>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
               <Pressable

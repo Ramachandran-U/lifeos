@@ -131,6 +131,7 @@ export default function RootLayout() {
         'discovery-paste', 'discovery-confirm',
       ].includes((segments as string[])[1] ?? '');
     const inMonthlyInsight = segments[0] === 'monthly-insight';
+    const inAnnualReview = segments[0] === 'annual-review';
     const inContactDetail = segments[0] === 'contact';
     const inDataResidency = segments[0] === 'data-residency';
     const inWhatLifeosKnows = segments[0] === 'what-lifeos-knows';
@@ -159,6 +160,7 @@ export default function RootLayout() {
         inEditRoutine ||
         inProgressiveOnboarding ||
         inMonthlyInsight ||
+        inAnnualReview ||
         inContactDetail ||
         inDataResidency ||
         inWhatLifeosKnows ||
