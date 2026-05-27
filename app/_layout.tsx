@@ -10,7 +10,8 @@ import { useAppFonts } from '@/theme/typography';
 import { initDatabase } from '@/db';
 import { getUser, setWebSession, ensureLocalUserFromAuth } from '@/db/queries/users';
 import { supabase } from '@/integrations/supabase/client';
-import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUserStore';
+import { useUserStore, type DomainId } from '@/store/useUserStore';
+import { resolveGuardRedirect } from '@/utils/routeGuard';
 import { AchievementToast } from '@/components/shared/AchievementToast';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
@@ -105,75 +106,15 @@ export default function RootLayout() {
     if (!fontsLoaded || !dbReady) return;
     SplashScreen.hideAsync();
 
-    const inAuth = segments[0] === '(auth)';
-    const inOnboarding = segments[0] === '(onboarding)';
-    const inTabs = segments[0] === '(tabs)';
-    const inWelcomeIntent = segments[0] === 'welcome-intent';
-    // Any OAuth callback route (Supabase Google sign-in, Gmail, Calendar, Fit).
-    // The callback page needs to render long enough to exchange the auth code;
-    // if the layout guard redirects away first, the user lands back on Today
-    // and the integration silently fails to connect.
-    const seg0 = (segments[0] ?? '') as string;
-    const inGoogleCallback = seg0 === 'google-auth-callback' || seg0.endsWith('-callback');
-    const inReflect = segments[0] === 'evening-reflect';
-    // Editing the routine reuses the onboarding routine planner screen; an
-    // onboarded user landing on it must NOT get bounced back to (tabs).
-    const inEditRoutine = inOnboarding && (segments as string[])[1] === 'day1-routine';
-    // Progressive onboarding (Day 3 / 7 / 14) — these screens are triggered by
-    // scheduled notifications AFTER the main onboarding completes. They must
-    // remain reachable even when onboardingStage === ONBOARDING_COMPLETE.
-    const inProgressiveOnboarding =
-      inOnboarding &&
-      [
-        'day3-health', 'day7-finance', 'day7-social', 'day14-polymath',
-        // Discovery round-trip is reachable post-onboarding from
-        // what-lifeos-knows ("Understand me better") to enrich the profile.
-        'discovery-paste', 'discovery-confirm',
-      ].includes((segments as string[])[1] ?? '');
-    const inMonthlyInsight = segments[0] === 'monthly-insight';
-    const inAnnualReview = segments[0] === 'annual-review';
-    const inContactDetail = segments[0] === 'contact';
-    const inDataResidency = segments[0] === 'data-residency';
-    const inWhatLifeosKnows = segments[0] === 'what-lifeos-knows';
-    const inSettings = segments[0] === 'settings';
-    const inTermsPrivacy = segments[0] === 'terms-privacy';
-    const inEditPriorities = segments[0] === 'edit-priorities';
-    const inNotificationsSettings = segments[0] === 'notifications-settings';
-    const inHowItWorks = segments[0] === 'how-it-works';
-    const inFeedback = segments[0] === 'feedback';
-    // Ask-LifeOS chat is a full screen reachable post-onboarding; without this
-    // the guard below silently bounces /chat back to /(tabs). (BUG-010)
-    const inChat = segments[0] === 'chat';
-
-    if (!userId) {
-      if (!inAuth && !inGoogleCallback) router.replace('/(auth)/sign-in');
-    } else if (onboardingStage === 0) {
-      // New flow: stage 0 = no intent captured → short welcome screen
-      if (!inWelcomeIntent && !inOnboarding) router.replace('/welcome-intent');
-    } else if (onboardingStage < ONBOARDING_COMPLETE) {
-      // Legacy flow: existing users mid-onboarding keep the old screens
-      if (!inOnboarding) router.replace('/(onboarding)/day1-vision');
-    } else {
-      const allowed =
-        inTabs ||
-        inReflect ||
-        inEditRoutine ||
-        inProgressiveOnboarding ||
-        inMonthlyInsight ||
-        inAnnualReview ||
-        inContactDetail ||
-        inDataResidency ||
-        inWhatLifeosKnows ||
-        inSettings ||
-        inTermsPrivacy ||
-        inEditPriorities ||
-        inNotificationsSettings ||
-        inHowItWorks ||
-        inFeedback ||
-        inChat ||
-        inGoogleCallback;
-      if (!allowed) router.replace('/(tabs)');
-    }
+    // Pure, unit-tested guard (see src/utils/routeGuard.ts). Adding a new
+    // post-onboarding full-screen route means updating that file's allowlist.
+    const redirect = resolveGuardRedirect({
+      userId,
+      onboardingStage,
+      seg0: ((segments as string[])[0] ?? ''),
+      seg1: ((segments as string[])[1] ?? ''),
+    });
+    if (redirect) router.replace(redirect);
   }, [fontsLoaded, dbReady, userId, onboardingStage, segments, router]);
 
   if (!fontsLoaded || !dbReady) {
