@@ -507,7 +507,7 @@ export async function generateCareerStrategy(input: CareerStrategyInput): Promis
   const response = await callAI({
     system: CAREER_STRATEGY_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
-    maxTokens: 2500,
+    maxTokens: 3000,
     model: pickModel('generateCareerStrategy'),
     cacheSystem: true,
     task: 'generateCareerStrategy',
@@ -635,7 +635,7 @@ export async function replanRemainingDay(input: ReplanRemainingDayInput): Promis
   const response = await callAI({
     system: REPLAN_REMAINING_DAY_PROMPT,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
-    maxTokens: 800,
+    maxTokens: 1200,
     model: pickModel('replanRemainingDay'),
     cacheSystem: true,
     task: 'replanRemainingDay',

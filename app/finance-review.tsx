@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
@@ -20,6 +21,7 @@ import type { MonthlyMoneyReview } from '@/ai/types';
 
 export default function FinanceReviewScreen() {
   const c = useColors();
+  const stagger = useStaggerDelay();
   const router = useRouter();
   const transactions = useTransactionStore((s) => s.transactions);
   const load = useTransactionStore((s) => s.load);
@@ -104,13 +106,13 @@ export default function FinanceReviewScreen() {
                 </Caption>
               )}
 
-              <Animated.View entering={FadeInDown.duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(0, 80)).duration(300)}>
                 <Card moduleColor={c.finance}>
                   <Body style={[styles.headline, { color: c.textPrimary }]}>{report.headline}</Body>
                 </Card>
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(80).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(1, 80)).duration(300)}>
                 <Card moduleColor={c.success}>
                   <SectionLabel color={c.success}>WINS</SectionLabel>
                   <View style={styles.list}>
@@ -121,7 +123,7 @@ export default function FinanceReviewScreen() {
                 </Card>
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(160).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(2, 80)).duration(300)}>
                 <Card moduleColor={c.warning}>
                   <SectionLabel color={c.warning}>WHERE IT WENT</SectionLabel>
                   <View style={styles.list}>
@@ -132,7 +134,7 @@ export default function FinanceReviewScreen() {
                 </Card>
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(240).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(3, 80)).duration(300)}>
                 <Card moduleColor={c.primary}>
                   <SectionLabel color={c.primary}>ONE ADJUSTMENT</SectionLabel>
                   <Body style={[styles.adjustment, { color: c.textPrimary }]}>{report.oneAdjustment}</Body>

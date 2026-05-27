@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
@@ -44,6 +45,7 @@ function newDraft(name: string = '', tier: RelationshipType = 'close_friend'): D
 export default function Day7SocialScreen() {
   const router = useRouter();
   const c = useColors();
+  const stagger = useStaggerDelay();
   const styles = makeStyles(c);
   const { userId } = useUserStore();
   const markModuleActivated = useUserStore((s) => s.markModuleActivated);
@@ -183,24 +185,25 @@ export default function Day7SocialScreen() {
                   placeholder="Name (e.g. Priya)"
                 />
                 <View style={styles.tierGrid}>
-                  {RELATIONSHIP_TIERS.map((t) => {
+                  {RELATIONSHIP_TIERS.map((t, i) => {
                     const active = t === d.relationshipType;
                     return (
-                      <Pressable
-                        key={t}
-                        onPress={() => updateDraft(d.id, { relationshipType: t })}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: active ? c.socialLight : c.surface,
-                            borderColor: active ? c.social : c.border,
-                          },
-                        ]}
-                      >
-                        <Caption style={{ color: active ? c.social : c.textSecondary }}>
-                          {RELATIONSHIP_META[t].label}
-                        </Caption>
-                      </Pressable>
+                      <Animated.View key={t} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                        <Pressable
+                          onPress={() => updateDraft(d.id, { relationshipType: t })}
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: active ? c.socialLight : c.surface,
+                              borderColor: active ? c.social : c.border,
+                            },
+                          ]}
+                        >
+                          <Caption style={{ color: active ? c.social : c.textSecondary }}>
+                            {RELATIONSHIP_META[t].label}
+                          </Caption>
+                        </Pressable>
+                      </Animated.View>
                     );
                   })}
                 </View>

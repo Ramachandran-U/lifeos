@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
 const SMOKE_BASE_URL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
+const AUTH_STORAGE = path.join(__dirname, '.auth', 'user.json');
 
 export default defineConfig({
   testDir: './e2e',
@@ -17,10 +19,19 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
+    // Auth setup — signs in once, saves storage state for authenticated tests.
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: SMOKE_BASE_URL,
+      },
+    },
     {
       // Default project — existing local e2e suites (career-strategy, voice-assistant).
       name: 'chromium',
-      testIgnore: ['**/smoke.spec.ts'],
+      testIgnore: ['**/smoke.spec.ts', '**/auth.setup.ts', '**/ambient.spec.ts'],
       use: { ...devices['Desktop Chrome'] },
     },
     {
@@ -31,9 +42,20 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         baseURL: SMOKE_BASE_URL,
-        // Lock viewport so visual diffs (future) stay stable.
         viewport: { width: 1280, height: 800 },
         ignoreHTTPSErrors: false,
+      },
+    },
+    {
+      // Authenticated tests — depend on setup, reuse stored session.
+      name: 'authenticated',
+      testMatch: ['**/ambient.spec.ts'],
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: SMOKE_BASE_URL,
+        viewport: { width: 390, height: 844 },
+        storageState: AUTH_STORAGE,
       },
     },
   ],

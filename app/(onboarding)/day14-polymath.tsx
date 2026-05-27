@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
@@ -63,6 +64,7 @@ const MINUTES_OPTIONS = [30, 60, 120, 180];
 export default function Day14PolymathScreen() {
   const router = useRouter();
   const c = useColors();
+  const stagger = useStaggerDelay();
   const styles = makeStyles(c);
   const { call, loading } = useAI();
   const { userId } = useUserStore();
@@ -148,43 +150,45 @@ export default function Day14PolymathScreen() {
                 />
                 <Label style={styles.fieldLabel}>Category</Label>
                 <View style={styles.chipGrid}>
-                  {CATEGORIES.map((cat) => {
+                  {CATEGORIES.map((cat, i) => {
                     const active = cat.value === d.category;
                     return (
-                      <Pressable
-                        key={cat.value}
-                        onPress={() => updateDraft(d.id, { category: cat.value })}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: active ? c.polymathLight : c.surface,
-                            borderColor: active ? c.polymath : c.border,
-                          },
-                        ]}
-                      >
-                        <Caption style={{ color: active ? c.polymath : c.textSecondary }}>{cat.label}</Caption>
-                      </Pressable>
+                      <Animated.View key={cat.value} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                        <Pressable
+                          onPress={() => updateDraft(d.id, { category: cat.value })}
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: active ? c.polymathLight : c.surface,
+                              borderColor: active ? c.polymath : c.border,
+                            },
+                          ]}
+                        >
+                          <Caption style={{ color: active ? c.polymath : c.textSecondary }}>{cat.label}</Caption>
+                        </Pressable>
+                      </Animated.View>
                     );
                   })}
                 </View>
                 <Label style={styles.fieldLabel}>Minutes per week</Label>
                 <View style={styles.chipRow}>
-                  {MINUTES_OPTIONS.map((m) => {
+                  {MINUTES_OPTIONS.map((m, i) => {
                     const active = m === d.weeklyMinutes;
                     return (
-                      <Pressable
-                        key={m}
-                        onPress={() => updateDraft(d.id, { weeklyMinutes: m })}
-                        style={[
-                          styles.chip,
-                          {
-                            backgroundColor: active ? c.polymathLight : c.surface,
-                            borderColor: active ? c.polymath : c.border,
-                          },
-                        ]}
-                      >
-                        <Caption style={{ color: active ? c.polymath : c.textSecondary }}>{m}m</Caption>
-                      </Pressable>
+                      <Animated.View key={m} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                        <Pressable
+                          onPress={() => updateDraft(d.id, { weeklyMinutes: m })}
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: active ? c.polymathLight : c.surface,
+                              borderColor: active ? c.polymath : c.border,
+                            },
+                          ]}
+                        >
+                          <Caption style={{ color: active ? c.polymath : c.textSecondary }}>{m}m</Caption>
+                        </Pressable>
+                      </Animated.View>
                     );
                   })}
                 </View>

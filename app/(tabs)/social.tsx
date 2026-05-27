@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
@@ -34,6 +36,7 @@ export default function SocialScreen() {
   const userId = useUserStore((s) => s.userId);
   const awardBadge = useGameStore((s) => s.awardBadge);
 
+  const stagger = useStaggerDelay();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -116,22 +119,24 @@ export default function SocialScreen() {
             </View>
           ) : null}
 
-          {RELATIONSHIP_TIERS.map((tier) => {
+          {RELATIONSHIP_TIERS.map((tier, i) => {
             const list = byTier[tier];
             if (list.length === 0) return null;
             return (
-              <View key={tier} style={styles.section}>
-                <SectionLabel>{RELATIONSHIP_META[tier].label}</SectionLabel>
-                <View style={styles.list}>
-                  {list.map((contact) => (
-                    <ContactRow
-                      key={contact.id}
-                      contact={contact}
-                      onPress={() => router.push({ pathname: '/contact/[id]', params: { id: contact.id } })}
-                    />
-                  ))}
+              <Animated.View key={tier} entering={FadeIn.delay(stagger(i, 70)).duration(360)}>
+                <View style={styles.section}>
+                  <SectionLabel>{RELATIONSHIP_META[tier].label}</SectionLabel>
+                  <View style={styles.list}>
+                    {list.map((contact) => (
+                      <ContactRow
+                        key={contact.id}
+                        contact={contact}
+                        onPress={() => router.push({ pathname: '/contact/[id]', params: { id: contact.id } })}
+                      />
+                    ))}
+                  </View>
                 </View>
-              </View>
+              </Animated.View>
             );
           })}
 
@@ -208,10 +213,5 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 6,
   },
 });

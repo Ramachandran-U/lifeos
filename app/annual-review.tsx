@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
@@ -36,6 +37,7 @@ function reviewToText(name: string | null, r: AnnualReview): string {
 
 export default function AnnualReviewScreen() {
   const c = useColors();
+  const stagger = useStaggerDelay();
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const name = useUserStore((s) => s.name);
@@ -139,14 +141,14 @@ export default function AnnualReviewScreen() {
             </Card>
           ) : report ? (
             <>
-              <Animated.View entering={FadeInDown.duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(0, 70)).duration(300)}>
                 <Card moduleColor={c.primary}>
                   <Body style={[styles.headline, { color: c.textPrimary }]}>{report.headline}</Body>
                 </Card>
               </Animated.View>
 
               {report.domains.map((d, i) => (
-                <Animated.View key={d.domain} entering={FadeInDown.delay((i + 1) * 70).duration(300)}>
+                <Animated.View key={d.domain} entering={FadeInDown.delay(stagger(i + 1, 70)).duration(300)}>
                   <Card>
                     <SectionLabel color={c.textSecondary}>{d.domain.toUpperCase()}</SectionLabel>
                     <Body style={{ color: c.textPrimary, marginTop: spacing.xs }}>{d.summary}</Body>
@@ -154,21 +156,21 @@ export default function AnnualReviewScreen() {
                 </Animated.View>
               ))}
 
-              <Animated.View entering={FadeInDown.delay(((report.domains.length + 1) * 70)).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(report.domains.length + 1, 70)).duration(300)}>
                 <Card moduleColor={c.success}>
                   <SectionLabel color={c.success}>BIGGEST WIN</SectionLabel>
                   <Body style={{ color: c.textPrimary, marginTop: spacing.xs }}>{report.biggestWin}</Body>
                 </Card>
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(((report.domains.length + 2) * 70)).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(report.domains.length + 2, 70)).duration(300)}>
                 <Card moduleColor={c.warning}>
                   <SectionLabel color={c.warning}>GROWTH AREA</SectionLabel>
                   <Body style={{ color: c.textPrimary, marginTop: spacing.xs }}>{report.growthArea}</Body>
                 </Card>
               </Animated.View>
 
-              <Animated.View entering={FadeInDown.delay(((report.domains.length + 3) * 70)).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(stagger(report.domains.length + 3, 70)).duration(300)}>
                 <Card moduleColor={c.polymath}>
                   <SectionLabel color={c.polymath}>THEME FOR NEXT YEAR</SectionLabel>
                   <Body style={[styles.theme, { color: c.textPrimary }]}>{report.themeForNextYear}</Body>

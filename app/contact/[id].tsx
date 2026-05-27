@@ -12,7 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { format } from 'date-fns';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
@@ -48,6 +50,7 @@ const INTERACTION_TYPES: InteractionType[] = ['call', 'message', 'in_person', 'e
 
 export default function ContactDetailScreen() {
   const c = useColors();
+  const stagger = useStaggerDelay();
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const id = params.id;
@@ -274,22 +277,23 @@ export default function ContactDetailScreen() {
         <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={() => setLogOpen(false)} />
         <View style={[styles.actionSheet, { backgroundColor: c.surface, borderTopColor: c.border }]}>
           <Heading style={{ color: c.textPrimary, marginBottom: spacing.md }}>How did you connect?</Heading>
-          {INTERACTION_TYPES.map((t) => (
-            <Pressable
-              key={t}
-              onPress={() => handleLog(t)}
-              style={({ pressed }) => [
-                styles.actionRow,
-                { backgroundColor: pressed ? c.card : 'transparent', borderColor: c.border },
-              ]}
-            >
-              <Ionicons
-                name={INTERACTION_META[t].icon as keyof typeof Ionicons.glyphMap}
-                size={20}
-                color={c.social}
-              />
-              <Body style={{ color: c.textPrimary }}>{INTERACTION_META[t].label}</Body>
-            </Pressable>
+          {INTERACTION_TYPES.map((t, i) => (
+            <Animated.View key={t} entering={FadeIn.delay(120 + stagger(i, 50)).duration(300)}>
+              <Pressable
+                onPress={() => handleLog(t)}
+                style={({ pressed }) => [
+                  styles.actionRow,
+                  { backgroundColor: pressed ? c.card : 'transparent', borderColor: c.border },
+                ]}
+              >
+                <Ionicons
+                  name={INTERACTION_META[t].icon as keyof typeof Ionicons.glyphMap}
+                  size={20}
+                  color={c.social}
+                />
+                <Body style={{ color: c.textPrimary }}>{INTERACTION_META[t].label}</Body>
+              </Pressable>
+            </Animated.View>
           ))}
         </View>
       </Modal>
@@ -299,15 +303,16 @@ export default function ContactDetailScreen() {
         <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={() => setEditingTier(false)} />
         <View style={[styles.centerSheet, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Heading style={{ color: c.textPrimary, marginBottom: spacing.md }}>Change tier</Heading>
-          {RELATIONSHIP_TIERS.map((t) => (
-            <Pressable
-              key={t}
-              onPress={() => handleChangeTier(t)}
-              style={[styles.actionRow, { borderColor: c.border }]}
-            >
-              <Body style={{ color: c.textPrimary, flex: 1 }}>{RELATIONSHIP_META[t].label}</Body>
-              <Caption style={{ color: c.textMuted }}>every {RELATIONSHIP_META[t].defaultCadenceDays}d</Caption>
-            </Pressable>
+          {RELATIONSHIP_TIERS.map((t, i) => (
+            <Animated.View key={t} entering={FadeIn.delay(120 + stagger(i, 50)).duration(300)}>
+              <Pressable
+                onPress={() => handleChangeTier(t)}
+                style={[styles.actionRow, { borderColor: c.border }]}
+              >
+                <Body style={{ color: c.textPrimary, flex: 1 }}>{RELATIONSHIP_META[t].label}</Body>
+                <Caption style={{ color: c.textMuted }}>every {RELATIONSHIP_META[t].defaultCadenceDays}d</Caption>
+              </Pressable>
+            </Animated.View>
           ))}
         </View>
       </Modal>
