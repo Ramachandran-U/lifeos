@@ -57,6 +57,18 @@ export default function GoalsScreen() {
 
   const dailyTasks = goals.filter((g) => g.level === 'daily' && g.status === 'active');
 
+  // #5: a flat "Achievements" log of everything completed, newest first, so
+  // there's a place to see what's been accomplished (the tree mixes done +
+  // active nodes and buries completed ones).
+  const completedGoals = useMemo(
+    () =>
+      goals
+        .filter((g) => g.status === 'completed')
+        .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
+    [goals],
+  );
+  const [showAchievements, setShowAchievements] = useState(false);
+
   // P4-04: the 3-year vision is the root `life` goal. Show its on-track
   // trajectory above the tree once it has at least one sub-goal.
   const lifeGoal = useMemo(() => goals.find((g) => g.level === 'life' && !g.parentId), [goals]);
@@ -205,6 +217,39 @@ export default function GoalsScreen() {
             })}
           </View>
         )}
+
+        {completedGoals.length > 0 && (
+          <View style={styles.section}>
+            <Pressable
+              style={styles.achievementsHeader}
+              onPress={() => setShowAchievements((s) => !s)}
+            >
+              <Ionicons name="trophy" size={18} color={c.goal} />
+              <Body style={[styles.sectionTitle, { flex: 1, marginBottom: 0 }]}>
+                Achievements · {completedGoals.length}
+              </Body>
+              <Ionicons name={showAchievements ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
+            </Pressable>
+            {showAchievements && (
+              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                {completedGoals.map((g) => {
+                  const tc = getTypeColor(g.goalType);
+                  return (
+                    <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                      <Ionicons name="checkmark-circle" size={18} color={c.success} />
+                      <View style={{ flex: 1 }}>
+                        <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
+                        <Caption style={{ color: c.textMuted }}>
+                          {g.level.charAt(0).toUpperCase() + g.level.slice(1)} · {g.updatedAt.slice(0, 10)}
+                        </Caption>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       <Pressable style={styles.fab} onPress={() => setShowAddSheet(true)}>
@@ -256,6 +301,13 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     section: { gap: spacing.sm },
     sectionTitle: {
       fontFamily: fonts.heading, fontSize: fontSizes.lg, marginTop: spacing.sm, color: c.textPrimary,
+    },
+    achievementsHeader: {
+      flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm,
+    },
+    achievementRow: {
+      flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+      padding: spacing.md, borderRadius: 12, borderLeftWidth: 3,
     },
     nodeWrap: { gap: spacing.sm },
     nodeRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },

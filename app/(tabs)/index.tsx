@@ -12,6 +12,7 @@ import Animated, {
   useAnimatedStyle,
   interpolate,
   Extrapolation,
+  runOnJS,
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { useStaggerDelay } from '@/theme/motion';
@@ -41,6 +42,7 @@ import { getGoalsByUser } from '@/db/queries/goals';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import { computeLifeScore, lifeScoreBand } from '@/utils/lifeScore';
 import type { DailyBriefingInput } from '@/ai/types';
+import { emptyUserProfile } from '@/ai/types';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -49,6 +51,8 @@ import { HexRadar } from '@/components/gamification/HexRadar';
 import { XpBar } from '@/components/gamification/XpBar';
 import { StreakFlame } from '@/components/gamification/StreakFlame';
 import { QuestCard } from '@/components/gamification/QuestCard';
+import { QuestDetailSheet } from '@/components/gamification/QuestDetailSheet';
+import type { Quest } from '@/constants/gamification';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
 import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalendarEventId } from '@/db/queries/routine';
@@ -273,19 +277,23 @@ export default function TodayScreen() {
   const handlePlanWeek = useCallback(async () => {
     if (!userId || planningWeek) return;
     setPlanningWeek(true);
+    setReplanRationale(null);
     try {
-      const profile = await getUserProfile(userId);
-      if (!profile) return;
+      // Legacy users (day-1 onboarding, not discovery-chat) have no
+      // user_profiles row — fall back to an empty profile rather than silently
+      // doing nothing, so "Plan my next 7 days" always responds.
+      const profile = (await getUserProfile(userId)) ?? emptyUserProfile('form');
       await generateAndSaveWeek({
         userId,
         startDate: today,
         profile,
         primaryDomains,
       });
+      setReplanRationale('Your next 7 days are planned.');
       loadData();
     } catch (err) {
       // Surface via the existing rationale slot — the screen already shows this.
-      setReplanRationale(err instanceof Error ? err.message : 'Week plan failed.');
+      setReplanRationale(err instanceof Error ? err.message : 'Week plan failed. Try again.');
     } finally {
       setPlanningWeek(false);
     }
@@ -387,8 +395,20 @@ export default function TodayScreen() {
   const styles = makeStyles(c, densityScale);
 
   const scrollY = useSharedValue(0);
+  // The sticky collapsed band overlays the top of the screen. While the hero is
+  // visible it's invisible (opacity 0) but its child Pressables would still
+  // capture touches — covering the top hex icon (goals). Track collapse state
+  // (only on threshold crossing) so the band can ignore touches until shown.
+  const [heroCollapsed, setHeroCollapsed] = useState(false);
+  const [openQuest, setOpenQuest] = useState<Quest | null>(null);
+  const collapsedSV = useSharedValue(false);
   const onScroll = useAnimatedScrollHandler((e) => {
     scrollY.value = e.contentOffset.y;
+    const collapsed = e.contentOffset.y > 140;
+    if (collapsed !== collapsedSV.value) {
+      collapsedSV.value = collapsed;
+      runOnJS(setHeroCollapsed)(collapsed);
+    }
   });
   const heroStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, 140], [1, 0], Extrapolation.CLAMP),
@@ -447,7 +467,7 @@ export default function TodayScreen() {
                   : domain === 'finance' ? '/(tabs)/finance'
                   : domain === 'career' ? '/(tabs)/career'
                   : domain === 'polymath' ? '/(tabs)/explore'
-                  : domain === 'social' ? '/(tabs)/life'
+                  : domain === 'social' ? '/(tabs)/social'
                   : null
                 );
                 if (route) router.push(route);
@@ -534,7 +554,7 @@ export default function TodayScreen() {
               <Body style={styles.sectionLabel}>ACTIVE QUESTS</Body>
               <View style={styles.questList}>
                 {quests.slice(0, 3).map((q) => (
-                  <QuestCard key={q.id} quest={q} compact />
+                  <QuestCard key={q.id} quest={q} compact onPress={() => setOpenQuest(q)} />
                 ))}
               </View>
             </View>
@@ -666,7 +686,7 @@ export default function TodayScreen() {
                 ]}
               >
                 <Ionicons name="sparkles-outline" size={16} color={c.primary} />
-                <Body style={{ color: c.textPrimary, flex: 1 }}>Your Annual Life Review</Body>
+                <Body style={{ color: c.textPrimary, flex: 1 }}>Your journey so far</Body>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
               <Pressable
@@ -843,7 +863,7 @@ export default function TodayScreen() {
         {/* Sticky compact band — fades in after the hero has scrolled away. */}
         <Animated.View
           style={[styles.collapsedHeader, chipStyle]}
-          pointerEvents="box-none"
+          pointerEvents={heroCollapsed ? 'box-none' : 'none'}
         >
           <View style={[styles.collapsedChip, { backgroundColor: c.surface, borderColor: c.border }]}>
             <Pressable onPress={() => router.push('/(tabs)/profile')} hitSlop={6}>
@@ -885,6 +905,12 @@ export default function TodayScreen() {
         visible={showYesterday}
         onClose={() => setShowYesterday(false)}
         onLogged={handleYesterdayLogged}
+      />
+      <QuestDetailSheet
+        quest={openQuest}
+        visible={openQuest !== null}
+        onClose={() => setOpenQuest(null)}
+        onChanged={loadData}
       />
     </View>
   );

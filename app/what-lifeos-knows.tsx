@@ -137,8 +137,33 @@ export default function WhatLifeOSKnowsScreen() {
             I don't know you yet
           </Body>
           <Caption style={{ color: c.textSecondary, marginTop: spacing.sm, textAlign: 'center' }}>
-            Finish the conversational onboarding and I'll start a profile here. You can edit anything I learn.
+            Fastest way to teach me: copy the prompt below into ChatGPT or Claude, answer its
+            questions, then paste the result back. I'll build your profile from it.
           </Caption>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, alignSelf: 'stretch' }}>
+            <Pressable
+              onPress={handleCopyPrompt}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { backgroundColor: pressed ? c.primary + 'cc' : c.primary, flex: 1 },
+              ]}
+            >
+              <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
+              <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+                {promptCopied ? 'Copied!' : 'Copy AI prompt'}
+              </Body>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/(onboarding)/discovery-paste')}
+              style={({ pressed }) => [
+                styles.actionBtn,
+                { backgroundColor: pressed ? c.card : c.surface, borderColor: c.border, borderWidth: 1, flex: 1 },
+              ]}
+            >
+              <Ionicons name="clipboard-outline" size={16} color={c.textPrimary} />
+              <Body style={{ color: c.textPrimary }}>Paste results</Body>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     );

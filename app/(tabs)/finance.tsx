@@ -9,7 +9,7 @@ import {
   formatIncomeBracketLabel,
 } from '@/utils/currency';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +42,13 @@ import type { FinancialPlan, WeeklyFinanceInsight, TransactionCategory } from '@
 import { TRANSACTION_CATEGORIES } from '@/ai/types';
 import { useTransactionStore } from '@/finance/store/useTransactionStore';
 import { startGmailOAuth } from '@/finance/gmail/oauth';
+import {
+  isConsumptionSpend,
+  totalConsumptionSpend,
+  spendByGroup,
+  GROUP_META,
+} from '@/finance/categoryGroups';
+import { CATEGORY_COLORS, formatInr, prettyCategory } from '@/finance/display';
 import { runAllDetectors, type Insight } from '@/finance/insights';
 import type { TxRecord } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
@@ -85,38 +92,6 @@ type FinanceMilestone = {
   targetDate: string;
   completedAt: string | null;
 };
-
-const CATEGORY_COLORS: Record<TransactionCategory, string> = {
-  food_delivery: '#FF6B35',
-  groceries: '#00C896',
-  dining_out: '#F0B429',
-  transport: '#00B4D8',
-  fuel: '#FF4D8B',
-  shopping: '#A855F7',
-  subscriptions: '#5B4FE8',
-  utilities: '#6B6B88',
-  rent: '#F0B429',
-  entertainment: '#FF4D8B',
-  health: '#00C896',
-  education: '#5B4FE8',
-  travel: '#00B4D8',
-  investments: '#F0B429',
-  insurance: '#6B6B88',
-  debt_repayment: '#FF4444',
-  transfers: '#A8A8C0',
-  income: '#00C896',
-  gifts: '#FF4D8B',
-  charity: '#A855F7',
-  cash_withdrawal: '#F0B429',
-  fees_charges: '#FF4444',
-  personal_care: '#FF4D8B',
-  other: '#6B6B88',
-};
-
-function formatInr(paise: number): string {
-  const r = paise / 100;
-  return `₹${r.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-}
 
 function formatRelative(iso: string | null): string {
   if (!iso) return 'never';
@@ -628,23 +603,34 @@ function OverviewTab({
   onDismissInsight: (id: string) => void;
   onDisconnect: () => void;
 }) {
+  const router = useRouter();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
   const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
 
-  const thisMonthDebits = transactions.filter(
-    (t) => t.direction === 'debit' && t.date >= monthStart,
-  );
-  const lastMonthDebits = transactions.filter(
-    (t) => t.direction === 'debit' && t.date >= prevMonthStart && t.date <= prevMonthEnd,
-  );
+  const asMinimal = (t: TxRecord) => ({
+    amount: t.amount,
+    direction: t.direction,
+    category: t.category as TransactionCategory,
+  });
+  const thisMonthTx = transactions.filter((t) => t.date >= monthStart);
+  const lastMonthTx = transactions.filter((t) => t.date >= prevMonthStart && t.date <= prevMonthEnd);
 
-  const thisMonthSpend = thisMonthDebits.reduce((s, t) => s + t.amount, 0);
-  const lastMonthSpend = lastMonthDebits.reduce((s, t) => s + t.amount, 0);
+  // "Spend" = consumption only (self-transfers, investments and loan/card
+  // repayments are excluded so they don't inflate the headline).
+  const thisMonthSpend = totalConsumptionSpend(thisMonthTx.map(asMinimal));
+  const lastMonthSpend = totalConsumptionSpend(lastMonthTx.map(asMinimal));
   const delta = lastMonthSpend > 0 ? ((thisMonthSpend - lastMonthSpend) / lastMonthSpend) * 100 : 0;
 
-  // Top 5 categories this month
+  // Cashflow this month: income in vs consumption out → net.
+  const thisMonthIncome = thisMonthTx
+    .filter((t) => t.direction === 'credit')
+    .reduce((s, t) => s + t.amount, 0);
+  const netCashflow = thisMonthIncome - thisMonthSpend;
+
+  // Top 5 consumption categories this month.
+  const thisMonthDebits = thisMonthTx.filter((t) => isConsumptionSpend(t.category as TransactionCategory, t.direction));
   const byCategory = new Map<string, number>();
   for (const t of thisMonthDebits) {
     byCategory.set(t.category, (byCategory.get(t.category) ?? 0) + t.amount);
@@ -652,6 +638,9 @@ function OverviewTab({
   const topCategories = Array.from(byCategory.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
+
+  // Group breakdown (Essentials / Lifestyle / …) for the spending-mix bar.
+  const groupRows = spendByGroup(thisMonthTx.map(asMinimal));
 
   if (Platform.OS !== 'web') {
     return (
@@ -742,19 +731,74 @@ function OverviewTab({
               </Caption>
             </View>
           )}
+
+          {/* Cashflow strip: income in vs spend out → net */}
+          {thisMonthIncome > 0 && (
+            <View style={styles.cashflowRow}>
+              <View style={styles.cashflowCell}>
+                <Caption style={{ color: c.textMuted }}>In</Caption>
+                <Body style={{ color: c.success, fontFamily: fonts.heading }}>{formatInr(thisMonthIncome)}</Body>
+              </View>
+              <View style={styles.cashflowCell}>
+                <Caption style={{ color: c.textMuted }}>Out</Caption>
+                <Body style={{ color: c.error, fontFamily: fonts.heading }}>{formatInr(thisMonthSpend)}</Body>
+              </View>
+              <View style={styles.cashflowCell}>
+                <Caption style={{ color: c.textMuted }}>Net</Caption>
+                <Body style={{ color: netCashflow >= 0 ? c.success : c.error, fontFamily: fonts.heading }}>
+                  {netCashflow >= 0 ? '+' : '−'}{formatInr(Math.abs(netCashflow))}
+                </Body>
+              </View>
+            </View>
+          )}
         </Card>
       </Animated.View>
+
+      {/* Spending mix by group */}
+      {groupRows.length > 0 && thisMonthSpend > 0 && (
+        <Animated.View entering={FadeInDown.delay(130).duration(400)}>
+          <Card style={styles.catCard}>
+            <Label color={c.finance}>SPENDING MIX</Label>
+            <View style={styles.groupBar}>
+              {groupRows.map((g) => (
+                <View
+                  key={g.group}
+                  style={{
+                    width: `${(g.amount / thisMonthSpend) * 100}%`,
+                    backgroundColor: GROUP_META[g.group].colorKey,
+                    height: '100%',
+                  }}
+                />
+              ))}
+            </View>
+            <View style={styles.groupLegend}>
+              {groupRows.map((g) => (
+                <View key={g.group} style={styles.groupLegendItem}>
+                  <View style={[styles.catDot, { backgroundColor: GROUP_META[g.group].colorKey }]} />
+                  <Caption style={{ color: c.textSecondary }}>
+                    {GROUP_META[g.group].label} {Math.round((g.amount / thisMonthSpend) * 100)}%
+                  </Caption>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Animated.View>
+      )}
 
       {/* Top categories */}
       {topCategories.length > 0 && (
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
           <Card style={styles.catCard}>
             <Label color={c.finance}>TOP CATEGORIES</Label>
-            {topCategories.map(([cat, amt], i) => {
+            {topCategories.map(([cat, amt]) => {
               const share = thisMonthSpend > 0 ? amt / thisMonthSpend : 0;
               const col = CATEGORY_COLORS[cat as TransactionCategory] ?? c.textSecondary;
               return (
-                <View key={cat} style={styles.catRow}>
+                <Pressable
+                  key={cat}
+                  style={styles.catRow}
+                  onPress={() => router.push({ pathname: '/finance-category', params: { category: cat } })}
+                >
                   <View style={[styles.catDot, { backgroundColor: col }]} />
                   <View style={{ flex: 1 }}>
                     <Body style={styles.catLabel}>{prettyCategory(cat as TransactionCategory)}</Body>
@@ -770,10 +814,29 @@ function OverviewTab({
                   <Caption style={{ color: c.textPrimary, fontWeight: '700' }}>
                     {formatInr(amt)}
                   </Caption>
-                </View>
+                  <Ionicons name="chevron-forward" size={14} color={c.textMuted} />
+                </Pressable>
               );
             })}
           </Card>
+        </Animated.View>
+      )}
+
+      {/* Monthly Money Review entry */}
+      {transactions.length > 0 && (
+        <Animated.View entering={FadeInDown.delay(170).duration(400)}>
+          <Pressable onPress={() => router.push('/finance-review')}>
+            <Card style={StyleSheet.flatten([styles.reviewCta, { borderColor: c.border }])}>
+              <View style={[styles.reviewIcon, { backgroundColor: c.finance + '20' }]}>
+                <Ionicons name="sparkles-outline" size={18} color={c.finance} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>Monthly Money Review</Body>
+                <Caption style={{ color: c.textMuted }}>AI breakdown of where your money went</Caption>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+            </Card>
+          </Pressable>
         </Animated.View>
       )}
 
@@ -825,7 +888,9 @@ function TransactionsTab({
   onConnect: () => void;
   onEditTx: (tx: TxRecord) => void;
 }) {
+  const router = useRouter();
   const [filter, setFilter] = useState<TxFilter>('all');
+  const [query, setQuery] = useState('');
 
   if (!gmailConnected && transactions.length === 0) {
     return (
@@ -842,7 +907,14 @@ function TransactionsTab({
     );
   }
 
-  const filtered = transactions.filter((t) => filter === 'all' || t.direction === filter);
+  const q = query.trim().toLowerCase();
+  const filtered = transactions.filter(
+    (t) =>
+      (filter === 'all' || t.direction === filter) &&
+      (q === '' ||
+        t.merchant.toLowerCase().includes(q) ||
+        prettyCategory(t.category as TransactionCategory).toLowerCase().includes(q)),
+  );
 
   // Group by date
   const groups = new Map<string, TxRecord[]>();
@@ -855,6 +927,23 @@ function TransactionsTab({
 
   return (
     <>
+      <View style={[styles.searchRow, { backgroundColor: c.card, borderColor: c.border }]}>
+        <Ionicons name="search" size={16} color={c.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search merchant or category"
+          placeholderTextColor={c.textMuted}
+          autoCapitalize="none"
+        />
+        {query.length > 0 && (
+          <Pressable onPress={() => setQuery('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color={c.textMuted} />
+          </Pressable>
+        )}
+      </View>
+
       <View style={styles.filterRow}>
         {(['all', 'debit', 'credit'] as TxFilter[]).map((f) => (
           <Pressable
@@ -1114,13 +1203,6 @@ function CategoryPickerModal({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function prettyCategory(cat: TransactionCategory): string {
-  return cat
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
 function severityColor(s: Insight['severity'], c: ReturnType<typeof useColors>): string {
   switch (s) {
     case 'alert':
@@ -1295,6 +1377,31 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     // Spend summary
     spendCard: { gap: spacing.xs },
     deltaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    cashflowRow: {
+      flexDirection: 'row',
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    cashflowCell: { flex: 1, gap: 2 },
+    groupBar: {
+      flexDirection: 'row',
+      height: 10,
+      borderRadius: 5,
+      overflow: 'hidden',
+      marginTop: spacing.sm,
+      backgroundColor: c.border,
+    },
+    groupLegend: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    groupLegendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    reviewCta: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    reviewIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
     // Categories
     catCard: { gap: spacing.sm },
     catRow: {
@@ -1316,6 +1423,23 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     insightCard: { gap: spacing.xs },
     insightHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     // Transactions
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 12,
+      borderWidth: 1,
+      marginBottom: spacing.sm,
+    },
+    searchInput: {
+      flex: 1,
+      color: c.textPrimary,
+      fontFamily: fonts.body,
+      fontSize: fontSizes.md,
+      padding: 0,
+    },
     filterRow: {
       flexDirection: 'row',
       gap: spacing.xs,

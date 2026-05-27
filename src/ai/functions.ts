@@ -106,7 +106,10 @@ import {
   AnnualReview,
   AnnualReviewSchema,
   AnnualReviewInput,
+  MonthlyMoneyReview,
+  MonthlyMoneyReviewSchema,
 } from './types';
+import type { MoneyReviewInput } from '@/finance/moneyReview';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
 import { DISCOVERY_CHAT_SYSTEM_PROMPT } from './prompts/discoveryChat';
 import { buildMockDiscoveryChatTurn } from './mocks/discoveryChat';
@@ -138,6 +141,8 @@ import { TRAJECTORY_PROMPT } from './prompts/trajectory';
 import { buildMockTrajectoryAssessment } from './mocks/trajectory';
 import { ANNUAL_REVIEW_PROMPT } from './prompts/annualReview';
 import { buildMockAnnualReview } from './mocks/annualReview';
+import { MONEY_REVIEW_PROMPT } from './prompts/moneyReview';
+import { buildMockMoneyReview } from './mocks/moneyReview';
 import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine, buildMockWeekRoutine } from './mocks/routine';
 import { MOCK_BLOOD_REPORT, MOCK_MEAL_SUGGESTION, MOCK_FOOD_RECOGNITION } from './mocks/health';
 import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from './mocks/finance';
@@ -365,6 +370,25 @@ export async function generateFinancialPlan(input: FinanceInput): Promise<Financ
     return FinancialPlanSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateFinancialPlan', 'FinancialPlan', response, err);
+  }
+}
+
+export async function generateMoneyReview(input: MoneyReviewInput): Promise<MonthlyMoneyReview> {
+  if (isMock) return buildMockMoneyReview(input);
+
+  const response = await callAI({
+    system: MONEY_REVIEW_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateMoneyReview'),
+    cacheSystem: true,
+    task: 'generateMoneyReview',
+    maxTokens: 1200,
+  });
+
+  try {
+    return MonthlyMoneyReviewSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateMoneyReview', 'MonthlyMoneyReview', response, err);
   }
 }
 

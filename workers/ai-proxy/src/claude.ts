@@ -123,22 +123,12 @@ async function callAnthropic(body: ClientRequest, env: Env): Promise<NormalisedR
   };
 }
 
-async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResponse> {
-  const model = pickModel('gemini', body.model);
+async function geminiGenerate(
+  model: string,
+  payload: string,
+  env: Env,
+): Promise<{ res: Response; text: string }> {
   const url = `${GEMINI_BASE}/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
-  const sys = flattenSystem(body);
-  const contents = body.messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-  const payload = JSON.stringify({
-    ...(sys ? { system_instruction: { parts: [{ text: sys }] } } : {}),
-    contents,
-    generationConfig: {
-      maxOutputTokens: resolveOutputTokens(body, env),
-    },
-  });
-
   // Retry on transient overload (5xx) and per-minute quota hits (429). Free
   // tier returns 429 with "Please retry in Xs" — honour that hint, capped.
   let res!: Response;
@@ -160,6 +150,43 @@ async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResp
     }
     await new Promise((r) => setTimeout(r, waitMs));
   }
+  return { res, text };
+}
+
+async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResponse> {
+  const requested = pickModel('gemini', body.model);
+  const sys = flattenSystem(body);
+  const contents = body.messages.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+  const payload = JSON.stringify({
+    ...(sys ? { system_instruction: { parts: [{ text: sys }] } } : {}),
+    contents,
+    generationConfig: {
+      maxOutputTokens: resolveOutputTokens(body, env),
+      // gemini-flash-latest (2.5 Flash) enables "thinking" by default, and
+      // thinking tokens are billed against maxOutputTokens — so the model can
+      // spend the whole budget reasoning and truncate the actual JSON
+      // ("Unbalanced JSON in AI response"). Every LifeOS call is short,
+      // structured output, so disable thinking to give the full budget to the
+      // response. thinkingBudget:0 is ignored by models that don't support it.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  let model = requested;
+  let { res, text } = await geminiGenerate(model, payload, env);
+
+  // Graceful degradation: an unrecognised / not-yet-GA model ID (e.g. a preview
+  // "gemini-3-flash" that isn't live on this key) returns 400/404. Rather than
+  // breaking the call, retry once on the known-good default model. Lets us roll
+  // out new model IDs without risking a hard outage if the string is wrong.
+  if (!res.ok && (res.status === 400 || res.status === 404) && model !== DEFAULTS.gemini) {
+    model = DEFAULTS.gemini;
+    ({ res, text } = await geminiGenerate(model, payload, env));
+  }
+
   if (!res.ok) throw new ProviderError('gemini', res.status, text);
   const parsed = JSON.parse(text);
   const out = parsed.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';

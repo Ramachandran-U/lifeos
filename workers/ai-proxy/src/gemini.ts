@@ -18,11 +18,19 @@ export async function proxyGeminiLive(
   await env.RATE_LIMIT.put(lockKey, '1', { expirationTtl: 60 });
 
   const upstreamUrl = `${GEMINI_WS}?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
-  const upstreamResp = await fetch(upstreamUrl, {
-    headers: { Upgrade: 'websocket' },
-  });
-  const upstreamWs = upstreamResp.webSocket;
+  let upstreamWs: WebSocket | null = null;
+  try {
+    const upstreamResp = await fetch(upstreamUrl, {
+      headers: { Upgrade: 'websocket' },
+    });
+    upstreamWs = upstreamResp.webSocket;
+  } catch {
+    upstreamWs = null;
+  }
   if (!upstreamWs) {
+    // Release the lock so the user can retry immediately — otherwise a failed
+    // upstream handshake blocks the next attempt for the full 60s TTL.
+    await env.RATE_LIMIT.delete(lockKey).catch(() => {});
     return new Response('upstream did not upgrade', { status: 502 });
   }
   upstreamWs.accept();

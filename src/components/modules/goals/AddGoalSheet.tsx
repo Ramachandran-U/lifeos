@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { View, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -91,55 +91,62 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
       <Pressable style={styles.backdrop} onPress={handleClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
-          <Heading style={styles.title}>Add a goal</Heading>
+          <ScrollView
+            contentContainerStyle={styles.sheetScroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <Heading style={styles.title}>Add a goal</Heading>
 
-          <Input
-            label="What do you want to achieve?"
-            placeholder="I want to..."
-            value={goalText}
-            onChangeText={setGoalText}
-            multiline
-            numberOfLines={3}
-            style={styles.input}
-          />
+            <Input
+              label="What do you want to achieve?"
+              placeholder="I want to..."
+              value={goalText}
+              onChangeText={setGoalText}
+              multiline
+              numberOfLines={3}
+              style={styles.input}
+            />
 
-          {!hierarchy && !decomposing && (
-            <Button title="Decompose goal" onPress={handleDecompose} disabled={!goalText.trim()} />
-          )}
+            {!hierarchy && !decomposing && (
+              <Button title="Decompose goal" onPress={handleDecompose} disabled={!goalText.trim()} />
+            )}
 
-          {decomposing && (
-            <View style={styles.loadingContainer}>
-              <LoadingDots />
-              <Body style={styles.loadingText}>
-                {slowHint
-                  ? 'Still working — big goals can take ~20s. Hang tight or cancel.'
-                  : 'Breaking down your goal...'}
-              </Body>
-              <Button title="Cancel" variant="ghost" onPress={handleCancelDecompose} />
-            </View>
-          )}
+            {decomposing && (
+              <View style={styles.loadingContainer}>
+                <LoadingDots />
+                <Body style={styles.loadingText}>
+                  {slowHint
+                    ? 'Still working — big goals can take ~20s. Hang tight or cancel.'
+                    : 'Breaking down your goal...'}
+                </Body>
+                <Button title="Cancel" variant="ghost" onPress={handleCancelDecompose} />
+              </View>
+            )}
 
-          {error && !decomposing && <Body style={styles.errorText}>{error}</Body>}
+            {error && !decomposing && <Body style={styles.errorText}>{error}</Body>}
 
-          {hierarchy && (
-            <View style={styles.preview}>
-              <Card moduleColor={c.goal}>
-                <Label color={c.goal}>GOAL</Label>
-                <Body style={styles.goalTitle}>{hierarchy.primaryGoal.title}</Body>
-              </Card>
-              <Card>
-                <Label>THIS YEAR</Label>
-                <Body>{hierarchy.yearly.title}</Body>
-              </Card>
-              {hierarchy.monthly.slice(0, 2).map((m) => (
-                <Card key={m.month}>
-                  <Label>MONTH {m.month}</Label>
-                  <Body>{m.title}</Body>
+            {hierarchy && (
+              <View style={styles.preview}>
+                <Card moduleColor={c.goal}>
+                  <Label color={c.goal}>GOAL</Label>
+                  <Body style={styles.goalTitle}>{hierarchy.primaryGoal.title}</Body>
                 </Card>
-              ))}
-              <Button title="Save goal" onPress={handleSave} />
-            </View>
-          )}
+                <Card>
+                  <Label>THIS YEAR</Label>
+                  <Body>{hierarchy.yearly.title}</Body>
+                </Card>
+                {hierarchy.monthly.slice(0, 2).map((m) => (
+                  <Card key={m.month}>
+                    <Label>MONTH {m.month}</Label>
+                    <Body>{m.title}</Body>
+                  </Card>
+                ))}
+                <Button title="Save goal" onPress={handleSave} />
+                <Button title="Close" variant="ghost" onPress={handleClose} />
+              </View>
+            )}
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -153,11 +160,18 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: spacing.xl,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
     maxHeight: '85%',
+  },
+  sheetScroll: {
+    paddingBottom: spacing.md,
   },
   handle: {
     width: 40,
