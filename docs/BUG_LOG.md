@@ -29,7 +29,7 @@ Last updated: 2026-05-27
 | # | Issue | Status | Resolution |
 |---|---|---|---|
 | 1 | Streaks not saved / populated | ✅ Fixed | `3b1a622` — `loadFromDB` replaced `DEFAULT_STREAKS` with `'{}'`, wiping keys; `triggerStreak` then threw. Now merges over defaults |
-| 2 | Voice assistant shows websocket error | 🔧 Needs ops | `3b1a622` — clearer client message shipped; **root cause = worker `GEMINI_API_KEY` secret not set** (`wrangler secret put GEMINI_API_KEY` in `workers/ai-proxy`) |
+| 2 | Voice assistant shows websocket error | ✅ Fixed | Multiple root causes resolved: (1) Worker used `wss://` for outbound WS fetch — CF Workers require `https://` with Upgrade header. (2) Token was passed in URL query string — browsers rejected the long URL; switched to in-band auth (first WS message). (3) Model `gemini-2.5-flash-preview-native-audio-dialog` deprecated; updated to `gemini-2.5-flash-native-audio-preview-12-2025`. (4) Added mic capture (getUserMedia → PCM16 → Gemini Live), waveform viz, and server-side VAD turn detection. |
 | 3 | profile → Notifications redirects to Today | 🔁 Not reproduced | Allow-listed + smoke nav test passes on current deploy. Stale PWA cache — hard-refresh resolves |
 | 4 | what-lifeos-knows: copy AI prompt + paste back | ✅ Fixed | `3b1a622` — "Understand me better" card (Copy prompt + Paste results) wired to discovery extraction round-trip |
 | 5 | profile/Appearance should be collapsible | ✅ Fixed | `3b1a622` — collapsed by default, tap header to expand |

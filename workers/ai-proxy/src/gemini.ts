@@ -1,6 +1,9 @@
 import type { Env } from './index';
 
-const GEMINI_WS = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+// CF Workers' fetch() requires https:// (not wss://) for outbound WebSocket
+// upgrades — the Upgrade header handles the protocol switch. Using wss://
+// causes "Fetch API cannot load" and the voice proxy silently fails.
+const GEMINI_WS = 'https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 
 export async function proxyGeminiLive(
   req: Request,
@@ -19,19 +22,30 @@ export async function proxyGeminiLive(
 
   const upstreamUrl = `${GEMINI_WS}?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
   let upstreamWs: WebSocket | null = null;
+  let upstreamStatus = 0;
+  let upstreamBody = '';
   try {
     const upstreamResp = await fetch(upstreamUrl, {
       headers: { Upgrade: 'websocket' },
     });
+    upstreamStatus = upstreamResp.status;
     upstreamWs = upstreamResp.webSocket;
-  } catch {
+    if (!upstreamWs) {
+      upstreamBody = await upstreamResp.text().catch(() => '');
+    }
+  } catch (err) {
+    upstreamBody = err instanceof Error ? err.message : 'fetch threw';
     upstreamWs = null;
   }
   if (!upstreamWs) {
-    // Release the lock so the user can retry immediately — otherwise a failed
-    // upstream handshake blocks the next attempt for the full 60s TTL.
     await env.RATE_LIMIT.delete(lockKey).catch(() => {});
-    return new Response('upstream did not upgrade', { status: 502 });
+    console.warn(
+      `[gemini-live] upstream handshake failed: status=${upstreamStatus} body=${upstreamBody.slice(0, 300)}`,
+    );
+    return new Response(
+      `upstream did not upgrade (${upstreamStatus}): ${upstreamBody.slice(0, 200)}`,
+      { status: 502 },
+    );
   }
   upstreamWs.accept();
 

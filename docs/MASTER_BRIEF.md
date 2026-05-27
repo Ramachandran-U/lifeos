@@ -79,7 +79,7 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 
 ### Ask LifeOS & Voice
 - **Ask LifeOS chatbot** — read-only Q&A over your own profile, goals, routine, finance, and health data, available from the Profile sidebar
-- **Voice assistant** — hands-free interaction layered on the same context
+- **Voice assistant** — hands-free interaction via Gemini Live API (native audio model `gemini-2.5-flash-native-audio-preview-12-2025`). Web mic capture (PCM16 16 kHz) with real-time waveform visualization and server-side VAD turn detection. Proxied through the Cloudflare Worker with in-band JWT auth.
 
 ### Health
 - Calorie ring with protein / carb / fat / fibre macro breakdown vs. 2000-kcal target
@@ -195,7 +195,7 @@ Every function is Zod-validated. Validation failures emit an `ai_schema_failure`
 ## 11. Metrics / Proof Points for Decks
 
 - **6 life engines** feeding 1 master planner
-- **22 AI functions**, all Zod-validated, all with mock fallbacks (added in Phase 3/4: `generateConversationStarters`, `suggestInterestAreas`, `suggestCrossDisciplineLink`, `generateWeekRoutine`, `generateMonthlyInsightReport`, `generateDailyBriefing`, `assessTrajectory`, `generateAnnualReview`)
+- **23 AI functions**, all Zod-validated, all with mock fallbacks (added in Phase 3/4+: `generateConversationStarters`, `suggestInterestAreas`, `suggestCrossDisciplineLink`, `generateWeekRoutine`, `generateMonthlyInsightReport`, `generateDailyBriefing`, `assessTrajectory`, `generateAnnualReview`, `generateMoneyReview`)
 - **11 badges, 5 streaks, 12+ level tiers, 2–3 daily + 1 weekly quest**
 - **3-screen onboarding** (or 1-step Discovery Import) **→ full AI-generated routine**
 - **3 banks + UPI** supported for Gmail-based transaction ingest (HDFC, ICICI, Axis) — extensible via regex
