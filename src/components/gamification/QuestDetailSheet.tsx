@@ -47,7 +47,8 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
   const refresh = useCallback(() => {
     if (!quest) return;
     const all = getRoutineBlocksByDate(today) as BlockRow[];
-    setBlocks(all.filter((b) => b.module === quest.module));
+    // q_routine tracks ALL blocks completed today (cross-domain), not one module.
+    setBlocks(quest.id === 'q_routine' ? all : all.filter((b) => b.module === quest.module));
   }, [quest, today]);
 
   // Refresh whenever the sheet opens (it's a modal, not a navigated screen, so
@@ -135,7 +136,7 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
                 style={[styles.goBtn, { backgroundColor: color }]}
               >
                 <Body style={{ color: '#fff', fontFamily: fonts.heading }}>
-                  Go to {meta.label}
+                  Go to {howto?.route === '/(tabs)' ? 'Today' : meta.label}
                 </Body>
                 <Ionicons name="arrow-forward" size={16} color="#fff" />
               </Pressable>

@@ -18,12 +18,25 @@ const DEFAULT_SLEEP = '23:00';
 const DEFAULT_WORK_START = '09:30';
 const DEFAULT_WORK_END = '18:30';
 
-export function profileToRoutineInput(profile: UserProfile): RoutineInput {
+/** Schedule fields from the users table — the canonical source when the
+ *  UserProfile's schedule fields are null (the mirror can silently fail). */
+export interface UserScheduleFallback {
+  wakeTime?: string | null;
+  sleepTime?: string | null;
+  workStartTime?: string | null;
+  workEndTime?: string | null;
+}
+
+export function profileToRoutineInput(
+  profile: UserProfile,
+  userFallback?: UserScheduleFallback | null,
+): RoutineInput {
+  const fb = userFallback ?? {};
   return {
-    wakeTime: profile.schedule.wakeTime ?? DEFAULT_WAKE,
-    sleepTime: profile.schedule.sleepTime ?? DEFAULT_SLEEP,
-    workStartTime: profile.schedule.workStartTime ?? DEFAULT_WORK_START,
-    workEndTime: profile.schedule.workEndTime ?? DEFAULT_WORK_END,
+    wakeTime: profile.schedule.wakeTime ?? fb.wakeTime ?? DEFAULT_WAKE,
+    sleepTime: profile.schedule.sleepTime ?? fb.sleepTime ?? DEFAULT_SLEEP,
+    workStartTime: profile.schedule.workStartTime ?? fb.workStartTime ?? DEFAULT_WORK_START,
+    workEndTime: profile.schedule.workEndTime ?? fb.workEndTime ?? DEFAULT_WORK_END,
     goals: profile.vision.topGoals,
     chronotype: profile.chronotype,
     primaryDomains: profile.primaryDomains,
@@ -49,7 +62,15 @@ export async function generateRoutineFromProfile(profile: UserProfile): Promise<
   if (profile.confidence.overall < ROUTINE_CONFIDENCE_THRESHOLD) {
     throw new ProfileNotReadyError(profile.confidence.overall);
   }
-  const input = profileToRoutineInput(profile);
+  // Read the users table as a schedule fallback — the profile's schedule fields
+  // may be null if the mirror from day1-routine failed silently.
+  let userFb: UserScheduleFallback | null = null;
+  try {
+    const { getUser } = await import('@/db/queries/users');
+    const user = getUser();
+    if (user) userFb = user;
+  } catch { /* non-fatal */ }
+  const input = profileToRoutineInput(profile, userFb);
   return planRoutineWithContext(input);
 }
 

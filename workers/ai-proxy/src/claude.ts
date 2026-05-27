@@ -183,6 +183,10 @@ async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResp
   // breaking the call, retry once on the known-good default model. Lets us roll
   // out new model IDs without risking a hard outage if the string is wrong.
   if (!res.ok && (res.status === 400 || res.status === 404) && model !== DEFAULTS.gemini) {
+    console.warn(
+      `[gemini-fallback] ${requested} returned ${res.status} — falling back to ${DEFAULTS.gemini}. ` +
+      `This likely means the model ID was renamed or deprecated. Check AI Studio for the current ID.`,
+    );
     model = DEFAULTS.gemini;
     ({ res, text } = await geminiGenerate(model, payload, env));
   }
