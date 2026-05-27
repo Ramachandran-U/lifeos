@@ -1,12 +1,12 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Heading } from '@/components/ui/Typography';
-import { useStaggerDelay } from '@/theme/motion';
+import { SPRING, useStaggerDelay } from '@/theme/motion';
 
 type Hub = {
   route: '/(tabs)/goals' | '/(tabs)/health' | '/(tabs)/finance' | '/(tabs)/career' | '/(tabs)/social' | '/(tabs)/explore';
@@ -44,9 +44,19 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={onClose} />
-      <View style={[styles.sheet, { backgroundColor: c.surface, borderTopColor: c.border }]}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Animated.View
+        entering={FadeIn.duration(480).delay(150)}
+        exiting={FadeOut.duration(460).delay(80)}
+        style={StyleSheet.absoluteFill}
+      >
+        <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={onClose} />
+      </Animated.View>
+      <Animated.View
+        entering={SlideInDown.springify().stiffness(SPRING.soft.stiffness).damping(SPRING.soft.damping)}
+        exiting={SlideOutDown.duration(520)}
+        style={[styles.sheet, { backgroundColor: c.surface, borderTopColor: c.border }]}
+      >
         <View style={[styles.handle, { backgroundColor: c.border }]} />
         <Heading style={[styles.title, { color: c.textPrimary }]}>Your life modules</Heading>
         <Body style={[styles.subtitle, { color: c.textMuted }]}>
@@ -81,7 +91,7 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
             </Animated.View>
           ))}
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

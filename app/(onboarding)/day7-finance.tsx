@@ -10,10 +10,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
@@ -54,6 +55,7 @@ const RISK_OPTIONS = [
 export default function Day7FinanceScreen() {
   const router = useRouter();
   const c = useColors();
+  const stagger = useStaggerDelay();
   const styles = makeStyles(c);
   const { call, loading } = useAI();
   const { userId } = useUserStore();
@@ -143,22 +145,23 @@ export default function Day7FinanceScreen() {
           <View style={styles.form}>
             <Label>Goal type</Label>
             <View style={styles.chipGrid}>
-              {GOAL_TYPES.map((g) => {
+              {GOAL_TYPES.map((g, i) => {
                 const active = g.value === goalType;
                 return (
-                  <Pressable
-                    key={g.value}
-                    onPress={() => setGoalType(g.value)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: active ? c.financeLight : c.surface,
-                        borderColor: active ? c.finance : c.border,
-                      },
-                    ]}
-                  >
-                    <Body style={{ color: active ? c.finance : c.textSecondary }}>{g.label}</Body>
-                  </Pressable>
+                  <Animated.View key={g.value} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                    <Pressable
+                      onPress={() => setGoalType(g.value)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? c.financeLight : c.surface,
+                          borderColor: active ? c.finance : c.border,
+                        },
+                      ]}
+                    >
+                      <Body style={{ color: active ? c.finance : c.textSecondary }}>{g.label}</Body>
+                    </Pressable>
+                  </Animated.View>
                 );
               })}
             </View>
@@ -187,22 +190,23 @@ export default function Day7FinanceScreen() {
 
             <Label style={styles.fieldLabel}>Timeline</Label>
             <View style={styles.chipRow}>
-              {TIMELINE_OPTIONS.map((t) => {
+              {TIMELINE_OPTIONS.map((t, i) => {
                 const active = t.months === timelineMonths;
                 return (
-                  <Pressable
-                    key={t.label}
-                    onPress={() => setTimelineMonths(t.months)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: active ? c.financeLight : c.surface,
-                        borderColor: active ? c.finance : c.border,
-                      },
-                    ]}
-                  >
-                    <Body style={{ color: active ? c.finance : c.textSecondary }}>{t.label}</Body>
-                  </Pressable>
+                  <Animated.View key={t.label} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                    <Pressable
+                      onPress={() => setTimelineMonths(t.months)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? c.financeLight : c.surface,
+                          borderColor: active ? c.finance : c.border,
+                        },
+                      ]}
+                    >
+                      <Body style={{ color: active ? c.finance : c.textSecondary }}>{t.label}</Body>
+                    </Pressable>
+                  </Animated.View>
                 );
               })}
             </View>
@@ -217,22 +221,23 @@ export default function Day7FinanceScreen() {
 
             <Label style={styles.fieldLabel}>Risk profile</Label>
             <View style={styles.chipRow}>
-              {RISK_OPTIONS.map((r) => {
+              {RISK_OPTIONS.map((r, i) => {
                 const active = r.value === riskProfile;
                 return (
-                  <Pressable
-                    key={r.value}
-                    onPress={() => setRiskProfile(r.value)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: active ? c.financeLight : c.surface,
-                        borderColor: active ? c.finance : c.border,
-                      },
-                    ]}
-                  >
-                    <Body style={{ color: active ? c.finance : c.textSecondary }}>{r.label}</Body>
-                  </Pressable>
+                  <Animated.View key={r.value} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                    <Pressable
+                      onPress={() => setRiskProfile(r.value)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? c.financeLight : c.surface,
+                          borderColor: active ? c.finance : c.border,
+                        },
+                      ]}
+                    >
+                      <Body style={{ color: active ? c.finance : c.textSecondary }}>{r.label}</Body>
+                    </Pressable>
+                  </Animated.View>
                 );
               })}
             </View>

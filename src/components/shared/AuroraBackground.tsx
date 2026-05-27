@@ -1,9 +1,14 @@
+import { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import Animated, {
   useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 import { useThemeStore } from '@/store/useThemeStore';
+import { EASING, useMotionScale } from '@/theme/motion';
 
 interface Bloom {
   color: string;
@@ -48,6 +53,58 @@ const WEB_GRADIENT_LIGHT = `
 const DARK_BASE = '#0A0612';
 const LIGHT_BASE = '#F7F4FC';
 
+const DRIFT_PERIOD = 8000;
+const DRIFT_X_AMP = 6;
+const DRIFT_Y_AMP = 4;
+const DRIFT_PHASES = [0, 0.8, 1.6];
+
+function DriftingBloom({ bloom, phase, motionScale }: { bloom: Bloom; phase: number; motionScale: number }) {
+  const drift = useSharedValue(0);
+
+  useEffect(() => {
+    if (motionScale === 0) return;
+    drift.value = withRepeat(
+      withTiming(1, { duration: DRIFT_PERIOD, easing: EASING.inOut }),
+      -1,  // infinite
+      true, // reverse
+    );
+    return () => {
+      drift.value = 0;
+    };
+  }, [motionScale]);
+
+  const driftStyle = useAnimatedStyle(() => {
+    if (motionScale === 0) return {};
+    const angle = drift.value * Math.PI * 2 + phase;
+    return {
+      transform: [
+        { translateX: Math.sin(angle) * DRIFT_X_AMP },
+        { translateY: Math.cos(angle) * DRIFT_Y_AMP },
+      ],
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: bloom.size,
+          height: bloom.size,
+          borderRadius: bloom.size / 2,
+          backgroundColor: bloom.color,
+          opacity: bloom.opacity ?? 0.25,
+          top: bloom.top as number | undefined,
+          left: bloom.left as number | undefined,
+          right: bloom.right as number | undefined,
+          bottom: bloom.bottom as number | undefined,
+        },
+        driftStyle,
+      ]}
+    />
+  );
+}
+
 interface AuroraBackgroundProps {
   blooms?: Bloom[];
   /** Optional scroll offset (px). When provided, the background drifts with a
@@ -61,6 +118,7 @@ export function AuroraBackground({ blooms, scrollY }: AuroraBackgroundProps) {
   const resolvedBlooms = blooms ?? (isLight ? LIGHT_BLOOMS : DARK_BLOOMS);
   const baseColor = isLight ? LIGHT_BASE : DARK_BASE;
   const webGradient = isLight ? WEB_GRADIENT_LIGHT : WEB_GRADIENT_DARK;
+  const motionScale = useMotionScale();
 
   // Parallax: background translates up at ~18% of scroll speed, clamped, so it
   // feels alive without detaching from the content. No-op when scrollY absent.
@@ -88,20 +146,11 @@ export function AuroraBackground({ blooms, scrollY }: AuroraBackgroundProps) {
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: baseColor, overflow: 'hidden' }]}>
       <Animated.View style={[StyleSheet.absoluteFill, scrollY ? parallax : null]}>
         {resolvedBlooms.map((b, i) => (
-          <View
+          <DriftingBloom
             key={i}
-            style={{
-              position: 'absolute',
-              width: b.size,
-              height: b.size,
-              borderRadius: b.size / 2,
-              backgroundColor: b.color,
-              opacity: b.opacity ?? 0.25,
-              top: b.top as number | undefined,
-              left: b.left as number | undefined,
-              right: b.right as number | undefined,
-              bottom: b.bottom as number | undefined,
-            }}
+            bloom={b}
+            phase={DRIFT_PHASES[i % DRIFT_PHASES.length]}
+            motionScale={motionScale}
           />
         ))}
       </Animated.View>

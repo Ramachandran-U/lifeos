@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
@@ -35,6 +37,7 @@ interface Props {
 export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
+  const stagger = useStaggerDelay();
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const completeBlock = useGameStore((s) => s.completeBlock);
@@ -83,64 +86,74 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <View style={styles.header}>
-              <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
-                <Body style={{ fontSize: 20 }}>{meta.emoji}</Body>
+            <Animated.View entering={FadeIn.delay(120 + stagger(0, 50)).duration(300)}>
+              <View style={styles.header}>
+                <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
+                  <Body style={{ fontSize: 20 }}>{meta.emoji}</Body>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Label color={color}>{quest.type === 'daily' ? 'DAILY QUEST' : 'WEEKLY QUEST'}</Label>
+                  <Heading style={[styles.title, { color: c.textPrimary }]}>{quest.title}</Heading>
+                </View>
+                <XpChip amount={quest.xp} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Label color={color}>{quest.type === 'daily' ? 'DAILY QUEST' : 'WEEKLY QUEST'}</Label>
-                <Heading style={[styles.title, { color: c.textPrimary }]}>{quest.title}</Heading>
-              </View>
-              <XpChip amount={quest.xp} />
-            </View>
+            </Animated.View>
 
-            <View style={styles.progressRow}>
-              <View style={{ flex: 1 }}>
-                <XpBar pct={pct} color={color} height={6} />
+            <Animated.View entering={FadeIn.delay(120 + stagger(1, 50)).duration(300)}>
+              <View style={styles.progressRow}>
+                <View style={{ flex: 1 }}>
+                  <XpBar pct={pct} color={color} height={6} />
+                </View>
+                <Caption style={{ color: c.textMuted }}>{quest.progress}/{quest.total}</Caption>
               </View>
-              <Caption style={{ color: c.textMuted }}>{quest.progress}/{quest.total}</Caption>
-            </View>
+            </Animated.View>
 
-            {howto && <Body style={[styles.how, { color: c.textSecondary }]}>{howto.how}</Body>}
-
-            {done ? (
-              <View style={[styles.doneBanner, { backgroundColor: color + '18', borderColor: color + '55' }]}>
-                <Ionicons name="checkmark-circle" size={18} color={color} />
-                <Body style={{ color: c.textPrimary }}>Quest complete — nice work!</Body>
-              </View>
-            ) : pending.length > 0 ? (
-              <View style={styles.taskList}>
-                <Label style={{ color: c.textMuted }}>TODAY'S TASKS</Label>
-                {pending.map((b) => (
-                  <View key={b.id} style={[styles.taskRow, { borderColor: c.border }]}>
-                    <View style={{ flex: 1 }}>
-                      <Body style={{ color: c.textPrimary }} numberOfLines={2}>{b.title}</Body>
-                      <Caption style={{ color: c.textMuted }}>{b.startTime}–{b.endTime}</Caption>
-                    </View>
-                    <Pressable
-                      onPress={() => handleComplete(b.id)}
-                      style={[styles.doBtn, { backgroundColor: color }]}
-                    >
-                      <Ionicons name="checkmark" size={16} color="#fff" />
-                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Done</Caption>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Pressable
-                onPress={() => {
-                  onClose();
-                  if (howto?.route) router.push(howto.route);
-                }}
-                style={[styles.goBtn, { backgroundColor: color }]}
-              >
-                <Body style={{ color: '#fff', fontFamily: fonts.heading }}>
-                  Go to {howto?.route === '/(tabs)' ? 'Today' : meta.label}
-                </Body>
-                <Ionicons name="arrow-forward" size={16} color="#fff" />
-              </Pressable>
+            {howto && (
+              <Animated.View entering={FadeIn.delay(120 + stagger(2, 50)).duration(300)}>
+                <Body style={[styles.how, { color: c.textSecondary }]}>{howto.how}</Body>
+              </Animated.View>
             )}
+
+            <Animated.View entering={FadeIn.delay(120 + stagger(3, 50)).duration(300)}>
+              {done ? (
+                <View style={[styles.doneBanner, { backgroundColor: color + '18', borderColor: color + '55' }]}>
+                  <Ionicons name="checkmark-circle" size={18} color={color} />
+                  <Body style={{ color: c.textPrimary }}>Quest complete — nice work!</Body>
+                </View>
+              ) : pending.length > 0 ? (
+                <View style={styles.taskList}>
+                  <Label style={{ color: c.textMuted }}>TODAY'S TASKS</Label>
+                  {pending.map((b) => (
+                    <View key={b.id} style={[styles.taskRow, { borderColor: c.border }]}>
+                      <View style={{ flex: 1 }}>
+                        <Body style={{ color: c.textPrimary }} numberOfLines={2}>{b.title}</Body>
+                        <Caption style={{ color: c.textMuted }}>{b.startTime}–{b.endTime}</Caption>
+                      </View>
+                      <Pressable
+                        onPress={() => handleComplete(b.id)}
+                        style={[styles.doBtn, { backgroundColor: color }]}
+                      >
+                        <Ionicons name="checkmark" size={16} color="#fff" />
+                        <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Done</Caption>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    onClose();
+                    if (howto?.route) router.push(howto.route);
+                  }}
+                  style={[styles.goBtn, { backgroundColor: color }]}
+                >
+                  <Body style={{ color: '#fff', fontFamily: fonts.heading }}>
+                    Go to {howto?.route === '/(tabs)' ? 'Today' : meta.label}
+                  </Body>
+                  <Ionicons name="arrow-forward" size={16} color="#fff" />
+                </Pressable>
+              )}
+            </Animated.View>
 
             <Pressable onPress={onClose} style={styles.closeBtn}>
               <Body style={{ color: c.textSecondary }}>Close</Body>
@@ -153,7 +166,7 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
 }
 
 const makeStyles = (c: AppColors) => StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: c.surface,
     borderTopLeftRadius: 24,

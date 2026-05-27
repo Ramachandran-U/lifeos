@@ -11,10 +11,11 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
+import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
@@ -41,6 +42,7 @@ const SLEEP_OPTIONS = [6, 7, 8, 9];
 export default function Day3HealthScreen() {
   const router = useRouter();
   const c = useColors();
+  const stagger = useStaggerDelay();
   const styles = makeStyles(c);
   const { userId } = useUserStore();
   const markModuleActivated = useUserStore((s) => s.markModuleActivated);
@@ -128,44 +130,46 @@ export default function Day3HealthScreen() {
 
             <Label style={styles.fieldLabel}>Sleep target</Label>
             <View style={styles.chipRow}>
-              {SLEEP_OPTIONS.map((h) => {
+              {SLEEP_OPTIONS.map((h, i) => {
                 const active = h === sleepTargetHours;
                 return (
-                  <Pressable
-                    key={h}
-                    onPress={() => setSleepTargetHours(h)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: active ? c.healthLight : c.surface,
-                        borderColor: active ? c.health : c.border,
-                      },
-                    ]}
-                  >
-                    <Body style={{ color: active ? c.health : c.textSecondary }}>{h}h</Body>
-                  </Pressable>
+                  <Animated.View key={h} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                    <Pressable
+                      onPress={() => setSleepTargetHours(h)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? c.healthLight : c.surface,
+                          borderColor: active ? c.health : c.border,
+                        },
+                      ]}
+                    >
+                      <Body style={{ color: active ? c.health : c.textSecondary }}>{h}h</Body>
+                    </Pressable>
+                  </Animated.View>
                 );
               })}
             </View>
 
             <Label style={styles.fieldLabel}>Goal</Label>
             <View style={styles.chipGrid}>
-              {GOAL_TYPES.map((g) => {
+              {GOAL_TYPES.map((g, i) => {
                 const active = g.value === goalType;
                 return (
-                  <Pressable
-                    key={g.value}
-                    onPress={() => setGoalType(g.value)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: active ? c.healthLight : c.surface,
-                        borderColor: active ? c.health : c.border,
-                      },
-                    ]}
-                  >
-                    <Body style={{ color: active ? c.health : c.textSecondary }}>{g.label}</Body>
-                  </Pressable>
+                  <Animated.View key={g.value} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                    <Pressable
+                      onPress={() => setGoalType(g.value)}
+                      style={[
+                        styles.chip,
+                        {
+                          backgroundColor: active ? c.healthLight : c.surface,
+                          borderColor: active ? c.health : c.border,
+                        },
+                      ]}
+                    >
+                      <Body style={{ color: active ? c.health : c.textSecondary }}>{g.label}</Body>
+                    </Pressable>
+                  </Animated.View>
                 );
               })}
             </View>
