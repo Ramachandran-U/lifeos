@@ -44,6 +44,9 @@ export const BADGE_META: Record<BadgeId, { label: string; emoji: string; desc: s
   first_connection:   { label: 'First Connection',  emoji: '🤝', desc: 'Added your first contact to Social Hub' },
   inner_orbit:        { label: 'Inner Orbit',       emoji: '🪐', desc: 'All inner-circle contacts inside cadence' },
   polymath_starter:   { label: 'Polymath Starter',  emoji: '🔭', desc: 'Logged time on a deep-dive interest' },
+  expedition_complete:{ label: 'Expeditioner',     emoji: '🧭', desc: 'Completed your first expedition' },
+  synapse_formed:     { label: 'Synapse',          emoji: '⚡', desc: 'Formed a cross-discipline link in your constellation' },
+  curiosity_streak_7: { label: 'Curious Week',     emoji: '🌟', desc: 'Engaged with a spark for 7 consecutive days' },
 };
 
 export type StreakKey = 'workout' | 'learning' | 'foodTracking' | 'journaling' | 'social';

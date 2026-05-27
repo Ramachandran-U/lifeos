@@ -249,6 +249,62 @@ export const contactInteractions = sqliteTable('contact_interactions', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- Expeditions (Explore v2 — journey definitions, immutable) ---
+export const expeditions = sqliteTable('expeditions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  title: text('title').notNull(),
+  theme: text('theme').notNull(),
+  domain: text('domain').notNull().default('polymath'),
+  steps: text('steps').notNull().default('[]'), // JSON ExpeditionStep[]
+  totalSteps: integer('total_steps').notNull(),
+  source: text('source').notNull(), // ai | curated | spark
+  seedSparkId: text('seed_spark_id'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Expedition Progress (one row per user per expedition; synced) ---
+export const expeditionProgress = sqliteTable('expedition_progress', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  expeditionId: text('expedition_id').notNull(),
+  status: text('status').notNull().default('active'), // active | completed | abandoned
+  currentStep: integer('current_step').notNull().default(0),
+  completedSteps: text('completed_steps').notNull().default('[]'), // JSON int[]
+  startedAt: text('started_at').notNull(),
+  lastActivityAt: text('last_activity_at').notNull(),
+  completedAt: text('completed_at'),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Sparks (Explore v2 — the daily curiosity hit) ---
+export const sparks = sqliteTable('sparks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD — one spark per user per day
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  threadStarter: text('thread_starter').notNull(),
+  seedInterest: text('seed_interest').notNull().default(''),
+  adjacentField: text('adjacent_field').notNull().default(''),
+  status: text('status').notNull().default('new'), // new | seen | saved | dismissed | explored
+  threadId: text('thread_id'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Cognitive Insights (Phase 2 cognitive engine) ---
+export const cognitiveInsights = sqliteTable('cognitive_insights', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  kind: text('kind').notNull(), // domain_stagnation | ...
+  domain: text('domain').notNull(), // goals | health | finance | career | social | polymath
+  evidence: text('evidence').notNull(), // JSON: { delta, daysFlat, currentScore }
+  suggestions: text('suggestions').notNull().default('[]'), // JSON: InsightSuggestion[]
+  status: text('status').notNull().default('proposed'), // proposed | shown | accepted | dismissed | expired
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  expiresAt: text('expires_at'),
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),

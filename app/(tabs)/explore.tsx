@@ -32,6 +32,18 @@ import { XP_VALUES } from '@/utils/gamification';
 import type { Interest } from '@/db/queries/interests';
 import type { ExplorationDepth } from '@/ai/types';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
+import { useRouter } from 'expo-router';
+import { format } from 'date-fns';
+import { isEnabled } from '@/config/flags';
+import { SparkHeroCard } from '@/components/modules/polymath/SparkHeroCard';
+import { ExpeditionProgressRow } from '@/components/modules/polymath/ExpeditionProgressRow';
+import { ConstellationView } from '@/components/modules/polymath/ConstellationView';
+import { generateDailySpark, type Spark } from '@/explore/spark';
+import { recordSpark, getSparkByDate, listRecentSparkTitles, updateSparkStatus } from '@/db/queries/sparks';
+import { listExpeditions, listActiveExpeditionProgress, getExpedition as getExpeditionDef } from '@/db/queries/expeditions';
+import { track, EVENTS } from '@/utils/telemetry';
+import { nanoid } from '@/utils/id';
+import type { ConstellationInput } from '@/explore/constellation';
 
 function pairKeyFor(a: Interest, b: Interest): string {
   // Stable, order-independent key so refreshes don't churn when interests
@@ -78,6 +90,16 @@ export default function ExploreScreen() {
 
   const { call: callSuggestions, loading: suggestionsLoading } = useAI();
   const { call: callCross, loading: crossLoading } = useAI();
+  const router = useRouter();
+
+  // ─── Explore v2: sparks + expeditions + constellation ──────────────────
+  const [todaySpark, setTodaySpark] = useState<Spark | null>(null);
+  const [expeditionData, setExpeditionData] = useState<Array<{ expedition: ReturnType<typeof getExpeditionDef> & {}; progress: ReturnType<typeof listActiveExpeditionProgress>[number] }>>([]);
+  const constellationInput = useMemo((): ConstellationInput => ({
+    interests: interests.map((i) => ({ id: i.id, name: i.name, category: i.category, explorationDepth: i.explorationDepth })),
+    sparks: todaySpark && (todaySpark.status === 'saved' || todaySpark.status === 'explored') ? [todaySpark] : [],
+    expeditions: expeditionData.map(({ expedition: e, progress: p }) => ({ id: e.id, title: e.title, theme: e.theme, seedSparkId: e.seedSparkId, status: p.status })),
+  }), [interests, todaySpark, expeditionData]);
 
   const handlePickArea = (area: DiscoverArea) => {
     setSeed({ name: area.name, category: area.category });
@@ -91,8 +113,35 @@ export default function ExploreScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) load(userId);
-    }, [userId, load]),
+      if (!userId) return;
+      load(userId);
+      // Load today's spark (generate if needed, behind flag)
+      if (isEnabled('domainNudges')) {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const existing = getSparkByDate(userId, today);
+        if (existing) {
+          setTodaySpark(existing);
+        } else {
+          const recentTitles = listRecentSparkTitles(userId, 14);
+          const sparkInterests = interests.map((i) => ({ name: i.name, category: i.category }));
+          generateDailySpark({ interests: sparkInterests, recentSparkTitles: recentTitles })
+            .then((gen) => {
+              const spark: Spark = { ...gen, id: nanoid(), userId, date: today, status: 'new', threadId: null, createdAt: new Date().toISOString() };
+              recordSpark(spark);
+              setTodaySpark(spark);
+              track(EVENTS.sparkShown, { seedInterest: gen.seedInterest });
+            })
+            .catch(() => {}); // non-fatal
+        }
+      }
+      // Load active expeditions
+      const progList = listActiveExpeditionProgress(userId);
+      const loaded = progList.map((p) => {
+        const e = getExpeditionDef(p.expeditionId);
+        return e ? { expedition: e, progress: p } : null;
+      }).filter((x): x is NonNullable<typeof x> => !!x);
+      setExpeditionData(loaded);
+    }, [userId, load, interests.length]),
   );
 
   const totals = useMemo(() => weeklyMinutes(), [weeklyMinutes, interests]);
@@ -198,6 +247,24 @@ export default function ExploreScreen() {
     Haptics.selectionAsync();
   };
 
+  // ─── Spark actions ─────────────────────────────────────────────────────────
+  const handleSparkAction = useCallback((action: 'save' | 'dismiss' | 'pull_thread' | 'start_expedition') => {
+    if (!todaySpark) return;
+    const statusMap: Record<string, Spark['status']> = { save: 'saved', dismiss: 'dismissed', pull_thread: 'explored', start_expedition: 'explored' };
+    const next = statusMap[action] ?? 'seen';
+    updateSparkStatus(todaySpark.id, next);
+    setTodaySpark({ ...todaySpark, status: next });
+    if (action === 'save') { addXP(userId!, XP_VALUES.completeGoalTask); track(EVENTS.sparkSaved, { domain: 'polymath' }); }
+    if (action === 'dismiss') track(EVENTS.sparkDismissed, {});
+    if (action === 'pull_thread') track(EVENTS.sparkThreadPulled, {});
+    if (action === 'start_expedition') {
+      track(EVENTS.sparkThreadPulled, {});
+      // TODO: generate expedition from spark seed and navigate
+    }
+    triggerStreak(userId!, 'learning');
+    track(EVENTS.curiosityStreakDay, {});
+  }, [todaySpark, userId, addXP, triggerStreak]);
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   const discoverAreas = useMemo(
@@ -213,6 +280,22 @@ export default function ExploreScreen() {
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
           <ModuleHeader title="Explore" icon="compass" color={c.polymath} />
+
+          {/* ─── Explore v2: Spark hero ─── */}
+          {todaySpark && (
+            <Animated.View entering={FadeInDown.duration(400)}>
+              <SparkHeroCard spark={todaySpark} onAction={handleSparkAction} />
+            </Animated.View>
+          )}
+
+          {/* ─── Explore v2: Active expeditions ─── */}
+          <ExpeditionProgressRow
+            expeditions={expeditionData}
+            onPress={(expId) => router.push({ pathname: '/expedition-detail', params: { id: expId } })}
+          />
+
+          {/* ─── Explore v2: Constellation ─── */}
+          <ConstellationView input={constellationInput} />
 
           <Animated.View entering={FadeInDown.duration(400)}>
             <Card moduleColor={c.polymath} style={styles.summary}>
