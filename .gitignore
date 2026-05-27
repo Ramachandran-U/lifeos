@@ -47,4 +47,6 @@ ai-proxy.log
 test-results/
 smoke-output/
 playwright-report/
+.auth/
+.env.test
 .claude/

@@ -123,55 +123,61 @@ export function AuroraBackground({
     return { transform: [{ translateY: t }] };
   });
 
-  if (Platform.OS === 'web') {
-    return (
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          { position: 'absolute', left: 0, right: 0, top: -120, bottom: -120 },
-          { backgroundImage: webGradient } as unknown as object,
-          scrollY ? parallax : null,
-        ]}
-      />
-    );
-  }
+  const isWeb = Platform.OS === 'web';
 
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: baseColor, overflow: 'hidden' }]}>
+    <View
+      pointerEvents="none"
+      testID="aurora-bg"
+      style={[StyleSheet.absoluteFill, !isWeb && { backgroundColor: baseColor, overflow: 'hidden' }]}
+    >
       <Animated.View style={[StyleSheet.absoluteFill, scrollY ? parallax : null]}>
-        {/* Layer 1: Slow orbs */}
-        {resolvedBlooms.map((b, i) => (
-          <DriftingBloom
-            key={`${preset.id}-${i}`}
-            bloom={b}
-            phase={DRIFT_PHASES[i % DRIFT_PHASES.length]}
-            motionScale={motionScale}
-            period={preset.orbPeriod}
+        {/* Layer 0+1: Base canvas + slow orbs */}
+        {isWeb ? (
+          <View
+            style={[
+              { position: 'absolute', left: 0, right: 0, top: -120, bottom: -120 },
+              { backgroundImage: webGradient } as unknown as object,
+            ]}
           />
-        ))}
+        ) : (
+          resolvedBlooms.map((b, i) => (
+            <DriftingBloom
+              key={`${preset.id}-${i}`}
+              bloom={b}
+              phase={DRIFT_PHASES[i % DRIFT_PHASES.length]}
+              motionScale={motionScale}
+              period={preset.orbPeriod}
+            />
+          ))
+        )}
 
-        {/* Layer 2: Gradient mesh */}
-        <GradientMesh stops={DEFAULT_MESH_STOPS} period={preset.meshPeriod} />
+        {/* Layer 2: Gradient mesh (renders on all platforms) */}
+        <View testID="ambient-mesh" style={StyleSheet.absoluteFill}>
+          <GradientMesh stops={DEFAULT_MESH_STOPS} period={preset.meshPeriod} />
+        </View>
 
         {/* Layer 3: Particle field (day-complete or voice) */}
         {particles && (
-          <ParticleField
-            count={particles.count}
-            hues={particles.hues}
-            height={height}
-          />
+          <View testID="ambient-particles" style={StyleSheet.absoluteFill}>
+            <ParticleField count={particles.count} hues={particles.hues} height={height} />
+          </View>
         )}
 
         {/* Layer 4: Energy sweep (event-driven) */}
-        <EnergySweep
-          hue={sweep?.hue ?? '#A584FF'}
-          active={sweep !== null}
-          onComplete={clearSweep}
-        />
+        <View testID="ambient-sweep" style={StyleSheet.absoluteFill}>
+          <EnergySweep
+            hue={sweep?.hue ?? '#A584FF'}
+            active={sweep !== null}
+            onComplete={clearSweep}
+          />
+        </View>
 
         {/* Layer 5: Pulse halo (live block or voice) */}
         {pulse && (
-          <PulseHalo hue={pulse.hue} period={pulse.period} />
+          <View testID="ambient-pulse" style={StyleSheet.absoluteFill}>
+            <PulseHalo hue={pulse.hue} period={pulse.period} />
+          </View>
         )}
       </Animated.View>
     </View>
