@@ -52,13 +52,11 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
     }
     ws = new WebSocket(buildWsUrl());
     ws.onopen = () => {
-      // In-band auth: send token as the first message (not in the URL —
-      // browsers reject long query strings for WS upgrades).
       ws?.send(JSON.stringify({ auth: token }));
     };
 
     let authed = false;
-    ws.onmessage = async (ev) => {
+    ws.onmessage = async (ev: MessageEvent) => {
       try {
         let raw: string;
         if (typeof ev.data === 'string') {
@@ -141,7 +139,7 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
   })();
 
   return {
-    sendAudioChunk: (pcm16Base64) => {
+    sendAudioChunk: (pcm16Base64: string) => {
       if (!open || !ws) return;
       ws.send(
         JSON.stringify({
@@ -151,7 +149,7 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
         }),
       );
     },
-    sendText: (text) => {
+    sendText: (text: string) => {
       if (!open || !ws) return;
       ws.send(
         JSON.stringify({
@@ -179,7 +177,7 @@ function createMockSession(opts: VoiceSessionOptions): VoiceSession {
   }, 300);
   return {
     sendAudioChunk: () => {},
-    sendText: (text) => {
+    sendText: (text: string) => {
       if (!open) return;
       setTimeout(() => {
         opts.onEvent({ type: 'text', text: `[mock] You said: "${text}". LifeOS would respond here.` });
