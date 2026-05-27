@@ -25,7 +25,7 @@ export interface PulseHaloProps {
 }
 
 const SCREEN = Dimensions.get('window');
-const RING_BORDER_WIDTH = 1.5;
+const RING_BORDER_WIDTH = 2;
 
 /** Phase offset for the outer ring relative to the inner ring. */
 const OUTER_PHASE_OFFSET = 0.3;
@@ -98,7 +98,7 @@ export function PulseHalo({
   period,
   cx,
   cy,
-  maxRadius = 80,
+  maxRadius = 120,
 }: PulseHaloProps) {
   const motionScale = useMotionScale();
   const pulseT = useSharedValue(0);
@@ -135,24 +135,22 @@ export function PulseHalo({
         { left: centerX, top: centerY },
       ]}
     >
-      {/* Inner ring: 40-60px, opacity 0.08-0.04 */}
       <HaloRing
         hue={hue}
         pulseT={pulseT}
         minRadius={maxRadius * 0.5}
         maxRadius={maxRadius * 0.75}
-        minOpacity={0.04}
-        maxOpacity={0.08}
+        minOpacity={0.08}
+        maxOpacity={0.18}
         phaseOffset={0}
       />
-      {/* Outer ring: 60-80px, opacity 0.05-0.02 */}
       <HaloRing
         hue={hue}
         pulseT={pulseT}
         minRadius={maxRadius * 0.75}
         maxRadius={maxRadius}
-        minOpacity={0.02}
-        maxOpacity={0.05}
+        minOpacity={0.05}
+        maxOpacity={0.12}
         phaseOffset={OUTER_PHASE_OFFSET}
       />
     </View>

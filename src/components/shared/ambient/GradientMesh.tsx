@@ -75,7 +75,7 @@ function NativeMeshOrb({
 // making blurred circles look like squares. Instead, render a single div
 // whose `background` is multiple layered radial-gradients — the same
 // technique the base aurora uses, but with animated positions.
-const WEB_ORBIT_PCT = 8;
+const WEB_ORBIT_PCT = 15;
 
 function WebGradientMesh({ stops, meshT, motionScale }: { stops: GradientMeshStop[]; meshT: SharedValue<number>; motionScale: number }) {
   const meshStyle = useAnimatedStyle(() => {
@@ -88,9 +88,9 @@ function WebGradientMesh({ stops, meshT, motionScale }: { stops: GradientMeshSto
         cxPct += Math.sin(angle) * WEB_ORBIT_PCT;
         cyPct += Math.cos(angle * 0.7) * WEB_ORBIT_PCT * 0.6;
       }
-      const r = Math.round(35 + i * 5);
+      const r = Math.round(45 + i * 8);
       const rgba = hexToRgba(s.color, s.opacity);
-      return `radial-gradient(${r}% ${r}% at ${cxPct.toFixed(1)}% ${cyPct.toFixed(1)}%, ${rgba}, transparent 70%)`;
+      return `radial-gradient(${r}% ${r}% at ${cxPct.toFixed(1)}% ${cyPct.toFixed(1)}%, ${rgba}, transparent 75%)`;
     });
     return { backgroundImage: gradients.join(', ') } as Record<string, unknown>;
   });

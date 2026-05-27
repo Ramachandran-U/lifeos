@@ -17,17 +17,17 @@ import { EnergySweep } from './ambient/EnergySweep';
 import { useAmbientEventStore } from './ambient/useAmbientEventStore';
 import type { AmbientBloom } from './ambient/presets';
 
-const DRIFT_X_AMP = 6;
-const DRIFT_Y_AMP = 4;
+const DRIFT_X_AMP = 12;
+const DRIFT_Y_AMP = 8;
 const DRIFT_PHASES = [0, 0.8, 1.6];
 
 const DARK_BASE = '#0A0612';
 const LIGHT_BASE = '#F7F4FC';
 
 const DEFAULT_MESH_STOPS = [
-  { color: '#A584FF', cx: 0.25, cy: 0.2, opacity: 0.12 },
-  { color: '#7EE0B8', cx: 0.75, cy: 0.6, opacity: 0.08 },
-  { color: '#FF99C5', cx: 0.5, cy: 0.85, opacity: 0.06 },
+  { color: '#A584FF', cx: 0.25, cy: 0.2, opacity: 0.22 },
+  { color: '#7EE0B8', cx: 0.75, cy: 0.55, opacity: 0.16 },
+  { color: '#FF99C5', cx: 0.45, cy: 0.85, opacity: 0.12 },
 ];
 
 function DriftingBloom({

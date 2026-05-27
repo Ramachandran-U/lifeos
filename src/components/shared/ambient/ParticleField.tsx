@@ -42,7 +42,7 @@ function useParticleConfigs(count: number, hues: string[]): ParticleConfig[] {
       configs.push({
         x: 10 + r0 * 80,
         hue: hues[Math.floor(r1 * hues.length) % hues.length],
-        size: 3 + r2 * 2,
+        size: 5 + r2 * 5,
         duration: 6000 + r3 * 2000,
         delay: r4 * 8000,
       });
@@ -92,7 +92,7 @@ function Particle({
 
     return {
       transform: [{ translateX }, { translateY }],
-      opacity: opacity * 0.6, // keep particles subtle
+      opacity: opacity * 0.35,
     };
   });
 

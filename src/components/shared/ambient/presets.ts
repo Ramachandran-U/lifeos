@@ -1,9 +1,8 @@
-// Time-of-day ambient presets. Each preset defines the bloom orbs (colors,
-// positions, opacities) and mesh parameters for that time window. The
-// presets are consumed by useAmbientState which selects one based on the
-// current hour.
+// Time-of-day ambient presets — tuned for VISIBLE atmospheric presence.
 //
-// Design reference: docs/aurora-refined-v2 AMBIENT-PLAN.md
+// Previous pass was too conservative (8-12% opacity = invisible).
+// These values are designed so you can FEEL the time of day when you
+// glance at the screen, while still keeping content fully readable.
 
 export interface AmbientBloom {
   color: string;
@@ -23,129 +22,129 @@ export interface AmbientPreset {
   webGradient: { dark: string; light: string };
 }
 
-// Morning (6-10 AM): cool violet at top, faint teal at foot.
+// Morning (6-10 AM): cool violet at top, teal accent, fresh and calm.
 const MORNING: AmbientPreset = {
   id: 'morning',
   blooms: {
     dark: [
-      { color: '#A584FF', size: 520, top: -180, left: -120, opacity: 0.32 },
-      { color: '#7EE0B8', size: 420, top: 20, right: -160, opacity: 0.18 },
-      { color: '#7FB8FF', size: 380, bottom: -200, left: '25%', opacity: 0.12 },
+      { color: '#A584FF', size: 580, top: -160, left: -100, opacity: 0.45 },
+      { color: '#7EE0B8', size: 480, top: 40, right: -120, opacity: 0.28 },
+      { color: '#7FB8FF', size: 420, bottom: -180, left: '20%', opacity: 0.20 },
     ],
     light: [
-      { color: '#A584FF', size: 520, top: -180, left: -120, opacity: 0.12 },
-      { color: '#7EE0B8', size: 420, top: 20, right: -160, opacity: 0.07 },
-      { color: '#7FB8FF', size: 380, bottom: -200, left: '25%', opacity: 0.05 },
+      { color: '#A584FF', size: 580, top: -160, left: -100, opacity: 0.18 },
+      { color: '#7EE0B8', size: 480, top: 40, right: -120, opacity: 0.12 },
+      { color: '#7FB8FF', size: 420, bottom: -180, left: '20%', opacity: 0.08 },
     ],
   },
   meshPeriod: 22000,
   orbPeriod: 14000,
   webGradient: {
     dark: `
-      radial-gradient(60% 40% at 20% 0%, rgba(165,132,255,0.32), transparent 60%),
-      radial-gradient(50% 35% at 85% 15%, rgba(126,224,184,0.18), transparent 60%),
-      radial-gradient(40% 30% at 50% 100%, rgba(127,184,255,0.12), transparent 60%),
+      radial-gradient(65% 45% at 20% 0%, rgba(165,132,255,0.45), transparent 65%),
+      radial-gradient(55% 40% at 85% 15%, rgba(126,224,184,0.28), transparent 60%),
+      radial-gradient(45% 35% at 45% 100%, rgba(127,184,255,0.20), transparent 60%),
       linear-gradient(180deg, #0A0612, #0D0818 60%, #0A0612)
     `,
     light: `
-      radial-gradient(60% 40% at 20% 0%, rgba(165,132,255,0.16), transparent 60%),
-      radial-gradient(50% 35% at 85% 15%, rgba(126,224,184,0.10), transparent 60%),
-      radial-gradient(40% 30% at 50% 100%, rgba(127,184,255,0.06), transparent 60%),
+      radial-gradient(65% 45% at 20% 0%, rgba(165,132,255,0.22), transparent 65%),
+      radial-gradient(55% 40% at 85% 15%, rgba(126,224,184,0.14), transparent 60%),
+      radial-gradient(45% 35% at 45% 100%, rgba(127,184,255,0.10), transparent 60%),
       linear-gradient(180deg, #F7F4FC, #FFFFFF 60%, #F7F4FC)
     `,
   },
 };
 
-// Midday (10 AM - 4 PM): warmer, gold node enters, teal retreats.
+// Midday (10 AM - 4 PM): warm gold enters prominently, teal retreats.
 const MIDDAY: AmbientPreset = {
   id: 'midday',
   blooms: {
     dark: [
-      { color: '#A584FF', size: 480, top: -160, left: -100, opacity: 0.28 },
-      { color: '#F0B429', size: 360, top: 80, right: -80, opacity: 0.14 },
-      { color: '#7EE0B8', size: 320, bottom: -220, left: '30%', opacity: 0.08 },
+      { color: '#A584FF', size: 540, top: -140, left: -80, opacity: 0.38 },
+      { color: '#F0B429', size: 460, top: 60, right: -60, opacity: 0.25 },
+      { color: '#7EE0B8', size: 360, bottom: -200, left: '30%', opacity: 0.12 },
     ],
     light: [
-      { color: '#A584FF', size: 480, top: -160, left: -100, opacity: 0.10 },
-      { color: '#F0B429', size: 360, top: 80, right: -80, opacity: 0.06 },
-      { color: '#7EE0B8', size: 320, bottom: -220, left: '30%', opacity: 0.04 },
+      { color: '#A584FF', size: 540, top: -140, left: -80, opacity: 0.15 },
+      { color: '#F0B429', size: 460, top: 60, right: -60, opacity: 0.12 },
+      { color: '#7EE0B8', size: 360, bottom: -200, left: '30%', opacity: 0.06 },
     ],
   },
   meshPeriod: 20000,
   orbPeriod: 16000,
   webGradient: {
     dark: `
-      radial-gradient(60% 40% at 20% 0%, rgba(165,132,255,0.28), transparent 60%),
-      radial-gradient(45% 35% at 80% 20%, rgba(240,180,41,0.14), transparent 60%),
-      radial-gradient(35% 25% at 55% 100%, rgba(126,224,184,0.08), transparent 60%),
-      linear-gradient(180deg, #0A0612, #100A18 60%, #0A0612)
+      radial-gradient(65% 45% at 18% 0%, rgba(165,132,255,0.38), transparent 65%),
+      radial-gradient(55% 40% at 82% 18%, rgba(240,180,41,0.25), transparent 60%),
+      radial-gradient(40% 30% at 55% 100%, rgba(126,224,184,0.12), transparent 60%),
+      linear-gradient(180deg, #0A0612, #110A16 60%, #0A0612)
     `,
     light: `
-      radial-gradient(60% 40% at 20% 0%, rgba(165,132,255,0.14), transparent 60%),
-      radial-gradient(45% 35% at 80% 20%, rgba(240,180,41,0.08), transparent 60%),
-      radial-gradient(35% 25% at 55% 100%, rgba(126,224,184,0.05), transparent 60%),
+      radial-gradient(65% 45% at 18% 0%, rgba(165,132,255,0.18), transparent 65%),
+      radial-gradient(55% 40% at 82% 18%, rgba(240,180,41,0.14), transparent 60%),
+      radial-gradient(40% 30% at 55% 100%, rgba(126,224,184,0.07), transparent 60%),
       linear-gradient(180deg, #F7F4FC, #FFFDF5 60%, #F7F4FC)
     `,
   },
 };
 
-// Evening (4-9 PM): magenta + amber enter, orbs sink lower.
+// Evening (4-9 PM): OBVIOUSLY warmer — magenta and amber dominate.
 const EVENING: AmbientPreset = {
   id: 'evening',
   blooms: {
     dark: [
-      { color: '#A584FF', size: 440, top: -140, left: -100, opacity: 0.22 },
-      { color: '#FF8C3C', size: 400, top: 120, right: -120, opacity: 0.15 },
-      { color: '#FF4D8B', size: 380, bottom: -160, left: '15%', opacity: 0.14 },
+      { color: '#A584FF', size: 480, top: -120, left: -80, opacity: 0.30 },
+      { color: '#FF8C3C', size: 500, top: 100, right: -80, opacity: 0.30 },
+      { color: '#FF4D8B', size: 440, bottom: -120, left: '10%', opacity: 0.25 },
     ],
     light: [
-      { color: '#A584FF', size: 440, top: -140, left: -100, opacity: 0.09 },
-      { color: '#FF8C3C', size: 400, top: 120, right: -120, opacity: 0.06 },
-      { color: '#FF4D8B', size: 380, bottom: -160, left: '15%', opacity: 0.06 },
+      { color: '#A584FF', size: 480, top: -120, left: -80, opacity: 0.12 },
+      { color: '#FF8C3C', size: 500, top: 100, right: -80, opacity: 0.12 },
+      { color: '#FF4D8B', size: 440, bottom: -120, left: '10%', opacity: 0.10 },
     ],
   },
   meshPeriod: 24000,
   orbPeriod: 18000,
   webGradient: {
     dark: `
-      radial-gradient(55% 35% at 18% 0%, rgba(165,132,255,0.22), transparent 60%),
-      radial-gradient(50% 40% at 85% 30%, rgba(255,140,60,0.15), transparent 60%),
-      radial-gradient(45% 30% at 40% 100%, rgba(255,77,139,0.14), transparent 60%),
-      linear-gradient(180deg, #0A0612, #140A18 60%, #0A0612)
+      radial-gradient(55% 40% at 16% 0%, rgba(165,132,255,0.30), transparent 65%),
+      radial-gradient(55% 45% at 85% 28%, rgba(255,140,60,0.30), transparent 60%),
+      radial-gradient(50% 35% at 35% 100%, rgba(255,77,139,0.25), transparent 60%),
+      linear-gradient(180deg, #0A0612, #160A14 60%, #0A0612)
     `,
     light: `
-      radial-gradient(55% 35% at 18% 0%, rgba(165,132,255,0.12), transparent 60%),
-      radial-gradient(50% 40% at 85% 30%, rgba(255,140,60,0.08), transparent 60%),
-      radial-gradient(45% 30% at 40% 100%, rgba(255,77,139,0.07), transparent 60%),
+      radial-gradient(55% 40% at 16% 0%, rgba(165,132,255,0.15), transparent 65%),
+      radial-gradient(55% 45% at 85% 28%, rgba(255,140,60,0.14), transparent 60%),
+      radial-gradient(50% 35% at 35% 100%, rgba(255,77,139,0.12), transparent 60%),
       linear-gradient(180deg, #F7F4FC, #FFF5F8 60%, #F7F4FC)
     `,
   },
 };
 
-// Night (9 PM - 6 AM): one moonlight point, deep violet rest. Almost still.
+// Night (9 PM - 6 AM): deep, quiet, one cool moonlight point.
 const NIGHT: AmbientPreset = {
   id: 'night',
   blooms: {
     dark: [
-      { color: '#A584FF', size: 400, top: -200, left: -140, opacity: 0.18 },
-      { color: '#FFFFFF', size: 280, top: -60, right: -40, opacity: 0.06 },
+      { color: '#A584FF', size: 500, top: -180, left: -120, opacity: 0.28 },
+      { color: '#E0D8FF', size: 320, top: -40, right: -20, opacity: 0.10 },
     ],
     light: [
-      { color: '#A584FF', size: 400, top: -200, left: -140, opacity: 0.07 },
-      { color: '#C5B3FF', size: 280, top: -60, right: -40, opacity: 0.04 },
+      { color: '#A584FF', size: 500, top: -180, left: -120, opacity: 0.10 },
+      { color: '#C5B3FF', size: 320, top: -40, right: -20, opacity: 0.06 },
     ],
   },
   meshPeriod: 30000,
   orbPeriod: 26000,
   webGradient: {
     dark: `
-      radial-gradient(50% 35% at 15% 0%, rgba(165,132,255,0.18), transparent 60%),
-      radial-gradient(30% 25% at 80% 10%, rgba(255,255,255,0.06), transparent 60%),
+      radial-gradient(55% 40% at 15% 0%, rgba(165,132,255,0.28), transparent 65%),
+      radial-gradient(35% 30% at 80% 10%, rgba(224,216,255,0.10), transparent 60%),
       linear-gradient(180deg, #080510, #0A0612 60%, #080510)
     `,
     light: `
-      radial-gradient(50% 35% at 15% 0%, rgba(165,132,255,0.08), transparent 60%),
-      radial-gradient(30% 25% at 80% 10%, rgba(197,179,255,0.05), transparent 60%),
+      radial-gradient(55% 40% at 15% 0%, rgba(165,132,255,0.12), transparent 65%),
+      radial-gradient(35% 30% at 80% 10%, rgba(197,179,255,0.07), transparent 60%),
       linear-gradient(180deg, #F4F0FA, #F7F4FC 60%, #F4F0FA)
     `,
   },

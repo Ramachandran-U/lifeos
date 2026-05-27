@@ -15,7 +15,7 @@ interface EnergySweepProps {
 }
 
 const SWEEP_DURATION = 2200;
-const BAND_HEIGHT = 200;
+const BAND_HEIGHT = 400;
 
 export function EnergySweep({ hue, active, onComplete }: EnergySweepProps) {
   const motionScale = useMotionScale();
@@ -46,11 +46,11 @@ export function EnergySweep({ hue, active, onComplete }: EnergySweepProps) {
     // Opacity: 0 → 0.12 (first 30%) → 0.12 (middle) → 0 (last 30%)
     let opacity: number;
     if (t < 0.3) {
-      opacity = (t / 0.3) * 0.12;
+      opacity = (t / 0.3) * 0.28;
     } else if (t > 0.7) {
-      opacity = ((1 - t) / 0.3) * 0.12;
+      opacity = ((1 - t) / 0.3) * 0.28;
     } else {
-      opacity = 0.12;
+      opacity = 0.28;
     }
 
     // Rise from bottom to above container top
