@@ -277,6 +277,21 @@ export const expeditionProgress = sqliteTable('expedition_progress', {
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- Sparks (Explore v2 — the daily curiosity hit) ---
+export const sparks = sqliteTable('sparks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD — one spark per user per day
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  threadStarter: text('thread_starter').notNull(),
+  seedInterest: text('seed_interest').notNull().default(''),
+  adjacentField: text('adjacent_field').notNull().default(''),
+  status: text('status').notNull().default('new'), // new | seen | saved | dismissed | explored
+  threadId: text('thread_id'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Cognitive Insights (Phase 2 cognitive engine) ---
 export const cognitiveInsights = sqliteTable('cognitive_insights', {
   id: text('id').primaryKey(),

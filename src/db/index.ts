@@ -278,6 +278,21 @@ export async function initDatabase() {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS expedition_progress_unique_idx ON expedition_progress (user_id, expedition_id);
 
+    CREATE TABLE IF NOT EXISTS sparks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      thread_starter TEXT NOT NULL,
+      seed_interest TEXT NOT NULL DEFAULT '',
+      adjacent_field TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'new',
+      thread_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS sparks_user_date_idx ON sparks (user_id, date);
+
     CREATE TABLE IF NOT EXISTS daily_reflections (
       id TEXT PRIMARY KEY,
       date TEXT NOT NULL,

@@ -27,6 +27,18 @@ export type GeneratedSpark = z.infer<typeof GeneratedSparkSchema>;
 
 export interface SparkInterest { name: string; category: string }
 
+export type SparkStatus = 'new' | 'seen' | 'saved' | 'dismissed' | 'explored';
+
+/** A spark persisted for a user on a given day. */
+export interface Spark extends GeneratedSpark {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  status: SparkStatus;
+  threadId: string | null; // set when the user pulls the thread into a rabbit hole
+  createdAt: string;
+}
+
 export interface DailySparkInput {
   interests: SparkInterest[];
   /** Titles of recently-shown sparks — used for in-prompt + post-hoc dedup. */
