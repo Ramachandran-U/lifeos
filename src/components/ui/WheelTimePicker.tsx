@@ -75,11 +75,25 @@ export function WheelTimePicker({ label, options, selected, onSelect, formatValu
     setActiveIdx(clamped);
   }, [options, onSelect]);
 
+  // On web, onMomentumScrollEnd often doesn't fire (snapToInterval is an
+  // iOS/Android feature, not web). Debounce onScroll: after scrolling stops
+  // for 120ms, snap to the nearest item and call onSelect. This is the ONLY
+  // reliable state-sync path on web.
+  const scrollDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
     const idx = Math.round(y / ITEM_HEIGHT);
     if (idx !== activeIdx) setActiveIdx(Math.max(0, Math.min(options.length - 1, idx)));
-  }, [activeIdx, options.length]);
+
+    if (Platform.OS === 'web') {
+      if (scrollDebounce.current) clearTimeout(scrollDebounce.current);
+      scrollDebounce.current = setTimeout(() => {
+        handleSnap(idx);
+        scrollRef.current?.scrollTo({ y: idx * ITEM_HEIGHT, animated: true });
+      }, 120);
+    }
+  }, [activeIdx, options.length, handleSnap]);
 
   const handleMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);

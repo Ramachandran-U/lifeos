@@ -54,7 +54,7 @@ export default function FinanceReviewScreen() {
         );
         const result = await generateMoneyReview(input);
         setReport(result);
-        setCache({ monthKey, review: result });
+        setCache({ monthKey, review: result, txCount: transactions.length });
       } catch (err) {
         // Alert.alert is a no-op on web — surface the error inline instead so
         // a rate-limit / schema failure isn't a silent blank screen.
@@ -98,6 +98,12 @@ export default function FinanceReviewScreen() {
             </Card>
           ) : report ? (
             <>
+              {cache?.txCount != null && transactions.length > cache.txCount && (
+                <Caption style={{ color: c.warning, textAlign: 'center' }}>
+                  {transactions.length - cache.txCount} new transaction{transactions.length - cache.txCount === 1 ? '' : 's'} since this review — tap refresh ↗ for an updated analysis.
+                </Caption>
+              )}
+
               <Animated.View entering={FadeInDown.duration(300)}>
                 <Card moduleColor={c.finance}>
                   <Body style={[styles.headline, { color: c.textPrimary }]}>{report.headline}</Body>

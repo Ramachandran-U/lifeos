@@ -255,8 +255,16 @@ async function planRoutineAgentInner(
     const e = toMinutes(b.endTime);
     return s >= wakeMin && e <= sleepMin && s < e;
   };
-  const finalBlocks = (critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks)
-    .filter(inWindow);
+  const preFilter = critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks;
+  const finalBlocks = preFilter.filter(inWindow);
+  if (preFilter.length !== finalBlocks.length) {
+    console.warn(
+      `[planner] guard dropped ${preFilter.length - finalBlocks.length} block(s) outside ` +
+      `wake=${input.wakeTime}..sleep=${input.sleepTime} window. ` +
+      `Pre-filter starts: ${preFilter.map((b) => b.startTime).join(',')}. ` +
+      `Post-filter starts: ${finalBlocks.map((b) => b.startTime).join(',')}.`,
+    );
+  }
   const briefingRaw = await callAI({
     system:
       'Write a 2–3 sentence briefing for the user explaining the shape of their day and the ' +
