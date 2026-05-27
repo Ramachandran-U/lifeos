@@ -3,6 +3,13 @@
  * on-device activity across all six domains into the AI input payload. Stays
  * on-device — only aggregate counts/minutes are produced, never raw contact
  * or health rows.
+ *
+ * NOTE: this performs several synchronous Drizzle `.all()` reads (a 365-day
+ * routine-block scan among them), which briefly blocks the JS thread. That is
+ * acceptable because the Annual Review is gated behind `useAnnualReviewStore`
+ * and only runs once per calendar year (or on an explicit manual refresh), not
+ * on every screen open. If routine history grows very large, move this
+ * aggregation to a background task.
  */
 
 import { addDays, format } from 'date-fns';
