@@ -29,7 +29,7 @@ Last updated: 2026-05-27
 | # | Issue | Status | Resolution |
 |---|---|---|---|
 | 1 | Streaks not saved / populated | ✅ Fixed | `3b1a622` — `loadFromDB` replaced `DEFAULT_STREAKS` with `'{}'`, wiping keys; `triggerStreak` then threw. Now merges over defaults |
-| 2 | Voice assistant shows websocket error | 🔧 Needs ops | `3b1a622` — clearer client message shipped; **root cause = worker `GEMINI_API_KEY` secret not set** (`wrangler secret put GEMINI_API_KEY` in `workers/ai-proxy`) |
+| 2 | Voice assistant shows websocket error | ✅ Fixed | Multiple root causes: (1) Worker `wss://` → `https://` (CF Workers fetch requirement). (2) Token in URL → in-band auth (browsers rejected 1400-char query). (3) Model updated to `gemini-2.5-flash-native-audio-preview-12-2025`. (4) Added mic capture, waveform viz, server-side VAD. |
 | 3 | profile → Notifications redirects to Today | 🔁 Not reproduced | Allow-listed + smoke nav test passes on current deploy. Stale PWA cache — hard-refresh resolves |
 | 4 | what-lifeos-knows: copy AI prompt + paste back | ✅ Fixed | `3b1a622` — "Understand me better" card (Copy prompt + Paste results) wired to discovery extraction round-trip |
 | 5 | profile/Appearance should be collapsible | ✅ Fixed | `3b1a622` — collapsed by default, tap header to expand |

@@ -122,15 +122,90 @@ export default {
       }
     }
 
-    // WebSocket upgrade for Gemini Live — handled before auth-header parsing
-    // because browsers cannot set arbitrary headers on WebSocket handshakes.
-    // The client passes `?token=<supabase jwt>` in the query string instead.
+    // In-band auth: accept the WS unconditionally (no token in URL — browsers
+    // reject long query-string upgrades). The client sends {"auth":"TOKEN"} as
+    // its first message; we verify, respond {"authOk":true}, then splice in
+    // the Gemini upstream proxy.
     if (url.pathname === '/gemini-live' && req.headers.get('Upgrade') === 'websocket') {
-      const token = url.searchParams.get('token');
-      if (!token) return new Response('missing token', { status: 401 });
-      const claims = await verifySupabaseJwt(token, env).catch(() => null);
-      if (!claims) return new Response('invalid token', { status: 401 });
-      return proxyGeminiLive(req, env, claims.sub);
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+      (server as WebSocket).accept();
+
+      let authedUserId: string | null = null;
+
+      (server as WebSocket).addEventListener('message', async (e) => {
+        const raw = typeof e.data === 'string' ? e.data : '';
+        try {
+          if (!authedUserId) {
+            const msg = JSON.parse(raw);
+            if (msg.auth) {
+              const claims = await verifySupabaseJwt(msg.auth, env).catch(() => null);
+              if (!claims) {
+                (server as WebSocket).send(JSON.stringify({ authError: 'token expired or invalid' }));
+                (server as WebSocket).close(4001, 'auth failed');
+                return;
+              }
+              authedUserId = claims.sub;
+              (server as WebSocket).send(JSON.stringify({ authOk: true }));
+              return;
+            }
+            return;
+          }
+
+          // Setup message (first after auth) — connect to Gemini upstream.
+          if (!raw.includes('"realtimeInput"')) {
+            const lockKey = `voice-lock:${authedUserId}`;
+            await env.RATE_LIMIT.put(lockKey, '1', { expirationTtl: 60 });
+
+            const upstreamUrl = `https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
+            let upstreamWs: WebSocket | null = null;
+            try {
+              const upResp = await fetch(upstreamUrl, { headers: { Upgrade: 'websocket' } });
+              upstreamWs = upResp.webSocket;
+            } catch { upstreamWs = null; }
+            if (!upstreamWs) {
+              await env.RATE_LIMIT.delete(lockKey).catch(() => {});
+              (server as WebSocket).send(JSON.stringify({ authError: 'upstream voice service unavailable' }));
+              (server as WebSocket).close(1011, 'upstream unavailable');
+              return;
+            }
+            upstreamWs.accept();
+            upstreamWs.send(raw);
+
+            const teardown = async () => {
+              try { upstreamWs!.close(); } catch {}
+              try { (server as WebSocket).close(); } catch {}
+              await env.RATE_LIMIT.delete(lockKey).catch(() => {});
+            };
+            (server as WebSocket).addEventListener('message', (m) => {
+              try { upstreamWs!.send(m.data); } catch {}
+            });
+            upstreamWs.addEventListener('message', (m) => {
+              try { (server as WebSocket).send(m.data); } catch {}
+            });
+            (server as WebSocket).addEventListener('close', teardown);
+            (server as WebSocket).addEventListener('error', teardown);
+            upstreamWs.addEventListener('close', (ev) => {
+              try {
+                (server as WebSocket).send(JSON.stringify({
+                  _upstreamClose: true,
+                  code: (ev as CloseEvent).code,
+                  reason: (ev as CloseEvent).reason || 'no reason',
+                }));
+              } catch {}
+              teardown();
+            });
+            upstreamWs.addEventListener('error', teardown);
+            return;
+          }
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          try { (server as WebSocket).send(JSON.stringify({ authError: detail })); } catch {}
+          (server as WebSocket).close(1011, detail.slice(0, 120));
+        }
+      });
+
+      return new Response(null, { status: 101, webSocket: client });
     }
 
     // All other routes require Bearer auth.

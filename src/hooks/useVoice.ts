@@ -54,10 +54,12 @@ export function useVoice(
             clearTimeout(timeout);
             setConnected(true);
             setListening(true);
+            // Mic capture is non-fatal — in CI (headless) getUserMedia fails,
+            // but voice still works via text input.
             micRef.current = startMicCapture({
-              onChunk: (pcm16Base64) => sessionRef.current?.sendAudioChunk(pcm16Base64),
+              onChunk: (pcm16Base64: string) => sessionRef.current?.sendAudioChunk(pcm16Base64),
               onLevel: setAudioLevel,
-              onError: (msg) => console.warn('[voice] mic:', msg),
+              onError: (msg: string) => console.warn('[voice] mic:', msg),
             });
             break;
           case 'audio':

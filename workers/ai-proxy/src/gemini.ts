@@ -1,6 +1,8 @@
 import type { Env } from './index';
 
-const GEMINI_WS = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+// CF Workers' fetch() requires https:// (not wss://) for outbound WebSocket
+// upgrades — the Upgrade header handles the protocol switch.
+const GEMINI_WS = 'https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 
 export async function proxyGeminiLive(
   req: Request,
