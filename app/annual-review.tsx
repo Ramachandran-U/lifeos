@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { LoadingDots } from '@/components/ui/LoadingDots';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { useUserStore } from '@/store/useUserStore';
 import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
+import { useAnnualReviewStore } from '@/store/useAnnualReviewStore';
 import { generateAnnualReview } from '@/ai/functions';
 import { buildAnnualReviewInput } from '@/utils/annualReviewBuilder';
 import type { AnnualReview } from '@/ai/types';
@@ -39,11 +40,27 @@ export default function AnnualReviewScreen() {
   const userId = useUserStore((s) => s.userId);
   const name = useUserStore((s) => s.name);
 
+  const cache = useAnnualReviewStore((s) => s.cache);
+  const setCache = useAnnualReviewStore((s) => s.setCache);
+
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<AnnualReview | null>(null);
+  // Guard against concurrent generations (rapid refresh taps fire before the
+  // disabled-state re-render lands).
+  const inFlightRef = useRef(false);
 
-  const generate = useCallback(async () => {
-    if (!userId) return;
+  const generate = useCallback(async (opts?: { force?: boolean }) => {
+    if (!userId || inFlightRef.current) return;
+
+    // The review is yearly + Opus-tier — serve the cached copy for the current
+    // calendar year unless the user explicitly refreshes.
+    const year = new Date().getFullYear();
+    if (!opts?.force && cache?.year === year) {
+      setReport(cache.review);
+      return;
+    }
+
+    inFlightRef.current = true;
     setLoading(true);
     setReport(null);
     try {
@@ -56,12 +73,14 @@ export default function AnnualReviewScreen() {
       const input = buildAnnualReviewInput(userId, name, startScores);
       const result = await generateAnnualReview(input);
       setReport(result);
+      setCache({ year, review: result });
     } catch (err) {
       Alert.alert('Review failed', err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
-  }, [userId, name]);
+  }, [userId, name, cache, setCache]);
 
   useEffect(() => {
     void generate();
@@ -99,7 +118,7 @@ export default function AnnualReviewScreen() {
                 </Caption>
               </Pressable>
             )}
-            <Pressable onPress={generate} hitSlop={12} disabled={loading}>
+            <Pressable onPress={() => generate({ force: true })} hitSlop={12} disabled={loading}>
               <Ionicons name="refresh" size={20} color={loading ? c.textMuted : c.primary} />
             </Pressable>
           </View>
