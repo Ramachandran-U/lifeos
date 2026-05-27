@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -9,69 +9,49 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useThemeStore } from '@/store/useThemeStore';
 import { EASING, useMotionScale } from '@/theme/motion';
+import { useAmbientState } from './ambient/useAmbientState';
+import { GradientMesh } from './ambient/GradientMesh';
+import { PulseHalo } from './ambient/PulseHalo';
+import { ParticleField } from './ambient/ParticleField';
+import { EnergySweep } from './ambient/EnergySweep';
+import { useAmbientEventStore } from './ambient/useAmbientEventStore';
+import type { AmbientBloom } from './ambient/presets';
 
-interface Bloom {
-  color: string;
-  size: number;
-  top?: number | string;
-  left?: number | string;
-  right?: number | string;
-  bottom?: number | string;
-  opacity?: number;
-}
-
-const DARK_BLOOMS: Bloom[] = [
-  { color: '#A584FF', size: 520, top: -180, left: -120, opacity: 0.35 },
-  { color: '#7FB8FF', size: 420, top: 20,   right: -160, opacity: 0.22 },
-  { color: '#FF99C5', size: 460, bottom: -200, left: '20%', opacity: 0.18 },
-];
-
-// Light-mode blooms keep the same hue families as dark but at much lower
-// alpha so the page background reads as soft lavender-white, not violet wash.
-// Without this, light-mode pages inherit a dark canvas and any text rendered
-// with the light-mode textPrimary (#140828) becomes invisible.
-const LIGHT_BLOOMS: Bloom[] = [
-  { color: '#A584FF', size: 520, top: -180, left: -120, opacity: 0.12 },
-  { color: '#7FB8FF', size: 420, top: 20,   right: -160, opacity: 0.08 },
-  { color: '#FF99C5', size: 460, bottom: -200, left: '20%', opacity: 0.07 },
-];
-
-const WEB_GRADIENT_DARK = `
-  radial-gradient(60% 40% at 20% 0%, rgba(165,132,255,0.35), transparent 60%),
-  radial-gradient(50% 35% at 90% 20%, rgba(127,184,255,0.22), transparent 60%),
-  radial-gradient(40% 30% at 50% 100%, rgba(255,153,197,0.18), transparent 60%),
-  linear-gradient(180deg, #0A0612, #120A1E 60%, #0A0612)
-`;
-
-const WEB_GRADIENT_LIGHT = `
-  radial-gradient(60% 40% at 20% 0%, rgba(165,132,255,0.18), transparent 60%),
-  radial-gradient(50% 35% at 90% 20%, rgba(127,184,255,0.12), transparent 60%),
-  radial-gradient(40% 30% at 50% 100%, rgba(255,153,197,0.10), transparent 60%),
-  linear-gradient(180deg, #F7F4FC, #FFFFFF 60%, #F7F4FC)
-`;
-
-const DARK_BASE = '#0A0612';
-const LIGHT_BASE = '#F7F4FC';
-
-const DRIFT_PERIOD = 8000;
 const DRIFT_X_AMP = 6;
 const DRIFT_Y_AMP = 4;
 const DRIFT_PHASES = [0, 0.8, 1.6];
 
-function DriftingBloom({ bloom, phase, motionScale }: { bloom: Bloom; phase: number; motionScale: number }) {
+const DARK_BASE = '#0A0612';
+const LIGHT_BASE = '#F7F4FC';
+
+const DEFAULT_MESH_STOPS = [
+  { color: '#A584FF', cx: 0.25, cy: 0.2, opacity: 0.12 },
+  { color: '#7EE0B8', cx: 0.75, cy: 0.6, opacity: 0.08 },
+  { color: '#FF99C5', cx: 0.5, cy: 0.85, opacity: 0.06 },
+];
+
+function DriftingBloom({
+  bloom,
+  phase,
+  motionScale,
+  period,
+}: {
+  bloom: AmbientBloom;
+  phase: number;
+  motionScale: number;
+  period: number;
+}) {
   const drift = useSharedValue(0);
 
   useEffect(() => {
     if (motionScale === 0) return;
     drift.value = withRepeat(
-      withTiming(1, { duration: DRIFT_PERIOD, easing: EASING.inOut }),
-      -1,  // infinite
-      true, // reverse
+      withTiming(1, { duration: period, easing: EASING.inOut }),
+      -1,
+      true,
     );
-    return () => {
-      drift.value = 0;
-    };
-  }, [motionScale]);
+    return () => { drift.value = 0; };
+  }, [motionScale, period]);
 
   const driftStyle = useAnimatedStyle(() => {
     if (motionScale === 0) return {};
@@ -93,7 +73,7 @@ function DriftingBloom({ bloom, phase, motionScale }: { bloom: Bloom; phase: num
           height: bloom.size,
           borderRadius: bloom.size / 2,
           backgroundColor: bloom.color,
-          opacity: bloom.opacity ?? 0.25,
+          opacity: bloom.opacity,
           top: bloom.top as number | undefined,
           left: bloom.left as number | undefined,
           right: bloom.right as number | undefined,
@@ -106,22 +86,37 @@ function DriftingBloom({ bloom, phase, motionScale }: { bloom: Bloom; phase: num
 }
 
 interface AuroraBackgroundProps {
-  blooms?: Bloom[];
-  /** Optional scroll offset (px). When provided, the background drifts with a
-   *  gentle parallax as the user scrolls — set by screens with a scroll view. */
+  blooms?: AmbientBloom[];
   scrollY?: SharedValue<number>;
+  liveBlockModule?: string | null;
+  allBlocksDone?: boolean;
+  voiceActive?: boolean;
 }
 
-export function AuroraBackground({ blooms, scrollY }: AuroraBackgroundProps) {
+export function AuroraBackground({
+  blooms,
+  scrollY,
+  liveBlockModule,
+  allBlocksDone,
+  voiceActive,
+}: AuroraBackgroundProps) {
   const mode = useThemeStore((s) => s.mode);
   const isLight = mode === 'light';
-  const resolvedBlooms = blooms ?? (isLight ? LIGHT_BLOOMS : DARK_BLOOMS);
-  const baseColor = isLight ? LIGHT_BASE : DARK_BASE;
-  const webGradient = isLight ? WEB_GRADIENT_LIGHT : WEB_GRADIENT_DARK;
   const motionScale = useMotionScale();
+  const { height } = useWindowDimensions();
+  const { preset, pulse, particles } = useAmbientState({
+    liveBlockModule,
+    allBlocksDone,
+    voiceActive,
+  });
 
-  // Parallax: background translates up at ~18% of scroll speed, clamped, so it
-  // feels alive without detaching from the content. No-op when scrollY absent.
+  const resolvedBlooms = blooms ?? (isLight ? preset.blooms.light : preset.blooms.dark);
+  const baseColor = isLight ? LIGHT_BASE : DARK_BASE;
+  const webGradient = isLight ? preset.webGradient.light : preset.webGradient.dark;
+
+  const sweep = useAmbientEventStore((s) => s.sweep);
+  const clearSweep = useAmbientEventStore((s) => s.clearSweep);
+
   const parallax = useAnimatedStyle(() => {
     const y = scrollY ? scrollY.value : 0;
     const t = Math.max(-90, Math.min(0, -y * 0.18));
@@ -129,8 +124,6 @@ export function AuroraBackground({ blooms, scrollY }: AuroraBackgroundProps) {
   });
 
   if (Platform.OS === 'web') {
-    // Oversize the gradient layer top+bottom so the parallax translate never
-    // exposes the page behind it.
     return (
       <Animated.View
         pointerEvents="none"
@@ -142,17 +135,44 @@ export function AuroraBackground({ blooms, scrollY }: AuroraBackgroundProps) {
       />
     );
   }
+
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: baseColor, overflow: 'hidden' }]}>
       <Animated.View style={[StyleSheet.absoluteFill, scrollY ? parallax : null]}>
+        {/* Layer 1: Slow orbs */}
         {resolvedBlooms.map((b, i) => (
           <DriftingBloom
-            key={i}
+            key={`${preset.id}-${i}`}
             bloom={b}
             phase={DRIFT_PHASES[i % DRIFT_PHASES.length]}
             motionScale={motionScale}
+            period={preset.orbPeriod}
           />
         ))}
+
+        {/* Layer 2: Gradient mesh */}
+        <GradientMesh stops={DEFAULT_MESH_STOPS} period={preset.meshPeriod} />
+
+        {/* Layer 3: Particle field (day-complete or voice) */}
+        {particles && (
+          <ParticleField
+            count={particles.count}
+            hues={particles.hues}
+            height={height}
+          />
+        )}
+
+        {/* Layer 4: Energy sweep (event-driven) */}
+        <EnergySweep
+          hue={sweep?.hue ?? '#A584FF'}
+          active={sweep !== null}
+          onComplete={clearSweep}
+        />
+
+        {/* Layer 5: Pulse halo (live block or voice) */}
+        {pulse && (
+          <PulseHalo hue={pulse.hue} period={pulse.period} />
+        )}
       </Animated.View>
     </View>
   );
