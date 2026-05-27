@@ -237,6 +237,19 @@ export async function initDatabase() {
     CREATE INDEX IF NOT EXISTS behaviour_events_created_at_idx ON behaviour_events (created_at);
     CREATE INDEX IF NOT EXISTS behaviour_events_event_type_created_at_idx ON behaviour_events (event_type, created_at);
 
+    CREATE TABLE IF NOT EXISTS cognitive_insights (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      domain TEXT NOT NULL,
+      evidence TEXT NOT NULL,
+      suggestions TEXT NOT NULL DEFAULT '[]',
+      status TEXT NOT NULL DEFAULT 'proposed',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS cognitive_insights_lookup_idx ON cognitive_insights (user_id, kind, domain, created_at);
+
     CREATE TABLE IF NOT EXISTS daily_reflections (
       id TEXT PRIMARY KEY,
       date TEXT NOT NULL,

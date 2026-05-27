@@ -249,6 +249,19 @@ export const contactInteractions = sqliteTable('contact_interactions', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// --- Cognitive Insights (Phase 2 cognitive engine) ---
+export const cognitiveInsights = sqliteTable('cognitive_insights', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  kind: text('kind').notNull(), // domain_stagnation | ...
+  domain: text('domain').notNull(), // goals | health | finance | career | social | polymath
+  evidence: text('evidence').notNull(), // JSON: { delta, daysFlat, currentScore }
+  suggestions: text('suggestions').notNull().default('[]'), // JSON: InsightSuggestion[]
+  status: text('status').notNull().default('proposed'), // proposed | shown | accepted | dismissed | expired
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  expiresAt: text('expires_at'),
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),

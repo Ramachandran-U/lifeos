@@ -17,3 +17,4 @@ export * from './webStorage/health';
 export * from './webStorage/finance';
 export * from './webStorage/polymath';
 export * from './webStorage/social';
+export * from './webStorage/cognitiveInsights';
