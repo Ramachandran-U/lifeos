@@ -122,3 +122,21 @@ export function detectStagnantDomain(deps: StagnationDeps): StagnationCandidate 
 
 /** Exposed for unit tests only. */
 export const trailingFlatRunForTest = trailingFlatRun;
+
+/**
+ * Canonical goal-type → scored-domain mapping. Goal types use a different
+ * vocabulary (learning/personal) from the six scored domains; this is the one
+ * place that reconciles them (post-BUG-009). `learning` feeds the polymath
+ * ("Mind") domain; `personal` rolls up to the general `goals` domain.
+ */
+export function goalTypeToDomain(goalType: string): DomainId | null {
+  switch (goalType) {
+    case 'career': return 'career';
+    case 'health': return 'health';
+    case 'finance': return 'finance';
+    case 'social': return 'social';
+    case 'learning': return 'polymath';
+    case 'personal': return 'goals';
+    default: return null;
+  }
+}
