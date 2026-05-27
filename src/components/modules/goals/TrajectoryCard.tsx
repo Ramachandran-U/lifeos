@@ -146,7 +146,7 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
             <LoadingDots />
           ) : (
             <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
-              {needsReview ? 'Recalibrate this quarter' : 'Review trajectory'}
+              {error ? 'Try again' : needsReview ? 'Recalibrate this quarter' : 'Review trajectory'}
             </Body>
           )}
         </Pressable>
