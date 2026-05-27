@@ -29,7 +29,10 @@ export type BadgeId =
   | 'food_photo'
   | 'first_connection'
   | 'inner_orbit'
-  | 'polymath_starter';
+  | 'polymath_starter'
+  | 'expedition_complete'
+  | 'synapse_formed'
+  | 'curiosity_streak_7';
 
 export interface Streaks {
   workout: StreakData;
@@ -145,7 +148,22 @@ export const XP_VALUES = {
   completeResource: 100,
   earnBadge: 200,
   photoFood: 20,
+  sparkSaved: 10,
+  expeditionStepComplete: 20,
+  expeditionComplete: 100,
+  synapseFormed: 50,
 } as const;
+
+/**
+ * Polymath score: rewards both depth (deep-dive hours) AND breadth (distinct
+ * categories touched). The polymath tension — go deep AND range wide — is the
+ * game. Range 0-100; used for the polymath domain score.
+ */
+export function polymathScore(depth: number, breadth: number): number {
+  const d = Math.min(depth / 12, 1); // 12 salience-points = full depth (4 deep-dives)
+  const b = Math.min(breadth / 5, 1); // 5 categories = full breadth
+  return Math.round((d * 0.5 + b * 0.5) * 100);
+}
 
 // ─── Level progression ───────────────────────────────────────────────────────
 // Cumulative XP required to reach level n: 100 * n * (n + 1) / 2
@@ -204,6 +222,9 @@ export const BADGE_META: Record<BadgeId, { label: string; emoji: string; desc: s
   first_connection:   { label: 'First Connection',  emoji: '🤝', desc: 'Added your first contact to Social Hub' },
   inner_orbit:        { label: 'Inner Orbit',       emoji: '🪐', desc: 'All inner-circle contacts inside cadence' },
   polymath_starter:   { label: 'Polymath Starter',  emoji: '🔭', desc: 'Logged time on a deep-dive interest' },
+  expedition_complete:{ label: 'Expeditioner',     emoji: '🧭', desc: 'Completed your first expedition' },
+  synapse_formed:     { label: 'Synapse',          emoji: '⚡', desc: 'Formed a cross-discipline link in your constellation' },
+  curiosity_streak_7: { label: 'Curious Week',     emoji: '🌟', desc: 'Engaged with a spark for 7 consecutive days' },
 };
 
 // ─── Streak metadata ─────────────────────────────────────────────────────────
