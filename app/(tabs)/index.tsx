@@ -28,6 +28,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { useAmbientEventStore } from '@/components/shared/ambient/useAmbientEventStore';
 import { WeeklyBalanceCard } from '@/components/shared/WeeklyBalanceCard';
 import { Confetti } from '@/components/shared/Confetti';
 import { DailySummarySheet } from '@/components/shared/DailySummarySheet';
@@ -216,6 +217,7 @@ export default function TodayScreen() {
     updateRoutineBlockStatus(blockId, 'completed');
     logBehaviourEvent('block_completed', block?.module ?? 'goal');
     track(EVENTS.routineBlockCompleted, { module: block?.module ?? 'goal' });
+    useAmbientEventStore.getState().fireSweep(block?.module === 'health' ? '#00C896' : block?.module === 'finance' ? '#F0B429' : block?.module === 'career' ? '#5B4FE8' : block?.module === 'social' ? '#FF4D8B' : block?.module === 'polymath' ? '#00B4D8' : '#FF6B35');
     // First-block-ever telemetry (v2 funnel). Stamps the profile so it fires once.
     if (onboardingV2 && userId) {
       (async () => {
@@ -336,6 +338,19 @@ export default function TodayScreen() {
   const completedCount = blocks.filter((b) => b.status === 'completed').length;
   const allComplete = blocks.length > 0 && completedCount === blocks.length;
 
+  const liveBlockModule = useMemo(() => {
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const live = blocks.find((b) => {
+      if (b.status === 'completed' || b.status === 'skipped') return false;
+      const [sh, sm] = (b.startTime ?? '').split(':').map(Number);
+      const [eh, em] = (b.endTime ?? '').split(':').map(Number);
+      if (isNaN(sh) || isNaN(eh)) return false;
+      return nowMins >= sh * 60 + (sm || 0) && nowMins < eh * 60 + (em || 0);
+    });
+    return live?.module ?? null;
+  }, [blocks]);
+
   // P4-02: assemble the morning briefing input from the slices the Today
   // screen already has loaded. The hook generates 1-3 lines once per day and
   // caches them; we fall back to the static blocks-count line below if it's
@@ -441,7 +456,7 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.root}>
-      <AuroraBackground scrollY={scrollY} />
+      <AuroraBackground scrollY={scrollY} liveBlockModule={liveBlockModule} allBlocksDone={allComplete} />
       <SafeAreaView style={styles.container}>
 
         <Animated.ScrollView
