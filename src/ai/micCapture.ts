@@ -1,6 +1,13 @@
 /**
  * Web microphone capture → PCM16 base64 chunks for the Gemini Live API.
  * Web-only — on native, returns a no-op handle.
+ *
+ * NOTE: uses `createScriptProcessor`, which is deprecated. All current browsers
+ * still ship it (with a console warning) but it's slated for removal. Replace
+ * with `AudioWorklet` before this ships to production at scale — the refactor
+ * needs a separate worklet module file loaded via `audioContext.audioWorklet
+ * .addModule()`. ScriptProcessor runs on the main thread (jank risk under
+ * load); AudioWorklet runs in a separate audio thread.
  */
 
 import { Platform } from 'react-native';

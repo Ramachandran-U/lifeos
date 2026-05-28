@@ -131,12 +131,35 @@ export default {
       const [client, server] = Object.values(pair);
       (server as WebSocket).accept();
 
+      // Explicit state machine. Previously this leaned on a string-sniff
+      // `!raw.includes('"realtimeInput"')` to distinguish setup from audio,
+      // which would fire a second upstream connection if the client ever sent
+      // a non-realtimeInput message before/after setup (e.g. clientContent).
+      type Phase = 'await_auth' | 'await_setup' | 'piping';
+      let phase: Phase = 'await_auth';
       let authedUserId: string | null = null;
+      let upstreamWs: WebSocket | null = null;
+      let lockKey: string | null = null;
+      let clientClosed = false;
+
+      // Register client close/error handler IMMEDIATELY so a disconnect
+      // during the upstream fetch still releases the KV lock and tears down.
+      const teardown = async () => {
+        clientClosed = true;
+        try { upstreamWs?.close(); } catch {}
+        try { (server as WebSocket).close(); } catch {}
+        if (lockKey) {
+          await env.RATE_LIMIT.delete(lockKey).catch(() => {});
+          lockKey = null;
+        }
+      };
+      (server as WebSocket).addEventListener('close', teardown);
+      (server as WebSocket).addEventListener('error', teardown);
 
       (server as WebSocket).addEventListener('message', async (e) => {
         const raw = typeof e.data === 'string' ? e.data : '';
         try {
-          if (!authedUserId) {
+          if (phase === 'await_auth') {
             const msg = JSON.parse(raw);
             if (msg.auth) {
               const claims = await verifySupabaseJwt(msg.auth, env).catch(() => null);
@@ -146,45 +169,43 @@ export default {
                 return;
               }
               authedUserId = claims.sub;
+              phase = 'await_setup';
               (server as WebSocket).send(JSON.stringify({ authOk: true }));
-              return;
             }
             return;
           }
 
-          // Setup message (first after auth) — connect to Gemini upstream.
-          if (!raw.includes('"realtimeInput"')) {
-            const lockKey = `voice-lock:${authedUserId}`;
-            await env.RATE_LIMIT.put(lockKey, '1', { expirationTtl: 60 });
+          if (phase === 'await_setup') {
+            // Connect to Gemini upstream. Set lock + open WS only once.
+            phase = 'piping'; // optimistic — flip back on error
+            lockKey = `voice-lock:${authedUserId}`;
 
             const upstreamUrl = `https://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`;
-            let upstreamWs: WebSocket | null = null;
             try {
               const upResp = await fetch(upstreamUrl, { headers: { Upgrade: 'websocket' } });
               upstreamWs = upResp.webSocket;
-            } catch { upstreamWs = null; }
+            } catch {
+              upstreamWs = null;
+            }
+            // If the client closed while we were awaiting the upstream fetch,
+            // bail out — the teardown registered above already released the lock.
+            if (clientClosed) {
+              try { upstreamWs?.close(); } catch {}
+              return;
+            }
             if (!upstreamWs) {
-              await env.RATE_LIMIT.delete(lockKey).catch(() => {});
               (server as WebSocket).send(JSON.stringify({ authError: 'upstream voice service unavailable' }));
               (server as WebSocket).close(1011, 'upstream unavailable');
               return;
             }
             upstreamWs.accept();
+            // Now that upstream is established, set the lock and forward the setup.
+            await env.RATE_LIMIT.put(lockKey, '1', { expirationTtl: 60 });
             upstreamWs.send(raw);
 
-            const teardown = async () => {
-              try { upstreamWs!.close(); } catch {}
-              try { (server as WebSocket).close(); } catch {}
-              await env.RATE_LIMIT.delete(lockKey).catch(() => {});
-            };
-            (server as WebSocket).addEventListener('message', (m) => {
-              try { upstreamWs!.send(m.data); } catch {}
-            });
             upstreamWs.addEventListener('message', (m) => {
               try { (server as WebSocket).send(m.data); } catch {}
             });
-            (server as WebSocket).addEventListener('close', teardown);
-            (server as WebSocket).addEventListener('error', teardown);
             upstreamWs.addEventListener('close', (ev) => {
               try {
                 (server as WebSocket).send(JSON.stringify({
@@ -198,6 +219,10 @@ export default {
             upstreamWs.addEventListener('error', teardown);
             return;
           }
+
+          // phase === 'piping' — forward every subsequent client message
+          // (audio chunks, clientContent, toolResponse, etc.) to Gemini.
+          try { upstreamWs?.send(raw); } catch {}
         } catch (err) {
           const detail = err instanceof Error ? err.message : String(err);
           try { (server as WebSocket).send(JSON.stringify({ authError: detail })); } catch {}
