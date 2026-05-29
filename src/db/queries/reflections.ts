@@ -9,6 +9,7 @@ import {
   webGetRecentReflections,
   type WebDailyReflection,
 } from '../webStorage';
+import { recordMutation } from '@/sync/runtime';
 
 const isWeb = Platform.OS === 'web';
 
@@ -58,21 +59,20 @@ export function upsertReflection(input: ReflectionInput): string {
   const blockReviewsJson = JSON.stringify(input.blockReviews);
   const tweakPayloadJson = input.tweakPayload ? JSON.stringify(input.tweakPayload) : null;
 
-  if (isWeb) {
-    webUpsertReflection({
-      id,
-      date: input.date,
-      mood: input.mood,
-      blockReviews: blockReviewsJson,
-      tweakAccepted: input.tweakAccepted,
-      tweakPayload: tweakPayloadJson,
-      notes: input.notes ?? null,
-      createdAt: existing?.createdAt ?? now,
-    });
-    return id;
-  }
+  const afterSnapshot = {
+    id,
+    date: input.date,
+    mood: input.mood,
+    blockReviews: blockReviewsJson,
+    tweakAccepted: input.tweakAccepted,
+    tweakPayload: tweakPayloadJson,
+    notes: input.notes ?? null,
+    createdAt: existing?.createdAt ?? now,
+  };
 
-  if (existing) {
+  if (isWeb) {
+    webUpsertReflection(afterSnapshot);
+  } else if (existing) {
     db.update(dailyReflections).set({
       mood: input.mood,
       blockReviews: blockReviewsJson,
@@ -92,6 +92,19 @@ export function upsertReflection(input: ReflectionInput): string {
       createdAt: now,
     }).run();
   }
+
+  if (existing) {
+    recordMutation({
+      entity: 'daily_reflections',
+      entityId: id,
+      op: 'update',
+      before: { id, date: existing.date, mood: existing.mood, blockReviews: JSON.stringify(existing.blockReviews), tweakAccepted: existing.tweakAccepted, tweakPayload: existing.tweakPayload ? JSON.stringify(existing.tweakPayload) : null, notes: existing.notes, createdAt: existing.createdAt },
+      after: afterSnapshot,
+    });
+  } else {
+    recordMutation({ entity: 'daily_reflections', entityId: id, op: 'insert', before: null, after: afterSnapshot });
+  }
+
   return id;
 }
 

@@ -41,6 +41,7 @@ const ALLOWED_EVENTS = new Set([
   'profile_inference_run',
   // Reliability
   'ui_crash',
+  'storage_usage',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;

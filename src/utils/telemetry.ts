@@ -46,6 +46,7 @@ export const EVENTS = {
   tomorrowRoutineFailed: 'tomorrow_routine_failed',
   tomorrowRoutineGenerated: 'tomorrow_routine_generated',
   uiCrash: 'ui_crash',
+  storageUsage: 'storage_usage',
   // Explore v2 — sparks + expeditions + constellation
   domainNudgeShown: 'domain_nudge_shown',
   domainNudgeAccepted: 'domain_nudge_accepted',
@@ -70,6 +71,14 @@ export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
 
 let deviceIdMemo: string | null = null;
 let deviceIdLoadPromise: Promise<string> | null = null;
+
+/**
+ * Resolve the anonymous device id, creating one on first call. Reused by the
+ * mutation log so log entries share the same device identity as telemetry.
+ */
+export async function getDeviceId(): Promise<string> {
+  return loadOrCreateDeviceId();
+}
 
 async function loadOrCreateDeviceId(): Promise<string> {
   if (deviceIdMemo) return deviceIdMemo;
