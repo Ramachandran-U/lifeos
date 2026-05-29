@@ -410,7 +410,12 @@ export async function proxyClaude(
         }));
       }
 
-      return new Response(JSON.stringify(result), {
+      // Return usage to the client under canonical (Anthropic-style) field
+      // names so the on-device ledger/telemetry reads the same keys regardless
+      // of provider. The cost-event write above intentionally uses the raw
+      // `result.usage` (recordCostEvent re-normalises per provider).
+      const clientPayload = { ...result, usage: toCanonicalUsage(provider, result.usage) };
+      return new Response(JSON.stringify(clientPayload), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...cors },
       });
@@ -454,10 +459,29 @@ interface NormalisedUsage {
   cacheCreation: number;
 }
 
+/**
+ * Canonical (Anthropic-style) usage shape returned to the client, so the
+ * on-device cost ledger reads the same field names for every provider.
+ */
+export function toCanonicalUsage(provider: string, usage: unknown): {
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_input_tokens: number;
+  cache_creation_input_tokens: number;
+} {
+  const u = normaliseUsage(provider, usage);
+  return {
+    input_tokens: u.input,
+    output_tokens: u.output,
+    cache_read_input_tokens: u.cacheRead,
+    cache_creation_input_tokens: u.cacheCreation,
+  };
+}
+
 // Each upstream gives usage in its own shape. This collapses to the four
 // counters we store; anything unknown defaults to 0 so a schema drift doesn't
 // poison the ledger or make the insert fail.
-function normaliseUsage(provider: string, usage: unknown): NormalisedUsage {
+export function normaliseUsage(provider: string, usage: unknown): NormalisedUsage {
   const u = (usage ?? {}) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   if (provider === 'anthropic') {

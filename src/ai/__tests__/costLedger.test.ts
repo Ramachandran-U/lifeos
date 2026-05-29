@@ -50,4 +50,25 @@ describe('costLedger', () => {
     recordUsage({ model: 'x', task: 'y', usage: null });
     expect(summarize().calls).toBe(0);
   });
+
+  test('computeCost: gemini-2.5-flash uses Gemini rates, not Claude-haiku', () => {
+    const cost = computeCost('gemini-2.5-flash', { input_tokens: 1_000_000, output_tokens: 1_000_000 });
+    expect(cost).toBeCloseTo(0.3 + 2.5, 5);
+    expect(cost).not.toBeCloseTo(1 + 5, 5);
+  });
+
+  test('computeCost: gemini cache read uses the cached-input rate', () => {
+    const cached = computeCost('gemini-2.5-flash', { cache_read_input_tokens: 1_000_000 });
+    expect(cached).toBeCloseTo(0.03, 5);
+  });
+
+  test('priceFor fallback: unknown gemini-* model prices as Gemini, not Claude', () => {
+    const unknownGemini = computeCost('gemini-9-superflash', { input_tokens: 1_000_000 });
+    expect(unknownGemini).toBeCloseTo(PRICING['gemini-2.5-flash']!.input, 5);
+  });
+
+  test('priceFor fallback: unknown claude-* model still prices as Claude-haiku', () => {
+    const unknownClaude = computeCost('claude-future-9', { input_tokens: 1_000_000 });
+    expect(unknownClaude).toBeCloseTo(PRICING['claude-haiku-4-5-20251001']!.input, 5);
+  });
 });
