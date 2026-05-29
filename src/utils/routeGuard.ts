@@ -43,6 +43,7 @@ const POST_ONBOARDING_ROUTES = new Set([
   'feedback',
   'chat',
   'expedition-detail',
+  'rabbit-hole',
 ]);
 
 /** Progressive onboarding screens reachable AFTER main onboarding completes. */

@@ -40,7 +40,9 @@ import { ExpeditionProgressRow } from '@/components/modules/polymath/ExpeditionP
 import { ConstellationView } from '@/components/modules/polymath/ConstellationView';
 import { generateDailySpark, type Spark } from '@/explore/spark';
 import { recordSpark, getSparkByDate, listRecentSparkTitles, updateSparkStatus } from '@/db/queries/sparks';
-import { listExpeditions, listActiveExpeditionProgress, getExpedition as getExpeditionDef } from '@/db/queries/expeditions';
+import { listExpeditions, listActiveExpeditionProgress, getExpedition as getExpeditionDef, createExpedition, saveExpeditionProgress } from '@/db/queries/expeditions';
+import { generateExpedition } from '@/explore/expeditionGen';
+import { startExpedition, canStartExpedition, MAX_ACTIVE_EXPEDITIONS } from '@/explore/expeditions';
 import { track, EVENTS } from '@/utils/telemetry';
 import { nanoid } from '@/utils/id';
 import type { ConstellationInput } from '@/explore/constellation';
@@ -248,22 +250,84 @@ export default function ExploreScreen() {
   };
 
   // ─── Spark actions ─────────────────────────────────────────────────────────
-  const handleSparkAction = useCallback((action: 'save' | 'dismiss' | 'pull_thread' | 'start_expedition') => {
-    if (!todaySpark) return;
-    const statusMap: Record<string, Spark['status']> = { save: 'saved', dismiss: 'dismissed', pull_thread: 'explored', start_expedition: 'explored' };
+  const [graduating, setGraduating] = useState(false);
+
+  const handleSparkAction = useCallback(async (action: 'save' | 'dismiss' | 'pull_thread' | 'start_expedition') => {
+    if (!todaySpark || !userId) return;
+
+    // start_expedition: generate a journey seeded from the spark and navigate.
+    if (action === 'start_expedition') {
+      const active = listActiveExpeditionProgress(userId);
+      if (!canStartExpedition(active.length)) {
+        // Soft guard — user-facing cap. Mark spark as seen so we don't loop.
+        updateSparkStatus(todaySpark.id, 'seen');
+        setTodaySpark({ ...todaySpark, status: 'seen' });
+        track(EVENTS.expeditionStarted, { fromSpark: true, blockedByCap: true, capacity: MAX_ACTIVE_EXPEDITIONS });
+        return;
+      }
+      setGraduating(true);
+      try {
+        const gen = await generateExpedition({
+          seedSparkTitle: todaySpark.title,
+          seedInterest: todaySpark.seedInterest,
+          theme: todaySpark.adjacentField || todaySpark.seedInterest,
+        });
+        const expeditionId = nanoid();
+        createExpedition({
+          id: expeditionId,
+          userId,
+          title: gen.title,
+          theme: gen.theme,
+          domain: 'polymath',
+          steps: gen.steps,
+          totalSteps: gen.steps.length,
+          source: 'spark',
+          seedSparkId: todaySpark.id,
+          createdAt: new Date().toISOString(),
+        });
+        const progress = startExpedition(expeditionId, userId, {
+          now: () => new Date().toISOString(),
+          newId: () => nanoid(),
+        });
+        saveExpeditionProgress(progress);
+        updateSparkStatus(todaySpark.id, 'explored', expeditionId);
+        setTodaySpark({ ...todaySpark, status: 'explored', threadId: expeditionId });
+        triggerStreak(userId, 'learning');
+        track(EVENTS.expeditionStarted, { fromSpark: true });
+        track(EVENTS.curiosityStreakDay, {});
+        router.push(`/expedition-detail?id=${expeditionId}`);
+      } catch {
+        // Generation failed → leave spark untouched; user can retry or pick another action.
+      } finally {
+        setGraduating(false);
+      }
+      return;
+    }
+
+    // pull_thread: navigate into the rabbit-hole branching view (an in-app journey).
+    if (action === 'pull_thread') {
+      updateSparkStatus(todaySpark.id, 'explored');
+      setTodaySpark({ ...todaySpark, status: 'explored' });
+      track(EVENTS.sparkThreadPulled, {});
+      triggerStreak(userId, 'learning');
+      track(EVENTS.curiosityStreakDay, {});
+      router.push(`/rabbit-hole?sparkId=${todaySpark.id}`);
+      return;
+    }
+
+    // save / dismiss — simple status updates.
+    const statusMap: Record<string, Spark['status']> = { save: 'saved', dismiss: 'dismissed' };
     const next = statusMap[action] ?? 'seen';
     updateSparkStatus(todaySpark.id, next);
     setTodaySpark({ ...todaySpark, status: next });
-    if (action === 'save') { addXP(userId!, XP_VALUES.completeGoalTask); track(EVENTS.sparkSaved, { domain: 'polymath' }); }
-    if (action === 'dismiss') track(EVENTS.sparkDismissed, {});
-    if (action === 'pull_thread') track(EVENTS.sparkThreadPulled, {});
-    if (action === 'start_expedition') {
-      track(EVENTS.sparkThreadPulled, {});
-      // TODO: generate expedition from spark seed and navigate
+    if (action === 'save') {
+      addXP(userId, XP_VALUES.completeGoalTask);
+      track(EVENTS.sparkSaved, { domain: 'polymath' });
+      triggerStreak(userId, 'learning');
+      track(EVENTS.curiosityStreakDay, {});
     }
-    triggerStreak(userId!, 'learning');
-    track(EVENTS.curiosityStreakDay, {});
-  }, [todaySpark, userId, addXP, triggerStreak]);
+    if (action === 'dismiss') track(EVENTS.sparkDismissed, {});
+  }, [todaySpark, userId, addXP, triggerStreak, router]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 

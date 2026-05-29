@@ -46,6 +46,7 @@ export type AITask =
   | 'suggestCrossDisciplineLink'
   | 'generateDailySpark'
   | 'generateExpedition'
+  | 'generateRabbitHoleNode'
   | 'generateMonthlyInsightReport'
   | 'generateDailyBriefing'
   | 'assessTrajectory'
@@ -67,6 +68,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   suggestCrossDisciplineLink: 'planning',
   generateDailySpark: 'cheap', // one short call per day — keep it cheap
   generateExpedition: 'planning', // structure matters — worth the better model
+  generateRabbitHoleNode: 'cheap', // short interactive calls; cost adds up if user pulls 10 threads
   generateMonthlyInsightReport: 'planning',
   generateDailyBriefing: 'cheap',
   assessTrajectory: 'planning',
