@@ -14,8 +14,18 @@ import {
   webSetGoalPriorities,
   type WebGoal,
 } from '../webStorage';
+import { recordMutation } from '@/sync/runtime';
 
 const isWeb = Platform.OS === 'web';
+
+function readGoalSnapshot(id: string): Record<string, unknown> | null {
+  if (isWeb) {
+    const r = webGetGoalById(id);
+    return r ? (r as unknown as Record<string, unknown>) : null;
+  }
+  const row = db.select().from(goals).where(eq(goals.id, id)).get();
+  return row ? (row as unknown as Record<string, unknown>) : null;
+}
 
 type GoalInsert = {
   userId: string;
@@ -61,6 +71,7 @@ export function createGoal(data: GoalInsert) {
       updatedAt: now,
     };
     webInsertGoal(record);
+    recordMutation({ entity: 'goals', entityId: id, op: 'insert', before: null, after: record as unknown as Record<string, unknown> });
     return id;
   }
   db.insert(goals).values({
@@ -69,6 +80,7 @@ export function createGoal(data: GoalInsert) {
     createdAt: now,
     updatedAt: now,
   }).run();
+  recordMutation({ entity: 'goals', entityId: id, op: 'insert', before: null, after: { id, ...data, status: 'active', createdAt: now, updatedAt: now } });
   return id;
 }
 
@@ -92,49 +104,66 @@ export function getChildGoals(parentId: string) {
 }
 
 export function updateGoalStatus(id: string, status: string) {
+  const before = readGoalSnapshot(id);
+  const now = new Date().toISOString();
   if (isWeb) {
     webUpdateGoalStatus(id, status);
-    return;
+  } else {
+    db.update(goals)
+      .set({ status, updatedAt: now })
+      .where(eq(goals.id, id))
+      .run();
   }
-  db.update(goals)
-    .set({ status, updatedAt: new Date().toISOString() })
-    .where(eq(goals.id, id))
-    .run();
+  recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), status, updatedAt: now } });
 }
 
 export function updateGoalDescription(id: string, description: string) {
+  const before = readGoalSnapshot(id);
+  const now = new Date().toISOString();
   if (isWeb) {
     webUpdateGoalDescription(id, description);
-    return;
+  } else {
+    db.update(goals)
+      .set({ description, updatedAt: now })
+      .where(eq(goals.id, id))
+      .run();
   }
-  db.update(goals)
-    .set({ description, updatedAt: new Date().toISOString() })
-    .where(eq(goals.id, id))
-    .run();
+  recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), description, updatedAt: now } });
 }
 
 export function setGoalPriorities(updates: { id: string; priority: number }[]) {
   if (updates.length === 0) return;
+  const beforeSnapshots = updates.map((u) => readGoalSnapshot(u.id));
   if (isWeb) {
     webSetGoalPriorities(updates);
-    return;
+  } else {
+    const nowNative = new Date().toISOString();
+    for (const u of updates) {
+      db.update(goals)
+        .set({ priority: u.priority, updatedAt: nowNative })
+        .where(eq(goals.id, u.id))
+        .run();
+    }
   }
   const now = new Date().toISOString();
-  for (const u of updates) {
-    db.update(goals)
-      .set({ priority: u.priority, updatedAt: now })
-      .where(eq(goals.id, u.id))
-      .run();
+  for (let i = 0; i < updates.length; i++) {
+    const u = updates[i];
+    const before = beforeSnapshots[i];
+    recordMutation({ entity: 'goals', entityId: u.id, op: 'update', before, after: { ...(before ?? {}), priority: u.priority, updatedAt: now } });
   }
 }
 
 export function softDeleteGoal(id: string) {
+  const before = readGoalSnapshot(id);
+  const deletedAt = new Date().toISOString();
   if (isWeb) {
     webSoftDeleteGoal(id);
-    return;
+  } else {
+    db.update(goals)
+      .set({ deletedAt })
+      .where(eq(goals.id, id))
+      .run();
   }
-  db.update(goals)
-    .set({ deletedAt: new Date().toISOString() })
-    .where(eq(goals.id, id))
-    .run();
+  // Soft-delete is logged as 'delete' so replay/sync treats it as a tombstone.
+  recordMutation({ entity: 'goals', entityId: id, op: 'delete', before, after: null });
 }

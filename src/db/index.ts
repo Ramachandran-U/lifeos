@@ -330,6 +330,26 @@ export async function initDatabase() {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Append-only event-sourced spine. See src/sync/mutationLog.ts. Writes
+    -- to other tables emit one row here; sync (later) reads from this table.
+    CREATE TABLE IF NOT EXISTS mutation_log (
+      id TEXT PRIMARY KEY,
+      entity TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      op TEXT NOT NULL,
+      before_json TEXT,
+      after_json TEXT,
+      fields_json TEXT NOT NULL DEFAULT '[]',
+      ts TEXT NOT NULL,
+      lamport INTEGER NOT NULL,
+      device_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      prev_hash TEXT,
+      hash TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS mutation_log_lamport_idx ON mutation_log (lamport);
+    CREATE INDEX IF NOT EXISTS mutation_log_entity_idx ON mutation_log (entity, entity_id);
   `);
 
   // Lightweight migrations for columns added after initial release.
