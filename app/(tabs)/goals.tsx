@@ -166,7 +166,7 @@ export default function GoalsScreen() {
       <AuroraBackground />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <ModuleHeader title="Goals" icon="flag" color={c.goal} />
+        <ModuleHeader title="Goals" domain="goal" color={c.goal} />
 
         <View style={styles.legendRow}>
           {GOAL_TYPE_LEGEND.map((entry) => {

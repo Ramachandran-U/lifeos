@@ -240,7 +240,7 @@ export default function HealthScreen() {
       <AuroraBackground />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <ModuleHeader title="Health" icon="heart" color={c.health} />
+        <ModuleHeader title="Health" domain="health" color={c.health} />
 
         <Animated.View entering={FadeInDown.duration(400)}>
           <VitalsCard

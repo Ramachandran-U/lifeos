@@ -344,7 +344,7 @@ export default function ExploreScreen() {
       <AuroraBackground />
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
-          <ModuleHeader title="Explore" icon="compass" color={c.polymath} />
+          <ModuleHeader title="Explore" domain="polymath" color={c.polymath} />
 
           {/* ─── Explore v2: Spark hero ─── */}
           {todaySpark && (

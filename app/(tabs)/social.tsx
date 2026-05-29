@@ -93,7 +93,7 @@ export default function SocialScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          <ModuleHeader title="Social" icon="people" color={c.social} />
+          <ModuleHeader title="Social" domain="social" color={c.social} />
 
           <Caption style={{ color: c.textMuted, marginBottom: spacing.md }}>
             Stay close to people who matter. Names stay on this device.

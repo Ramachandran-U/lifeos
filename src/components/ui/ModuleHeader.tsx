@@ -3,18 +3,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Heading } from './Typography';
+import { DomainGlyph, type DomainKey } from './DomainGlyph';
 
 interface ModuleHeaderProps {
   title: string;
-  icon: keyof typeof Ionicons.glyphMap;
   color: string;
+  /** Preferred: renders the canonical Lucide domain icon. */
+  domain?: DomainKey;
+  /** Fallback for non-domain headers — an Ionicons glyph name. */
+  icon?: keyof typeof Ionicons.glyphMap;
 }
 
-export function ModuleHeader({ title, icon, color }: ModuleHeaderProps) {
+export function ModuleHeader({ title, color, domain, icon }: ModuleHeaderProps) {
   return (
     <View style={styles.container}>
       <View style={[styles.iconCircle, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
+        {domain ? (
+          <DomainGlyph domain={domain} size={24} color={color} strokeWidth={2.25} />
+        ) : icon ? (
+          <Ionicons name={icon} size={24} color={color} />
+        ) : null}
       </View>
       <Heading style={styles.title}>{title}</Heading>
     </View>

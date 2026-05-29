@@ -332,7 +332,7 @@ export default function FinanceScreen() {
       return (
         <SafeAreaView style={styles.container}>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-            <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
+            <ModuleHeader title="Finance" domain="finance" color={c.finance} />
             <Heading style={styles.setupTitle}>What are you saving for?</Heading>
             <View style={styles.typeGrid}>
               {GOAL_TYPES.map((t) => (
@@ -367,7 +367,7 @@ export default function FinanceScreen() {
       return (
         <SafeAreaView style={styles.container}>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-            <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
+            <ModuleHeader title="Finance" domain="finance" color={c.finance} />
             <Heading style={styles.setupTitle}>Your financial details</Heading>
 
             <Label>Target amount ({getCurrency().symbol})</Label>
@@ -493,7 +493,7 @@ export default function FinanceScreen() {
       <AuroraBackground />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <ModuleHeader title="Finance" icon="wallet" color={c.finance} />
+        <ModuleHeader title="Finance" domain="finance" color={c.finance} />
 
         {/* Tab switcher */}
         <View style={styles.tabBar}>
