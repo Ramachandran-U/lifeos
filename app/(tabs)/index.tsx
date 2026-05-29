@@ -43,7 +43,6 @@ import { getGoalsByUser } from '@/db/queries/goals';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import { computeLifeScore, lifeScoreBand } from '@/utils/lifeScore';
 import type { DailyBriefingInput } from '@/ai/types';
-import { emptyUserProfile } from '@/ai/types';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -61,11 +60,11 @@ import { cloneRoutineToDate } from '@/utils/starterRoutine';
 import { subDays } from 'date-fns';
 import { useFlagStore } from '@/store/useFlagStore';
 import { getUserProfile } from '@/db/queries/userProfile';
-import { rebalanceRestOfToday, isRecoveryLow, generateAndSaveWeek } from '@/ai/replanApply';
 import { refreshInferredPreferences } from '@/ai/profileLearning';
-import { getLatestSleepHours } from '@/db/queries/health';
 import { upsertUserProfile } from '@/db/queries/userProfile';
+import { useReplanFlow } from '@/hooks/useReplanFlow';
 import { track, EVENTS } from '@/utils/telemetry';
+import { getLocalStorageUsage } from '@/utils/storageQuota';
 import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
 import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
 import { updateUser } from '@/db/queries/users';
@@ -98,11 +97,12 @@ export default function TodayScreen() {
   const totalXP = useGameStore((s) => s.totalXP);
   const quests = useGameStore((s) => s.quests);
   const gameDomainScores = useGameStore((s) => s.domainScores);
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // `today` lives in state so a focus that crosses midnight re-keys queries
+  // onto the new date. Without this, completing a block at 12:01am writes to
+  // yesterday's routine (walkthrough P0-3).
+  const [today, setToday] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [blocks, setBlocks] = useState<ReturnType<typeof getRoutineBlocksByDate>>([]);
   const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
-  const [replanning, setReplanning] = useState(false);
-  const [replanRationale, setReplanRationale] = useState<string | null>(null);
   const [domainScores, setDomainScores] = useState({
     goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 0,
   });
@@ -112,6 +112,7 @@ export default function TodayScreen() {
   const [calConnected, setCalConnected] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
   const [calStatus, setCalStatus] = useState<string | null>(null);
+  const storageUsageEmittedRef = useRef(false);
 
   const handleCalendarConnect = async () => {
     const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
@@ -161,13 +162,17 @@ export default function TodayScreen() {
   };
 
   const loadData = useCallback(() => {
+    // Re-derive the current date on every load so a focus that crossed
+    // midnight rolls forward instead of writing to yesterday.
+    const currentToday = format(new Date(), 'yyyy-MM-dd');
+    if (currentToday !== today) setToday(currentToday);
     // Daily roll-forward — if today has no blocks but yesterday did, clone
     // yesterday's schedule to today with fresh (unchecked) status. Idempotent.
-    let todayBlocks = getRoutineBlocksByDate(today);
+    let todayBlocks = getRoutineBlocksByDate(currentToday);
     if (todayBlocks.length === 0) {
       const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-      cloneRoutineToDate(today, yesterday);
-      todayBlocks = getRoutineBlocksByDate(today);
+      cloneRoutineToDate(currentToday, yesterday);
+      todayBlocks = getRoutineBlocksByDate(currentToday);
     }
     setBlocks(todayBlocks);
     if (userId) {
@@ -180,7 +185,7 @@ export default function TodayScreen() {
       loadGame(userId);
     }
     setWeeklyInsight(generateWeeklyInsight());
-    setHasReflectedToday(getReflectionByDate(today) !== undefined);
+    setHasReflectedToday(getReflectionByDate(currentToday) !== undefined);
     // P3-04: re-run behaviour pattern detectors after any block list refresh.
     useBehaviourSuggestionsStore.getState().refresh();
   }, [today, userId, loadGame]);
@@ -197,6 +202,16 @@ export default function TodayScreen() {
   useFocusEffect(useCallback(() => {
     loadData();
     setCalConnected(isCalendarConnected());
+    // Once-per-session web storage probe — gives admin visibility into the
+    // localStorage quota curve so we see beta cohorts approaching 5MB before
+    // writes start silently failing. Native is a no-op.
+    if (!storageUsageEmittedRef.current) {
+      const usage = getLocalStorageUsage();
+      if (usage) {
+        track(EVENTS.storageUsage, { bytes: usage.bytes, warn: usage.warn });
+        storageUsageEmittedRef.current = true;
+      }
+    }
     // Weekly profile learning — fire-and-forget; no-ops within the 7-day window.
     if (onboardingV2 && userId) {
       refreshInferredPreferences(userId).then((result) => {
@@ -272,61 +287,16 @@ export default function TodayScreen() {
   };
 
   const skippedCount = useMemo(() => blocks.filter((b) => b.status === 'skipped').length, [blocks]);
-  const showReplanCta = onboardingV2 && skippedCount > 0 && !replanning;
 
-  const [planningWeek, setPlanningWeek] = useState(false);
-
-  const handlePlanWeek = useCallback(async () => {
-    if (!userId || planningWeek) return;
-    setPlanningWeek(true);
-    setReplanRationale(null);
-    try {
-      // Legacy users (day-1 onboarding, not discovery-chat) have no
-      // user_profiles row — fall back to an empty profile rather than silently
-      // doing nothing, so "Plan my next 7 days" always responds.
-      const profile = (await getUserProfile(userId)) ?? emptyUserProfile('form');
-      await generateAndSaveWeek({
-        userId,
-        startDate: today,
-        profile,
-        primaryDomains,
-      });
-      setReplanRationale('Your next 7 days are planned.');
-      loadData();
-    } catch (err) {
-      // Surface via the existing rationale slot — the screen already shows this.
-      setReplanRationale(err instanceof Error ? err.message : 'Week plan failed. Try again.');
-    } finally {
-      setPlanningWeek(false);
-    }
-  }, [userId, planningWeek, today, primaryDomains, loadData]);
-
-  const handleReplan = useCallback(async () => {
-    if (!userId || replanning) return;
-    setReplanning(true);
-    setReplanRationale(null);
-    try {
-      const profile = await getUserProfile(userId);
-      if (!profile) {
-        setReplanRationale('No profile yet — finish onboarding to unlock re-plan.');
-        return;
-      }
-      const reflection = getReflectionByDate(today);
-      const soften = isRecoveryLow({
-        lastSleepHours: getLatestSleepHours(3),
-        skippedTodayCount: skippedCount,
-        lastMood: reflection?.mood ?? null,
-      });
-      const { rationale, changeCount } = await rebalanceRestOfToday({ profile, softenForRecovery: soften });
-      track(EVENTS.routineReplanned, { soften, changes: changeCount });
-      setReplanRationale(changeCount > 0 ? rationale : 'Looks balanced — no changes needed.');
-      loadData();
-    } catch (err) {
-      setReplanRationale(err instanceof Error ? err.message : 'Re-plan failed. Try again.');
-    } finally {
-      setReplanning(false);
-    }
-  }, [userId, replanning, today, skippedCount, loadData]);
+  const replanFlow = useReplanFlow({
+    userId,
+    today,
+    primaryDomains,
+    skippedCount,
+    onboardingV2,
+    refresh: loadData,
+  });
+  const { replanning, planningWeek, rationale: replanRationale, showReplanCta, handleReplan, handlePlanWeek } = replanFlow;
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -355,8 +325,11 @@ export default function TodayScreen() {
   // screen already has loaded. The hook generates 1-3 lines once per day and
   // caches them; we fall back to the static blocks-count line below if it's
   // still generating or failed.
-  const briefingInput = useMemo<DailyBriefingInput | null>(() => {
-    if (!userId) return null;
+  // Queries run in useEffect (not useMemo) so React doesn't hit storage on
+  // every render — only when the dependencies that affect the briefing change.
+  const [briefingInput, setBriefingInput] = useState<DailyBriefingInput | null>(null);
+  useEffect(() => {
+    if (!userId) { setBriefingInput(null); return; }
     const goals = getGoalsByUser(userId);
     const lifeGoal = goals.find((g) => g.level === 'life') ?? goals[0];
     const overdueContacts = getContactsByUser(userId)
@@ -366,7 +339,7 @@ export default function TodayScreen() {
     const topDomainYesterday = yesterday
       ? Object.entries(yesterday).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] ?? null
       : null;
-    return {
+    setBriefingInput({
       name,
       topGoal: lifeGoal?.title ?? null,
       blocksToday: blocks.length,
@@ -375,8 +348,7 @@ export default function TodayScreen() {
       lifeScoreBand: lifeScoreBand(score).label,
       weeklyInsight,
       topDomainYesterday,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    });
   }, [userId, blocks.length, domainScores, primaryDomains, name, weeklyInsight]);
 
   const briefingText = useDailyBriefing(briefingInput, today);
