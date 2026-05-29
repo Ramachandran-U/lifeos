@@ -3,6 +3,27 @@
 > Date: 2026-05-27 · Author: program engineering · Status: baseline for the Adaptive Cognition program
 > Read this before touching any phase. It is the ground truth the roadmap is sequenced against.
 
+## Update 2026-05-30 — what shipped against this audit
+
+The thesis ("one event-sourced spine + four projections") survived contact with implementation. Concretely, the spine is now real and **wired**:
+
+- **Mutation log primitive** (Lamport clock + canonical hashing + chained, ID-stable append) lives in `src/sync/{lamport,hashChain,mutationLog}.ts` — pure, fully covered, platform-free.
+- **Wired into the write path** (`8470439`): `goals`, `routine_blocks`, and `daily_reflections` query modules now emit mutation entries on every write. So the audit's §2.4 finding ("Sync / trust — effectively absent") is no longer quite right: the *log* is built and recording; the *sync engine* (push/pull, conflict resolver, restore) is still ahead.
+- **`mergeExpeditionProgress`** — the first conflict-free per-entity resolver — is built and property-tested, ready to register when `src/sync/resolve.ts` lands.
+
+Projections built so far:
+- **Cognition stream** (audit §3): the `cognitive_insights` table + the domain-stagnation detector + `DomainNudgeCard` are live. First detector in the cognitive engine.
+- **Memory projection** (audit §3): the Explore v2 *constellation* is the first projection of this shape — pure, deterministic, rebuildable from `interests ∪ sparks ∪ expeditions`. It's polymath-scoped today; the broader memory graph hasn't started.
+
+Other concrete deltas vs. the audit:
+- The "schema.ts ↔ runtime drift" item (§5 risk table) is largely reconciled by the BUG-009 work + the other session's pre-beta polish; `contacts` table is canonically dropped.
+- The web persistence concern (§5 risk table) is handled by the per-entity `webStorage/*` layer rather than an IndexedDB-Drizzle adapter — different mechanism, same outcome (web no longer drops data).
+- Beyond our program: the other session shipped a pre-beta retention probe, worker cost ledger, route-guard refactor, and significant E2E test coverage. None invalidate the audit's findings.
+
+What still holds verbatim: the leverage-point thesis (§3), the insertion strategy (§4: wrap the write path, not the call sites — which is exactly how the wiring landed), and most of the risk register.
+
+---
+
 ## 1. Purpose
 
 Before writing a line of new code we audited the existing system to answer three questions:

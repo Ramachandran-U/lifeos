@@ -3,6 +3,22 @@
 > The long-term moat. A projection over the signal stream — can start in parallel with P2.
 > Depends on: P0 signal stream, RAG foundations (`src/ai/rag`). Feeds: P3 coach continuity, P5 orchestration.
 
+## Status (updated 2026-05-30)
+
+⏳ **Not started as a general memory graph** — but a polymath-scoped version of the projection pattern shipped via **Explore v2's Constellation**:
+
+- `src/explore/constellation.ts` is the first concrete instance of this phase's "projection, never source of truth" principle (§ Key technical decisions). It deterministically projects nodes/edges from `interests ∪ sparks ∪ expeditions`, dedupes by label, marks cross-discipline "synapses", and is rebuildable from inputs.
+- This validates the architectural pattern. Generalizing it to people / projects / values / themes / behavioural patterns across all domains is the work this phase still owns.
+
+What's pending for the broader memory graph:
+- `memory_nodes` / `memory_edges` tables across non-polymath domains
+- `identity_snapshots` capture
+- Node-extraction agent over journal entries (depends on Phase 3 journal analysis)
+- Salience decay + merge-on-similarity infra
+- Temporal-query agent
+
+---
+
 ## PRD
 **Thesis:** the app should remember *who the user was, who they're becoming, and what repeatedly blocks them.* This is what makes coaching feel like a relationship, not a session.
 

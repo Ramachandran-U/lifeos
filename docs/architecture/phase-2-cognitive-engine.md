@@ -3,6 +3,24 @@
 > The differentiator. Today this is ~40% (local pattern detectors). This phase makes LifeOS *reason* about the user.
 > Depends on: P0 signal stream. Feeds: P3 coach, P5 orchestration. Parallel: P4 memory.
 
+## Status (updated 2026-05-30)
+
+| Capability | Status |
+|---|---|
+| `cognitive_insights` table + cooldown gate (the core infra for every detector) | ✅ Shipped |
+| Domain-stagnation detector (the "5. Adaptive reprioritization" capability, narrow form) | ✅ Shipped end-to-end with `DomainNudgeCard` |
+| Two-tier architecture (deterministic detector → LLM only on candidates) | ✅ Pattern established by the stagnation detector |
+| Burnout detection | ⏳ Not started |
+| Overcommitment detection | ⏳ Partial — `priorityChangeHandler.assessImpact` surfaces overcommitment *at the moment of priority change*; no continuous detector |
+| Goal-conflict reasoning | ⏳ Not started |
+| Behavioural pattern engine (generalized detector registry) | ⏳ Not started — five legacy detectors in `behaviourPatterns.ts` still in use |
+| "WHY" explanation engine | ⏳ Not started |
+| Cognitive-load index | ⏳ Not started |
+
+Detailed shipped breakdown: [implementation-plan/phase-2-domain-stagnation-detector.md](../../implementation-plan/phase-2-domain-stagnation-detector.md).
+
+---
+
 ## PRD
 **Thesis:** competitors optimize productivity; LifeOS optimizes *sustainable human progress*. That requires reasoning about load, conflict, and causation — not just tracking completion.
 

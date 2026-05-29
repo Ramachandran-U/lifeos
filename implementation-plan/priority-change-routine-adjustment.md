@@ -2,6 +2,23 @@
 
 > Comprehensive plan for making the routine actually *respond* when a user changes their life priorities. Covers every scenario, the two-option UX, tradeoff surfacing, impact on existing systems, and a phased rollout.
 
+## Status (updated 2026-05-30)
+
+| Phase | Status | Where it landed |
+|---|---|---|
+| **Phase A** — Two-option sheet, "Start tomorrow" pre-gens via `generateAndSaveTomorrow`, impact summary, behaviour event, `priorityAdjust` flag | ✅ **Shipped** | PR #43 (squash `8161fa1`) |
+| **Phase B** — Real "Adjust now" with `replanRemainingDay`, `RoutineDiffPreview`, 5-phase sheet (`choice`/`loading`/`preview`/`applied`/`error`), 24h-TTL `replanStash` undo | ✅ **Shipped** | PR #50 (squash `16e199c`) |
+| **Phase C** — Wire `GOAL_REBALANCE_PROMPT` as follow-up; "why did you change?" capture; animated diff transitions | ⏳ Not started | — |
+
+**Design decisions resolved during build:**
+- **Undo is routine-only** — restoring blocks reverses today's plan but priorities stay updated. (Spec originally proposed full reversal; the simpler model was preferred during implementation.)
+- **AI failure shows an error phase** — no silent fall-through to tomorrow. Try-again / Start-tomorrow / Skip on failure.
+- **Active expedition cap & expedition slowdown surfacing** — design captured in `assessImpact`; expedition table column not yet added (Explore v2 ships expeditions but the impact-time wiring uses an empty list for now).
+
+The rest of this doc is the original spec, retained as the design reference.
+
+---
+
 ## The broken feedback loop (why this matters)
 
 Today: a user opens Profile → Edit Priorities → reorders/adds/removes domains → taps Save → `setPrimaryDomains(selectedInOrder)` updates the store → `router.back()` → **nothing happens.** The routine continues as if nothing changed. The user took the most meaningful action possible (reprioritized their life direction) and the app silently swallowed it.

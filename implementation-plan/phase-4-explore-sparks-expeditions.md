@@ -3,6 +3,27 @@
 > Turns the Explore tab from an interest *tracker* (log minutes spent elsewhere) into a *curiosity engine* you actually explore inside. Three loops that feed each other; everything trackable and synced across devices.
 > Builds on: existing polymath module (`interests`, `explorationLog`, `CrossDisciplineCard`, `DiscoverGrid`), the cognition engine, and the Phase 1 sync spine. Surfaces in `app/(tabs)/explore.tsx`.
 
+## Status (updated 2026-05-30)
+
+| Build step | Status | PR |
+|---|---|---|
+| 0 — Schema (`expeditions`, `expedition_progress`, `sparks`) + web parity | ✅ Shipped | PR #41 |
+| 0 — `mergeStrategies['expedition_progress']` resolver registration | ⚠️ **Half-done** — `mergeExpeditionProgress()` exists (commutative+idempotent, property-tested) but isn't yet registered in `src/sync/resolve.ts` (that resolver doesn't exist; pending Phase 1 sync engine) | PR #41 (logic only) |
+| 1 — Pure multi-expedition engine + set-union merge | ✅ Shipped | PR #41 |
+| 2 — Daily Spark pipeline (callAI + Zod + hard guards + curated fallback) | ✅ Shipped | PR #41 |
+| 3 — Expedition generation (callAI + Zod + structural guard + curated fallback) | ✅ Shipped | PR #41 |
+| 4 — Constellation projection (pure nodes/edges, synapses, breadth×depth stats) | ✅ Shipped | PR #41 |
+| 5 — UI: restructured Explore tab (`SparkHeroCard`, `ExpeditionProgressRow`, `ConstellationView`) + `/expedition-detail` | ✅ Shipped | PR #41 |
+| 6 — Gamification (3 new badges, polymath score, 4 new XP values) + 12 new telemetry events | ✅ Shipped | PR #41 |
+| Rabbit-hole branching view (in-app thread-pulling beyond a spark) | ⏳ Not started | — |
+| Real spark-to-expedition graduation flow ("Start expedition" from a saved spark) | ⏳ Not started — `SparkHeroCard` exposes the action but the handler is a stub | — |
+| Curiosity streak (forgiving, freezes) | ⏳ Not started — `curiosityStreakDay` event reserved | — |
+| Expedition impact wiring in priority-change (`assessImpact.expeditionsSlowing`) | ⏳ Half-wired — the structure is in place; edit-priorities passes `[]` for now | — |
+
+The rest of this doc is the original spec.
+
+---
+
 ## A. Why (the diagnosis)
 
 Today's Explore asks the user to go explore *somewhere else* and return to log minutes — homework, not exploration. The value happens outside the app, so there's no reason to open it. Fix = exploration happens **in-app**, gives a **daily reason to return**, and leaves a **compounding visible artifact**.

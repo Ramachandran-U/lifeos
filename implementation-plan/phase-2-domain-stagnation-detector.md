@@ -4,6 +4,24 @@
 >
 > Read [docs/architecture/phase-2-cognitive-engine.md](../docs/architecture/phase-2-cognitive-engine.md) and [roadmap/00-architecture-audit.md](../roadmap/00-architecture-audit.md) first. **Do not auto-modify the routine. Propose, never apply.** Land it behind a feature flag, off by default.
 
+## Status (updated 2026-05-30) — SHIPPED end-to-end
+
+| Step | Status | Notes |
+|---|---|---|
+| Task 0 — BUG-009 taxonomy (`mind`→`polymath`, 6th hub card) | ✅ Shipped | `5aff7cb` (pre-program) |
+| Step 1 — Pure `detectStagnantDomain()` + 12 tests | ✅ Shipped | PR #41 |
+| Step 2 — `cognitive_insights` schema + web parity + cooldown | ✅ Shipped | PR #41 |
+| Step 3 — `buildDomainSuggestions()` (goal-mining + AI fallback hook) + 14 tests | ✅ Shipped | PR #41 |
+| Step 4 — `DomainNudgeCard` wired into evening-reflect 'tomorrow' step | ✅ Shipped | PR #41 |
+| Step 5 — Telemetry events + flag gating | ✅ Shipped | PR #41 |
+| Real `aiSuggest` AI fallback (callAI-backed) — wires the existing prompt hook | ⏳ Deferred | Goal-mining covers the high-trust path; AI fallback only matters when <2 mined goals |
+
+Flags `domainNudges` + `domainNudgesVisible` are in `src/config/flags.ts`, both default **off**. Enable both to render. Shadow-mode (`domainNudges=on`, `domainNudgesVisible=off`) is supported — detector runs and records insights without surfacing the card.
+
+The rest of this doc is the original handover, retained as the design reference.
+
+---
+
 ## The product principle (do not violate this)
 
 **Protect the domains the user chose — do NOT force a balanced hexagon.**

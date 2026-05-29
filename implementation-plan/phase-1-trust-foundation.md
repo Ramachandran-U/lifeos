@@ -3,6 +3,26 @@
 > Status: design complete, implementation started (increment 1). Owner: program eng.
 > Depends on: P0 spine (mutation log + flags). Blocks: P5 orchestration.
 
+## Status (updated 2026-05-30)
+
+| Task | Status | Notes |
+|---|---|---|
+| **P0** — Typed feature-flag registry (`src/config/flags.ts`) | ✅ Shipped | PR #41 |
+| **P0** — Mutation log primitive: Lamport clock, hash chain, append-only log + tests | ✅ Shipped | PR #41 |
+| **P1-T0** — Web persistence (replace no-op proxy) | ⚠️ Partial — full webStorage parity layer exists for every entity (`src/db/webStorage/*`); not an IndexedDB-backed Drizzle adapter as originally specced, but each query branches on `Platform.OS === 'web'` to use it. Achieves the same user outcome. | Pre-program |
+| **P1-T1** — Feature-flag registry + tests | ✅ Shipped | PR #41 |
+| **P1-T2** — Mutation-log schema + hash chain + Lamport + tests | ✅ Shipped | PR #41 |
+| **P1-T3** — `mutate()` write helper; wire into `goals` + `routine_blocks` query modules | ✅ **Shipped** — mutation log is now actively called from goal/routine/reflection writes | `8470439` |
+| **P1-T4** — `metrics.ts` observability primitive + spans on writes | ⏳ Not started | — |
+| **P1-T5** — Supabase `mutations` table + RLS + push/pull engine + drain | ⏳ Not started — the actual cross-device sync engine | — |
+| **P1-T6** — Conflict resolver (`resolve.ts`) + reducer + idempotency + property tests | ⏳ Not started — `mergeExpeditionProgress` exists ready to register here | — |
+| **P1-T7** — Version history + restore-to-timestamp | ⏳ Not started | — |
+| **P1-T8** — Encrypted backup/export/import | ⏳ Not started | — |
+| **P1-T9** — Compaction job + log-size gauge | ⏳ Not started | — |
+| **P1-T10** — Schema-drift CI guard | ⏳ Not started | — |
+
+**Net:** the mutation log spine is built AND wired into core entity writes — every goal/routine/reflection change now flows through the log. What remains is the *engine* on top: Supabase push/pull, conflict resolver, version history, restore, and encrypted backup. The hard architectural part (the immutable, hash-chained, Lamport-ordered log) is the part that's done.
+
 ## A. PRD
 
 ### Problem

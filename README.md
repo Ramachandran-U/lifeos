@@ -27,11 +27,12 @@ Each engine understands a dimension of your life. The planner reasons across all
 
 Anyone can build six dashboards. The bet here is on the layer above them — the one that:
 
-- notices when you're **overcommitted relative to your sleep debt**,
-- explains **why** a goal keeps stalling instead of just flagging that it did,
-- and rebalances the week before you burn out, not after.
+- notices when a domain you said matters has **gone quiet for two weeks** and proposes 2-3 small actions you already chose,
+- replans **today's remaining day** when you change your life priorities — with a diff preview and undo,
+- gives you **one surprising 2-minute curiosity hit** every day, lets you pull the thread into a multi-day expedition, and grows a constellation of everything you've explored,
+- and is built on an **event-sourced spine** where every goal/routine/reflection change flows through a hash-chained mutation log — the substrate for sync, version history, and memory.
 
-That's the moat, and it's where the work is going next. The how — an event-sourced spine that powers sync, memory, and reasoning from a single source of truth — lives in [`roadmap/`](roadmap/). It's a good read if you like systems design.
+That's the moat, and a real chunk of it is live behind feature flags today. The full sequencing lives in [`roadmap/`](roadmap/) and [`implementation-plan/`](implementation-plan/).
 
 ---
 
@@ -46,6 +47,15 @@ The AI layer is real engineering, not a chatbot wrapper:
 Want the wiring diagrams, eval thresholds, and the distillation track? They moved to [`docs/`](docs/) and [`evals/`](evals/) so this page stays honest about what matters.
 
 ---
+
+## What's actually built today (May 2026)
+
+- **Mutation-log spine** wired into goal/routine/reflection writes — every state change recorded
+- **Domain-stagnation nudge** in evening reflect — protects your *chosen* domains, propose-only
+- **Explore v2** — daily Spark + concurrent Expeditions (conflict-free sync merge) + Constellation projection
+- **Priority Change → Routine Adjustment** — two-option sheet ("Adjust today" with diff preview + 24h undo, or "Start fresh tomorrow")
+
+All behind feature flags, off by default. The roadmap below tracks what's next.
 
 ## Where it's headed
 
