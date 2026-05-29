@@ -4,6 +4,27 @@
 >
 > Two of the reported bugs did NOT reproduce in code; their entries explain why and what the reporter likely actually saw. One report had the right symptom but the **wrong root cause** — corrected below.
 
+## Status (updated 2026-05-30) — ALL CLOSED
+
+Every bug in this handover is now resolved on `lifeosv1`. This doc is retained as a **historical record** of the verification + fix-location reasoning, not an active task list.
+
+| Bug | Resolution |
+|---|---|
+| BUG-001 #1 (userId mismatch) | `rewriteUserIdNative` + `ensureLocalUserFromAuth` (`f0e7854`) |
+| BUG-001 #2 (weekly/daily dropped) | `AddGoalSheet` now uses `persistHierarchy` (batch `5c94184`) |
+| BUG-008 (DB init double-invoke) | Module-level `didBootInit` guard in `_layout.tsx` (batch `5c94184`) |
+| BUG-009 (domain taxonomy) | `mind`→`polymath` rename + 6th Life-hub card (`5aff7cb`) |
+| BUG-010 (`/chat` bounced) | `chat` added to `routeGuard.ts` allowlist (batch `5c94184`) |
+| BUG-011 (goal-text injection) | Regression test (`a4b070c`) |
+| BUG-012 (decompose UX) | AbortController + Cancel + 8s "Still working" hint (batch `5c94184`) |
+| BUG-013 (onboarding bypass) | Guard verified + test (`a4b070c`) |
+| BUG-014 (unsorted storage) | Sort-on-read + test (batch `5c94184`) |
+| BUG-015 (reflect selections lost) | `setReview` persists a draft via `upsertReflection` (batch `5c94184`) |
+
+Reading the file-line citations below is still useful if you want to understand *how* those root causes were found — they remain accurate snapshots of the code at the time of the audit. The "Suggested fix order" section at the bottom is obsolete.
+
+---
+
 ## Verification summary
 
 | Bug | Reported severity | Verified status | Root cause located |

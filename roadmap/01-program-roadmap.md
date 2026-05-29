@@ -3,6 +3,20 @@
 > Mission: transform LifeOS from "advanced productivity + goal system" into an **AI-native adaptive life operating system.**
 > This is the master sequencing document. Each phase has a detailed design under `/implementation-plan` (P1) or `/docs/architecture` (P2–P5).
 
+## Program status (updated 2026-05-30)
+
+| Phase | What's shipped | What's pending | Detailed doc |
+|---|---|---|---|
+| **P0 Infra** | Typed feature-flag registry; mutation-log primitive (Lamport + hash chain); behaviour-events feed (pre-existing) | `metrics.ts` observability counters | — |
+| **P1 Trust** | Mutation log **wired** into goal/routine/reflection writes (every write now logs) | Supabase push/pull sync engine; conflict resolver; version history; restore-to-timestamp; encrypted backup/export | [phase-1-trust-foundation.md](../implementation-plan/phase-1-trust-foundation.md) |
+| **P2 Cognition** | Domain-stagnation detector end-to-end (engine + storage + suggestions + `DomainNudgeCard` in evening-reflect) | Burnout / overcommitment / goal-conflict detectors; cognitive-load index; WHY-engine; real callAI-backed suggestion fallback | [docs/architecture/phase-2-cognitive-engine.md](../docs/architecture/phase-2-cognitive-engine.md) |
+| **P3 Coach** | — | Whole phase: emotional check-ins, journal analysis, proactive interventions, recovery planning, action-taking via tool-use | [docs/architecture/phase-3-ai-coach.md](../docs/architecture/phase-3-ai-coach.md) |
+| **P4 Memory + Explore v2** | **Explore v2 shipped end-to-end**: multi-expedition engine + set-union merge (commutative/idempotent, property-tested) + storage + Daily Spark pipeline + spark storage + expedition generation + constellation projection + restructured Explore tab + `/expedition-detail` + 3 new badges + polymath score + 12 telemetry events | Rabbit-hole branching view; curiosity streak; full long-term memory graph (the constellation is the polymath-scoped version); identity-evolution snapshots; temporal-query agent | [phase-4-explore-sparks-expeditions.md](../implementation-plan/phase-4-explore-sparks-expeditions.md), [docs/architecture/phase-4-memory-graph.md](../docs/architecture/phase-4-memory-graph.md) |
+| **Priority Change → Routine** | Phase A (two-option sheet, tomorrow regen) + Phase B (real same-day replan, 5-phase sheet, diff preview, 24h undo) | Phase C (`GOAL_REBALANCE_PROMPT` wiring, "why" capture, animated diff) | [priority-change-routine-adjustment.md](../implementation-plan/priority-change-routine-adjustment.md) |
+| **P5 Orchestration** | — | Whole phase: calendar reasoning, cross-goal optimization, energy-aware scheduling, autonomous suggestions | [docs/architecture/phase-5-orchestration.md](../docs/architecture/phase-5-orchestration.md) |
+
+**Category-completeness moved roughly 30 → 55** since the program kicked off — the cognitive moat (stagnation detector + Explore curiosity loop + priority adaptation) is now visible to a flag-enabled user, but the bigger moats (coach, memory graph, orchestration) are still ahead.
+
 ## 0. Strategic frame
 
 We are **not** building features. We are building a **spine** (the mutation log) and **four projections** over it (sync, cognition, memory, orchestration). See [00-architecture-audit.md](./00-architecture-audit.md) §3.

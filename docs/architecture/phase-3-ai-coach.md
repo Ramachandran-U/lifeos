@@ -3,6 +3,18 @@
 > Turns the read-only chatbot into a proactive, emotionally aware, action-taking coach.
 > Depends on: P2 cognition (something to reason about), P4 memory (continuity). Today: chat is read-only v1.
 
+## Status (updated 2026-05-30)
+
+⏳ **Not started.** Dependencies are now partially in place:
+
+- The **cognitive engine** has its first detector live (domain stagnation), and the `cognitive_insights` table is the substrate this phase's interventions will read from.
+- The **mutation log** wired into goal/routine/reflection writes (the substrate for "action-taking with full auditability") is shipped.
+- Chat remains read-only; no tool-use loop has been wired.
+
+The next-up unit for this phase is probably the **journaling-analysis pipeline** (it's the cheapest path to the memory graph too) and the **intervention timing engine** that surfaces existing cognitive insights at the right moment.
+
+---
+
 ## PRD
 **Thesis:** the difference between "another AI app" and the vision is a coach that *understands, reasons, adapts, coaches, and acts* — grounded in the user's real history and emotional state.
 

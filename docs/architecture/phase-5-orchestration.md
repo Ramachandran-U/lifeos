@@ -3,6 +3,14 @@
 > The end state: a true life operating system that reasons across calendar, goals, energy, and context.
 > Depends on: P1 (trusted multi-device state), P2 (cognition), P4 (memory). Last phase by design.
 
+## Status (updated 2026-05-30)
+
+⏳ **Not started.** Hard-blocked on Phase 1 sync, broader Phase 2 cognition (only the stagnation detector is live), and Phase 4 memory (only the polymath constellation shipped).
+
+A small piece arrived early: **Priority Change → Routine Adjustment (Phase A+B, shipped)** is an *event-triggered* mini-orchestrator — it replans today's remaining blocks against new priorities using the existing planner agent + `fixedBlocks` constraints. Not the autonomous calendar-aware reasoner this phase will eventually build, but it validates the *shape* of "react to a change by replanning under constraints, propose-not-apply."
+
+---
+
 ## PRD
 **Thesis:** *"You're overcommitting this week relative to your sleep debt and interview-prep goal — here's the rebalanced plan."* Orchestration is cognition applied to the calendar and the full goal portfolio, autonomously.
 
