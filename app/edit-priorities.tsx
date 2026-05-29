@@ -30,6 +30,7 @@ import {
   browserStashStorage,
 } from '@/cognition/replanStash';
 import { getRoutineBlocksByDate, createRoutineBlocks, deleteRoutineBlocksByDate } from '@/db/queries/routine';
+import { listActiveExpeditionProgress, getExpedition } from '@/db/queries/expeditions';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { generateAndSaveTomorrow, isRecoveryLow, applyReplan } from '@/ai/replanApply';
 import { replanRemainingDay } from '@/ai/functions';
@@ -102,6 +103,8 @@ export default function EditPrioritiesScreen() {
   const [phase, setPhase] = useState<SheetPhase>('choice');
   const [plan, setPlan] = useState<ReplanRemainingDay | null>(null);
   const [existing, setExisting] = useState<ExistingBlock[]>([]);
+  /** Optional free-text the user can leave on the choice phase; feeds the memory graph. */
+  const [whyReason, setWhyReason] = useState('');
 
   const handleSave = () => {
     if (!userId || !canSave) return;
@@ -109,18 +112,18 @@ export default function EditPrioritiesScreen() {
     // Always persist the priority change (local-first, never gated on AI).
     updateUser(userId, { primaryDomains: selectedInOrder });
     setPrimaryDomains(selectedInOrder);
+    const diff = computePriorityDiff(primaryDomains, selectedInOrder);
     logBehaviourEvent('priority_change', 'goal', {
-      added: computePriorityDiff(primaryDomains, selectedInOrder).added,
-      removed: computePriorityDiff(primaryDomains, selectedInOrder).removed,
+      added: diff.added,
+      removed: diff.removed,
     });
 
-    if (!isEnabled('priorityAdjust') || !hasMeaningfulChange(computePriorityDiff(primaryDomains, selectedInOrder))) {
+    if (!isEnabled('priorityAdjust') || !hasMeaningfulChange(diff)) {
       router.back();
       return;
     }
 
     // Compute impact and show the choice sheet.
-    const diff = computePriorityDiff(primaryDomains, selectedInOrder);
     const today = format(new Date(), 'yyyy-MM-dd');
     const todayBlocks = getRoutineBlocksByDate(today).map((b) => ({
       id: b.id, startTime: b.startTime, endTime: b.endTime,
@@ -135,14 +138,40 @@ export default function EditPrioritiesScreen() {
         return { domain: (domainMap[key] ?? 'goals') as DomainId, streakKey: key, count: s.count };
       });
 
-    setImpact(assessImpact({ diff, todayBlocks, streaks: streakEntries, expeditions: [], goalCounts: [] }));
+    // Phase C — surface active expeditions whose domain is being demoted.
+    const activeExpeditions = listActiveExpeditionProgress(userId)
+      .map((p) => {
+        const def = getExpedition(p.expeditionId);
+        if (!def) return null;
+        return { id: p.expeditionId, title: def.title, domain: def.domain, status: p.status as string };
+      })
+      .filter((e: { id: string; title: string; domain: string; status: string } | null): e is { id: string; title: string; domain: string; status: string } => e !== null);
+
+    setImpact(assessImpact({ diff, todayBlocks, streaks: streakEntries, expeditions: activeExpeditions, goalCounts: [] }));
     setShowSheet(true);
   };
 
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
 
+  /**
+   * Phase C: tag the chosen response with the reason text (when given), so the
+   * behaviour layer can feed identity-evolution signals to a future memory graph.
+   * Telemetry only gets a boolean — never the raw text.
+   */
+  const logChoice = (choice: 'now' | 'tomorrow' | 'skip') => {
+    const trimmedReason = whyReason.trim();
+    track(EVENTS.priorityChange, { choice, hasReason: trimmedReason.length > 0 });
+    if (trimmedReason) {
+      const diff = computePriorityDiff(primaryDomains, selectedInOrder);
+      logBehaviourEvent('priority_change_reason', 'goal', {
+        reason: trimmedReason, choice, added: diff.added, removed: diff.removed,
+      });
+    }
+  };
+
   const handleStartTomorrow = async () => {
     if (!userId) return;
+    logChoice('tomorrow');
     track(EVENTS.priorityReplanTomorrow, { pregenerated: true });
     try {
       const profile = await getUserProfile(userId);
@@ -203,6 +232,7 @@ export default function EditPrioritiesScreen() {
 
   const handleConfirmPreview = () => {
     if (!plan || !userId) return;
+    logChoice('now');
     const allBlocks = getRoutineBlocksByDate(today);
     const droppedBlocks = allBlocks
       .filter((b) => plan.drop.includes(b.id))
@@ -265,7 +295,7 @@ export default function EditPrioritiesScreen() {
   const handleClose = () => { setShowSheet(false); router.back(); };
 
   const handleSkip = () => {
-    track(EVENTS.priorityChange, { choice: 'skip' });
+    logChoice('skip');
     setShowSheet(false);
     router.back();
   };
@@ -384,6 +414,8 @@ export default function EditPrioritiesScreen() {
           onClose={handleClose}
           onRetry={handleAdjustNow}
           errorMessage={replanError ?? undefined}
+          whyReason={whyReason}
+          onWhyChange={setWhyReason}
         />
       )}
     </View>
