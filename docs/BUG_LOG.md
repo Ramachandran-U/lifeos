@@ -2,7 +2,7 @@
 
 > Running log of issues and feature requests surfaced during testing, with status + where they were fixed. Newest batch at the bottom. "Fixed (commit)" links the commit/PR that resolved it; "Needs ops" means the code is ready but a dashboard/secret/deploy action is required.
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 ---
 
@@ -37,16 +37,16 @@ Last updated: 2026-05-27
 
 ---
 
-## Batch 3 — health / engagement / goals (in progress)
+## Batch 3 — health / engagement / goals
 
 | # | Issue | Status | Resolution |
 |---|---|---|---|
-| 1 | Saved vitals not persisting (health) — must re-enter | ⏳ In progress | — |
-| 2 | Dynamic scroll-reactive background (vs static) | ⏳ In progress | — |
-| 3 | Option to log yesterday's progress if missed | ⏳ In progress | — |
-| 4 | All-tasks-complete → confetti + daily-summary popup | ⏳ In progress | — |
-| 5 | Swipe-left to uncheck an accidentally-completed block | ⏳ In progress | — |
-| 6 | Add goal → decompose: "AI returned invalid GoalHierarchy. Unbalanced JSON" | ⏳ In progress | Same truncation class as Batch-1 #2; durable fix needs worker `MAX_TOKENS_CAP` raised to 8000 |
+| 1 | Saved vitals not persisting (health) — must re-enter | ✅ Fixed | `203acfe` — root cause was userId orphaning on web reload (same class as BUG-001). `webRewriteUserId` now migrates all userId-scoped stores including vitals |
+| 2 | Dynamic scroll-reactive background (vs static) | ✅ Fixed | `AuroraBackground` takes `scrollY: SharedValue<number>` and applies parallax transform; wired from home scroll position |
+| 3 | Option to log yesterday's progress if missed | ✅ Fixed | `YesterdayLogSheet` wired into home; surfaces missed blocks for retroactive completion |
+| 4 | All-tasks-complete → confetti + daily-summary popup | ✅ Fixed | `Confetti` + `DailySummarySheet` mount on home; fires when remaining-block count hits 0 |
+| 5 | Swipe-left to uncheck an accidentally-completed block | ✅ Fixed | `handleUncomplete` wired via `onUncomplete` prop on routine block; reverses completion + XP credit |
+| 6 | Add goal → decompose: "AI returned invalid GoalHierarchy. Unbalanced JSON" | ✅ Fixed | Worker `MAX_TOKENS_CAP` raised 4096 → 8000; decompose `maxTokens=6000`; Gemini `thinkingBudget=0` so thinking tokens don't eat the output budget |
 
 ---
 
