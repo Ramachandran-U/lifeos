@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format, addDays } from 'date-fns';
@@ -30,6 +30,20 @@ import { getLatestSleepHours } from '@/db/queries/health';
 import { DomainNudgeCard } from '@/components/shared/DomainNudgeCard';
 
 type Step = 'blocks' | 'mood' | 'tomorrow';
+
+// Map raw errors from callAI / schema-validation into copy that won't make a
+// tester wince. Anything we don't recognise falls back to a generic line that
+// makes clear they can still finish reflecting.
+function friendlyTweakError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : '';
+  if (/sign in required/i.test(msg)) return msg;
+  if (/AI limit/i.test(msg)) return msg;
+  if (/network|failed to fetch|aborted/i.test(msg))
+    return 'Couldn’t reach the planner. You can still finish reflecting.';
+  if (/invalid TomorrowTweak/i.test(msg))
+    return 'The planner had trouble suggesting a tweak. You can still finish reflecting.';
+  return 'Couldn’t load tomorrow’s tweak. You can still finish reflecting.';
+}
 
 const MOODS = [
   { v: 1, emoji: '😞', label: 'Rough' },
@@ -108,7 +122,7 @@ export default function EveningReflectScreen() {
       });
       setTweak(result);
     } catch (e) {
-      setTweakError(e instanceof Error ? e.message : 'Could not load suggestion');
+      setTweakError(friendlyTweakError(e));
     } finally {
       setTweakLoading(false);
     }
@@ -225,16 +239,28 @@ export default function EveningReflectScreen() {
   const finish = async () => {
     setSaving(true);
     try {
-      upsertReflection({
-        date: today,
-        mood,
-        blockReviews,
-        tweakAccepted,
-        tweakPayload: tweak,
-      });
+      try {
+        upsertReflection({
+          date: today,
+          mood,
+          blockReviews,
+          tweakAccepted,
+          tweakPayload: tweak,
+        });
+      } catch (err) {
+        // Save failure leaves the user stranded with no signal. Surface it and
+        // stay on the screen so they can retry instead of bouncing to /(tabs).
+        const message = err instanceof Error ? err.message : 'Could not save your reflection. Please try again.';
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined') window.alert(message);
+        } else {
+          Alert.alert('Save failed', message);
+        }
+        return;
+      }
       logBehaviourEvent('reflection_completed', 'goal');
       track(EVENTS.eveningReflectCompleted, {
-        block_count: blockReviews.length,
+        block_count: Object.keys(blockReviews).length,
         tweak_accepted: tweakAccepted,
       });
 
