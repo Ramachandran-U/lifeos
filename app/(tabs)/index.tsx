@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { format } from 'date-fns';
@@ -23,6 +23,7 @@ import { useDensityScale } from '@/theme/density';
 import { usePreferencesStore } from '@/store/usePreferencesStore';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
@@ -64,7 +65,8 @@ import { refreshInferredPreferences } from '@/ai/profileLearning';
 import { upsertUserProfile } from '@/db/queries/userProfile';
 import { useReplanFlow } from '@/hooks/useReplanFlow';
 import { track, EVENTS } from '@/utils/telemetry';
-import { getLocalStorageUsage } from '@/utils/storageQuota';
+import { maybeEmitAppOpened } from '@/utils/retention';
+import { getUser } from '@/db/queries/users';
 import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
 import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
 import { updateUser } from '@/db/queries/users';
@@ -102,6 +104,9 @@ export default function TodayScreen() {
   // yesterday's routine (walkthrough P0-3).
   const [today, setToday] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [blocks, setBlocks] = useState<ReturnType<typeof getRoutineBlocksByDate>>([]);
+  // `loaded` separates "haven't queried yet" from "queried and got nothing",
+  // so we can show a skeleton instead of the empty-state on first paint.
+  const [loaded, setLoaded] = useState(false);
   const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
   const [domainScores, setDomainScores] = useState({
     goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 0,
@@ -112,7 +117,6 @@ export default function TodayScreen() {
   const [calConnected, setCalConnected] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
   const [calStatus, setCalStatus] = useState<string | null>(null);
-  const storageUsageEmittedRef = useRef(false);
 
   const handleCalendarConnect = async () => {
     const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
@@ -120,7 +124,11 @@ export default function TodayScreen() {
       setCalStatus('Missing EXPO_PUBLIC_GOOGLE_CLIENT_ID — see .env.example.');
       return;
     }
-    await startCalendarOAuth(clientId);
+    try {
+      await startCalendarOAuth(clientId);
+    } catch (err) {
+      setCalStatus(err instanceof Error ? err.message : 'Calendar connect failed');
+    }
   };
 
   const handleCalendarDisconnect = () => {
@@ -188,6 +196,7 @@ export default function TodayScreen() {
     setHasReflectedToday(getReflectionByDate(currentToday) !== undefined);
     // P3-04: re-run behaviour pattern detectors after any block list refresh.
     useBehaviourSuggestionsStore.getState().refresh();
+    setLoaded(true);
   }, [today, userId, loadGame]);
 
   const topStreaks = useMemo(() => {
@@ -202,16 +211,10 @@ export default function TodayScreen() {
   useFocusEffect(useCallback(() => {
     loadData();
     setCalConnected(isCalendarConnected());
-    // Once-per-session web storage probe — gives admin visibility into the
-    // localStorage quota curve so we see beta cohorts approaching 5MB before
-    // writes start silently failing. Native is a no-op.
-    if (!storageUsageEmittedRef.current) {
-      const usage = getLocalStorageUsage();
-      if (usage) {
-        track(EVENTS.storageUsage, { bytes: usage.bytes, warn: usage.warn });
-        storageUsageEmittedRef.current = true;
-      }
-    }
+    // Day-7 retention probe — once-per-UTC-day with days_since_install.
+    // The helper is self-throttled via localStorage/AsyncStorage so repeated
+    // focuses in the same day are no-ops.
+    if (userId) maybeEmitAppOpened(getUser()?.installDate ?? null);
     // Weekly profile learning — fire-and-forget; no-ops within the 7-day window.
     if (onboardingV2 && userId) {
       refreshInferredPreferences(userId).then((result) => {
@@ -308,6 +311,15 @@ export default function TodayScreen() {
   const completedCount = blocks.filter((b) => b.status === 'completed').length;
   const allComplete = blocks.length > 0 && completedCount === blocks.length;
 
+  // 60-second tick so liveBlockModule (and other time-derived UI) re-evaluates
+  // without waiting for a focus event. The aurora colour follows the current
+  // block as the day moves on.
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
   const liveBlockModule = useMemo(() => {
     const now = new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
@@ -319,7 +331,7 @@ export default function TodayScreen() {
       return nowMins >= sh * 60 + (sm || 0) && nowMins < eh * 60 + (em || 0);
     });
     return live?.module ?? null;
-  }, [blocks]);
+  }, [blocks, nowTick]);
 
   // P4-02: assemble the morning briefing input from the slices the Today
   // screen already has loaded. The hook generates 1-3 lines once per day and
@@ -364,10 +376,9 @@ export default function TodayScreen() {
       celebratedRef.current = today;
       setShowConfetti(true);
     }
-    if (!allComplete && celebratedRef.current === today) {
-      // User undid a block — allow the celebration to fire again later.
-      celebratedRef.current = null;
-    }
+    // Note: we used to reset celebratedRef to null on !allComplete so an undo +
+    // re-complete would re-celebrate. That re-fires the burst on every toggle
+    // cycle, which is annoying for testers. Once-per-day is the right rule.
   }, [allComplete, today]);
 
   // Avatar initials
@@ -474,6 +485,16 @@ export default function TodayScreen() {
               testID="voice-open"
             >
               <Ionicons name="mic" size={20} color={c.primary} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/feedback')}
+              hitSlop={8}
+              style={[styles.feedbackBtn, { backgroundColor: c.warning + '1A', borderColor: c.warning + '55' }]}
+              testID="feedback-open"
+              accessibilityRole="button"
+              accessibilityLabel="Send feedback"
+            >
+              <Ionicons name="bug-outline" size={18} color={c.warning} />
             </Pressable>
             <View style={styles.headerCenter}>
               <Heading style={{ color: c.textPrimary }}>{greeting}, {name || 'there'}</Heading>
@@ -642,11 +663,13 @@ export default function TodayScreen() {
                   },
                 ]}
               >
-                <Ionicons name="calendar" size={16} color={c.primary} />
+                {planningWeek
+                  ? <ActivityIndicator size="small" color={c.primary} />
+                  : <Ionicons name="calendar" size={16} color={c.primary} />}
                 <Body style={{ color: c.textPrimary, flex: 1 }}>
                   {planningWeek ? 'Planning your week…' : 'Plan my next 7 days'}
                 </Body>
-                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+                {!planningWeek && <Ionicons name="chevron-forward" size={16} color={c.textMuted} />}
               </Pressable>
               <Pressable
                 onPress={() => router.push('/monthly-insight')}
@@ -716,7 +739,17 @@ export default function TodayScreen() {
             </Animated.View>
           )}
 
-          {blocks.length > 0 ? (
+          {!loaded ? (
+            // First-paint skeleton — keeps the empty-state from flashing while
+            // SQLite/localStorage resolves. The Skeleton component delays
+            // shimmer until 300ms so fast queries just paint solid.
+            <View style={styles.blocksSection}>
+              <Skeleton height={20} width={160} style={{ marginBottom: spacing.md }} />
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} height={72} radius={20} style={{ marginBottom: spacing.sm }} />
+              ))}
+            </View>
+          ) : blocks.length > 0 ? (
             <View style={styles.blocksSection}>
               <View style={styles.routineHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
@@ -791,7 +824,9 @@ export default function TodayScreen() {
 
               {(showReplanCta || replanning || replanRationale) ? (
                 <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
-                  <Ionicons name="refresh" size={20} color={c.primary} />
+                  {replanning
+                    ? <ActivityIndicator size="small" color={c.primary} />
+                    : <Ionicons name="refresh" size={20} color={c.primary} />}
                   <View style={{ flex: 1 }}>
                     <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>
                       {replanning ? 'Re-planning the rest of today…' : replanRationale ?? 'Day off track?'}
@@ -931,6 +966,14 @@ function makeStyles(c: ReturnType<typeof useColors>, density = 1) {
       width: 44,
       height: 44,
       borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+    },
+    feedbackBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,

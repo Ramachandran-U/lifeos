@@ -1,4 +1,5 @@
 import type { Env } from './index';
+import { pgInsert } from './lib/supabase';
 
 /**
  * Provider-agnostic LLM proxy. Endpoint name stayed `/claude` for client
@@ -273,8 +274,10 @@ export async function proxyClaude(
   req: Request,
   env: Env,
   cors: HeadersInit,
+  ctx?: ExecutionContext,
+  userId?: string,
 ): Promise<Response> {
-  let body: ClientRequest;
+  let body: ClientRequest & { task?: string };
   try {
     body = await req.json();
   } catch {
@@ -283,6 +286,7 @@ export async function proxyClaude(
       headers: { 'Content-Type': 'application/json', ...cors },
     });
   }
+  const task = body.task;
 
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages required' }), {
@@ -309,6 +313,18 @@ export async function proxyClaude(
       else if (provider === 'openai') result = await callOpenAI(body, env);
       else if (provider === 'groq') result = await callGroq(body, env);
       else result = await callAnthropic(body, env);
+
+      // Fire-and-forget cost-event write. Skipped if ctx/userId or Supabase
+      // creds aren't set so local-dev runs don't fail.
+      if (ctx && userId && env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+        ctx.waitUntil(recordCostEvent(env, {
+          userId,
+          task,
+          provider,
+          model: result.model,
+          usage: result.usage,
+        }));
+      }
 
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -337,4 +353,70 @@ export async function proxyClaude(
     JSON.stringify({ error: 'all llm providers failed', attempts: errors }),
     { status: 502, headers: { 'Content-Type': 'application/json', ...cors } },
   );
+}
+
+interface CostEventInput {
+  userId: string;
+  task: string | undefined;
+  provider: string;
+  model: string;
+  usage: unknown;
+}
+
+interface NormalisedUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreation: number;
+}
+
+// Each upstream gives usage in its own shape. This collapses to the four
+// counters we store; anything unknown defaults to 0 so a schema drift doesn't
+// poison the ledger or make the insert fail.
+function normaliseUsage(provider: string, usage: unknown): NormalisedUsage {
+  const u = (usage ?? {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  if (provider === 'anthropic') {
+    return {
+      input: num(u.input_tokens),
+      output: num(u.output_tokens),
+      cacheRead: num(u.cache_read_input_tokens),
+      cacheCreation: num(u.cache_creation_input_tokens),
+    };
+  }
+  if (provider === 'gemini') {
+    return {
+      input: num(u.promptTokenCount),
+      output: num(u.candidatesTokenCount),
+      cacheRead: num(u.cachedContentTokenCount),
+      cacheCreation: 0,
+    };
+  }
+  // openai + groq use the same shape.
+  return {
+    input: num(u.prompt_tokens),
+    output: num(u.completion_tokens),
+    cacheRead: 0,
+    cacheCreation: 0,
+  };
+}
+
+async function recordCostEvent(env: Env, ev: CostEventInput): Promise<void> {
+  const usage = normaliseUsage(ev.provider, ev.usage);
+  // Skip empty rows — happens on schema drift or non-LLM passthroughs.
+  if (usage.input === 0 && usage.output === 0 && usage.cacheRead === 0) return;
+  try {
+    await pgInsert(env, 'ai_cost_events', {
+      user_id: ev.userId,
+      task: ev.task ?? null,
+      provider: ev.provider,
+      model: ev.model,
+      input_tokens: usage.input,
+      output_tokens: usage.output,
+      cache_read_tokens: usage.cacheRead,
+      cache_creation_tokens: usage.cacheCreation,
+    });
+  } catch {
+    // Best-effort: ledger writes must never user-facing failure.
+  }
 }

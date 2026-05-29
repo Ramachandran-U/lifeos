@@ -1,6 +1,6 @@
 # LifeOS AI Eval Report
 
-- Generated: 2026-05-27T05:20:39.969Z
+- Generated: 2026-05-29T19:41:54.276Z
 - Mode: **MOCK**
 
 ## Summary
@@ -16,6 +16,8 @@
 | `parseBloodReportSafety` | 100.0% (3/3) | 100% | ✅ pass |
 | `discoveryChat` | 100.0% (3/3) | 80% | ✅ pass |
 | `replanRemainingDay` | 100.0% (3/3) | 80% | ✅ pass |
+| `suggestTomorrowTweak` | 100.0% (7/7) | 80% | ✅ pass |
+| `dailyBriefing` | 88.9% (8/9) | 80% | ✅ pass |
 
 ## Cost & token usage
 
@@ -30,12 +32,12 @@ _(No live calls — all suites ran in mock mode.)_
 ## Tracing
 
 - Spans recorded: **2** (0 errors)
-- Total wall time across spans: 5 ms
-- Avg span duration: 2.5 ms
+- Total wall time across spans: 4 ms
+- Avg span duration: 2.0 ms
 
 | Span name | Count | Total ms | Errors |
 |---|---|---|---|
-| `agent.planRoutine` | 2 | 5 | 0 |
+| `agent.planRoutine` | 2 | 4 | 0 |
 
 ## Per-case detail
 
@@ -99,3 +101,26 @@ _(No live calls — all suites ran in mock mode.)_
 - ✅ **skipped-workout-retry**
 - ✅ **soften-for-recovery-drops-heavy**
 - ✅ **balanced-day-no-changes**
+
+### `suggestTomorrowTweak`
+
+- ✅ **morning-skipped-shifts-tomorrow-later**
+- ✅ **low-mood-lightens-first-block**
+- ✅ **solid-day-keeps-rhythm**
+- ✅ **empty-tomorrow-still-returns-something**
+- ✅ **all-rescheduled-handles-gracefully**
+- ✅ **patch-module-valid-enum**
+- ✅ **mixed-reviews-targets-existing-block**
+
+### `dailyBriefing`
+
+- ✅ **brand-new-user-empty-state**
+- ✅ **goal-anchored-headline**
+- ✅ **overdue-contacts-surfaced**
+- ✅ **weekly-insight-passes-through-when-no-overdue**
+- ✅ **singular-block-grammar**
+- ✅ **plural-block-grammar**
+- ✅ **lifescore-mentioned-when-room**
+- ❌ **name-injection-safe**
+  - ❌ `no executable HTML escapes through` — should sanitize or leave as plain text — never produce executable HTML
+- ✅ **all-inputs-present-respects-cap**

@@ -41,6 +41,7 @@ export function Button({ title, variant = 'primary', style, onPress, ...props }:
         style,
       ]}
       onPress={handlePress}
+      accessibilityRole="button"
       {...props}
     >
       <Body

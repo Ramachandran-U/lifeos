@@ -37,7 +37,15 @@ jobs:
       # The anon key is a stub; tests never actually hit Supabase because
       # localStorage seed satisfies the app's session check first.
       EXPO_PUBLIC_SUPABASE_URL: 'https://izojsgzlaehodwlqwyvf.supabase.co'
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'ci-stub-anon-key'
+      # Use the real anon key when the repo secret is configured. Falls back
+      # to a stub so seeded-localStorage tests (smoke, chromium) still build
+      # in forks where the secret isn't available. The anon key is safe to
+      # expose by design — it ships in the production web bundle.
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'ci-stub-anon-key' }}
+      # Forwarded to the authenticated project's auth.setup.ts. When missing
+      # (forks, or repo without secrets), the authenticated step is skipped.
+      PLAYWRIGHT_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_EMAIL }}
+      PLAYWRIGHT_TEST_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -93,6 +101,21 @@ jobs:
 
       - name: Run smoke project (route walker)
         run: npx playwright test --project=smoke
+        env:
+          SMOKE_BASE_URL: http://localhost:8081
+
+      # Real-sign-in path. Walks the actual /sign-in form against the Supabase
+      # test user, saves storage state, then runs the authenticated specs
+      # (currently ambient.spec.ts).
+      #
+      # Gated on the test-user secrets being configured so forks and freshly-
+      # cloned repos skip cleanly instead of failing. Non-blocking
+      # (continue-on-error) for the first ~50 runs so a Supabase blip doesn't
+      # red-flag merges; promote to required once it's been stable.
+      - name: Run authenticated project (real sign-in)
+        if: env.PLAYWRIGHT_TEST_EMAIL != '' && env.PLAYWRIGHT_TEST_PASSWORD != ''
+        continue-on-error: true
+        run: npx playwright test --project=authenticated
         env:
           SMOKE_BASE_URL: http://localhost:8081
 
