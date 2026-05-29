@@ -59,18 +59,81 @@ const CACHE_MIN_CHARS = 1024;
 
 type SystemBlock = { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } };
 
+// Gemini function-calling part shapes. A message's `content` is either a plain
+// string (the common case — passed through as a single text part) or, in a
+// tool-use conversation, an array of these parts so the assistant's
+// functionCall turn and the caller's functionResponse turn round-trip verbatim.
+export type GeminiPart =
+  | { text: string }
+  | { functionCall: { name: string; args?: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
+
+// A tool the model may call. Mirrors Gemini's FunctionDeclaration — name +
+// description + a JSON-schema `parameters` object. The proxy passes these
+// straight through; it does NOT execute tools (that happens on-device, where
+// the user's local SQLite lives — see src/ai/agent/runtime.ts).
+export interface FunctionDeclaration {
+  name: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
+}
+
 interface ClientRequest {
   system?: string | SystemBlock[];
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant'; content: string | GeminiPart[] }>;
   maxTokens?: number;
   model?: string;
   cacheSystem?: boolean;
+  /** When present, enables Gemini function-calling. Tool-use is Gemini-only. */
+  tools?: FunctionDeclaration[];
+  /** Optional passthrough for Gemini's toolConfig (defaults to AUTO mode). */
+  toolConfig?: unknown;
 }
 
 interface NormalisedResponse {
   text: string;
   usage: unknown;
   model: string;
+  /** Present only when the model asked to call one or more tools this turn. */
+  functionCalls?: Array<{ name: string; args: Record<string, unknown> }>;
+}
+
+// --- Gemini content mapping (pure, exported for unit tests) ---
+
+/**
+ * Maps client `messages` to Gemini `contents`. A string content becomes a
+ * single text part; an array content (tool-use turns) is passed through as-is.
+ */
+export function mapMessagesToGeminiContents(
+  messages: Array<{ role: 'user' | 'assistant'; content: string | GeminiPart[] }>,
+): Array<{ role: string; parts: unknown[] }> {
+  return messages.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: typeof m.content === 'string' ? [{ text: m.content }] : m.content,
+  }));
+}
+
+/**
+ * Extracts text and any functionCall parts from a Gemini generateContent
+ * response. Text parts are concatenated; functionCall parts are collected so
+ * the on-device runtime can dispatch them.
+ */
+export function parseGeminiCandidate(parsed: unknown): {
+  text: string;
+  functionCalls: Array<{ name: string; args: Record<string, unknown> }>;
+} {
+  const p = parsed as {
+    candidates?: Array<{ content?: { parts?: Array<Record<string, unknown>> } }>;
+  };
+  const parts = p.candidates?.[0]?.content?.parts ?? [];
+  const text = parts.map((part) => (typeof part.text === 'string' ? part.text : '')).join('');
+  const functionCalls = parts
+    .filter((part) => part.functionCall)
+    .map((part) => {
+      const fc = part.functionCall as { name: string; args?: Record<string, unknown> };
+      return { name: fc.name, args: fc.args ?? {} };
+    });
+  return { text, functionCalls };
 }
 
 function flattenSystem(input: ClientRequest): string | undefined {
@@ -157,13 +220,18 @@ async function geminiGenerate(
 async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResponse> {
   const requested = pickModel('gemini', body.model);
   const sys = flattenSystem(body);
-  const contents = body.messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
+  const contents = mapMessagesToGeminiContents(body.messages);
+  const hasTools = Array.isArray(body.tools) && body.tools.length > 0;
   const payload = JSON.stringify({
     ...(sys ? { system_instruction: { parts: [{ text: sys }] } } : {}),
     contents,
+    // Tool-use: forward the declarations and let the model choose (AUTO).
+    ...(hasTools
+      ? {
+          tools: [{ functionDeclarations: body.tools }],
+          toolConfig: body.toolConfig ?? { functionCallingConfig: { mode: 'AUTO' } },
+        }
+      : {}),
     generationConfig: {
       maxOutputTokens: resolveOutputTokens(body, env),
       // gemini-flash-latest (2.5 Flash) enables "thinking" by default, and
@@ -194,11 +262,12 @@ async function callGemini(body: ClientRequest, env: Env): Promise<NormalisedResp
 
   if (!res.ok) throw new ProviderError('gemini', res.status, text);
   const parsed = JSON.parse(text);
-  const out = parsed.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';
+  const { text: out, functionCalls } = parseGeminiCandidate(parsed);
   return {
     text: out,
     usage: parsed.usageMetadata ?? null,
     model,
+    ...(functionCalls.length > 0 ? { functionCalls } : {}),
   };
 }
 
@@ -296,7 +365,22 @@ export async function proxyClaude(
   }
 
   const primary = (env.LLM_PROVIDER ?? 'anthropic').toLowerCase() as keyof typeof DEFAULTS;
-  const chain = FALLBACK_CHAIN[primary] ?? [primary, 'groq', 'anthropic'];
+  let chain = FALLBACK_CHAIN[primary] ?? [primary, 'groq', 'anthropic'];
+
+  // Tool-use is Gemini-only: the other providers map `messages[].content` as a
+  // plain string, so the functionCall / functionResponse part arrays in a
+  // tool conversation would be mangled. Pin the chain to gemini when tools are
+  // requested rather than silently failing over to a provider that can't honour
+  // them.
+  if (Array.isArray(body.tools) && body.tools.length > 0) {
+    if (!env.GEMINI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: 'tool-use requires the gemini provider, which is not configured' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...cors } },
+      );
+    }
+    chain = ['gemini'];
+  }
 
   const errors: Array<{ provider: string; status: number; detail: string }> = [];
 
