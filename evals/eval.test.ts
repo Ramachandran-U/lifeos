@@ -18,6 +18,8 @@ import planRoutineAgentSuite from './cases/planRoutineAgent';
 import parseBloodReportSafetySuite from './cases/parseBloodReportSafety';
 import discoveryChatSuite from './cases/discoveryChat';
 import replanRemainingDaySuite from './cases/replanRemainingDay';
+import suggestTomorrowTweakSuite from './cases/suggestTomorrowTweak';
+import dailyBriefingSuite from './cases/dailyBriefing';
 
 const suites: EvalSuite<any, any>[] = [
   decomposeGoalSuite,
@@ -29,6 +31,8 @@ const suites: EvalSuite<any, any>[] = [
   parseBloodReportSafetySuite,
   discoveryChatSuite,
   replanRemainingDaySuite,
+  suggestTomorrowTweakSuite,
+  dailyBriefingSuite,
 ];
 
 interface CaseReport {
