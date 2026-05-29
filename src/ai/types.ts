@@ -18,9 +18,23 @@ export type AIContentPart =
   | { type: 'text'; text: string }
   | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
 
+// Gemini function-calling parts. Used only by the tool-use agent runtime
+// (src/ai/agent/runtime.ts); the proxy passes these through verbatim.
+export type AIToolPart =
+  | { text: string }
+  | { functionCall: { name: string; args?: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
+
 export interface AIMessage {
   role: 'user' | 'assistant';
-  content: string | AIContentPart[];
+  content: string | AIContentPart[] | AIToolPart[];
+}
+
+/** A tool the model may call. Mirrors Gemini's FunctionDeclaration. */
+export interface AIToolDeclaration {
+  name: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
 }
 
 export interface AIRequest {
@@ -36,6 +50,15 @@ export interface AIRequest {
   task?: string;
   /** Optional cancellation — aborts the underlying fetch. (BUG-012) */
   signal?: AbortSignal;
+  /** When present, enables Gemini function-calling (tool-use, Gemini-only). */
+  tools?: AIToolDeclaration[];
+}
+
+/** Structured proxy response — text plus any tool calls the model requested. */
+export interface AIToolResponse {
+  text: string;
+  functionCalls: Array<{ name: string; args: Record<string, unknown> }>;
+  model: string;
 }
 
 // --- Goal Types ---
