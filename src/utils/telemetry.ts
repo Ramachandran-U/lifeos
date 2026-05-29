@@ -66,6 +66,9 @@ export const EVENTS = {
   priorityReplanNow: 'priority_replan_now',
   priorityReplanTomorrow: 'priority_replan_tomorrow',
   priorityUndo: 'priority_undo',
+  overcommitmentShown: 'overcommitment_shown',
+  overcommitmentAccepted: 'overcommitment_accepted',
+  overcommitmentDismissed: 'overcommitment_dismissed',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

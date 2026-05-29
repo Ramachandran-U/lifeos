@@ -4,7 +4,7 @@
  */
 import type { DomainId } from '@/store/useUserStore';
 
-export type CognitiveInsightKind = 'domain_stagnation';
+export type CognitiveInsightKind = 'domain_stagnation' | 'overcommitment';
 
 export type InsightStatus = 'proposed' | 'shown' | 'accepted' | 'dismissed' | 'expired';
 
