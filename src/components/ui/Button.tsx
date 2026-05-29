@@ -14,6 +14,8 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   style?: ViewStyle;
   /** Shows a spinner beside the label, dims the button, and blocks presses. */
   loading?: boolean;
+  /** Optional progress copy shown (with the spinner) while loading. Falls back to `title`. */
+  loadingTitle?: string;
   /** Leading/trailing element (e.g. an icon) rendered alongside the label. */
   icon?: ReactNode;
   iconPosition?: 'left' | 'right';
@@ -25,6 +27,7 @@ export function Button({
   style,
   onPress,
   loading = false,
+  loadingTitle,
   icon,
   iconPosition = 'left',
   disabled,
@@ -67,7 +70,7 @@ export function Button({
       <View style={styles.content}>
         {loading && <ActivityIndicator size="small" color={v.text} />}
         {!loading && icon && iconPosition === 'left' ? icon : null}
-        <Body style={[styles.label, { color: v.text }]}>{title}</Body>
+        <Body style={[styles.label, { color: v.text }]}>{loading && loadingTitle ? loadingTitle : title}</Body>
         {!loading && icon && iconPosition === 'right' ? icon : null}
       </View>
     </Pressable>

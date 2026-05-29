@@ -20,6 +20,7 @@ import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { LoadingDots } from '@/components/ui/LoadingDots';
@@ -1058,15 +1059,14 @@ function GoalsTab({
 
   if (!hasGoal) {
     return (
-      <Animated.View entering={FadeInDown.duration(400)} style={styles.emptyState}>
-        <View style={[styles.emptyIcon, { backgroundColor: c.finance + '20' }]}>
-          <Ionicons name="wallet-outline" size={48} color={c.finance} />
-        </View>
-        <Heading style={styles.emptyTitle}>Take control of your finances</Heading>
-        <Body style={styles.emptyBody}>
-          Set a financial goal and get an AI-powered savings plan with milestones, strategies, and weekly insights.
-        </Body>
-        <Button title="Set up my financial goal" onPress={setupStart} style={styles.setupButton} />
+      <Animated.View entering={FadeInDown.duration(400)}>
+        <EmptyState
+          icon="wallet-outline"
+          title="Take control of your finances"
+          caption="Set a financial goal and get an AI-powered savings plan with milestones, strategies, and weekly insights."
+          accent={c.finance}
+          cta={{ label: 'Set up my financial goal', onPress: setupStart }}
+        />
       </Animated.View>
     );
   }
@@ -1142,10 +1142,11 @@ function GoalsTab({
         </Animated.View>
       ) : (
         <Button
-          title={loadingInsight ? 'Loading...' : 'Get weekly insight'}
+          title="Get weekly insight"
+          loadingTitle="Loading…"
+          loading={loadingInsight}
           variant="secondary"
           onPress={onGetInsight}
-          disabled={loadingInsight}
           style={styles.insightButton}
         />
       )}

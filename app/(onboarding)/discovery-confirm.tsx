@@ -139,9 +139,11 @@ export default function DiscoveryConfirmScreen() {
 
         <View style={styles.cta}>
           <Button
-            title={seeding ? 'Building your day…' : ctaTitle(source)}
+            title={ctaTitle(source)}
+            loadingTitle="Building your day…"
+            loading={seeding}
             onPress={handleConfirm}
-            disabled={!source || seeding}
+            disabled={!source}
           />
           {seedError ? (
             <Caption style={[styles.ctaHint, { color: c.error }]}>{seedError}</Caption>

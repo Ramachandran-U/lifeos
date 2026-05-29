@@ -116,9 +116,11 @@ export default function WelcomeIntentScreen() {
 
         <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.cta}>
           <Button
-            title={submitting ? 'Building your day…' : 'Build my day'}
+            title="Build my day"
+            loadingTitle="Building your day…"
+            loading={submitting}
             onPress={handleContinue}
-            disabled={selected.length === 0 || submitting}
+            disabled={selected.length === 0}
           />
           <Caption style={styles.ctaHint}>
             We'll seed a starter routine for today. Tap any block to make it yours.

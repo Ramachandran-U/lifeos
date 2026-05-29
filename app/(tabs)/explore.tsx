@@ -10,6 +10,7 @@ import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { InterestCard } from '@/components/modules/polymath/InterestCard';
 import { AddInterestSheet } from '@/components/modules/polymath/AddInterestSheet';
@@ -409,13 +410,12 @@ export default function ExploreScreen() {
           </View>
 
           {interests.length === 0 ? (
-            <Card style={styles.empty}>
-              <Ionicons name="compass-outline" size={32} color={c.textMuted} />
-              <Body style={styles.emptyTitle}>Nothing to explore yet</Body>
-              <Caption style={styles.emptyBody}>
-                Add an interest you want to spend time on each week — a skill, hobby, or topic.
-              </Caption>
-            </Card>
+            <EmptyState
+              icon="compass-outline"
+              title="Nothing to explore yet"
+              caption="Add an interest you want to spend time on each week — a skill, hobby, or topic."
+              accent={c.polymath}
+            />
           ) : (
             interests.map((interest) => (
               <Animated.View key={interest.id} entering={FadeInDown.duration(300)}>

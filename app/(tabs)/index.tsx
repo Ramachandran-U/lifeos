@@ -23,6 +23,7 @@ import { useDensityScale } from '@/theme/density';
 import { usePreferencesStore } from '@/store/usePreferencesStore';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -881,11 +882,11 @@ export default function TodayScreen() {
                 ))}
             </View>
           ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={48} color={c.textMuted} />
-              <Body style={[styles.emptyText, { color: c.textMuted }]}>No routine yet</Body>
-              <Caption style={{ color: c.textMuted }}>Complete onboarding to get started</Caption>
-            </View>
+            <EmptyState
+              icon="calendar-outline"
+              title="No routine yet"
+              caption="Complete onboarding to get started"
+            />
           )}
         </Animated.ScrollView>
 

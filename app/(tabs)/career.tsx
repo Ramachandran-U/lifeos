@@ -465,9 +465,10 @@ export default function CareerScreen() {
             </View>
 
             <Button
-              title={loading ? 'Designing strategy…' : 'Generate strategy'}
+              title="Generate strategy"
+              loadingTitle="Designing strategy…"
+              loading={loading}
               onPress={handleGenerateStrategy}
-              disabled={loading}
             />
           </Card>
         ) : (
