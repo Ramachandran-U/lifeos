@@ -278,3 +278,39 @@ export async function activatePromptVersion(key: string, version: number): Promi
   const json = await res.json();
   return json.version;
 }
+
+export interface OverviewResponse {
+  generated_at: string;
+  window_days: number;
+  users: { dau: number; wau: number };
+  funnel: {
+    stages: Array<{ key: string; label: string; devices: number; conversion_from_top: number }>;
+    top_devices: number;
+  };
+  engagement: {
+    blocks_completed_yesterday: number;
+    blocks_completed_7d: number;
+    evening_reflect_rate_7d: number;
+  };
+  ai: {
+    calls_7d: number;
+    schema_failures_7d: number;
+    schema_failure_rate_7d: number;
+    est_cost_inr_7d: number;
+    latest_eval: {
+      branch: string;
+      commit_sha: string;
+      mode: 'MOCK' | 'LIVE';
+      pass_rate: number;
+      generated_at: string;
+    } | null;
+  };
+  feedback: { new_count: number };
+  sample_size: number;
+}
+
+export async function getOverview(days = 7): Promise<OverviewResponse> {
+  const res = await authedFetch(`/v1/admin/overview?days=${days}`);
+  if (!res.ok) throw new Error(`overview: ${res.status}`);
+  return res.json();
+}

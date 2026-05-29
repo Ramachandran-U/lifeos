@@ -12,6 +12,7 @@ import { handleFeedback } from './routes/feedback';
 import { handlePushRegister } from './routes/push';
 import { handleEvalReport } from './routes/evalReports';
 import { handleAdminEvals } from './routes/admin/evals';
+import { handleAdminOverview } from './routes/admin/overview';
 import { handlePrompts } from './routes/prompts';
 import { handleGoogleToken } from './routes/googleToken';
 import { handleTelemetry } from './routes/telemetry';
@@ -351,6 +352,14 @@ export default {
           return await handleAdminEvals(req, env, admin, corsHeaders(req, env));
         } catch (e) {
           return jsonError(500, e instanceof Error ? e.message : 'admin evals error', req, env);
+        }
+      }
+
+      if (url.pathname === '/v1/admin/overview') {
+        try {
+          return await handleAdminOverview(req, env, admin, corsHeaders(req, env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin overview error', req, env);
         }
       }
 

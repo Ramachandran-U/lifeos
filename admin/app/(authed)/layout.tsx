@@ -5,6 +5,7 @@ import { serverClient } from '@/lib/supabase-server';
 import { SignOutButton } from './SignOutButton';
 
 const NAV: { label: string; href: string; enabled: boolean }[] = [
+  { label: 'Overview',        href: '/overview',        enabled: true },
   { label: 'Flags',           href: '/flags',           enabled: true },
   { label: 'Prompts',         href: '/prompts',         enabled: true },
   { label: 'Telemetry',       href: '/telemetry',       enabled: true },
