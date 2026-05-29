@@ -28,6 +28,7 @@ import { generateAndSaveTomorrow, isRecoveryLow } from '@/ai/replanApply';
 import { deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import { getLatestSleepHours } from '@/db/queries/health';
 import { DomainNudgeCard } from '@/components/shared/DomainNudgeCard';
+import { OvercommitmentCard } from '@/components/shared/OvercommitmentCard';
 
 type Step = 'blocks' | 'mood' | 'tomorrow';
 
@@ -449,6 +450,7 @@ export default function EveningReflectScreen() {
             )}
 
             {userId && <DomainNudgeCard userId={userId} tomorrow={tomorrow} />}
+            {userId && <OvercommitmentCard userId={userId} date={tomorrow} />}
 
             {tweakLoading && (
               <Card><Body style={styles.muted}>Thinking about tomorrow…</Body></Card>

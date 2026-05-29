@@ -28,6 +28,10 @@ export interface FeatureFlags {
   domainNudges: boolean;
   /** P2: render the domain-nudge card. Off + domainNudges on = shadow mode. */
   domainNudgesVisible: boolean;
+  /** P2: overcommitment detector runs (detect + store insight). */
+  overcommitmentDetector: boolean;
+  /** P2: render the overcommitment card. Off + detector on = shadow mode. */
+  overcommitmentVisible: boolean;
   /** P3: coach can take gated, confirmed actions via tool-use. */
   aiCoachActions: boolean;
   /** P4: long-term memory graph projection. */
@@ -48,6 +52,8 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   cognitiveEngine: false,
   domainNudges: false,
   domainNudgesVisible: false,
+  overcommitmentDetector: false,
+  overcommitmentVisible: false,
   aiCoachActions: false,
   memoryGraph: false,
   priorityAdjust: false,
