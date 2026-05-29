@@ -46,7 +46,7 @@ The conclusion drives the entire program: **LifeOS does not need five new subsys
 - **ID strategy:** `text('id')` + nanoid everywhere. `createdAt`/`updatedAt` near-universal; `deletedAt` (soft delete) only on `users`, `goals`, `contacts(dropped)`. **No table has a version, vector clock, dirty flag, or origin-device column.**
 
 ### 2.2 AI layer — `src/ai/` (the strongest part of the codebase, ~45% covered)
-- **`callAI`** unified client — CLI proxy / API / mock, prompt caching, token accounting.
+- **`callAI` / `callAIRaw`** unified client — Supabase-auth'd Worker proxy / mock, prompt caching, token accounting.
 - **`pickModel(task)`** model router — per-task model selection. Reuse for cognition tasks.
 - **Agent pattern** — `src/ai/agent/planner.ts`: `retrieve → propose → critique → commit`, each a discrete traced LLM call, Zod-validated, with a **deterministic post-guard** (window filter) as last line of defence. **This is the template for every cognitive pipeline in Phases 2–3.**
 - **RAG** — `src/ai/rag/{embed,retrieve}.ts`: cosine-similarity retrieval over `RagItem[]`; `historyContext.ts` builds items from recent routine blocks. **This is the seed of the memory graph (Phase 4).**

@@ -1,0 +1,363 @@
+# LifeOS — Claude Code Master Context
+
+> Read this file at the start of every session. It is the single source of truth for architecture, conventions, and constraints.
+>
+> **This file is mirrored at `lifeos/CLAUDE.md` (version-controlled). Keep both copies identical.** A second clone of this repo lives at `lifeos-cognition/` on its own branch — only edit docs in the primary `lifeos/` tree unless told otherwise.
+
+---
+
+## What We're Building
+
+**LifeOS** is a bold, expressive AI-first life management app. It runs on iOS, Android, **and the web** from one React Native + Expo codebase (the web build ships to Cloudflare Pages). It is not a productivity app. It is a **Digital Life Architect** — a system that understands every dimension of a person's life and synthesises them into a liveable daily structure.
+
+The app answers one question continuously: **"What should I do next to improve my life?"**
+
+It does this through 6 specialised engines feeding into 1 master planner:
+1. Goal Intelligence Engine
+2. Health Intelligence Engine
+3. Financial Goal Engine
+4. Career & Upskill Engine
+5. Social Life Intelligence
+6. Curiosity & Polymath Engine (Explore)
+→ All feed into: **The Routine Builder (Master Planner)**
+
+The differentiating layer sits *above* the engines: a cognitive layer that notices when a chosen domain has gone quiet, replans the remaining day when priorities change (diff preview + undo), and records every state change to an event-sourced mutation log. Much of this is live behind feature flags today.
+
+Product spec: `PRD.md`. Task list: `TASKS.md`. Program sequencing: `roadmap/` and `implementation-plan/`. Deeper architecture lives in `docs/`.
+
+---
+
+## Project Structure
+
+> Directory-level map — accurate as of May 2026. Sub-files change often; trust the tree on disk over any file list here. `__tests__/` folders are co-located throughout and omitted below.
+
+```
+lifeos/
+├── app/                        # Expo Router file-based routing (iOS / Android / web)
+│   ├── (auth)/                 # welcome, sign-in, sign-up + _layout
+│   ├── (onboarding)/           # Progressive onboarding + discovery flow
+│   │   ├── day1-vision / day1-career / day1-routine
+│   │   ├── day3-health / day7-finance / day7-social / day14-polymath
+│   │   └── discovery-intro / discovery-paste / discovery-chat / discovery-confirm
+│   ├── (tabs)/                 # index (Today), goals, health, finance, career,
+│   │   │                       #   social, explore, life, profile, rewards
+│   ├── *-callback.tsx          # google-auth / gmail / calendar / fit OAuth callbacks
+│   ├── chat / feedback / settings / annual-review / evening-reflect / rabbit-hole
+│   ├── finance-* / expedition-detail / monthly-insight / edit-priorities / ...
+│   └── _layout.tsx
+├── src/
+│   ├── ai/
+│   │   ├── client.ts           # The AI client — callAI / callAIRaw → proxy (see below)
+│   │   ├── modelRouter.ts      # Per-task model tier selection (pickModel)
+│   │   ├── functions.ts        # Single-shot AI functions (mock-gated)
+│   │   ├── agent/              # Tool-use agent loop
+│   │   │   ├── runtime.ts      #   runToolAgent — model↔tool loop, runs tools on-device
+│   │   │   ├── tools.ts        #   buildLifeOsTools — read-only tools over local data
+│   │   │   ├── whatNext.ts     #   "What should I do next?" agent
+│   │   │   ├── planner.ts / goalDecomposer.ts
+│   │   ├── rag/                # Retrieval for grounding AI calls
+│   │   ├── prompts/            # System prompts, one file per module/task
+│   │   ├── mocks/              # USE_AI_MOCK responses, one file per domain
+│   │   ├── costLedger.ts / tracing.ts / extractJson.ts
+│   │   ├── voiceClient.ts      # Gemini Live voice path (separate from callAI)
+│   │   └── types.ts
+│   ├── cognition/              # Domain-stagnation detect, priority-change handler,
+│   │   │                       #   overcommitment detect, replan stash
+│   ├── sync/                   # Event-sourced spine: mutationLog, hashChain, lamport,
+│   │   │                       #   runtime, sink
+│   ├── explore/                # Curiosity engine: spark, expeditions, expeditionGen,
+│   │   │                       #   constellation
+│   ├── finance/                # Categorizer, merchantClassifier, moneyReview,
+│   │   │                       #   analytics + gmail/ + parsers/ + db/ + store/
+│   ├── config/                 # flags.ts — feature flag definitions
+│   ├── components/
+│   │   ├── ui/                 # Base design system (Button, Card, Input, ...)
+│   │   ├── gamification/       # XP / badge / streak components
+│   │   ├── modules/            # goals / health / finance / career / social / polymath
+│   │   └── shared/             # LifeBalanceDashboard, RoutineBlock, OAuthCallbackView,
+│   │       │                   #   DailyBriefing, ambient/ ...
+│   ├── db/
+│   │   ├── schema.ts           # SQLite schema (Drizzle ORM)
+│   │   ├── migrations/         # Drizzle migrations + meta
+│   │   ├── queries/            # One file per entity
+│   │   ├── webStorage/         # Dexie-backed storage shim for web
+│   │   └── index.ts
+│   ├── store/                  # Zustand stores (useGameStore, useFlagStore,
+│   │   │                       #   useUserStore, usePreferencesStore, ... — see dir)
+│   ├── integrations/
+│   │   ├── google/             # Shared PKCE OAuth driver
+│   │   ├── googleAuth / googleCalendar / googleFit
+│   │   ├── supabase/           # Auth + session + sync client
+│   │   └── elevenlabs/         # Dev-time onboarding-audio generation only
+│   ├── hooks/ · theme/ · utils/ · constants/ · data/ · types/
+├── workers/ai-proxy/           # Cloudflare Worker — the only thing that holds AI keys
+├── evals/                      # Eval harness + datasets + reports
+├── e2e/                        # Playwright end-to-end + smoke tests
+├── admin/                      # Admin portal
+├── docs/ · roadmap/ · implementation-plan/ · audit/
+├── .env.example · app.json · babel.config.js · tsconfig.json · drizzle.config.ts
+```
+
+---
+
+## AI Client — The Most Important File
+
+LifeOS uses an LLM for all intelligent features. **Every AI call goes through one path**: the client in `src/ai/client.ts`, which POSTs to a server-side Cloudflare Worker authenticated with the user's Supabase session.
+
+### How it actually works (see `src/ai/client.ts`)
+
+```
+app ──→ callAI / callAIRaw ──→ POST {PROXY_URL}/claude ──→ Worker ──→ LLM provider
+                                 ↑ Bearer = Supabase access token
+```
+
+- **Two client entry points, one transport:**
+  - `callAI(request)` → returns text. Used by all single-shot functions.
+  - `callAIRaw(request)` → returns `{ text, functionCalls, model }`. Used by the tool-use agent runtime, which needs to see tool calls to dispatch them on-device.
+  Both go through the same internal `callViaProxy`, so cost/telemetry/tracing fire either way.
+- **Provider:** the Worker runs `LLM_PROVIDER` (currently **Gemini** by default — see `modelRouter.ts`), with the API keys held server-side. The `/claude` endpoint name is historical; the body is provider-neutral. The model is chosen per-task by `pickModel(task)` in `src/ai/modelRouter.ts` (cheap / planning / reasoning tiers).
+- **No on-device API key in the client path.** Keys live on the Worker, never bundled into the app. If the user is not signed in, `callViaProxy` throws `"Sign in required to use AI features."` (`EXPO_PUBLIC_ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY` in `.env` are for Node-side scripts and live evals only — never the app's runtime path.)
+- **No CLI / `child_process` path.** React Native cannot spawn processes.
+- **Proxy URL** comes from `EXPO_PUBLIC_AI_PROXY_URL` (defaults to `http://localhost:8787` for dev).
+- **Cost, telemetry, tracing** are recorded on every call: `recordUsage()` (`src/ai/costLedger.ts`), `track(EVENTS.aiCall, ...)`, `startSpan/endSpan` (`src/ai/tracing.ts`). Any new AI entry point must go through `callAI`/`callAIRaw` so these stay populated. The client ledger is a **convenience estimate** (priced per `PRICING` in `costLedger.ts`, which now carries Gemini rates); the server-side `ai_cost_events` table written by the Worker is the **source of truth** for billing.
+- **Rate limit:** proxy returns 429 → surfaced as `"You've hit today's AI limit. Try again tomorrow."`
+- **Voice is a separate path.** `src/ai/voiceClient.ts` drives the Gemini Live WebSocket (via the Worker's `/gemini-live`) and does *not* go through `callAI`. It is the one intentional exception.
+
+### Tool-use agent
+
+`src/ai/agent/runtime.ts` runs a tool loop: ask the model → if it requests tool calls, execute them on-device against local data → feed results back → repeat until it answers or the iteration cap (clamped to [1,10], default 6) is hit. Tools are read-only over the user's real state (`buildLifeOsTools` in `agent/tools.ts`). The Worker executes no tools — it's a passthrough. The flagship consumer is `whatShouldIDoNext` (`agent/whatNext.ts`), gated by the `agent_what_next` flag.
+
+### Planning pipeline (the "master planner")
+
+There is **no monolithic master-planner class** — the "6 engines → 1 Routine Builder" picture is realised as an **emergent pipeline** across several modules. `src/ai/planner/orchestrator.ts` is a thin **named facade** over those stages (it adds no logic; change the underlying module, not the facade):
+
+1. **Retrieve** context — `buildHistoryContext()` (`src/ai/historyContext.ts`)
+2. **Plan** the full day — `planDay` → `planRoutineWithContext` (propose → critique → commit, `agent/planner.ts`)
+3. **Replan** intra-day — `replanRestOfToday` → `rebalanceRestOfToday` (`replanApply.ts`)
+4. **Plan** tomorrow — `planTomorrow` → `generateAndSaveTomorrow` (`replanApply.ts`)
+5. **Decide** next action — `whatNext` → `whatShouldIDoNext` (tool-use agent, `agent/whatNext.ts`)
+6. **Detect** — cognitive detectors in `src/cognition/*` (stagnation, overcommitment, …)
+7. **Learn** — kill/keep verdicts in `src/ai/productionOutcomes.ts` (human-toggled, never silent)
+
+Steps 6–7 run out-of-band (end-of-day / app-open), not inline in one call.
+
+### Mock mode
+
+For UI work without hitting the proxy, set `EXPO_PUBLIC_USE_AI_MOCK=true` (or `USE_AI_MOCK=true`). Mocks live in `src/ai/mocks/`. Functions in `src/ai/functions.ts` and the agents check the flag and return the mock before calling the client.
+
+### When changing this file
+
+- Do **not** add an on-device API-key branch to the client path. Keys belong on the Worker.
+- Do **not** add transports that bypass `recordUsage` / `track` / spans — that breaks the cost ledger and eval reports.
+- New per-call options go on `AIRequest` in `src/ai/types.ts` and need a corresponding field on the Worker.
+
+---
+
+## Design System
+
+### Philosophy
+**Bold & Expressive** — think Duolingo meets Headspace. High contrast. Strong typography. Colour as a communication tool. Celebration-worthy moments. The app should feel alive. The current refined token set is documented in `docs/aurora-refined-v2/`.
+
+### Typography
+- **Display font**: `Nunito` (rounded, friendly, strong) — headings, module titles, gamification numbers
+- **Body font**: `DM Sans` — clean, readable, modern
+- Load via `@expo-google-fonts/*`
+
+### Colour Tokens
+Tokens live in `src/theme/colors.ts`, alongside `elevation.ts`, `motion.ts`, `density.ts`, `radii.ts`, `surfaces.ts`, `typography.ts`, and `spacing.ts`. The brand signature is deep violet (`primary: #5B4FE8`); each engine has its own module colour (goal orange, health green, finance gold, career violet, social pink, polymath cyan). Dark-mode-first neutrals. **Always read tokens from `src/theme/` — never hard-code values.**
+
+### Spacing (4pt grid)
+`spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48, xxxl: 64 }`
+
+### Component Conventions
+- Cards: `borderRadius: 20`, subtle border (`colors.border`)
+- Buttons: large touch targets (`minHeight: 56`), rounded (`borderRadius: 16`)
+- Module cards: coloured left border (4px) in the module colour
+- Progress bars: rounded, gradient fill from module colour
+- Always use `StyleSheet.create()` — never inline style literals
+- Haptic feedback on every meaningful interaction (`expo-haptics`)
+- Micro-animations on state changes (`react-native-reanimated`)
+
+---
+
+## Tech Stack (key packages)
+
+> Verify exact versions against `package.json` — it is the source of truth. Snapshot as of May 2026:
+
+| Package | Version |
+|---|---|
+| expo | ~54.0.0 |
+| expo-router | ~6.0.23 |
+| react / react-dom | 19.1.0 |
+| react-native | 0.81.5 |
+| react-native-reanimated | ~4.1.1 |
+| react-native-gesture-handler | ~2.28.0 |
+| react-native-web | ^0.21.0 |
+| expo-sqlite | ~16.0.10 |
+| dexie (web storage) | ^4.4.2 |
+| drizzle-orm / drizzle-kit | ^0.45.1 / ^0.31.9 |
+| @supabase/supabase-js | ^2.104.0 |
+| zustand | ^5.0.12 |
+| @tanstack/react-query | ^5.90.21 |
+| zod | ^4.3.6 |
+| typescript | ~5.9.2 |
+| jest / @playwright/test | ^30.3.0 / ^1.59.1 |
+
+---
+
+## Database — SQLite (mobile) / Dexie (web), with Drizzle ORM
+
+### Storage layers
+| Data type | Where | Why |
+|-----------|-------|-----|
+| Health logs, blood reports, contacts | Local (SQLite on native, Dexie on web) | Sensitive — stays on device |
+| Goals, tasks, routine blocks, habits | Local + optional Supabase sync via the mutation log | Cross-device, recoverable |
+| Gamification state | Local | Fast reads for home screen |
+| User preferences | Local | |
+
+> Web builds use the Dexie-backed shim in `src/db/webStorage/`; native uses `expo-sqlite`. Drizzle sits over both. State changes flow through the event-sourced mutation log in `src/sync/` (hash-chained), which is the substrate for Supabase sync, version history, and memory.
+
+### Schema principles
+- `text('id')` with `nanoid()` for all primary keys — never auto-increment integers
+- Every table has `createdAt` and `updatedAt`
+- Soft deletes: `deletedAt` column, never hard-delete user data
+- JSON columns for flexible data (goal metadata, blood report markers)
+
+---
+
+## State Management
+
+- **Zustand** for global UI state (see `src/store/` — current user, flags, preferences, gamification, etc.)
+- **React Query** for async data with caching
+- **Drizzle** queries via custom hooks — no Redux, no Context for data
+
+---
+
+## Onboarding Architecture
+
+Onboarding is **progressive** — not a single form. Route group `(onboarding)/`. There is also a fast-start **discovery** flow (paste/chat → extracted profile → confirm) for users who want to bootstrap quickly.
+
+```
+Day 1  → day1-vision → day1-career → day1-routine
+Day 3  → notification → day3-health
+Day 7  → notification → day7-finance → day7-social
+Day 14 → notification → day14-polymath
+```
+
+Each onboarding screen: asks ≤3 questions, makes one AI call to personalise the next step, previews the value just unlocked, celebrates completion with animation + haptic. Stage tracked in `useUserStore` and the SQLite `users` table.
+
+---
+
+## Gamification Architecture
+
+Gamification lives in `useGameStore` + a `gamification` table: per-domain scores (0–100, rolling 30-day), streaks (workout/learning/foodTracking/journaling/social), badges, and XP (total + weekly). Badge evaluation runs on every significant user action; an earned badge triggers `AchievementToast` with animation and haptic.
+
+---
+
+## AI Prompt Conventions
+
+Every AI call must:
+1. Have a typed input and output interface
+2. Include a mock response for mock mode
+3. Handle errors gracefully — never show raw AI errors to users
+4. Include the relevant *slice* of user context (not the whole profile)
+5. Request JSON output for structured data; validate with Zod, wrap parsing in try/catch
+
+```typescript
+export async function decomposeGoal(input: GoalInput): Promise<GoalHierarchy> {
+  if (process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true') return MOCK_GOAL_HIERARCHY;
+
+  const response = await callAI({
+    system: GOAL_SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    task: 'decomposeGoal',
+    model: pickModel('decomposeGoal'),
+  });
+
+  try {
+    return GoalHierarchySchema.parse(JSON.parse(response));
+  } catch {
+    throw new Error('AI returned invalid goal structure');
+  }
+}
+```
+
+New tasks must be added to the `AITask` union and `TASK_TIER` map in `src/ai/modelRouter.ts`.
+
+---
+
+## Code Conventions
+
+- **TypeScript strict mode** — no `any`, no `as unknown`
+- **Zod** for all runtime validation (AI responses, API responses, storage reads)
+- **No class components** — functional only
+- **Named exports** for components, **default exports** for screens
+- **Absolute imports** via `tsconfig` paths — `@/components/ui/Button`
+- **File naming**: `PascalCase` for components, `camelCase` for utilities
+- One component per file. Co-locate styles in the same file.
+- Error boundaries on every screen
+- Loading skeletons instead of spinners where possible
+
+---
+
+## Environment Variables
+
+See `.env.example` for the authoritative, commented list. Highlights:
+
+```bash
+# AI proxy (Cloudflare Worker) — holds the LLM keys server-side
+EXPO_PUBLIC_AI_PROXY_URL=
+
+# Mock mode — no AI calls, static responses
+EXPO_PUBLIC_USE_AI_MOCK=false
+
+# Supabase — auth + encrypted backups (shipped). Anon key is safe in the bundle.
+EXPO_PUBLIC_SUPABASE_URL=
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
+
+# Google OAuth (Calendar / Fit / Gmail) — web. Token exchange runs server-side
+# on the Worker (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET via `wrangler secret`).
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=
+
+# Node-side scripts/evals only — NOT the app runtime path
+ANTHROPIC_API_KEY=
+
+# ElevenLabs — dev-time onboarding-audio generation only (not a runtime dependency)
+ELEVENLABS_API_KEY=
+```
+
+---
+
+## Adding a new Google integration
+
+All Google integrations share the PKCE driver in `src/integrations/google/oauth.ts`. The token exchange runs server-side via the Worker's `/v1/google/token` route. The canonical recipe is three steps:
+
+1. **OAuth module** — `src/integrations/<name>/oauth.ts` calls `createGoogleOAuthClient({ scopes, tokenKey, verifierKey, redirectPath })` once, then re-exports the bound surface (`start`, `complete`, `clear`, `isConnected`, `getAccessToken`).
+2. **REST client** — `src/integrations/<name>/client.ts` reads the bearer via `getAccessToken` from the oauth module above.
+3. **Callback route** — `app/<name>-callback.tsx` (≈20 lines) returns `<OAuthCallbackView exchange={...} onSuccess={...} redirectTo={...} … />`, wiring `exchange` to the bound `complete`.
+
+Reference implementation: `src/integrations/googleAuth/oauth.ts` and `app/google-auth-callback.tsx`.
+
+---
+
+## What Claude Code Should Never Do
+
+- Use `any` in TypeScript
+- Make AI calls synchronously on the main thread
+- Store sensitive health or contact data anywhere other than the local store (SQLite / Dexie)
+- Use `StyleSheet` inline value literals — all values must come from `theme/`
+- Skip error handling on AI calls
+- Add an on-device API-key branch to the AI client path — keys belong on the Worker
+- Add a new AI entry point that bypasses `callAI`/`callAIRaw` (and thus cost/telemetry/tracing)
+- Add mock data that looks like real PII (use obviously fake names/values)
+- Add Plaid or a vector DB without checking the roadmap — those are later-phase
+
+---
+
+## Session Startup Checklist
+
+1. Read `CLAUDE.md` (this file)
+2. Read the current phase in `roadmap/01-program-roadmap.md` / `implementation-plan/` and `TASKS.md`
+3. Check `src/` structure on disk — understand what already exists
+4. Never re-scaffold what already exists — always check first
+5. Run `npx expo start` (iOS / Android / web) and/or `npm run evals` to verify the build before making changes

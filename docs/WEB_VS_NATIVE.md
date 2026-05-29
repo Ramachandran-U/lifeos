@@ -20,8 +20,8 @@ export function getX(...) {
 
 | Entity | Native | Web |
 |--------|--------|-----|
-| Users, session | SQLite (Drizzle) | localStorage (`src/db/webStorage.ts`) |
-| Goals, routine, health, career, gamification | SQLite | localStorage (same pattern) |
+| Users, session | SQLite (Drizzle) | localStorage (`src/db/webStorage/users.ts`) |
+| Goals, routine, health, gamification, etc. | SQLite | localStorage (one module per entity under `src/db/webStorage/`) |
 | Career path snapshots | localStorage (both) | localStorage (`src/db/careerStorage.ts`) |
 | Transactions (finance) | — (web-only feature currently) | IndexedDB / Dexie (`src/finance/db/transactionDb.ts`) |
 | Theme preference | AsyncStorage | localStorage |
@@ -31,7 +31,7 @@ export function getX(...) {
 
 1. Define Drizzle table in `src/db/schema.ts`.
 2. Write native queries (Drizzle) in `src/db/queries/<entity>.ts`.
-3. Write a `web<Entity>.ts` or extend `webStorage.ts` with a localStorage mirror.
+3. Add a per-entity module `src/db/webStorage/<entity>.ts` with a localStorage mirror (use the shared `load`/`save` helpers in `_io.ts`), then export it from the `src/db/webStorage.ts` barrel.
 4. Export a single API that branches on `isWeb` — callers never see the difference.
 
 ## Common mistakes

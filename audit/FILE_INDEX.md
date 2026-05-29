@@ -336,7 +336,7 @@ Tests: `analytics`, `categorizer`, `categoryGroups`, `merchantClassifier`, `mone
 
 ## Docs (`docs/`)
 
-`README.md`, `MASTER_BRIEF.md`, `PRODUCT_TECHNICAL_DOC.md`, `PRE_PRODUCTION_CHECKLIST.md`, `MANUAL_OPS_TODO.md`, `BUG_LOG.md`, `TESTING.md`, `SECURITY.md`, `WEB_VS_NATIVE.md`, `AI_FUNCTIONS.md`, `AI_TEST_PLAN.md`, `ADMIN_PORTAL_PLAN.md`, `FINANCE_PIPELINE.md`, `GAMIFICATION.md`, `ARCHITECT_REVIEW_2026-05-13.md`, `claude-design-prompt-mobile.md`, `claude-design-prompt-web.md`, `google client id connection.md`. Architecture: `docs/architecture/phase-{2-cognitive-engine,3-ai-coach,4-memory-graph,5-orchestration}.md`. Aurora design: `docs/aurora-refined-v2/{README,DELTA,MOTION,PROMPTS,USER-INSTRUCTIONS}.md`.
+`README.md`, `MASTER_BRIEF.md`, `PRODUCT_TECHNICAL_DOC.md`, `PRE_PRODUCTION_CHECKLIST.md`, `MANUAL_OPS_TODO.md`, `BUG_LOG.md`, `TESTING.md`, `SECURITY.md`, `WEB_VS_NATIVE.md`, `AI_FUNCTIONS.md`, `AI_TEST_PLAN.md`, `ADMIN_PORTAL_PLAN.md`, `FINANCE_PIPELINE.md`, `GAMIFICATION.md`, `ARCHITECT_REVIEW_2026-05-13.md`, `claude-design-prompt-mobile.md`, `claude-design-prompt-web.md`. Architecture: `docs/architecture/phase-{2-cognitive-engine,3-ai-coach,4-memory-graph,5-orchestration}.md`. Aurora design: `docs/aurora-refined-v2/{README,DELTA,MOTION,PROMPTS,USER-INSTRUCTIONS}.md`.
 
 ## Implementation plans / roadmap / qa
 

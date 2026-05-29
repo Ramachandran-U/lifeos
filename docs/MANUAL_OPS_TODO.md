@@ -1,8 +1,12 @@
 # LifeOS — Manual Ops To-Do
 
 > Running list of operational actions the human must do — things Claude can't do from the keyboard (rotating secrets in dashboards, deploying, setting MFA, etc.). Tick off as completed. Add new items here whenever a code change requires a follow-up in a dashboard or CLI.
+>
+> **Relationship to [PRE_PRODUCTION_CHECKLIST.md](PRE_PRODUCTION_CHECKLIST.md):** that file is the *tech-debt register* (what's wrong in code and whether it's resolved); this file is the *action list* (the dashboard/CLI steps a human must run). They are complementary, not duplicates.
+>
+> **Status caveat:** open checkboxes below reflect the state at the dates noted, not live verification — confirm against the Supabase/Cloudflare dashboards before trusting any unchecked box.
 
-Last updated: 2026-05-08
+Last updated: 2026-05-08 (paths refreshed 2026-05-30; operational status not re-verified)
 
 ---
 
@@ -54,7 +58,7 @@ These changes are pushed to git but need three manual actions to be live:
   - chatbot rate-limit bucket (`DAILY_CHATBOT_LIMIT=30`)
   - the finance categorizer changes are client-side; this redeploy isn't needed for those but doesn't hurt
   ```powershell
-  cd "c:\personal\Project X\lifeos\.claude\worktrees\interesting-rubin-97ecf6\workers\ai-proxy"
+  cd "c:\personal\Project X\lifeos\workers\ai-proxy"
   npx wrangler deploy
   ```
 - [ ] **Wait for Vercel auto-deploy** of the admin (or trigger manually in the Vercel dashboard). The new Telemetry tab will appear in the sidebar.
@@ -74,7 +78,7 @@ These changes are pushed to git but need three manual actions to be live:
   Save it somewhere — you need it twice.
 - [ ] **Set the Worker secret:**
   ```powershell
-  cd "c:\personal\Project X\lifeos\.claude\worktrees\interesting-rubin-97ecf6\workers\ai-proxy"
+  cd "c:\personal\Project X\lifeos\workers\ai-proxy"
   npx wrangler secret put EVAL_REPORTER_TOKEN
   ```
   Paste the token when prompted. Then `npx wrangler deploy`.
