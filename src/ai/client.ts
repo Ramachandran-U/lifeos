@@ -1,4 +1,4 @@
-import { AIRequest } from './types';
+import { AIRequest, AIToolResponse } from './types';
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import { recordUsage, computeCost } from './costLedger';
 import { startSpan, endSpan } from './tracing';
@@ -7,7 +7,7 @@ import { track, EVENTS } from '@/utils/telemetry';
 const PROXY_URL =
   process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
 
-async function callViaProxy(request: AIRequest): Promise<string> {
+async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
   const span = startSpan('callAI', { task: request.task, model: request.model, cacheSystem: !!request.cacheSystem });
 
   try {
@@ -30,6 +30,7 @@ async function callViaProxy(request: AIRequest): Promise<string> {
         model: request.model,
         cacheSystem: request.cacheSystem,
         task: request.task,
+        ...(request.tools && request.tools.length > 0 ? { tools: request.tools } : {}),
       }),
     });
 
@@ -66,13 +67,26 @@ async function callViaProxy(request: AIRequest): Promise<string> {
       endSpan(span, { model });
     }
 
-    return data.text;
+    return {
+      text: data.text ?? '',
+      functionCalls: Array.isArray(data.functionCalls) ? data.functionCalls : [],
+      model,
+    };
   } catch (err) {
     endSpan(span, { status: 'error', error: err instanceof Error ? err.message : String(err) });
     throw err;
   }
 }
 
+/** Text-only AI call — the contract used by all single-shot functions. */
 export async function callAI(request: AIRequest): Promise<string> {
+  return (await callViaProxy(request)).text;
+}
+
+/**
+ * Structured AI call that surfaces tool calls. Used by the tool-use agent
+ * runtime, which needs to see `functionCalls` to dispatch them on-device.
+ */
+export async function callAIRaw(request: AIRequest): Promise<AIToolResponse> {
   return callViaProxy(request);
 }
