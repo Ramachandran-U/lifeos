@@ -18,6 +18,10 @@
     "evals:live": "EVAL_REAL=true jest --testPathPatterns=evals --runInBand",
     "smoke": "cross-env SMOKE_BASE_URL=https://lifeos-6r5-eqa.pages.dev playwright test --project=smoke",
     "smoke:local": "playwright test --project=smoke",
+    "smoke:mobile": "playwright test --project=smoke-mobile",
+    "e2e": "playwright test --project=chromium",
+    "e2e:auth": "playwright test --project=authenticated",
+    "e2e:create-test-user": "npx ts-node e2e/create-test-user.ts",
     "verify": "tsc --noEmit && jest && npm run smoke",
     "gen:onboarding-audio": "node scripts/generate-onboarding-audio.js"
   },

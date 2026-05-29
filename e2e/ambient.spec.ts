@@ -17,10 +17,17 @@ test.describe('ambient backgrounds', () => {
     const mesh = page.locator('[data-testid="ambient-mesh"]');
     await expect(mesh).toBeVisible();
 
-    // Mesh should have child elements (the orbiting gradient orbs)
-    const meshChildren = mesh.locator('div');
-    const meshChildCount = await meshChildren.count();
-    expect(meshChildCount).toBeGreaterThanOrEqual(3);
+    // Mesh should have rendered content. On web the mesh is a single div
+    // whose backgroundImage stacks multiple radial-gradients (see
+    // src/components/shared/ambient/GradientMesh.tsx: WebGradientMesh). On
+    // native, three separate orb divs render. Assert the web semantic
+    // since this runner is always Chromium.
+    const gradientDiv = mesh.locator('div').filter({
+      has: page.locator(':scope'),
+    }).first();
+    await expect(gradientDiv).toBeVisible();
+    const meshChildCount = await mesh.locator('div').count();
+    expect(meshChildCount).toBeGreaterThanOrEqual(1);
 
     // The sweep container should be present (even if not active)
     const sweep = page.locator('[data-testid="ambient-sweep"]');
@@ -38,25 +45,32 @@ test.describe('ambient backgrounds', () => {
     await page.goto(baseURL, { waitUntil: 'networkidle' });
     await page.waitForTimeout(3000);
 
-    // Count all absolutely-positioned divs inside aurora-bg (ambient layer orbs)
-    const ambientOrbs = await page.evaluate(() => {
+    // On web, ambient "orbs" are CSS radial-gradients on a single div, not
+    // separate orb elements (see GradientMesh.tsx → WebGradientMesh). Count
+    // divs whose backgroundImage actually contains at least one
+    // radial-gradient — that's the web equivalent of "the mesh rendered".
+    const ambientLayers = await page.evaluate(() => {
       const bg = document.querySelector('[data-testid="aurora-bg"]');
-      if (!bg) return { found: false, orbCount: 0 };
+      if (!bg) return { found: false, gradientLayers: 0, totalGradients: 0 };
       const allDivs = bg.querySelectorAll('div');
-      let orbCount = 0;
+      let gradientLayers = 0;
+      let totalGradients = 0;
       for (const el of Array.from(allDivs)) {
-        const cs = getComputedStyle(el);
-        if (cs.position === 'absolute' && cs.borderRadius && cs.borderRadius !== '0px') {
-          orbCount++;
+        const bi = getComputedStyle(el).backgroundImage;
+        if (bi && bi.includes('radial-gradient')) {
+          gradientLayers++;
+          totalGradients += (bi.match(/radial-gradient/g) ?? []).length;
         }
       }
-      return { found: true, orbCount };
+      return { found: true, gradientLayers, totalGradients };
     });
 
-    expect(ambientOrbs.found).toBe(true);
-    // At minimum: 3 mesh orbs. With time-of-day blooms on native: +2-3 more.
-    // On web, blooms are CSS gradients not div orbs, so mesh orbs alone = 3.
-    expect(ambientOrbs.orbCount).toBeGreaterThanOrEqual(3);
+    expect(ambientLayers.found).toBe(true);
+    // At least one div carries the mesh gradient(s), and the mesh stacks
+    // ≥3 radial-gradient functions (one per preset stop — DEFAULT_MESH_STOPS
+    // in AuroraBackground.tsx defines exactly 3).
+    expect(ambientLayers.gradientLayers).toBeGreaterThanOrEqual(1);
+    expect(ambientLayers.totalGradients).toBeGreaterThanOrEqual(3);
   });
 
   test('time-of-day web gradient contains expected colors', async ({ page }) => {

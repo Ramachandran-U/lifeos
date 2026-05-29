@@ -1,5 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
+import fs from 'fs';
 import path from 'path';
+
+// Auto-load .env.test if present so the authenticated project picks up
+// PLAYWRIGHT_TEST_EMAIL/PASSWORD without requiring dotenv-cli. Tiny manual
+// parser keeps us off another npm dependency.
+const envTestPath = path.join(__dirname, '.env.test');
+if (fs.existsSync(envTestPath)) {
+  for (const line of fs.readFileSync(envTestPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    const val = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
 
 const SMOKE_BASE_URL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
 const AUTH_STORAGE = path.join(__dirname, '.auth', 'user.json');
@@ -47,9 +64,28 @@ export default defineConfig({
       },
     },
     {
+      // Mobile-viewport smoke — same routes, iPhone 13-sized viewport. Catches
+      // layout regressions that desktop smoke can't see (collapsed nav, sticky
+      // composers overlapping content, off-screen CTAs). Since most LifeOS
+      // users are on mobile, this is the more representative pass.
+      name: 'smoke-mobile',
+      testMatch: ['**/smoke.spec.ts'],
+      retries: 1,
+      use: {
+        ...devices['iPhone 13'],
+        baseURL: SMOKE_BASE_URL,
+        ignoreHTTPSErrors: false,
+      },
+    },
+    {
       // Authenticated tests — depend on setup, reuse stored session.
       name: 'authenticated',
-      testMatch: ['**/ambient.spec.ts'],
+      testMatch: [
+        '**/ambient.spec.ts',
+        '**/auth-signout.spec.ts',
+        '**/auth-routing.spec.ts',
+        '**/onboarding-fresh.spec.ts',
+      ],
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],

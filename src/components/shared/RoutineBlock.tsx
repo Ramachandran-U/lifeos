@@ -172,6 +172,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     <Animated.View entering={FadeIn.duration(300)}>
       <Animated.View style={animatedStyle}>
       <View
+        testID={`routine-block-${id}`}
         style={[
           styles.container,
           isActive && { borderColor: moduleColor + '66', backgroundColor: moduleColor + '11' },
@@ -214,6 +215,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
 
         {/* Status control — hold to complete (Aurora Refined v2 scene 02). */}
         <Pressable
+          testID={`routine-block-${id}-status`}
           onPressIn={startHold}
           onPressOut={cancelHold}
           style={styles.statusBtn}
