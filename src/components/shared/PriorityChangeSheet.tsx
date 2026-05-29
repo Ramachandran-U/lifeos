@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, Modal, Pressable, Platform } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Modal, Pressable, Platform, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
@@ -39,6 +39,9 @@ interface Props {
   onRetry?: () => void;
   /** Error message (used when phase === 'error'). */
   errorMessage?: string;
+  /** Optional "What changed?" reason — surfaced on the choice phase. */
+  whyReason?: string;
+  onWhyChange?: (text: string) => void;
 }
 
 function domainLabel(d: DomainId): string {
@@ -53,6 +56,7 @@ export function PriorityChangeSheet({
   plan = null, existing = [],
   onAdjustNow, onStartTomorrow, onSkip,
   onConfirmPreview, onCancelPreview, onUndo, onClose, onRetry, errorMessage,
+  whyReason = '', onWhyChange,
 }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
@@ -113,6 +117,22 @@ export function PriorityChangeSheet({
                     </Body>
                   ))}
                 </Card>
+              )}
+
+              {/* Optional free-text capture — feeds the future memory graph. */}
+              {onWhyChange && (
+                <View style={styles.whyWrap}>
+                  <Label color={c.textMuted}>WHAT CHANGED? (OPTIONAL)</Label>
+                  <TextInput
+                    value={whyReason}
+                    onChangeText={onWhyChange}
+                    placeholder="e.g. starting a new role, need more rest…"
+                    placeholderTextColor={c.textMuted}
+                    multiline
+                    style={[styles.whyInput, { color: c.textPrimary, borderColor: c.border, backgroundColor: c.surface }]}
+                    maxLength={240}
+                  />
+                </View>
               )}
 
               <View style={styles.actions}>
@@ -207,4 +227,10 @@ const makeStyles = (c: AppColors) => StyleSheet.create({
   skip: { alignSelf: 'center', padding: spacing.sm },
   loadingState: { alignItems: 'center', paddingVertical: spacing.xxl },
   appliedState: { alignItems: 'center', paddingVertical: spacing.lg },
+  whyWrap: { gap: spacing.xs, marginTop: spacing.xs },
+  whyInput: {
+    borderWidth: 1, borderRadius: 12, padding: spacing.sm,
+    minHeight: 60, textAlignVertical: 'top',
+    fontSize: fontSizes.sm,
+  },
 });
