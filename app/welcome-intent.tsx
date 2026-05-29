@@ -126,19 +126,23 @@ export default function WelcomeIntentScreen() {
         </Animated.View>
 
         {onboardingV2 ? (
-          <Animated.View entering={FadeInDown.delay(750).duration(600)} style={styles.importRow}>
-            <Pressable
+          <Animated.View entering={FadeInDown.delay(750).duration(600)} style={styles.altPath}>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Caption style={styles.dividerText}>or</Caption>
+              <View style={styles.dividerLine} />
+            </View>
+            <Button
+              title="Talk it through first"
+              variant="secondary"
               onPress={() => {
                 track(EVENTS.onboardingV2Started, { entry: 'welcome_intent' });
                 router.push('/(onboarding)/discovery-chat');
               }}
-              style={styles.importLink}
-              hitSlop={8}
-            >
-              <Caption style={styles.importText}>
-                Want me to actually <Caption style={styles.importTextAccent}>get to know you first?</Caption> Chat with me →
-              </Caption>
-            </Pressable>
+            />
+            <Caption style={styles.ctaHint}>
+              A short chat — I'll get to know you, then build your plan.
+            </Caption>
           </Animated.View>
         ) : null}
 
@@ -189,6 +193,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   chipSub: { color: colors.textMuted },
   cta: { marginTop: spacing.xl, gap: spacing.sm },
   ctaHint: { color: colors.textMuted, textAlign: 'center' },
+  altPath: { marginTop: spacing.lg, gap: spacing.sm },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xs },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { color: colors.textMuted },
   importRow: { marginTop: spacing.lg, alignItems: 'center' },
   importLink: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   importText: { color: colors.textSecondary, textAlign: 'center' },
