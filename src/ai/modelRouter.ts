@@ -55,7 +55,8 @@ export type AITask =
   | 'agent.critique'
   | 'agent.brief'
   | 'agent.goal.propose'
-  | 'agent.goal.critique';
+  | 'agent.goal.critique'
+  | 'agent.whatNext';
 
 const TASK_TIER: Record<AITask, Tier> = {
   categorizeMerchant: 'cheap',
@@ -91,6 +92,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   'agent.critique': 'planning',
   'agent.goal.propose': 'planning',
   'agent.goal.critique': 'planning',
+  // Tool-use loop: needs the better model to choose tools + synthesise well.
+  'agent.whatNext': 'planning',
 
   parseBloodReport: 'reasoning',
 };

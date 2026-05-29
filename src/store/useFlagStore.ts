@@ -26,6 +26,10 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // to A/B against the single-shot baseline. Kill criterion lives in migration
   // 0004_ai_suggestions.sql.
   agent_goal_decomp: false,
+  // Tool-using "what should I do next?" agent. Off by default — requires the
+  // proxy's Gemini function-calling passthrough. Logged to ai_suggestions
+  // (task 'what_next') for outcome tracking.
+  agent_what_next: false,
 };
 
 interface FlagState {
