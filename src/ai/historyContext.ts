@@ -4,24 +4,33 @@
  * sentence so the embedder can score relevance against the day's goals.
  *
  * Sources:
+ *   - durable memory facts (long-horizon — beyond the 14-day window below)
  *   - last 14 days of behaviour events (block_completed, reflection_completed,
  *     food_logged, transaction_synced, etc.)
  *   - last 7 reflections (per-block reviews + mood)
  *   - the most recent blood report summary (truncated)
  *
+ * Durable facts (from the consolidation pass) are prepended so relevant
+ * long-term signal isn't crowded out by the recent-window cap; the agent's
+ * `retrieveTopK` then ranks the whole pool against the day's query. This is how
+ * the planner "remembers" things older than 14 days.
+ *
  * The function is sync where the DB layer is sync and async where async —
  * matches the existing pattern so callers don't pay an unnecessary tick.
  *
- * Returns at most ~30 items to keep retrieval cheap; the agent's
- * `retrieveTopK` will pick the 5 most relevant for the day's query.
+ * Returns at most ~30 recent items + up to a dozen durable facts.
  */
 
 import type { RagItem } from './rag/retrieve';
 import { getEventsLastNDays } from '@/db/queries/behaviour';
 import { getRecentReflections } from '@/db/queries/reflections';
 import { getBloodReports } from '@/db/queries/health';
+import { getFactsByUser, isFactLive } from './rag/memoryStore';
+import { useUserStore } from '@/store/useUserStore';
 
 const MAX_ITEMS = 30;
+/** Durable facts are few and high-signal; a dozen is plenty per assembly. */
+const MEMORY_FACT_LIMIT = 12;
 
 export function buildHistoryContext(): RagItem[] {
   const items: RagItem[] = [];
@@ -70,7 +79,25 @@ export function buildHistoryContext(): RagItem[] {
     // Blood reports unavailable; skip.
   }
 
-  return items.slice(0, MAX_ITEMS);
+  const recent = items.slice(0, MAX_ITEMS);
+
+  // Prepend durable long-horizon facts (not subject to the recent-window cap).
+  let factItems: RagItem[] = [];
+  try {
+    const userId = useUserStore.getState().userId;
+    if (userId) {
+      const now = Date.now();
+      factItems = getFactsByUser(userId)
+        .filter((f) => isFactLive(f, now))
+        .sort((a, b) => b.salience - a.salience)
+        .slice(0, MEMORY_FACT_LIMIT)
+        .map((f) => ({ id: `memory:${f.id}`, text: f.text, metadata: { kind: f.kind } }));
+    }
+  } catch {
+    // Memory store unavailable (web / fresh install); skip.
+  }
+
+  return [...factItems, ...recent];
 }
 
 const MOOD_LABELS: Record<number, string> = {

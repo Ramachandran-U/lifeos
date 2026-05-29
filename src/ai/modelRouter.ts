@@ -52,6 +52,8 @@ export type AITask =
   | 'assessTrajectory'
   | 'generateAnnualReview'
   | 'generateMoneyReview'
+  | 'consolidateMemory'
+  | 'rebalanceGoals'
   | 'agent.propose'
   | 'agent.critique'
   | 'agent.brief'
@@ -75,6 +77,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   assessTrajectory: 'planning',
   generateAnnualReview: 'reasoning',
   generateMoneyReview: 'planning',
+  consolidateMemory: 'planning', // one summarisation pass over the window — quality matters
+  rebalanceGoals: 'planning', // reallocates weekly hours across goals — reasoning-ish
   'agent.brief': 'cheap',
 
   decomposeGoal: 'planning',

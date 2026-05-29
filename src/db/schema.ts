@@ -305,6 +305,22 @@ export const cognitiveInsights = sqliteTable('cognitive_insights', {
   expiresAt: text('expires_at'),
 });
 
+// --- Durable Memory (Phase 2 cognitive engine — long-horizon facts) ---
+// Distilled, lasting facts about the user (beyond the 14-day RAG window),
+// produced by the consolidation pass from behaviour events + reflections.
+export const memoryFacts = sqliteTable('memory_facts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  kind: text('kind').notNull(), // preference | pattern | milestone | constraint
+  text: text('text').notNull(), // the fact, one short natural-language sentence
+  embedding: text('embedding'), // JSON number[] — for JS-cosine retrieval (no vector DB)
+  salience: real('salience').notNull().default(1), // 0..1, decays over time; bumped on re-observation
+  sourceWindow: text('source_window'), // e.g. "2026-05-16..2026-05-30"
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  lastSeenAt: text('last_seen_at').notNull().default(sql`(datetime('now'))`),
+  expiresAt: text('expires_at'), // nullable; null = no expiry
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),

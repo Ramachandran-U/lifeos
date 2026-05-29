@@ -19,6 +19,7 @@ import { upsertReflection, getReflectionByDate, type BlockReview } from '@/db/qu
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import { track, EVENTS } from '@/utils/telemetry';
 import { suggestTomorrowTweak } from '@/ai/functions';
+import { consolidateMemory } from '@/ai/memory/consolidate';
 import type { TomorrowTweak } from '@/ai/types';
 import { useUserStore } from '@/store/useUserStore';
 import { useFlagStore } from '@/store/useFlagStore';
@@ -264,6 +265,11 @@ export default function EveningReflectScreen() {
         block_count: Object.keys(blockReviews).length,
         tweak_accepted: tweakAccepted,
       });
+
+      // Piggyback the durable-memory consolidation on end-of-day (no background
+      // daemon on RN). Fire-and-forget: a consolidation failure must never block
+      // or break the reflection flow. Dedup in the store keeps daily runs clean.
+      if (userId) void consolidateMemory(userId).catch(() => {});
 
       // Onboarding v2: regenerate tomorrow's full routine from the rich profile,
       // softened if the user looks depleted. Failures are non-fatal — the legacy

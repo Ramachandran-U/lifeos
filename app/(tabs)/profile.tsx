@@ -338,6 +338,12 @@ export default function ProfileScreen() {
             c={c}
             onPress={() => router.push('/what-lifeos-knows')}
           />
+          <Row
+            icon="bulb-outline"
+            label="What LifeOS remembers"
+            c={c}
+            onPress={() => router.push('/what-lifeos-remembers')}
+          />
         </Card>
 
         {/* Appearance — Aurora preferences (collapsed by default) */}
