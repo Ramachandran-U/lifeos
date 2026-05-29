@@ -32,6 +32,8 @@ export interface FeatureFlags {
   aiCoachActions: boolean;
   /** P4: long-term memory graph projection. */
   memoryGraph: boolean;
+  /** Priority change → routine adjustment (Phase A: tomorrow; Phase B: adjust-now). */
+  priorityAdjust: boolean;
   /** P5: autonomous calendar-aware orchestration suggestions. */
   orchestration: boolean;
 }
@@ -48,6 +50,7 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   domainNudgesVisible: false,
   aiCoachActions: false,
   memoryGraph: false,
+  priorityAdjust: false,
   orchestration: false,
 });
 

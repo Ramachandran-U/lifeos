@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { format, addDays } from 'date-fns';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -13,6 +14,22 @@ import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { Card } from '@/components/ui/Card';
 import { useUserStore, type DomainId } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
+import { isEnabled } from '@/config/flags';
+import { PriorityChangeSheet } from '@/components/shared/PriorityChangeSheet';
+import {
+  computePriorityDiff,
+  assessImpact,
+  hasMeaningfulChange,
+  type PriorityChangeImpact,
+} from '@/cognition/priorityChangeHandler';
+import { getRoutineBlocksByDate } from '@/db/queries/routine';
+import { getUserProfile } from '@/db/queries/userProfile';
+import { generateAndSaveTomorrow, isRecoveryLow } from '@/ai/replanApply';
+import { deleteRoutineBlocksByDate } from '@/db/queries/routine';
+import { logBehaviourEvent } from '@/db/queries/behaviour';
+import { getLatestSleepHours } from '@/db/queries/health';
+import { useGameStore } from '@/store/useGameStore';
+import { track, EVENTS } from '@/utils/telemetry';
 
 const ALL_DOMAINS: { id: DomainId; emoji: string; label: string; colorKey: keyof AppColors }[] = [
   { id: 'goals',    emoji: '◆', label: 'Goals',        colorKey: 'goal' },
@@ -72,10 +89,70 @@ export default function EditPrioritiesScreen() {
   const selectedInOrder = ordered.filter((id) => selectedSet.has(id));
   const canSave = selectedInOrder.length > 0;
 
+  const [showSheet, setShowSheet] = useState(false);
+  const [impact, setImpact] = useState<PriorityChangeImpact | null>(null);
+
   const handleSave = () => {
     if (!userId || !canSave) return;
+
+    // Always persist the priority change (local-first, never gated on AI).
     updateUser(userId, { primaryDomains: selectedInOrder });
     setPrimaryDomains(selectedInOrder);
+    logBehaviourEvent('priority_change', 'goal', {
+      added: computePriorityDiff(primaryDomains, selectedInOrder).added,
+      removed: computePriorityDiff(primaryDomains, selectedInOrder).removed,
+    });
+
+    if (!isEnabled('priorityAdjust') || !hasMeaningfulChange(computePriorityDiff(primaryDomains, selectedInOrder))) {
+      router.back();
+      return;
+    }
+
+    // Compute impact and show the choice sheet.
+    const diff = computePriorityDiff(primaryDomains, selectedInOrder);
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const todayBlocks = getRoutineBlocksByDate(today).map((b) => ({
+      id: b.id, startTime: b.startTime, endTime: b.endTime,
+      title: b.title, module: b.module, status: b.status,
+      linkedEntityId: b.linkedEntityId ?? undefined,
+    }));
+    const streaks = useGameStore.getState().streaks;
+    const streakEntries = Object.entries(streaks ?? {})
+      .filter(([, s]) => s && s.count > 0)
+      .map(([key, s]) => {
+        const domainMap: Record<string, DomainId> = { workout: 'health', learning: 'polymath', social: 'social', journaling: 'goals', foodTracking: 'health' };
+        return { domain: (domainMap[key] ?? 'goals') as DomainId, streakKey: key, count: s.count };
+      });
+
+    setImpact(assessImpact({ diff, todayBlocks, streaks: streakEntries, expeditions: [], goalCounts: [] }));
+    setShowSheet(true);
+  };
+
+  const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
+
+  const handleStartTomorrow = async () => {
+    if (!userId) return;
+    track(EVENTS.priorityReplanTomorrow, { pregenerated: true });
+    try {
+      const profile = await getUserProfile(userId);
+      if (profile) {
+        deleteRoutineBlocksByDate(tomorrow);
+        const soften = isRecoveryLow({ lastSleepHours: getLatestSleepHours(3), skippedTodayCount: 0, lastMood: null });
+        await generateAndSaveTomorrow({ profile, todayReview: { mood: null, blockReviews: {}, skippedTitles: [], completedTitles: [] }, softenForRecovery: soften });
+      }
+    } catch { /* non-fatal — evening-reflect catches it */ }
+    setTimeout(() => { setShowSheet(false); router.back(); }, 1200);
+  };
+
+  const handleAdjustNow = () => {
+    // Phase B — for now, same as tomorrow (the planner replan is wired in Phase B)
+    track(EVENTS.priorityReplanNow, { blocksRemoved: impact?.blocksAtRisk.length ?? 0, blocksAdded: 0, durationMs: 0 });
+    handleStartTomorrow();
+  };
+
+  const handleSkip = () => {
+    track(EVENTS.priorityChange, { choice: 'skip' });
+    setShowSheet(false);
     router.back();
   };
 
@@ -177,6 +254,15 @@ export default function EditPrioritiesScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+      {impact && (
+        <PriorityChangeSheet
+          visible={showSheet}
+          impact={impact}
+          onAdjustNow={handleAdjustNow}
+          onStartTomorrow={handleStartTomorrow}
+          onSkip={handleSkip}
+        />
+      )}
     </View>
   );
 }
