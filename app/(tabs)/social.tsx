@@ -168,7 +168,7 @@ export default function SocialScreen() {
             },
           ]}
         >
-          <Ionicons name="add" size={26} color="#1A0612" />
+          <Ionicons name="add" size={26} color={c.inkOnColor} />
         </Pressable>
       </SafeAreaView>
 

@@ -10,6 +10,9 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
+import { radii } from '@/theme/radii';
+import { DOMAIN_ICONS } from '@/theme/domainIcons';
+import type { LucideIcon } from 'lucide-react-native';
 import { useUserStore, ONBOARDING_COMPLETE, type DomainId } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
 import { seedStarterRoutine } from '@/utils/starterRoutine';
@@ -17,18 +20,18 @@ import { useFlagStore } from '@/store/useFlagStore';
 import { useGameStore } from '@/store/useGameStore';
 import { track, EVENTS } from '@/utils/telemetry';
 
-type Chip = { id: DomainId; emoji: string; label: string; color: string };
+type Chip = { id: DomainId; icon: LucideIcon; label: string; sub: string; color: string };
 
 export default function WelcomeIntentScreen() {
   const c = useColors();
   const styles = makeStyles(c);
   const CHIPS: Chip[] = [
-    { id: 'goals',    emoji: '◆', label: 'Ship a big goal',     color: c.goal },
-    { id: 'health',   emoji: '♥', label: 'Feel strong',         color: c.health },
-    { id: 'finance',  emoji: '◈', label: 'Build wealth',        color: c.finance },
-    { id: 'career',   emoji: '▲', label: 'Level up career',     color: c.career },
-    { id: 'social',   emoji: '●', label: 'Nurture relationships', color: c.social },
-    { id: 'polymath', emoji: '✦', label: 'Learn something new', color: c.polymath },
+    { id: 'goals',    icon: DOMAIN_ICONS.goal,     label: 'Ship a big goal',       sub: 'Turn an ambition into a plan',  color: c.goal },
+    { id: 'health',   icon: DOMAIN_ICONS.health,   label: 'Feel strong',           sub: 'Energy, fitness, and sleep',    color: c.health },
+    { id: 'finance',  icon: DOMAIN_ICONS.finance,  label: 'Build wealth',          sub: 'Save toward what matters',      color: c.finance },
+    { id: 'career',   icon: DOMAIN_ICONS.career,   label: 'Level up career',       sub: 'Grow toward the work you want', color: c.career },
+    { id: 'social',   icon: DOMAIN_ICONS.social,   label: 'Nurture relationships', sub: 'Stay close to your people',     color: c.social },
+    { id: 'polymath', icon: DOMAIN_ICONS.polymath, label: 'Learn something new',   sub: 'Explore a skill or curiosity',  color: c.polymath },
   ];
   const router = useRouter();
   const { userId, name, setOnboardingStage, setPrimaryDomains } = useUserStore();
@@ -87,6 +90,7 @@ export default function WelcomeIntentScreen() {
         <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.grid}>
           {CHIPS.map((chip) => {
             const isSelected = selected.includes(chip.id);
+            const Icon = chip.icon;
             return (
               <Pressable
                 key={chip.id}
@@ -98,10 +102,13 @@ export default function WelcomeIntentScreen() {
                     borderLeftColor: chip.color },
                 ]}
               >
-                <Body style={[styles.chipEmoji, { color: chip.color }]}>{chip.emoji}</Body>
-                <Body style={[styles.chipLabel, isSelected && { color: c.textPrimary, fontFamily: fonts.bodyMedium }]}>
-                  {chip.label}
-                </Body>
+                <Icon size={24} color={chip.color} strokeWidth={2} />
+                <View style={styles.chipText}>
+                  <Body style={[styles.chipLabel, isSelected && { color: c.textPrimary, fontFamily: fonts.bodyMedium }]}>
+                    {chip.label}
+                  </Body>
+                  <Caption style={styles.chipSub}>{chip.sub}</Caption>
+                </View>
               </Pressable>
             );
           })}
@@ -172,13 +179,14 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     gap: spacing.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: 20,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderLeftWidth: 4,
     minHeight: 64,
   },
-  chipEmoji: { fontSize: 24 },
+  chipText: { flex: 1, gap: 2 },
   chipLabel: { color: colors.textSecondary, fontSize: fontSizes.md },
+  chipSub: { color: colors.textMuted },
   cta: { marginTop: spacing.xl, gap: spacing.sm },
   ctaHint: { color: colors.textMuted, textAlign: 'center' },
   importRow: { marginTop: spacing.lg, alignItems: 'center' },

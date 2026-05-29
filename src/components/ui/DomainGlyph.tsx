@@ -1,35 +1,28 @@
-import { Text as RNText, TextStyle, StyleProp } from 'react-native';
-import { DOMAIN_GLYPHS, useColors } from '@/theme/colors';
-import { fonts } from '@/theme/typography';
+import { useColors } from '@/theme/colors';
+import { DOMAIN_ICONS, type DomainKey } from '@/theme/domainIcons';
 
-export type DomainKey = keyof typeof DOMAIN_GLYPHS;
+export type { DomainKey };
 
 interface DomainGlyphProps {
   domain: DomainKey;
   size?: number;
   color?: string;
-  style?: StyleProp<TextStyle>;
+  strokeWidth?: number;
 }
 
-// Aurora Principle 3 — domain hue + glyph travel together. Use this primitive
-// anywhere a domain is identified by colour so screen-readers see a label.
-export function DomainGlyph({ domain, size = 14, color, style }: DomainGlyphProps) {
+// Aurora Principle 3 — domain hue + icon-shape travel together, so a domain is
+// identifiable without relying on colour alone. Use this primitive anywhere a
+// domain is shown by colour. Backed by the canonical DOMAIN_ICONS map.
+export function DomainGlyph({ domain, size = 14, color, strokeWidth = 2 }: DomainGlyphProps) {
   const c = useColors();
   const hue = (c as Record<string, string>)[domain] ?? c.primary;
+  const Icon = DOMAIN_ICONS[domain];
   return (
-    <RNText
+    <Icon
+      size={size}
+      color={color ?? hue}
+      strokeWidth={strokeWidth}
       accessibilityLabel={`${domain} domain`}
-      style={[
-        {
-          fontFamily: fonts.display,
-          fontSize: size,
-          color: color ?? hue,
-          lineHeight: size * 1.05,
-        },
-        style,
-      ]}
-    >
-      {DOMAIN_GLYPHS[domain]}
-    </RNText>
+    />
   );
 }

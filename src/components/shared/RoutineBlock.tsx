@@ -12,7 +12,9 @@ import Svg, { Circle } from 'react-native-svg';
 import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors, type AppColors, DOMAIN_GLYPHS } from '@/theme/colors';
+import { Circle as CircleIcon } from 'lucide-react-native';
+import { useColors, type AppColors } from '@/theme/colors';
+import { MODULE_ICONS } from '@/theme/domainIcons';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption } from '@/components/ui/Typography';
@@ -35,12 +37,6 @@ const ARC_CIRCUMFERENCE = 2 * Math.PI * ARC_RADIUS;
 const MODULE_LABELS: Record<string, string> = {
   goal: 'GOALS', health: 'HEALTH', finance: 'FINANCE', career: 'CAREER',
   social: 'SOCIAL', polymath: 'CURIOSITY', rest: 'REST', work: 'WORK', meal: 'MEAL',
-};
-
-const GLYPHS: Record<string, string> = {
-  goal: DOMAIN_GLYPHS.goal, health: DOMAIN_GLYPHS.health, finance: DOMAIN_GLYPHS.finance,
-  career: DOMAIN_GLYPHS.career, social: DOMAIN_GLYPHS.social, polymath: DOMAIN_GLYPHS.polymath,
-  rest: '☾', work: '■', meal: '◎',
 };
 
 interface RoutineBlockProps {
@@ -91,7 +87,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
   };
   const moduleColor = MODULE_COLORS[module] ?? c.textMuted;
   const moduleLabel = MODULE_LABELS[module] ?? module.toUpperCase();
-  const glyph = GLYPHS[module] ?? '●';
+  const ModuleIcon = MODULE_ICONS[module] ?? CircleIcon;
   const isCompleted = status === 'completed';
   const isActive = useMemo(() => !isCompleted && isNowBetween(startTime, endTime), [isCompleted, startTime, endTime]);
   const duration = useMemo(() => durationLabel(startTime, endTime), [startTime, endTime]);
@@ -197,10 +193,9 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
           <Body style={[styles.title, isCompleted && styles.titleCompleted]}>{title}</Body>
           {sub && <Caption style={styles.sub}>{sub}</Caption>}
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, { backgroundColor: moduleColor + '1A', borderColor: moduleColor + '33' }]}>
-              <Caption style={[styles.tagText, { color: moduleColor }]}>
-                {glyph}  {moduleLabel}
-              </Caption>
+            <View style={[styles.tag, styles.tagRow, { backgroundColor: moduleColor + '1A', borderColor: moduleColor + '33' }]}>
+              <ModuleIcon size={11} color={moduleColor} strokeWidth={2.25} />
+              <Caption style={[styles.tagText, { color: moduleColor }]}>{moduleLabel}</Caption>
             </View>
             <View style={[styles.tag, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }]}>
               <Caption style={[styles.tagText, { color: c.textSecondary }]}>{duration}</Caption>
@@ -352,6 +347,11 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   tagText: {
     fontFamily: fonts.heading,
