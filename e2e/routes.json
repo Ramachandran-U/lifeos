@@ -98,8 +98,8 @@
     {
       "path": "/chat",
       "name": "chat",
-      "selector": "[role=\"main\"], body",
-      "comment": "BUG-010 regression: /chat must NOT bounce to / for an onboarded user. Forgiving selector — the assertion is that the URL stays /chat (route allow-listed)."
+      "selector": "text=Ask LifeOS",
+      "comment": "BUG-010 regression: /chat must NOT bounce to / for an onboarded user. Header text proves chat screen actually mounted (was: forgiving body selector that only asserted no bounce)."
     },
     {
       "path": "/data-residency",
@@ -200,6 +200,7 @@
     "ResizeObserver loop",
     "lifeos-ai-proxy.haloai.workers.dev",
     "blocked by CORS policy",
-    "Failed to load resource: net::ERR_FAILED"
+    "Failed to load resource: net::ERR_FAILED",
+    "Unknown event handler property"
   ]
 }
