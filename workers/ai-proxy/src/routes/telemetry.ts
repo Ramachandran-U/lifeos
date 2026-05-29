@@ -42,6 +42,9 @@ const ALLOWED_EVENTS = new Set([
   // Reliability
   'ui_crash',
   'storage_usage',
+  // Retention — fires once per UTC day per device on first Today focus.
+  // Props: { days_since_install: number }
+  'app_opened',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;

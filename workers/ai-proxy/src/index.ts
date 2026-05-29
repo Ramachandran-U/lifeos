@@ -269,7 +269,7 @@ export default {
           : 'daily AI limit reached';
         return jsonError(429, message, req, env);
       }
-      return proxyClaude(req, env, corsHeaders(req, env));
+      return proxyClaude(req, env, corsHeaders(req, env), ctx, userId);
     }
 
     if (url.pathname === '/health' && req.method === 'GET') {

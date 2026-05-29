@@ -65,6 +65,8 @@ import { refreshInferredPreferences } from '@/ai/profileLearning';
 import { upsertUserProfile } from '@/db/queries/userProfile';
 import { useReplanFlow } from '@/hooks/useReplanFlow';
 import { track, EVENTS } from '@/utils/telemetry';
+import { maybeEmitAppOpened } from '@/utils/retention';
+import { getUser } from '@/db/queries/users';
 import { isCalendarConnected, startCalendarOAuth, clearCalendarTokens } from '@/integrations/googleCalendar/oauth';
 import { syncBlocksToCalendar } from '@/integrations/googleCalendar/client';
 import { updateUser } from '@/db/queries/users';
@@ -209,6 +211,10 @@ export default function TodayScreen() {
   useFocusEffect(useCallback(() => {
     loadData();
     setCalConnected(isCalendarConnected());
+    // Day-7 retention probe — once-per-UTC-day with days_since_install.
+    // The helper is self-throttled via localStorage/AsyncStorage so repeated
+    // focuses in the same day are no-ops.
+    if (userId) maybeEmitAppOpened(getUser()?.installDate ?? null);
     // Weekly profile learning — fire-and-forget; no-ops within the 7-day window.
     if (onboardingV2 && userId) {
       refreshInferredPreferences(userId).then((result) => {
@@ -479,6 +485,16 @@ export default function TodayScreen() {
               testID="voice-open"
             >
               <Ionicons name="mic" size={20} color={c.primary} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/feedback')}
+              hitSlop={8}
+              style={[styles.feedbackBtn, { backgroundColor: c.warning + '1A', borderColor: c.warning + '55' }]}
+              testID="feedback-open"
+              accessibilityRole="button"
+              accessibilityLabel="Send feedback"
+            >
+              <Ionicons name="bug-outline" size={18} color={c.warning} />
             </Pressable>
             <View style={styles.headerCenter}>
               <Heading style={{ color: c.textPrimary }}>{greeting}, {name || 'there'}</Heading>
@@ -950,6 +966,14 @@ function makeStyles(c: ReturnType<typeof useColors>, density = 1) {
       width: 44,
       height: 44,
       borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+    },
+    feedbackBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,

@@ -321,7 +321,18 @@ export default function EveningReflectScreen() {
       <AuroraBackground />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <Label color={c.primaryLight} style={styles.eyebrow}>EVENING REFLECT</Label>
+          <View style={styles.eyebrowRow}>
+            <Label color={c.primaryLight} style={styles.eyebrow}>EVENING REFLECT</Label>
+            <Pressable
+              onPress={() => router.push('/feedback')}
+              hitSlop={8}
+              style={[styles.feedbackBtn, { backgroundColor: c.warning + '1A', borderColor: c.warning + '55' }]}
+              accessibilityRole="button"
+              accessibilityLabel="Send feedback"
+            >
+              <Ionicons name="bug-outline" size={16} color={c.warning} />
+            </Pressable>
+          </View>
           <Heading style={styles.title}>
             {step === 'blocks' && 'How did today go?'}
             {step === 'mood' && 'And how did it feel?'}
@@ -553,7 +564,16 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.md },
   header: { gap: spacing.sm, paddingTop: spacing.xl, paddingBottom: spacing.sm },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   eyebrow: { letterSpacing: 1 },
+  feedbackBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
   title: { color: colors.textPrimary },
   stepper: { flexDirection: 'row', gap: 6, marginTop: spacing.sm },
   stepDot: { width: 28, height: 4, borderRadius: 2 },

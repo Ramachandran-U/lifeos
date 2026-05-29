@@ -47,6 +47,7 @@ export const EVENTS = {
   tomorrowRoutineGenerated: 'tomorrow_routine_generated',
   uiCrash: 'ui_crash',
   storageUsage: 'storage_usage',
+  appOpened: 'app_opened',
   // Explore v2 — sparks + expeditions + constellation
   domainNudgeShown: 'domain_nudge_shown',
   domainNudgeAccepted: 'domain_nudge_accepted',
