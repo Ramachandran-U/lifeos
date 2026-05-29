@@ -15,21 +15,29 @@ import { Card } from '@/components/ui/Card';
 import { useUserStore, type DomainId } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
 import { isEnabled } from '@/config/flags';
-import { PriorityChangeSheet } from '@/components/shared/PriorityChangeSheet';
+import { PriorityChangeSheet, type SheetPhase } from '@/components/shared/PriorityChangeSheet';
+import type { ExistingBlock } from '@/components/shared/RoutineDiffPreview';
 import {
   computePriorityDiff,
   assessImpact,
   hasMeaningfulChange,
   type PriorityChangeImpact,
 } from '@/cognition/priorityChangeHandler';
-import { getRoutineBlocksByDate } from '@/db/queries/routine';
+import {
+  stashReplan,
+  readStash,
+  clearStash,
+  browserStashStorage,
+} from '@/cognition/replanStash';
+import { getRoutineBlocksByDate, createRoutineBlocks, deleteRoutineBlocksByDate } from '@/db/queries/routine';
 import { getUserProfile } from '@/db/queries/userProfile';
-import { generateAndSaveTomorrow, isRecoveryLow } from '@/ai/replanApply';
-import { deleteRoutineBlocksByDate } from '@/db/queries/routine';
+import { generateAndSaveTomorrow, isRecoveryLow, applyReplan } from '@/ai/replanApply';
+import { replanRemainingDay } from '@/ai/functions';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import { getLatestSleepHours } from '@/db/queries/health';
 import { useGameStore } from '@/store/useGameStore';
 import { track, EVENTS } from '@/utils/telemetry';
+import type { ReplanRemainingDay } from '@/ai/types';
 
 const ALL_DOMAINS: { id: DomainId; emoji: string; label: string; colorKey: keyof AppColors }[] = [
   { id: 'goals',    emoji: '◆', label: 'Goals',        colorKey: 'goal' },
@@ -91,6 +99,9 @@ export default function EditPrioritiesScreen() {
 
   const [showSheet, setShowSheet] = useState(false);
   const [impact, setImpact] = useState<PriorityChangeImpact | null>(null);
+  const [phase, setPhase] = useState<SheetPhase>('choice');
+  const [plan, setPlan] = useState<ReplanRemainingDay | null>(null);
+  const [existing, setExisting] = useState<ExistingBlock[]>([]);
 
   const handleSave = () => {
     if (!userId || !canSave) return;
@@ -144,11 +155,114 @@ export default function EditPrioritiesScreen() {
     setTimeout(() => { setShowSheet(false); router.back(); }, 1200);
   };
 
-  const handleAdjustNow = () => {
-    // Phase B — for now, same as tomorrow (the planner replan is wired in Phase B)
-    track(EVENTS.priorityReplanNow, { blocksRemoved: impact?.blocksAtRisk.length ?? 0, blocksAdded: 0, durationMs: 0 });
-    handleStartTomorrow();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const nowHHMM = () => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
+
+  const [replanError, setReplanError] = useState<string | null>(null);
+
+  const handleAdjustNow = async () => {
+    if (!userId) return;
+    setReplanError(null);
+    setPhase('loading');
+    const startedAt = Date.now();
+    try {
+      const profile = await getUserProfile(userId);
+      if (!profile) throw new Error('Your profile could not be loaded.');
+      const allBlocks = getRoutineBlocksByDate(today);
+      const now = nowHHMM();
+      const remaining = allBlocks
+        .filter((b) => b.startTime >= now)
+        .map((b) => ({
+          id: b.id, startTime: b.startTime, endTime: b.endTime, title: b.title, module: b.module,
+          status: b.status as 'upcoming' | 'in_progress' | 'completed' | 'skipped',
+        }));
+      const skippedToday = allBlocks
+        .filter((b) => b.status === 'skipped')
+        .map((b) => ({ id: b.id, title: b.title, module: b.module }));
+      setExisting(remaining.map((b) => ({ id: b.id, startTime: b.startTime, endTime: b.endTime, title: b.title, module: b.module })));
+
+      const result = await replanRemainingDay({
+        nowHHMM: now,
+        remainingBlocks: remaining,
+        skippedToday,
+        primaryDomains: selectedInOrder,
+        chronotype: profile.chronotype ?? null,
+      });
+      setPlan(result);
+      setPhase('preview');
+    } catch (e) {
+      // Show an error and let the user retry, choose tomorrow, or skip.
+      track(EVENTS.priorityReplanNow, { blocksRemoved: 0, blocksAdded: 0, durationMs: Date.now() - startedAt, failed: true });
+      setReplanError(e instanceof Error ? e.message : 'Could not generate an adjusted plan.');
+      setPhase('error');
+    }
+  };
+
+  const handleConfirmPreview = () => {
+    if (!plan || !userId) return;
+    const allBlocks = getRoutineBlocksByDate(today);
+    const droppedBlocks = allBlocks
+      .filter((b) => plan.drop.includes(b.id))
+      .map((b) => ({
+        id: b.id, date: b.date, startTime: b.startTime, endTime: b.endTime,
+        title: b.title, module: b.module, status: b.status,
+        linkedEntityId: b.linkedEntityId ?? null,
+        energyRequired: b.energyRequired ?? null,
+      }));
+
+    // Capture inserted block IDs BEFORE apply so we can find them for undo.
+    const beforeIds = new Set(allBlocks.map((b) => b.id));
+    applyReplan(plan, today);
+    const afterIds = getRoutineBlocksByDate(today).map((b) => b.id);
+    const insertedBlockIds = afterIds.filter((id) => !beforeIds.has(id));
+
+    stashReplan(browserStashStorage(), userId, today, {
+      droppedBlocks,
+      insertedBlockIds,
+      priorPriorities: primaryDomains,
+    });
+    track(EVENTS.priorityReplanNow, { blocksRemoved: plan.drop.length, blocksAdded: plan.add.length, durationMs: 0 });
+    setPhase('applied');
+  };
+
+  const handleCancelPreview = () => {
+    setPhase('choice');
+    setPlan(null);
+  };
+
+  const handleUndo = () => {
+    if (!userId) return;
+    const storage = browserStashStorage();
+    const entry = readStash(storage, userId, today);
+    if (!entry) { setShowSheet(false); router.back(); return; }
+
+    // Remove the inserted blocks and reinsert the originals.
+    const allBlocks = getRoutineBlocksByDate(today);
+    const insertedSet = new Set(entry.insertedBlockIds);
+    const toDelete = allBlocks.filter((b) => insertedSet.has(b.id)).map((b) => b.id);
+    // Delete inserted blocks (use deleteRoutineBlocksByDate? — no, that wipes all. Use applyReplan with drop list.)
+    applyReplan({ drop: toDelete, edits: [], add: [], rationale: 'undo' }, today);
+    // Reinsert the originals.
+    if (entry.droppedBlocks.length > 0) {
+      createRoutineBlocks(
+        entry.droppedBlocks.map((b) => ({
+          date: b.date, startTime: b.startTime, endTime: b.endTime,
+          title: b.title, module: b.module,
+          energyRequired: b.energyRequired ?? undefined,
+        })),
+      );
+    }
+    // Routine-only undo: priorities stay updated; only today's blocks are reverted.
+    clearStash(storage, userId, today);
+    track(EVENTS.priorityUndo, { withinSeconds: Math.floor((Date.now() - new Date(entry.stashedAt).getTime()) / 1000) });
+    setShowSheet(false);
+    router.back();
+  };
+
+  const handleClose = () => { setShowSheet(false); router.back(); };
 
   const handleSkip = () => {
     track(EVENTS.priorityChange, { choice: 'skip' });
@@ -258,9 +372,18 @@ export default function EditPrioritiesScreen() {
         <PriorityChangeSheet
           visible={showSheet}
           impact={impact}
+          phase={phase}
+          plan={plan}
+          existing={existing}
           onAdjustNow={handleAdjustNow}
           onStartTomorrow={handleStartTomorrow}
           onSkip={handleSkip}
+          onConfirmPreview={handleConfirmPreview}
+          onCancelPreview={handleCancelPreview}
+          onUndo={handleUndo}
+          onClose={handleClose}
+          onRetry={handleAdjustNow}
+          errorMessage={replanError ?? undefined}
         />
       )}
     </View>
