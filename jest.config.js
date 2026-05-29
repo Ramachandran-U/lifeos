@@ -10,6 +10,7 @@ module.exports = {
     // dragging in jest-expo / babel-preset-expo.
     '^react-native$': '<rootDir>/jest.mocks/react-native.ts',
     '^expo-constants$': '<rootDir>/jest.mocks/expo-constants.ts',
+    '^expo-crypto$': '<rootDir>/jest.mocks/expo-crypto.ts',
     '^@react-native-async-storage/async-storage$': '<rootDir>/jest.mocks/async-storage.ts',
   },
   transform: {

@@ -53,7 +53,9 @@ export type AITask =
   | 'generateMoneyReview'
   | 'agent.propose'
   | 'agent.critique'
-  | 'agent.brief';
+  | 'agent.brief'
+  | 'agent.goal.propose'
+  | 'agent.goal.critique';
 
 const TASK_TIER: Record<AITask, Tier> = {
   categorizeMerchant: 'cheap',
@@ -87,6 +89,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   generateWeekRoutine: 'planning',
   'agent.propose': 'planning',
   'agent.critique': 'planning',
+  'agent.goal.propose': 'planning',
+  'agent.goal.critique': 'planning',
 
   parseBloodReport: 'reasoning',
 };

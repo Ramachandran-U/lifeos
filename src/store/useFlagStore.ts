@@ -13,6 +13,19 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   gmail_finance_enabled: true,
   evening_reflect_enabled: true,
   polymath_enabled: true,
+  // v2 closes the Today↔Reflect loop: AI-adapted tomorrow + weekly profile
+  // refresh + replan CTA. Default-on so cold-launch (before /v1/config resolves)
+  // doesn't silently drop users onto the legacy verbatim-clone path. Worker
+  // serves as kill switch only.
+  onboarding_v2: true,
+  // Event-sourced write log feeding future cross-device sync. Observer-only;
+  // failures inside the log never surface to the user. Default-on so beta
+  // history accumulates; flip off in the Worker if it ever misbehaves.
+  mutation_log_enabled: true,
+  // Multi-step agent for goal decomposition. Off by default — flip on per-user
+  // to A/B against the single-shot baseline. Kill criterion lives in migration
+  // 0004_ai_suggestions.sql.
+  agent_goal_decomp: false,
 };
 
 interface FlagState {
@@ -72,7 +85,9 @@ export const useFlagStore = create<FlagState>()(
     {
       // Bump `_v1` if FALLBACK_FLAGS gains a flag whose default flipped —
       // we'd want clients to re-fetch rather than serve stale persisted state.
-      name: 'lifeos_flags_v1',
+      // Bumped to v2 (2026-05-29): onboarding_v2 added as default-on so
+      // existing persisted state from before the addition doesn't shadow it.
+      name: 'lifeos_flags_v2',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },

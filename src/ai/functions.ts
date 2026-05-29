@@ -2,6 +2,10 @@ import { callAI } from './client';
 import { extractJson } from './extractJson';
 import { pickModel } from './modelRouter';
 import { track, EVENTS } from '@/utils/telemetry';
+import { useFlagStore } from '@/store/useFlagStore';
+import { decomposeGoalAgent } from './agent/goalDecomposer';
+import { logAiSuggestion } from '@/db/queries/aiSuggestions';
+import { useUserStore } from '@/store/useUserStore';
 
 /**
  * Emit an `ai_schema_failure` telemetry event and rethrow. Called from
@@ -149,7 +153,7 @@ import { MOCK_FINANCIAL_PLAN, MOCK_WEEKLY_INSIGHT, buildMockFinancialPlan } from
 
 const isMock = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
 
-export async function decomposeGoal(
+async function decomposeGoalSingleShot(
   input: GoalInput,
   opts?: { signal?: AbortSignal },
 ): Promise<GoalHierarchy> {
@@ -174,6 +178,43 @@ export async function decomposeGoal(
   } catch (err) {
     recordSchemaFailure('decomposeGoal', 'GoalHierarchy', response, err);
   }
+}
+
+/**
+ * Decomposes a vision into a 12-month hierarchy.
+ *
+ * Dispatch: when the `agent_goal_decomp` flag is on, runs the multi-step
+ * propose→critique→commit agent (`src/ai/agent/goalDecomposer.ts`). Otherwise
+ * runs the single-shot baseline. Both paths log to `ai_suggestions` so the
+ * production-outcomes report can compare them. See migration 0004 for the
+ * kill/keep hypothesis.
+ */
+export async function decomposeGoal(
+  input: GoalInput,
+  opts?: { signal?: AbortSignal },
+): Promise<GoalHierarchy> {
+  const useAgent = useFlagStore.getState().isEnabled('agent_goal_decomp');
+  const variant = useAgent ? 'agent' : 'single_shot';
+  const hierarchy = useAgent
+    ? (await decomposeGoalAgent(input, opts)).hierarchy
+    : await decomposeGoalSingleShot(input, opts);
+
+  // Fire-and-forget suggestion log. We don't await — outcome tracking should
+  // never block the user-facing decompose call.
+  const userId = useUserStore.getState().userId;
+  if (userId) {
+    void logAiSuggestion({
+      userId,
+      task: 'goal.decompose',
+      variant,
+      input,
+      outputSummary: `monthly=${hierarchy.monthly.length} weekly=${hierarchy.weekly.length}`,
+    }).catch(() => {
+      // Suggestion logging failure must never break the AI call.
+    });
+  }
+
+  return hierarchy;
 }
 
 // Common AI hallucinations — coerce to the closest valid enum before Zod parse.

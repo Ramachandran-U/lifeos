@@ -315,3 +315,27 @@ export const behaviourEvents = sqliteTable('behaviour_events', {
   dayOfWeek: integer('day_of_week').notNull(), // 0-6, 0=Sunday
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
+
+// --- AI Suggestions (outcome tracking — see 0004_ai_suggestions.sql for kill/keep hypothesis) ---
+export const aiSuggestions = sqliteTable('ai_suggestions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  task: text('task').notNull(), // e.g. 'routine.generate', 'goal.decompose'
+  variant: text('variant').notNull(), // 'single_shot' | 'agent'
+  model: text('model'),
+  inputHash: text('input_hash').notNull(), // SHA-256 of canonicalised input; raw input not stored
+  outputSummary: text('output_summary'), // short opaque summary
+  outputRef: text('output_ref'), // foreign id pointing to the durable artefact (routine date, goal id, ...)
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+export const suggestionOutcomes = sqliteTable('suggestion_outcomes', {
+  id: text('id').primaryKey(),
+  suggestionId: text('suggestion_id').notNull(),
+  windowDays: integer('window_days').notNull(), // 14 for the kill/keep decision
+  blocksTotal: integer('blocks_total'),
+  blocksCompleted: integer('blocks_completed'),
+  completionRate: real('completion_rate'), // blocks_completed / blocks_total
+  domainScoreDelta: real('domain_score_delta'), // context only; NOT the kill/keep metric
+  measuredAt: text('measured_at').notNull().default(sql`(datetime('now'))`),
+});
