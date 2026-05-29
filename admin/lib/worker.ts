@@ -314,3 +314,80 @@ export async function getOverview(days = 7): Promise<OverviewResponse> {
   if (!res.ok) throw new Error(`overview: ${res.status}`);
   return res.json();
 }
+
+export interface AiOpsTask {
+  task: string;
+  calls: number;
+  failures: number;
+  failure_rate: number;
+  avg_input_tokens: number;
+  avg_output_tokens: number;
+  est_cost_inr: number;
+  models: string[];
+}
+
+export interface AiOpsEval {
+  branch: string;
+  commit_sha: string;
+  generated_at: string;
+  mode: 'MOCK' | 'LIVE';
+  pass_rate: number;
+  total_cases: number;
+  passed_cases: number;
+  weakest_suite: { name: string; passRate: number; status: string; cases: number } | null;
+}
+
+export interface AiOpsResponse {
+  window_days: number;
+  tasks: AiOpsTask[];
+  evals: AiOpsEval[];
+  totals: { calls: number; failures: number; failure_rate: number; cost_inr: number };
+}
+
+export async function getAiOps(days = 7): Promise<AiOpsResponse> {
+  const res = await authedFetch(`/v1/admin/ai-ops?days=${days}`);
+  if (!res.ok) throw new Error(`ai-ops: ${res.status}`);
+  return res.json();
+}
+
+export interface AiOpsFailureSample {
+  ts: string;
+  error: string;
+  raw_preview: string;
+  schema: string;
+  app_version: string | null;
+  platform: string | null;
+}
+
+export async function getAiOpsFailures(task: string, days = 7): Promise<{ task: string; days: number; samples: AiOpsFailureSample[] }> {
+  const res = await authedFetch(`/v1/admin/ai-ops/failures?task=${encodeURIComponent(task)}&days=${days}`);
+  if (!res.ok) throw new Error(`ai-ops failures: ${res.status}`);
+  return res.json();
+}
+
+export interface UserDevice {
+  device_id: string;
+  first_seen: string;
+  last_seen: string;
+  event_count: number;
+  onboarding_stage: string | null;
+  finished_onboarding: boolean;
+  feedback_count: number;
+  app_version: string | null;
+  platform: string | null;
+  bucket: 'active' | 'stuck' | 'superuser' | 'inactive';
+}
+
+export interface UsersResponse {
+  window_days: number;
+  filter: 'all' | 'active' | 'stuck' | 'superuser';
+  totals: { all: number; active: number; stuck: number; superuser: number; inactive: number };
+  users: UserDevice[];
+  truncated: boolean;
+}
+
+export async function getUsers(filter: UsersResponse['filter'] = 'all', days = 30): Promise<UsersResponse> {
+  const res = await authedFetch(`/v1/admin/users?filter=${filter}&days=${days}`);
+  if (!res.ok) throw new Error(`users: ${res.status}`);
+  return res.json();
+}

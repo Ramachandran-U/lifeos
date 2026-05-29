@@ -13,6 +13,8 @@ import { handlePushRegister } from './routes/push';
 import { handleEvalReport } from './routes/evalReports';
 import { handleAdminEvals } from './routes/admin/evals';
 import { handleAdminOverview } from './routes/admin/overview';
+import { handleAdminAiOps } from './routes/admin/aiOps';
+import { handleAdminUsers } from './routes/admin/users';
 import { handlePrompts } from './routes/prompts';
 import { handleGoogleToken } from './routes/googleToken';
 import { handleTelemetry } from './routes/telemetry';
@@ -360,6 +362,22 @@ export default {
           return await handleAdminOverview(req, env, admin, corsHeaders(req, env));
         } catch (e) {
           return jsonError(500, e instanceof Error ? e.message : 'admin overview error', req, env);
+        }
+      }
+
+      if (url.pathname.startsWith('/v1/admin/ai-ops')) {
+        try {
+          return await handleAdminAiOps(req, env, admin, corsHeaders(req, env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin ai-ops error', req, env);
+        }
+      }
+
+      if (url.pathname === '/v1/admin/users') {
+        try {
+          return await handleAdminUsers(req, env, admin, corsHeaders(req, env));
+        } catch (e) {
+          return jsonError(500, e instanceof Error ? e.message : 'admin users error', req, env);
         }
       }
 

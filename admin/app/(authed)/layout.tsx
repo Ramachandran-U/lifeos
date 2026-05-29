@@ -4,14 +4,16 @@ import { redirect } from 'next/navigation';
 import { serverClient } from '@/lib/supabase-server';
 import { SignOutButton } from './SignOutButton';
 
+// Schema failures + Evals routes still exist for deep-links but are consolidated
+// into AI Operations; hidden from the sidebar to keep nav tight.
 const NAV: { label: string; href: string; enabled: boolean }[] = [
   { label: 'Overview',        href: '/overview',        enabled: true },
+  { label: 'AI Operations',   href: '/ai-ops',          enabled: true },
+  { label: 'Users',           href: '/users',           enabled: true },
+  { label: 'Telemetry',       href: '/telemetry',       enabled: true },
+  { label: 'Feedback',        href: '/feedback',        enabled: true },
   { label: 'Flags',           href: '/flags',           enabled: true },
   { label: 'Prompts',         href: '/prompts',         enabled: true },
-  { label: 'Telemetry',       href: '/telemetry',       enabled: true },
-  { label: 'Schema failures', href: '/schema-failures', enabled: true },
-  { label: 'Evals',           href: '/evals',           enabled: true },
-  { label: 'Feedback',        href: '/feedback',        enabled: true },
   { label: 'Push',            href: '/push',            enabled: true },
   { label: 'Audit',           href: '#',                enabled: false },
 ];
