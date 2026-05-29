@@ -35,6 +35,7 @@ import { Confetti } from '@/components/shared/Confetti';
 import { DailySummarySheet } from '@/components/shared/DailySummarySheet';
 import { YesterdayLogSheet } from '@/components/shared/YesterdayLogSheet';
 import { AdaptationCard } from '@/components/shared/AdaptationCard';
+import { WhatNextCard } from '@/components/shared/WhatNextCard';
 import { LifeScoreHero } from '@/components/shared/LifeScoreHero';
 import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
 import { getReflectionByDate } from '@/db/queries/reflections';
@@ -642,6 +643,12 @@ export default function TodayScreen() {
           {blocks.length > 0 && (
             <Animated.View entering={FadeInDown.delay(180).duration(400)}>
               <AdaptationCard onApplied={loadData} />
+            </Animated.View>
+          )}
+
+          {blocks.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+              <WhatNextCard />
             </Animated.View>
           )}
 
