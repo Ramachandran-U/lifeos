@@ -2,7 +2,7 @@
 // (which uses Crypto.digestStringAsync) don't fail on the ESM `base64-js` import inside the
 // real package. The eval harness runs in plain Node — see jest.config.js moduleNameMapper.
 
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, randomUUID as nodeRandomUUID } from 'crypto';
 
 export const CryptoDigestAlgorithm = {
   SHA256: 'SHA256',
@@ -20,4 +20,8 @@ export async function digestStringAsync(
 
 export function getRandomBytes(byteCount: number): Uint8Array {
   return new Uint8Array(randomBytes(byteCount));
+}
+
+export function randomUUID(): string {
+  return nodeRandomUUID();
 }
