@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
+import { getCurrency, formatMoney } from '@/utils/currency';
 import { useAI } from '@/hooks/useAI';
 import { generateFinancialPlan } from '@/ai/functions';
 import { useUserStore } from '@/store/useUserStore';
@@ -63,7 +64,9 @@ export default function Day7FinanceScreen() {
 
   const [goalType, setGoalType] = useState<string>('emergency_fund');
   const [targetAmount, setTargetAmount] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  // Currency comes from the app-wide single source of truth, not a free-text
+  // field — keeps onboarding consistent with the Finance tab (getCurrency()).
+  const activeCurrency = getCurrency();
   const [timelineMonths, setTimelineMonths] = useState(36);
   const [monthlySavings, setMonthlySavings] = useState('');
   const [riskProfile, setRiskProfile] = useState<string>('moderate');
@@ -87,9 +90,10 @@ export default function Day7FinanceScreen() {
         targetAmount: targetAmountNum,
         targetDate,
         monthlySavings: monthlySavingsNum,
-        incomeBracket: '50k_75k', // optional bracket; not asked here
+        // Localised middle bracket for the active currency (not asked here).
+        incomeBracket: activeCurrency.incomeBrackets[2]?.value ?? activeCurrency.incomeBrackets[0]?.value ?? '50k_75k',
         riskProfile,
-        currency,
+        currency: activeCurrency.code,
       }),
     );
     if (result) {
@@ -105,7 +109,7 @@ export default function Day7FinanceScreen() {
         title: GOAL_TYPES.find((g) => g.value === goalType)?.label ?? goalType,
         goalType,
         targetAmount: targetAmountNum,
-        currency,
+        currency: activeCurrency.code,
         targetDate,
         monthlySavings: monthlySavingsNum,
         riskProfile,
@@ -166,27 +170,13 @@ export default function Day7FinanceScreen() {
               })}
             </View>
 
-            <View style={styles.row}>
-              <View style={{ flex: 2 }}>
-                <Input
-                  label="Target amount"
-                  value={targetAmount}
-                  onChangeText={setTargetAmount}
-                  keyboardType="numeric"
-                  placeholder="50000"
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Input
-                  label="Currency"
-                  value={currency}
-                  onChangeText={(v) => setCurrency(v.toUpperCase().slice(0, 3))}
-                  autoCapitalize="characters"
-                  maxLength={3}
-                  placeholder="USD"
-                />
-              </View>
-            </View>
+            <Input
+              label={`Target amount (${activeCurrency.symbol})`}
+              value={targetAmount}
+              onChangeText={setTargetAmount}
+              keyboardType="numeric"
+              placeholder={String(activeCurrency.targetPresets[1])}
+            />
 
             <Label style={styles.fieldLabel}>Timeline</Label>
             <View style={styles.chipRow}>
@@ -253,7 +243,7 @@ export default function Day7FinanceScreen() {
               <Card moduleColor={c.finance} style={styles.previewCard}>
                 <Label color={c.finance}>YOUR PLAN</Label>
                 <Heading style={[styles.planHeadline, { color: c.textPrimary }]}>
-                  {currency} {Math.round(plan.monthlyTarget).toLocaleString()} / month
+                  {formatMoney(Math.round(plan.monthlyTarget))} / month
                 </Heading>
                 <Body style={{ color: c.textSecondary, marginTop: spacing.xs }}>{plan.summary}</Body>
                 {plan.strategy.length > 0 ? (
