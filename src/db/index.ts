@@ -370,6 +370,7 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE users ADD COLUMN sex TEXT`);
   await safeAlter(`ALTER TABLE users ADD COLUMN activity_level TEXT`);
   await safeAlter(`ALTER TABLE health_logs ADD COLUMN water_ml REAL`);
+  await safeAlter(`ALTER TABLE health_logs ADD COLUMN recovery_score REAL`);
 
   // Drop zombie tables — never had queries, no UI, no roadmap commitment
   // (architect-review §P1-5). Idempotent: DROP IF EXISTS is a no-op when the

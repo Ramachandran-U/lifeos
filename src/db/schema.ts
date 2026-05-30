@@ -85,6 +85,7 @@ export const healthLogs = sqliteTable('health_logs', {
   steps: integer('steps'),
   energyLevel: integer('energy_level'), // 1-5
   waterMl: real('water_ml'), // per-row increment; sum across the day's rows = total intake
+  recoveryScore: real('recovery_score'), // 0-100 readiness; latest per day feeds the replanner
   notes: text('notes'),
   source: text('source').notNull().default('manual'), // manual | healthkit | health_connect
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),

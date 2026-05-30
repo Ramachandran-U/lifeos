@@ -9,6 +9,7 @@ export interface WebHealthLog {
   steps?: number | null;
   energyLevel?: number | null;
   waterMl?: number | null;
+  recoveryScore?: number | null;
   notes?: string | null;
   source: string;
   createdAt: string;
