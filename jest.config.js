@@ -36,6 +36,12 @@ module.exports = {
     {
       displayName: 'components',
       preset: 'jest-expo',
+      // NOTE: this project runs locally but is NOT yet wired into CI — Expo 54's
+      // "winter" runtime (expo/src/winter/runtime*.ts) ships untransformed ESM
+      // that jest's CJS runtime rejects in a clean Linux checkout ("trying to
+      // import a file outside of the scope of the test code"). Needs a jest-expo
+      // SDK-54 setup fix (transform/setupFile for expo/src/winter) before it can
+      // gate CI. Tracked as a follow-up. Run locally with: npm run test:components
       // Relative glob (not <rootDir>/…) — an absolute glob breaks on Windows
       // where the path mixes \ and /. Matches src/components/**/*.test.tsx.
       testMatch: ['**/src/components/**/*.test.tsx'],

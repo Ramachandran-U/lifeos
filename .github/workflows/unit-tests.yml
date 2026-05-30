@@ -1,9 +1,10 @@
 name: Unit Tests
 
-# Runs the full Jest suite — both projects: `node` (pure-logic, ts-jest) and
-# `components` (RN render tests via jest-expo). Until now NO workflow ran
-# `npm test`, so the unit + component suites had no CI gate (only the evals
-# subset ran). This closes that gap.
+# Runs `npm test` — the `node` (pure-logic, ts-jest) Jest project. Until now NO
+# workflow ran the unit suite (only the evals subset), so this closes that gap
+# for 600+ tests. The `components` project (jest-expo RN render tests) runs
+# locally via `npm run test:components` but is NOT gated here yet — Expo 54's
+# winter runtime needs a jest-expo transform fix to run in a clean CI checkout.
 
 on:
   pull_request:
