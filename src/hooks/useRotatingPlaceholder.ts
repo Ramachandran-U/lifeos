@@ -4,7 +4,8 @@ import { useMotionScale } from '@/theme/motion';
 interface Options {
   /** Only rotate while true — pass `!value` so it pauses once the user types. */
   active?: boolean;
-  /** Dwell time per phrase, in ms. Default 3200 (slow enough to read, not jittery). */
+  /** Dwell time per phrase, in ms. Default 2000 — fast enough to show variety
+   * before the user starts typing, slow enough to read. */
   intervalMs?: number;
 }
 
@@ -19,7 +20,7 @@ interface Options {
  */
 export function useRotatingPlaceholder(
   phrases: string[],
-  { active = true, intervalMs = 3200 }: Options = {},
+  { active = true, intervalMs = 2000 }: Options = {},
 ): string {
   const motionScale = useMotionScale();
   const [index, setIndex] = useState(0);
