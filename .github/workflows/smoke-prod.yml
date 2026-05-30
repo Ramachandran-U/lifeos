@@ -34,20 +34,23 @@ jobs:
 
       - run: npm ci
 
+      # Distinct cache key from the E2E workflow — that one caches chromium only,
+      # but smoke-mobile uses the iPhone 13 device descriptor, which defaults to
+      # the WebKit engine (real Safari emulation for iOS-faithful layout checks).
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-smoke-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Install Playwright system deps
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+        run: npx playwright install-deps chromium webkit
 
       # Desktop + mobile viewport route walks against the live site. No build,
       # no Supabase secrets — the deployed bundle already has its env baked in.
