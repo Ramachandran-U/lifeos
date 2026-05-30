@@ -40,6 +40,8 @@ export interface FeatureFlags {
   priorityAdjust: boolean;
   /** P5: autonomous calendar-aware orchestration suggestions. */
   orchestration: boolean;
+  /** Profile: upload a photo → AI-generated gamified avatar (nano banana). Paid image-gen — off until billing is enabled. */
+  profileAvatarGen: boolean;
 }
 
 export type FeatureFlag = keyof FeatureFlags;
@@ -58,6 +60,7 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   memoryGraph: false,
   priorityAdjust: false,
   orchestration: false,
+  profileAvatarGen: false,
 });
 
 /** UPPER_SNAKE env-var suffix for each flag, e.g. mutationLog -> MUTATION_LOG. */
