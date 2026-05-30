@@ -13,6 +13,13 @@ import { test, expect } from '@playwright/test';
 import { seedAuthedUser } from './helpers';
 
 test.describe('Routine block — hold to complete', () => {
+  // Emulate reduce-motion so RoutineBlock uses its 80ms REDUCED_HOLD_MS window
+  // instead of the 250ms default. The completion still fires via the same
+  // press-and-hold → setTimeout(commit) path, but a 600ms hold now clears the
+  // window by ~7.5x — removing the slow-CI timing flake without masking the
+  // behaviour under test.
+  test.use({ reducedMotion: 'reduce' });
+
   test.beforeEach(async ({ page }) => {
     await seedAuthedUser(page);
   });
