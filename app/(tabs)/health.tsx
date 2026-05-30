@@ -469,7 +469,11 @@ export default function HealthScreen() {
                 <Card key={meal} style={styles.mealCard}>
                   <View style={styles.mealHeader}>
                     <Label>{meal.charAt(0).toUpperCase() + meal.slice(1)}</Label>
-                    <Pressable onPress={() => openAddFood(meal)}>
+                    <Pressable
+                      onPress={() => openAddFood(meal)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add ${meal}`}
+                    >
                       <Ionicons name="add-circle" size={24} color={c.health} />
                     </Pressable>
                   </View>
