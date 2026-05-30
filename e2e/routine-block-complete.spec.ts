@@ -17,17 +17,16 @@ test.describe('Routine block — hold to complete', () => {
     await seedAuthedUser(page);
   });
 
-  // QUARANTINED (fixme) — pre-existing regression, NOT a flake or a crash.
-  // This test passed until the #57 merge and has failed since. Trace analysis of
-  // the CI failure (run 26679985750) shows: no page errors / no exceptions (only
-  // benign Reanimated/useNativeDriver warnings), but the failure screenshot is a
-  // blank dark screen. Completing a block calls enqueueXPReward (index.tsx:264),
-  // which raises a full-screen XP celebration overlay that covers the collapsed-
-  // header "1 of 1 done" counter this test asserts on. So the block DOES complete;
-  // the assertion target is just hidden behind the reward overlay.
-  // Proper fix (separate change): assert on the block's own completed state, or
-  // wait for the reward overlay to dismiss before checking the counter. Tracked
-  // in docs/TEST_COVERAGE_AND_CI_REPORT.md (Step 3).
+  // STILL QUARANTINED (fixme) — assertion improved, root cause NOT yet fixed.
+  // The greeting + status button render fine, but after the hold the CI web
+  // screenshot is blank (background colour only) and neither the completed
+  // checkmark nor the counter appears. Ruled OUT: (1) the level-up overlay — it
+  // was demoted to a non-blocking banner and the screen is still blank; (2) a JS
+  // crash — the trace console has only benign warnings, no exceptions. The cause
+  // is something else in the web build's completion path and needs a LOCAL debug
+  // session (headed browser + `npx playwright show-trace`), not blind CI loops.
+  // The assertion below now targets the block-local checkmark testid, so once the
+  // underlying issue is fixed this just needs `.fixme` → `test` to re-enable.
   test.fixme('hold the status button → block flips to completed', async ({ page }) => {
     await page.goto('/');
 
@@ -50,11 +49,8 @@ test.describe('Routine block — hold to complete', () => {
     await page.waitForTimeout(600);
     await page.mouse.up();
 
-    // The completed state replaces the press button with a checkmark icon.
-    // The block container stays mounted; the title gets a line-through. We
-    // assert on the most observable signal: the "done" counter on the chip.
-    // Seeded block count = 1, so after completion the visible chip text reads
-    // "… · 1 of 1 done". Use a regex tolerant to surrounding metadata.
-    await expect(page.getByText(/1 of 1 done/i)).toBeVisible({ timeout: 5_000 });
+    // Completion swaps the press button for a checkmark carrying a dedicated
+    // testid — a stable signal that isn't affected by scroll state or overlays.
+    await expect(page.getByTestId('routine-block-e2e-block-1-completed')).toBeVisible({ timeout: 8_000 });
   });
 });

@@ -219,7 +219,10 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
           accessibilityHint={isCompleted ? 'Completed' : 'Hold to complete'}
         >
           {isCompleted ? (
-            <View style={[styles.checkCircle, { backgroundColor: c.success + '26', borderColor: c.success + '66' }]}>
+            <View
+              testID={`routine-block-${id}-completed`}
+              style={[styles.checkCircle, { backgroundColor: c.success + '26', borderColor: c.success + '66' }]}
+            >
               <Ionicons name="checkmark" size={16} color={c.success} />
             </View>
           ) : (

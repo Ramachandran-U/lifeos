@@ -1,7 +1,10 @@
-import { Modal, View, Text, StyleSheet, Pressable, Platform } from 'react-native';
-import Animated, { FadeIn, ZoomIn, FadeInUp } from 'react-native-reanimated';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
+import { spacing } from '@/theme/spacing';
+import { radii } from '@/theme/radii';
 import { LEVEL_PERKS } from '@/constants/gamification';
 
 interface Props {
@@ -10,113 +13,97 @@ interface Props {
   onClose: () => void;
 }
 
+// Aurora level-up nudge. A level-up is a milestone, so it still celebrates —
+// but as a NON-BLOCKING top banner, not a full-screen takeover. It slides in,
+// auto-dismisses, and lets the rest of the screen stay interactive. (Finishing
+// a single routine block should never seize the whole screen.)
+const AUTO_DISMISS_MS = 5000;
+
 export function LevelUpOverlay({ level, userName, onClose }: Props) {
   const c = useColors();
+
+  useEffect(() => {
+    if (level === null) return;
+    const t = setTimeout(onClose, AUTO_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [level, onClose]);
+
   if (level === null) return null;
+
   const perks = LEVEL_PERKS[level] ?? ['New features unlocked', 'Keep going!'];
   const firstName = (userName ?? 'Friend').split(' ')[0];
-
-  const auroraBg = Platform.OS === 'web'
-    ? ({
-        backgroundImage: `
-          radial-gradient(50% 40% at 50% 20%, ${c.primary}44, transparent 70%),
-          radial-gradient(40% 30% at 80% 80%, #FF99C533, transparent 70%),
-          radial-gradient(40% 30% at 20% 90%, #7FB8FF33, transparent 70%)
-        `,
-      } as unknown as object)
-    : undefined;
-  const levelGlow = Platform.OS === 'web'
-    ? ({ textShadow: `0 0 32px ${c.primary}, 0 0 8px ${c.primaryLight}` } as unknown as object)
+  const glow = Platform.OS === 'web'
+    ? ({ boxShadow: `0 12px 40px ${c.primary}44` } as unknown as object)
     : undefined;
 
   return (
-    <Modal transparent animationType="none" visible={level !== null} onRequestClose={onClose}>
-      <Animated.View
-        entering={FadeIn.duration(200)}
-        style={[styles.backdrop, { backgroundColor: 'rgba(0,0,0,0.72)' }]}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View
-          entering={ZoomIn.duration(600).springify().damping(14)}
-          style={[styles.modal, { backgroundColor: c.surface, borderColor: c.primary + '55' }, auroraBg as object]}
+    // box-none lets touches fall through everywhere except the banner itself,
+    // so the screen behind stays fully usable while the nudge is up.
+    <View pointerEvents="box-none" style={styles.wrap}>
+      <Animated.View entering={FadeInDown.duration(360)} exiting={FadeOutUp.duration(240)}>
+        <Pressable
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={`Level ${level} reached. Tap to dismiss.`}
+          style={[
+            styles.banner,
+            { backgroundColor: c.surface, borderColor: c.primary + '55' },
+            glow as object,
+          ]}
         >
-          <Pressable style={styles.close} onPress={onClose} hitSlop={8}>
-            <Text style={{ color: c.textMuted, fontSize: 18 }}>✕</Text>
-          </Pressable>
-
-          <Text style={[styles.levelNum, { color: c.primaryLight }, levelGlow as object]}>{level}</Text>
-          <Text style={{ fontFamily: fonts.heading, fontSize: 12, color: c.textMuted, letterSpacing: 2, marginBottom: 6 }}>
-            LEVEL UP
-          </Text>
-          <Text style={{ fontFamily: fonts.heading, fontSize: 24, color: c.textPrimary, textAlign: 'center' }}>
-            Congratulations, {firstName}!
-          </Text>
-          <Text
-            style={{
-              fontFamily: fonts.body,
-              fontSize: fontSizes.sm,
-              color: c.textSecondary,
-              textAlign: 'center',
-              marginTop: 6,
-              marginBottom: 24,
-            }}
-          >
-            You've reached Level {level}. Here's what you've unlocked:
-          </Text>
-
-          <View style={[styles.perksBox, { backgroundColor: c.surface, borderColor: c.border }]}>
-            {perks.map((p, i) => (
-              <Animated.View
-                key={i}
-                entering={FadeInUp.delay(300 + i * 100).duration(400)}
-                style={[styles.perkRow, i < perks.length - 1 && { borderBottomColor: c.border, borderBottomWidth: 1 }]}
-              >
-                <View style={[styles.sparkle, { backgroundColor: c.primary + '22' }]}>
-                  <Text style={{ fontSize: 14 }}>✨</Text>
-                </View>
-                <Text style={{ fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm, color: c.textPrimary, flex: 1 }}>
-                  {p}
-                </Text>
-              </Animated.View>
-            ))}
+          <View style={[styles.levelBadge, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}>
+            <Text style={[styles.levelNum, { color: c.primaryLight }]}>{level}</Text>
           </View>
-
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [
-              styles.cta,
-              { backgroundColor: c.primary, opacity: pressed ? 0.9 : 1 },
-            ]}
-          >
-            <Text style={{ fontFamily: fonts.heading, fontSize: 18, color: '#FFF', letterSpacing: 0.5 }}>
-              Continue
+          <View style={styles.copy}>
+            <Text style={[styles.kicker, { color: c.textMuted }]}>LEVEL UP ✨</Text>
+            <Text style={[styles.title, { color: c.textPrimary }]} numberOfLines={1}>
+              Level {level}, {firstName}!
             </Text>
-          </Pressable>
-        </Animated.View>
+            <Text style={[styles.perk, { color: c.textSecondary }]} numberOfLines={1}>
+              {perks[0]}
+            </Text>
+          </View>
+          <Text style={[styles.dismiss, { color: c.textMuted }]}>✕</Text>
+        </Pressable>
       </Animated.View>
-    </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  modal: {
+  wrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingTop: 56,
+    paddingHorizontal: spacing.lg,
+    zIndex: 60,
+  },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    maxWidth: 440,
     width: '100%',
-    maxWidth: 480,
-    borderRadius: 28,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    padding: 40,
-    alignItems: 'center',
   },
-  close: { position: 'absolute', top: 16, right: 16, padding: 4 },
-  levelNum: { fontFamily: fonts.heading, fontSize: 108, fontWeight: '800', lineHeight: 112 },
-  perksBox: { width: '100%', borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 4, marginBottom: 24 },
-  perkRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
-  sparkle: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  cta: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: 14,
+  levelBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.pill,
+    borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
+  levelNum: { fontFamily: fonts.heading, fontSize: fontSizes.xl, fontWeight: '800' },
+  copy: { flex: 1, gap: 1 },
+  kicker: { fontFamily: fonts.heading, fontSize: 10.5, letterSpacing: 1.5 },
+  title: { fontFamily: fonts.heading, fontSize: fontSizes.lg },
+  perk: { fontFamily: fonts.body, fontSize: fontSizes.sm },
+  dismiss: { fontSize: 16, paddingHorizontal: spacing.xs },
 });
