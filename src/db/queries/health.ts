@@ -30,6 +30,7 @@ export function createHealthLog(data: {
   sleepHours?: number;
   steps?: number;
   energyLevel?: number;
+  waterMl?: number;
   notes?: string;
   source?: string;
 }) {
@@ -42,6 +43,7 @@ export function createHealthLog(data: {
       sleepHours: data.sleepHours ?? null,
       steps: data.steps ?? null,
       energyLevel: data.energyLevel ?? null,
+      waterMl: data.waterMl ?? null,
       notes: data.notes ?? null,
       source: data.source ?? 'manual',
       createdAt: new Date().toISOString(),
@@ -51,6 +53,21 @@ export function createHealthLog(data: {
   }
   db.insert(healthLogs).values({ id, ...data }).run();
   return id;
+}
+
+/** Total water (ml) logged today — sums the day's `waterMl` increments. */
+export function getWaterMlForDate(date: string): number {
+  const rows = getHealthLogsByDate(date) as Array<{ waterMl?: number | null }>;
+  return rows.reduce((sum, r) => sum + (r.waterMl ?? 0), 0);
+}
+
+/** Most recent energy level (1-5) logged today, or null if none. */
+export function getLatestEnergyForDate(date: string): number | null {
+  const rows = getHealthLogsByDate(date) as Array<{ energyLevel?: number | null; createdAt: string }>;
+  const withEnergy = rows
+    .filter((r) => r.energyLevel != null)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return withEnergy.length ? withEnergy[0].energyLevel ?? null : null;
 }
 
 export function getHealthLogsByDate(date: string) {

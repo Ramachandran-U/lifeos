@@ -101,12 +101,37 @@ export function summarizeVitals(input: {
 // Replaces the old hard-coded 2000 kcal. Uses the Mifflin-St Jeor equation for
 // BMR, an activity multiplier for TDEE, then a goal-driven adjustment.
 //
-// We do NOT store biological sex yet (the users table has age + height only),
-// so we use the sex-neutral midpoint of Mifflin-St Jeor: the male constant is
-// +5 and the female constant is -161, so the average offset is -78. This sits
-// within ~80 kcal of either sex's estimate — good enough for a target the user
-// can edit, and avoids a schema migration. (Adding `sex` for an exact figure is
-// tracked in the health backlog.)
+// BMR sex constant: male +5, female -161 (Mifflin-St Jeor). When sex is unknown
+// we fall back to the midpoint offset -78, which sits within ~80 kcal of either
+// estimate — fine for an editable target.
+const SEX_OFFSET: Record<string, number> = { male: 5, female: -161 };
+const NEUTRAL_SEX_OFFSET = -78;
+
+// Activity multipliers (TDEE = BMR × factor). Defaults to 'light'/1.45-ish when
+// the user hasn't picked one.
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  active: 1.725,
+  very_active: 1.9,
+};
+const DEFAULT_ACTIVITY_FACTOR = 1.45;
+
+export const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; hint: string }[] = [
+  { value: 'sedentary', label: 'Sedentary', hint: 'Little / no exercise' },
+  { value: 'light', label: 'Light', hint: '1–3 days/week' },
+  { value: 'moderate', label: 'Moderate', hint: '3–5 days/week' },
+  { value: 'active', label: 'Active', hint: '6–7 days/week' },
+  { value: 'very_active', label: 'Very active', hint: 'Hard daily / physical job' },
+];
+
+export const SEX_OPTIONS: { value: 'male' | 'female'; label: string }[] = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+];
+
 const DEFAULT_TARGETS: CalorieTargets = {
   calories: 2000,
   protein: 100,
@@ -147,23 +172,29 @@ const GOAL_TUNING: Record<HealthGoalType, { calorieFactor: number; proteinPerKg:
  * generic fallback (flagged `estimated: false`) when weight/height/age are
  * missing so the UI always has something sane to render.
  *
- * Activity multiplier defaults to 1.45 (lightly-to-moderately active). We don't
- * collect an activity level yet; surfacing one is in the backlog.
+ * `sex` and `activityLevel` sharpen the estimate when known; both degrade
+ * gracefully (sex-neutral offset, ~1.45 activity factor) when absent.
+ * `activityMultiplier` overrides `activityLevel` when supplied (used by tests).
  */
 export function calorieTargets(input: {
   weightKg?: number | null;
   heightCm?: number | null;
   age?: number | null;
   goalType?: string | null;
+  sex?: string | null;
+  activityLevel?: string | null;
   activityMultiplier?: number;
 }): CalorieTargets {
-  const { weightKg, heightCm, age, goalType } = input;
+  const { weightKg, heightCm, age, goalType, sex, activityLevel } = input;
   if (!weightKg || !heightCm || !age || weightKg <= 0 || heightCm <= 0 || age <= 0) {
     return { ...DEFAULT_TARGETS };
   }
 
-  const activity = input.activityMultiplier ?? 1.45;
-  const bmr = 10 * weightKg + 6.25 * heightCm - 5 * age - 78; // sex-neutral
+  const activity =
+    input.activityMultiplier ??
+    (activityLevel ? ACTIVITY_FACTOR[activityLevel as ActivityLevel] ?? DEFAULT_ACTIVITY_FACTOR : DEFAULT_ACTIVITY_FACTOR);
+  const offset = sex ? SEX_OFFSET[sex] ?? NEUTRAL_SEX_OFFSET : NEUTRAL_SEX_OFFSET;
+  const bmr = 10 * weightKg + 6.25 * heightCm - 5 * age + offset;
   const tdee = bmr * activity;
 
   const tuning = GOAL_TUNING[(goalType as HealthGoalType) ?? 'maintain'] ?? GOAL_TUNING.maintain;

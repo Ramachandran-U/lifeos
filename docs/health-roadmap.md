@@ -27,20 +27,26 @@ Low-risk wins, mostly wiring existing pieces. Shipped on `test/coverage-ci-follo
 
 ---
 
-## Sprint 2 candidates — Tier 1 remainder (low effort)
+## ✅ Sprint 2 — Tier 1 remainder, profile-accuracy & quick logs (DONE except voice)
 
-- [ ] **Voice food logging** *(deferred from Sprint 1 — larger lift)*. Reuse
+| Item | What shipped |
+|------|--------------|
+| **Biological sex** | `users.sex` column (+ migration, web shim). Feeds the exact Mifflin-St Jeor constant (+5 male / −161 female) in `calorieTargets()`; still falls back to the −78 midpoint when unset. Set via `EditVitalsSheet`. |
+| **Activity level** | `users.activity_level` column. Replaces the fixed 1.45 multiplier with sedentary→very_active factors (`ACTIVITY_OPTIONS`). Set via `EditVitalsSheet`. |
+| **Water tracker** | `health_logs.water_ml` increments; `WaterCard` with +250/+500 quick-add, undo, and a goal (~35 ml/kg). Summed per day via `getWaterMlForDate`. |
+| **Energy-level quick log** | `EnergyCard` 1–5 check-in writing `health_logs.energyLevel` (column existed, had no UI). `getLatestEnergyForDate` reads today's value. |
+
+Added 3 `calorieTargets` tests (sex constants + activity scaling) → 18/18 health-util tests pass.
+
+### Remaining from Sprint 2
+
+- [ ] **Voice food logging** *(deferred — the one larger lift)*. Reuse
   `src/ai/voiceClient.ts` (Gemini Live) → transcript → parse into food entries.
-  MyFitnessPal's headline 2025 feature. Touches the audio-capture path, hence its own
-  sprint.
-- [ ] **Water tracker** — most-requested simple tracker. New lightweight log + a quick
-  +250ml tap row. No AI.
-- [ ] **Energy-level quick log** — the `healthLogs.energyLevel` (1–5) column already
-  exists with no UI. Add a one-tap row; feeds future correlations.
-- [ ] **Biological sex on profile** — unblocks an exact (non-sex-neutral) BMR in
-  `calorieTargets()`. Needs a `users.sex` column + migration + one onboarding question.
-- [ ] **Activity-level selector** — replace the fixed 1.45 TDEE multiplier; could be
-  inferred from recent Fit avg steps.
+  MyFitnessPal's headline 2025 feature. Touches the audio-capture path.
+- [ ] **Collect sex + activity during onboarding** — currently only editable post-hoc
+  via `EditVitalsSheet`. Add to `day3-health` so new users get an exact target from day one.
+- [ ] **Infer activity from Fit** — optionally seed the activity level from recent
+  average steps instead of asking.
 
 ## Tier 2 — the differentiators (medium effort)
 
@@ -77,10 +83,14 @@ Low-risk wins, mostly wiring existing pieces. Shipped on `test/coverage-ci-follo
 
 ## Notes / known shortcuts to revisit
 
-- `calorieTargets()` uses a **sex-neutral** Mifflin-St Jeor (midpoint offset −78) and a
-  **fixed 1.45** activity multiplier because the `users` table stores neither sex nor
-  activity level. Both are Sprint-2 Tier-1 items above.
+- `calorieTargets()` now uses **exact** Mifflin-St Jeor sex constants and an activity
+  factor when `users.sex` / `users.activity_level` are set (Sprint 2); it still falls
+  back to the −78 midpoint offset and a 1.45 factor when they're unset (e.g. before the
+  user opens *Edit vitals*).
 - Food entries are **hard-deleted** (no `deletedAt` column, like routine blocks). The
   soft-delete convention applies to durable data (goals, contacts), not daily logs.
 - Meal-suggestion entries are logged with `quantityG: 0` (a composed meal has no single
   weight) and `source: 'search'`.
+- **Water** is stored as signed `health_logs.water_ml` increments summed per day; the
+  *Undo* button logs a negative increment rather than deleting a row. **Energy** takes
+  the latest row's `energyLevel` for the day.
