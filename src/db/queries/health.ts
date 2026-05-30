@@ -10,6 +10,8 @@ import {
   webGetAllHealthLogs,
   webInsertFoodEntry,
   webGetFoodEntriesByDate,
+  webUpdateFoodEntry,
+  webDeleteFoodEntry,
   webInsertBloodReport,
   webGetBloodReports,
   webGetBloodReportById,
@@ -127,6 +129,37 @@ export function createFoodEntry(data: {
 export function getFoodEntriesByDate(date: string) {
   if (isWeb) return webGetFoodEntriesByDate(date);
   return db.select().from(foodEntries).where(eq(foodEntries.date, date)).all();
+}
+
+export function updateFoodEntry(
+  id: string,
+  data: Partial<{
+    mealType: string;
+    foodName: string;
+    quantityG: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fibre: number;
+  }>,
+) {
+  if (isWeb) {
+    webUpdateFoodEntry(id, data);
+    return;
+  }
+  db.update(foodEntries).set(data).where(eq(foodEntries.id, id)).run();
+}
+
+// Food entries are transient daily-log rows with no `deletedAt` column, so we
+// hard-delete (same as routine blocks). The soft-delete rule applies to durable
+// user data like goals and contacts.
+export function deleteFoodEntry(id: string) {
+  if (isWeb) {
+    webDeleteFoodEntry(id);
+    return;
+  }
+  db.delete(foodEntries).where(eq(foodEntries.id, id)).run();
 }
 
 // --- Blood Reports ---

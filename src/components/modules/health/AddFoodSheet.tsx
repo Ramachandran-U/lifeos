@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView, Image, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
-import { createFoodEntry } from '@/db/queries/health';
+import { createFoodEntry, updateFoodEntry } from '@/db/queries/health';
 import { recogniseFood } from '@/ai/functions';
 import { useAI } from '@/hooks/useAI';
 import { format } from 'date-fns';
@@ -24,9 +24,23 @@ import type { FoodItem } from '@/data/foods';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
+/** An existing entry being edited. When set, the sheet opens straight into the
+ *  prefilled manual form and saving updates the row instead of inserting. */
+export interface FoodEntryEdit {
+  id: string;
+  mealType: string;
+  foodName: string;
+  quantityG: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 interface AddFoodSheetProps {
   visible: boolean;
   mealType: MealType;
+  editEntry?: FoodEntryEdit | null;
   onClose: () => void;
   onSaved: () => void;
   onPhotoUsed?: () => void;
@@ -34,7 +48,7 @@ interface AddFoodSheetProps {
 
 type Mode = 'choose' | 'manual' | 'scanning' | 'review' | 'barcode';
 
-export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed }: AddFoodSheetProps) {
+export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, onPhotoUsed }: AddFoodSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
   const { call, loading } = useAI();
@@ -63,6 +77,23 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   const [barcodeError, setBarcodeError] = useState<string | null>(null);
   const [scannerOn, setScannerOn] = useState(false);
   const canScan = isBarcodeDetectorSupported();
+  const isEditing = !!editEntry;
+
+  // When opened to edit an existing entry, jump straight to the manual form
+  // with its values prefilled.
+  useEffect(() => {
+    if (visible && editEntry) {
+      setMode('manual');
+      setFoodName(editEntry.foodName);
+      setQuantity(String(editEntry.quantityG));
+      setCalories(String(editEntry.calories));
+      setProtein(String(editEntry.protein));
+      setCarbs(String(editEntry.carbs));
+      setFat(String(editEntry.fat));
+      setPickedItem(null);
+      setSearchResults([]);
+    }
+  }, [visible, editEntry]);
 
   const handleBarcodeLookup = async () => {
     const code = barcode.trim();
@@ -232,16 +263,24 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   const handleManualSave = () => {
     if (!foodName.trim() || !calories.trim()) return;
 
-    createFoodEntry({
-      date: format(new Date(), 'yyyy-MM-dd'),
-      mealType,
+    const fields = {
       foodName: foodName.trim(),
       quantityG: parseFloat(quantity) || 100,
       calories: parseFloat(calories) || 0,
       protein: parseFloat(protein) || 0,
       carbs: parseFloat(carbs) || 0,
       fat: parseFloat(fat) || 0,
-    });
+    };
+
+    if (editEntry) {
+      updateFoodEntry(editEntry.id, fields);
+    } else {
+      createFoodEntry({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        mealType,
+        ...fields,
+      });
+    }
 
     onSaved();
     handleClose();
@@ -403,7 +442,7 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
   const renderManual = () => (
     <>
       <View style={styles.handle} />
-      <Heading style={styles.title}>Add {mealType}</Heading>
+      <Heading style={styles.title}>{isEditing ? 'Edit food' : `Add ${mealType}`}</Heading>
       <View style={styles.form}>
         <Input
           label="Food name"
@@ -450,8 +489,8 @@ export function AddFoodSheet({ visible, mealType, onClose, onSaved, onPhotoUsed 
             <Input label="Fat (g)" placeholder="0" value={fat} onChangeText={setFat} keyboardType="numeric" />
           </View>
         </View>
-        <Button title="Add food" onPress={handleManualSave} disabled={!foodName.trim() || !calories.trim()} />
-        <Button title="Back" variant="ghost" onPress={() => setMode('choose')} />
+        <Button title={isEditing ? 'Save changes' : 'Add food'} onPress={handleManualSave} disabled={!foodName.trim() || !calories.trim()} />
+        <Button title={isEditing ? 'Cancel' : 'Back'} variant="ghost" onPress={() => (isEditing ? handleClose() : setMode('choose'))} />
       </View>
     </>
   );

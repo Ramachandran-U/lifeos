@@ -15,9 +15,13 @@ interface CalorieRingProps {
   protein: number;
   carbs: number;
   fat: number;
+  /** Optional macro goals — when set, each macro renders as "eaten / target g". */
+  proteinTarget?: number;
+  carbsTarget?: number;
+  fatTarget?: number;
 }
 
-export function CalorieRing({ consumed, target, protein, carbs, fat }: CalorieRingProps) {
+export function CalorieRing({ consumed, target, protein, carbs, fat, proteinTarget, carbsTarget, fatTarget }: CalorieRingProps) {
   const c = useColors();
   const styles = makeStyles(c);
   const SIZE = 180;
@@ -74,17 +78,23 @@ export function CalorieRing({ consumed, target, protein, carbs, fat }: CalorieRi
         <View style={styles.macroItem}>
           <View style={[styles.macroDot, { backgroundColor: '#FF6B6B' }]} />
           <Caption>Protein</Caption>
-          <Body style={styles.macroValue}>{Math.round(protein)}g</Body>
+          <Body style={styles.macroValue}>
+            {Math.round(protein)}{proteinTarget ? `/${Math.round(proteinTarget)}` : ''}g
+          </Body>
         </View>
         <View style={styles.macroItem}>
           <View style={[styles.macroDot, { backgroundColor: '#4ECDC4' }]} />
           <Caption>Carbs</Caption>
-          <Body style={styles.macroValue}>{Math.round(carbs)}g</Body>
+          <Body style={styles.macroValue}>
+            {Math.round(carbs)}{carbsTarget ? `/${Math.round(carbsTarget)}` : ''}g
+          </Body>
         </View>
         <View style={styles.macroItem}>
           <View style={[styles.macroDot, { backgroundColor: '#FFE66D' }]} />
           <Caption>Fat</Caption>
-          <Body style={styles.macroValue}>{Math.round(fat)}g</Body>
+          <Body style={styles.macroValue}>
+            {Math.round(fat)}{fatTarget ? `/${Math.round(fatTarget)}` : ''}g
+          </Body>
         </View>
       </View>
     </View>
