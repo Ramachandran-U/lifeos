@@ -2,6 +2,8 @@ import { pickModel } from '../modelRouter';
 import { logAiSuggestion } from '@/db/queries/aiSuggestions';
 import { runToolAgent, type ToolAgentStep } from './runtime';
 import { buildLifeOsTools } from './tools';
+import { buildLifeOsWriteTools } from './writeTools';
+import { createActionQueue, type ProposedAction } from './actionQueue';
 
 const isMock = () =>
   process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
@@ -83,4 +85,80 @@ export async function whatShouldIDoNext(input: WhatNextInput): Promise<WhatNextR
   });
 
   return result;
+}
+
+const WHAT_NEXT_ACTIONS_SYSTEM = `
+${WHAT_NEXT_SYSTEM}
+
+You can also PROPOSE actions the user can take, using the propose* tools (add a
+routine block, mark a block complete/skipped, adjust a goal). Proposing does NOT
+change anything — the user reviews and confirms each proposal afterwards. So:
+- Only propose actions that directly follow from what you found. Don't propose
+  speculative changes.
+- Prefer ONE high-leverage proposal over many. Use refs from getGoals /
+  getTodayRoutine to target the right row.
+- Your text answer should still recommend the single next action in plain words;
+  the proposals are the user's shortcut to act on it.
+`.trim();
+
+export interface WhatNextWithActionsResult extends WhatNextResult {
+  proposedActions: ProposedAction[];
+}
+
+const MOCK_PROPOSAL: ProposedAction = {
+  kind: 'createRoutineBlock',
+  summary: 'Add "Focus session" (14:00–14:30, goal)',
+  payload: { date: '2026-01-01', startTime: '14:00', endTime: '14:30', title: 'Focus session', module: 'goal' },
+};
+
+/**
+ * "What should I do next?" — variant that can also propose confirmable actions.
+ * Returns the same answer/trace plus a list of `proposedActions`. NOTHING is
+ * mutated here; the UI renders each proposal as a confirm card and only then
+ * calls `commitActions` (see actionQueue.ts).
+ */
+export async function whatShouldIDoNextWithActions(
+  input: WhatNextInput,
+): Promise<WhatNextWithActionsResult> {
+  if (isMock()) {
+    return {
+      answer: MOCK_ANSWER,
+      trace: [
+        { kind: 'call', name: 'getTodayRoutine', args: {} },
+        { kind: 'result', name: 'getTodayRoutine', ok: true, preview: 'mock' },
+        { kind: 'call', name: 'proposeCreateRoutineBlock', args: {} },
+        { kind: 'result', name: 'proposeCreateRoutineBlock', ok: true, preview: 'proposed' },
+        { kind: 'answer', text: MOCK_ANSWER.slice(0, 200) },
+      ],
+      iterations: 2,
+      proposedActions: [MOCK_PROPOSAL],
+    };
+  }
+
+  const queue = createActionQueue();
+  const tools = [
+    ...buildLifeOsTools({ userId: input.userId, today: input.today }),
+    ...buildLifeOsWriteTools({ today: input.today }, queue),
+  ];
+  const result = await runToolAgent({
+    system: WHAT_NEXT_ACTIONS_SYSTEM,
+    userMessage: 'What should I do next to improve my life right now?',
+    tools,
+    model: pickModel('agent.whatNext'),
+    task: 'agent.whatNext',
+    maxIterations: 6,
+    signal: input.signal,
+  });
+
+  void logAiSuggestion({
+    userId: input.userId,
+    task: 'what_next',
+    variant: 'agent',
+    input: { question: 'what_next_actions', today: input.today },
+    outputSummary: `iterations=${result.iterations} proposals=${queue.list().length}`,
+  }).catch(() => {
+    /* outcome logging must never break the agent */
+  });
+
+  return { ...result, proposedActions: queue.list() };
 }

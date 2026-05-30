@@ -11,7 +11,7 @@ type TabIcon = {
 function getTabConfig(c: ReturnType<typeof useColors>): Record<string, TabIcon> {
   return {
     index:   { name: 'home',           activeColor: c.primary  },
-    life:    { name: 'apps',           activeColor: c.primary  },
+    life:    { name: 'grid',           activeColor: c.primary  },
     explore: { name: 'compass',        activeColor: c.polymath },
     rewards: { name: 'trophy',         activeColor: c.xp       },
     profile: { name: 'person-circle',  activeColor: c.primary  },

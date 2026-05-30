@@ -38,6 +38,9 @@ const MODULE = {
   // Brand
   primary:      '#A584FF',
   primaryLight: '#C5B3FF',
+  // Near-black ink for content sitting on a bright accent fill (FAB icons,
+  // on-accent labels). Fixed across themes since domain hues are bright in both.
+  inkOnColor:   '#1A0612',
 } as const;
 
 // ─── Dark palette (Aurora Glass — primary) ───────────────────────────────────

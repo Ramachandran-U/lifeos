@@ -26,10 +26,12 @@ function safeParse<T>(json: string | null | undefined, fallback: T): T {
 /**
  * Builds the read-only tool set the "what should I do next?" agent can call,
  * bound to a specific user. Every tool reads local SQLite and returns a compact,
- * JSON-serialisable summary — never raw rows, to keep token cost down and avoid
- * leaking internal ids the model doesn't need.
+ * JSON-serialisable summary — not raw rows, to keep token cost down. Goals and
+ * routine blocks include an opaque `ref` (their id) so the write tools
+ * (see writeTools.ts) can target a specific row when proposing an action.
  *
- * All tools are READ-ONLY by design. The agent observes; it does not mutate.
+ * All tools here are READ-ONLY by design. The agent observes; it does not
+ * mutate. Mutation only happens via propose-then-confirm — see writeTools.ts.
  */
 export function buildLifeOsTools(ctx: ToolContext): AgentTool[] {
   const today = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
@@ -47,6 +49,7 @@ export function buildLifeOsTools(ctx: ToolContext): AgentTool[] {
         getGoalsByUser(userId)
           .filter((g) => g.status === 'active')
           .map((g) => ({
+            ref: g.id,
             title: g.title,
             domain: g.goalType,
             level: g.level,
@@ -62,6 +65,7 @@ export function buildLifeOsTools(ctx: ToolContext): AgentTool[] {
       },
       execute: () =>
         getRoutineBlocksByDate(today).map((b) => ({
+          ref: b.id,
           startTime: b.startTime,
           endTime: b.endTime,
           title: b.title,

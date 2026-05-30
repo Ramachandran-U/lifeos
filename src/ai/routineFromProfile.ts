@@ -1,8 +1,13 @@
 import { format } from 'date-fns';
 import { planRoutineWithContext } from './routinePlanner';
+import { generateRoutine } from './functions';
+import { pickVariant, getVariantOverride } from './variantPolicy';
 import type { UserProfile, RoutineInput, GeneratedRoutine } from './types';
 import { ROUTINE_CONFIDENCE_THRESHOLD } from './types';
 import { createRoutineBlocks } from '@/db/queries/routine';
+
+/** Task key for the routine kill/keep loop (matches migration 0004 hypothesis). */
+export const ROUTINE_VARIANT_TASK = 'routine.generate';
 
 export class ProfileNotReadyError extends Error {
   constructor(public confidenceOverall: number) {
@@ -71,7 +76,12 @@ export async function generateRoutineFromProfile(profile: UserProfile): Promise<
     if (user) userFb = user;
   } catch { /* non-fatal */ }
   const input = profileToRoutineInput(profile, userFb);
-  return planRoutineWithContext(input);
+
+  // Variant choice (#3-act): default 'agent' (planRoutineWithContext), unless the
+  // user has explicitly toggled this task to single-shot after seeing the kill/keep
+  // verdict. We never auto-flip — only an explicit override changes the path.
+  const variant = pickVariant(ROUTINE_VARIANT_TASK, { override: getVariantOverride(ROUTINE_VARIANT_TASK) });
+  return variant === 'single_shot' ? generateRoutine(input) : planRoutineWithContext(input);
 }
 
 export async function generateAndSaveRoutineForToday(profile: UserProfile): Promise<GeneratedRoutine> {

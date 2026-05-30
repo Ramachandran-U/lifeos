@@ -28,7 +28,7 @@ These features are **backend/AI-engineering**, not UI. Most are exercised throug
 
 - Node 20+ installed; run `npm install` from the worktree root.
 - For **mock-mode** tests (default): no API keys needed.
-- For **live-mode** tests: set `EVAL_REAL=true` and ensure the Cloudflare Worker proxy at `workers/ai-proxy/` is reachable (or set `ANTHROPIC_API_KEY` if calling direct).
+- For **live-mode** tests: set `EVAL_REAL=true` (the `evals:live` script does this) and ensure the Cloudflare Worker proxy at `workers/ai-proxy/` is reachable. The proxy runs the Gemini provider (`LLM_PROVIDER=gemini`) and holds the upstream API key — there is no on-device direct-to-Anthropic path.
 - For Langfuse export check (optional): `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` set.
 
 > **Live runs cost real money.** Stay in mock mode unless deliberately validating live behaviour.
@@ -45,9 +45,9 @@ These features are **backend/AI-engineering**, not UI. Most are exercised throug
 3. Open `evals/reports/latest.md` and `evals/reports/latest.json`.
 
 **Expected:**
-- Console shows `Test Suites: 2 passed, 2 total`, `Tests: 8 passed, 8 total`.
-- `latest.md` contains: header `# LifeOS AI Eval Report`, `Mode: **MOCK**`, summary table with 7 suites all marked ✅, `Cost & token usage` section showing `Calls: 0` (mock), `Tracing` section with span counts, `Per-case detail` listing each suite's cases.
-- `latest.json` is well-formed JSON with `mode: "MOCK"` and a `suites` array of 7 entries.
+- Console shows `Test Suites: 2 passed, 2 total`, `Tests: 12 passed, 12 total`.
+- `latest.md` contains: header `# LifeOS AI Eval Report`, `Mode: **MOCK**`, summary table with 11 suites all marked ✅, `Cost & token usage` section showing `Calls: 0` (mock), `Tracing` section with span counts, `Per-case detail` listing each suite's cases.
+- `latest.json` is well-formed JSON with `mode: "MOCK"` and a `suites` array of 11 entries.
 
 **Fail if:** any suite reports ❌ in mock mode, or report files are missing.
 
@@ -125,7 +125,7 @@ These features are **backend/AI-engineering**, not UI. Most are exercised throug
 **Expected:**
 - `Mode: **LIVE**`.
 - `Cost & token usage` shows `Calls > 0`, non-zero `Total cost`, and a non-zero `Cache-read tokens` after the second call to the same prompt (validates prompt caching).
-- `byModel` table lists at least Haiku and Sonnet (validates routing — `categorizeMerchant` → Haiku, `planRoutineAgent` propose/critique → Sonnet).
+- `byModel` table lists at least two distinct Gemini models (validates routing — `categorizeMerchant` → `gemini-2.5-flash` (cheap tier), `planRoutineAgent` propose/critique → `gemini-3.5-flash` (planning tier)).
 - `categorizeMerchant` accuracy ≥ 70% (live-mode threshold).
 - `parseBloodReportSafety` still 100%; grounding + disclaimer graders now active and passing.
 

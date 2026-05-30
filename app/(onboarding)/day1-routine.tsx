@@ -188,6 +188,8 @@ export default function Day1RoutineScreen() {
         setRoutine(null);
       } else {
         setRoutine({ ...raw, blocks: safeBlocks });
+        // "Your day is ready" beat as the blueprint stages in.
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }
   };
@@ -329,18 +331,20 @@ export default function Day1RoutineScreen() {
             {routine.blocks.map((block, i) => {
               const moduleColor = MODULE_COLORS[block.module] ?? c.textMuted;
               return (
-                <Card key={i} moduleColor={moduleColor} style={styles.blockCard}>
-                  <View style={styles.blockRow}>
-                    <View style={styles.timeCol}>
-                      <Caption>{block.startTime}</Caption>
-                      <Caption>{block.endTime}</Caption>
+                <Animated.View key={i} entering={FadeInDown.delay(150 + i * 70).duration(420)}>
+                  <Card moduleColor={moduleColor} style={styles.blockCard}>
+                    <View style={styles.blockRow}>
+                      <View style={styles.timeCol}>
+                        <Caption>{block.startTime}</Caption>
+                        <Caption>{block.endTime}</Caption>
+                      </View>
+                      <View style={styles.blockContent}>
+                        <Body style={styles.blockTitle}>{block.title}</Body>
+                        <Caption style={{ color: moduleColor }}>{block.module}</Caption>
+                      </View>
                     </View>
-                    <View style={styles.blockContent}>
-                      <Body style={styles.blockTitle}>{block.title}</Body>
-                      <Caption style={{ color: moduleColor }}>{block.module}</Caption>
-                    </View>
-                  </View>
-                </Card>
+                  </Card>
+                </Animated.View>
               );
             })}
 

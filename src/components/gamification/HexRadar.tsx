@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Pressable, View, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Line, Path, G } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -14,18 +13,10 @@ import { useColors } from '@/theme/colors';
 import { EASING } from '@/theme/motion';
 import { DOMAIN_META } from '@/constants/gamification';
 import type { DomainKey, ColorKey } from '@/constants/gamification';
+import { DOMAIN_ICONS } from '@/theme/domainIcons';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-const DOMAIN_ICONS: Record<ColorKey, keyof typeof Ionicons.glyphMap> = {
-  goal:     'flag',
-  health:   'barbell',
-  finance:  'cash',
-  career:   'briefcase',
-  social:   'people',
-  polymath: 'compass',
-};
 
 const ICON_SIZE = 17;
 
@@ -235,6 +226,7 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
         const label = pt(d.angleDeg, maxR * 1.12);
         const isActive = activeDomain === d.key;
         const iconColor = d.key === 'career' ? c.textPrimary : c[d.colorKey];
+        const Icon = DOMAIN_ICONS[d.colorKey as keyof typeof DOMAIN_ICONS] ?? DOMAIN_ICONS.goal;
         return (
           <Pressable
             key={`icon-${d.key}`}
@@ -249,7 +241,7 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
               },
             ]}
           >
-            <Ionicons name={DOMAIN_ICONS[d.colorKey]} size={ICON_SIZE} color={iconColor} />
+            <Icon size={ICON_SIZE} color={iconColor} strokeWidth={2.25} />
           </Pressable>
         );
       })}

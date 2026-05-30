@@ -1,30 +1,29 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Heading } from '@/components/ui/Typography';
+import { DomainGlyph, type DomainKey } from '@/components/ui/DomainGlyph';
 import { SPRING, useStaggerDelay } from '@/theme/motion';
 
 type Hub = {
   route: '/(tabs)/goals' | '/(tabs)/health' | '/(tabs)/finance' | '/(tabs)/career' | '/(tabs)/social' | '/(tabs)/explore';
   label: string;
-  icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap;
-  colorKey: 'goal' | 'health' | 'finance' | 'career' | 'social' | 'polymath';
+  colorKey: DomainKey;
   caption: string;
 };
 
 const HUBS: Hub[] = [
-  { route: '/(tabs)/goals',   label: 'Goals',   icon: 'flag',      colorKey: 'goal',     caption: 'Vision, plans, milestones' },
-  { route: '/(tabs)/health',  label: 'Health',  icon: 'heart',     colorKey: 'health',   caption: 'Activity, sleep, vitals' },
-  { route: '/(tabs)/finance', label: 'Finance', icon: 'wallet',    colorKey: 'finance',  caption: 'Budgets, goals, spending' },
-  { route: '/(tabs)/career',  label: 'Career',  icon: 'briefcase', colorKey: 'career',   caption: 'Skills, growth, upskilling' },
-  { route: '/(tabs)/social',  label: 'Social',  icon: 'people',    colorKey: 'social',   caption: 'Stay close to your people' },
+  { route: '/(tabs)/goals',   label: 'Goals',   colorKey: 'goal',     caption: 'Vision, plans, milestones' },
+  { route: '/(tabs)/health',  label: 'Health',  colorKey: 'health',   caption: 'Activity, sleep, vitals' },
+  { route: '/(tabs)/finance', label: 'Finance', colorKey: 'finance',  caption: 'Budgets, goals, spending' },
+  { route: '/(tabs)/career',  label: 'Career',  colorKey: 'career',   caption: 'Skills, growth, upskilling' },
+  { route: '/(tabs)/social',  label: 'Social',  colorKey: 'social',   caption: 'Stay close to your people' },
   // The 6th scored domain ("mind") was only reachable via the Explore tab —
   // surfaced here so the Life hub covers every domain the radar scores. (BUG-009)
-  { route: '/(tabs)/explore', label: 'Explore', icon: 'compass',   colorKey: 'polymath', caption: 'Curiosity, hobbies, learning' },
+  { route: '/(tabs)/explore', label: 'Explore', colorKey: 'polymath', caption: 'Curiosity, hobbies, learning' },
 ];
 
 interface LifeHubSheetProps {
@@ -81,7 +80,7 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
                 ]}
               >
                 <View style={[styles.iconBubble, { backgroundColor: c[h.colorKey] + '22' }]}>
-                  <Ionicons name={h.icon} size={24} color={c[h.colorKey]} />
+                  <DomainGlyph domain={h.colorKey} size={24} color={c[h.colorKey]} strokeWidth={2.25} />
                 </View>
                 <Body style={[styles.tileLabel, { color: c.textPrimary }]}>{h.label}</Body>
                 <Body style={[styles.tileCaption, { color: c.textMuted }]} numberOfLines={1}>

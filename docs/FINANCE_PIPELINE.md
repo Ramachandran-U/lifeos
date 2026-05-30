@@ -38,7 +38,7 @@ UI: app/(tabs)/finance.tsx  + goal engine (SQLite)
 ## Gotchas
 
 - OAuth redirect lands at [`app/gmail-callback.tsx`](../app/gmail-callback.tsx) — completes PKCE exchange.
-- The callback URI must match the one registered in Google Cloud (see `google client id connection.md`).
+- The callback URI must match the one registered in Google Cloud (Authorized redirect URIs). Setup is covered by `EXPO_PUBLIC_GOOGLE_CLIENT_ID` in [`.env.example`](../.env.example) and the Worker token-exchange route below.
 - **Token exchange runs server-side via the Worker** at `POST /v1/google/token` (Web application OAuth clients require a secret even under PKCE). The secret lives as `GOOGLE_CLIENT_SECRET` in Wrangler secrets — never in the app bundle. See [`workers/ai-proxy/src/routes/googleToken.ts`](../workers/ai-proxy/src/routes/googleToken.ts) and [`src/integrations/google/oauth.ts`](../src/integrations/google/oauth.ts).
 - Parsers are bank-specific regex; adding a new bank = new parser + sender whitelist in [`fetcher.ts`](../src/finance/gmail/fetcher.ts) `BANK_QUERY` **and** [`detectSource`](../src/finance/parsers/emailParsers.ts).
 - Current sender whitelist covers `hdfcbank.net`, `alerts.hdfcbank.com`, `icicibank.com`, `axisbank.com`, `axisbankmail.in`, `axis.bank.in`.

@@ -1,5 +1,7 @@
-import { View, ViewProps, ViewStyle, StyleProp, Platform } from 'react-native';
+import { View, ViewProps, ViewStyle, StyleProp, StyleSheet, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useColors } from '@/theme/colors';
+import { useThemeStore } from '@/store/useThemeStore';
 import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
 import { useElevation } from '@/theme/elevation';
@@ -16,6 +18,8 @@ interface CardProps extends ViewProps {
 export function Card({ moduleColor, style, children, ...props }: CardProps) {
   const c = useColors();
   const elev = useElevation('z1');
+  const mode = useThemeStore((s) => s.mode);
+  const isWeb = Platform.OS === 'web';
 
   return (
     <View
@@ -29,7 +33,7 @@ export function Card({ moduleColor, style, children, ...props }: CardProps) {
           overflow: 'hidden',
         },
         // Web-only backdrop-filter for the frosted-glass effect.
-        Platform.OS === 'web'
+        isWeb
           ? ({ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as ViewStyle)
           : null,
         moduleColor ? { borderLeftWidth: 3, borderLeftColor: moduleColor } : undefined,
@@ -37,7 +41,17 @@ export function Card({ moduleColor, style, children, ...props }: CardProps) {
       ]}
       {...props}
     >
-      {moduleColor && Platform.OS === 'web' ? (
+      {/* Native frosted-glass backdrop — clipped by the parent's rounded overflow.
+          Web uses backdropFilter above instead. */}
+      {!isWeb ? (
+        <BlurView
+          intensity={24}
+          tint={mode === 'light' ? 'light' : 'dark'}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
+      {moduleColor && isWeb ? (
         <View
           pointerEvents="none"
           style={[

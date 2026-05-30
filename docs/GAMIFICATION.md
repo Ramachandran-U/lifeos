@@ -9,6 +9,8 @@ XP_VALUES = {
   completeBlock: 10, completeGoalTask: 15,
   logFood: 5, logWeight: 10, uploadBloodReport: 50,
   completeResource: 100, earnBadge: 200, photoFood: 20,
+  sparkSaved: 10, expeditionStepComplete: 20,
+  expeditionComplete: 100, synapseFormed: 50,
 }
 ```
 
@@ -30,15 +32,15 @@ Triangular curve: `xpForLevel(n) = 100 * n * (n+1) / 2`.
 - 2 AND grace unused → count holds, `graceUsed = true` (one free miss)
 - else → reset to 1
 
-## Badges (8)
+## Badges (14)
 
-`first_blueprint` (onboarding complete), `first_blood_report`, `goal_complete`, `skill_mastery`, `streak_30_any` (any streak ≥30), `life_balance` (all 6 domain scores >60), `week_1` (7 consecutive days), `food_photo` (used photo food log).
+`first_blueprint` (onboarding complete), `first_blood_report`, `goal_complete`, `skill_mastery`, `streak_30_any` (any streak ≥30), `life_balance` (all 6 domain scores >60), `week_1` (7 consecutive days), `food_photo` (used photo food log), `first_connection`, `inner_orbit` (all inner-circle contacts in cadence), `polymath_starter`, `expedition_complete`, `synapse_formed`, `curiosity_streak_7`.
 
-`checkBadges(current, context)` is a pure function returning newly earned badges only. New badges trigger `AchievementToast` and award `+200 XP` each.
+Full labels/emoji/descriptions live in `BADGE_META` ([`src/utils/gamification.ts`](../src/utils/gamification.ts)). `checkBadges(current, context)` is a pure function returning newly earned badges only — it currently evaluates `first_blueprint`, `first_blood_report`, `goal_complete`, `skill_mastery`, `streak_30_any`, `life_balance`, `week_1`, `food_photo`, and `inner_orbit`; the remaining badges (`first_connection`, `polymath_starter`, `expedition_complete`, `synapse_formed`, `curiosity_streak_7`) are awarded directly via `awardBadge`. New badges trigger `AchievementToast` and award `+200 XP` each.
 
 ## Domain Scores (0–100)
 
-`goals, health, finance, career, social, mind`. Updated via `calculateDomainScore(completedToday, totalToday, current)` — weighted rolling: `0.7 * current + 0.3 * today%`. Rendered by the hexagonal radar in [`LifeBalanceDashboard.tsx`](../src/components/shared/LifeBalanceDashboard.tsx).
+`goals, health, finance, career, social, polymath`. (The 6th key was renamed `mind`→`polymath` in BUG-009 to match the module key; load paths coalesce legacy `mind` data into `polymath`. The radar still labels it "Mind".) Updated via `calculateDomainScore(completedToday, totalToday, current)` — weighted rolling: `0.7 * current + 0.3 * today%`. Rendered by the hexagonal radar in [`LifeBalanceDashboard.tsx`](../src/components/shared/LifeBalanceDashboard.tsx).
 
 ## Quests
 

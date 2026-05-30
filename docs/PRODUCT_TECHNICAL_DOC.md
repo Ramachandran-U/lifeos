@@ -2,13 +2,13 @@
 
 ## 1. Overview & Problem Statement
 
-**What is LifeOS?** A React Native/Expo mobile app that acts as a "Digital Life Architect" — an AI-powered system that understands six dimensions of a user's life and synthesizes them into a livable daily structure.
+**What is LifeOS?** A React Native/Expo app (iOS, Android, and web from one codebase) that acts as a "Digital Life Architect" — an AI-powered system that understands six dimensions of a user's life and synthesizes them into a livable daily structure.
 
 **Problem:** People juggle goals, health, finances, career growth, social relationships, and personal interests across disconnected tools. No single system provides a unified, AI-driven plan that answers: *"What should I do next to improve my life?"*
 
 **Target User:** Ambitious individuals who want to optimize multiple life domains simultaneously — not just productivity, but holistic life management.
 
-**Current Phase:** Phase 1.5 — local-first, with a thin Cloudflare Workers backend (`workers/ai-proxy/`) brokering all AI traffic and Supabase handling auth. Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. The Polymath (Explore) module ships: interests CRUD, weekly-target tracking, exploration log with minute chips, and gamification hooks. Aurora Glass redesign across Home/Welcome/Reflect with unified motion tokens (`SPRING`, `TIMING`) and a shared `AuroraBackground` component. Evening reflect — a nightly 60s ritual (review blocks → mood → AI-suggested tweak for tomorrow) — ships behind an 18:00 "Wrap up today" CTA on Home. Discovery Import lets users paste a ChatGPT/Claude self-description and have it extracted into a structured profile (raw stashed in `discovery_imports`, structured output surfaced on a confidence-scored preview screen). **Chatbot** ("Ask LifeOS") ships at `app/chat.tsx`, persisted to the `chat_messages` table. **Voice assistant** prototype (Gemini Live, WebSocket via the worker) is wired in `src/ai/voiceClient.ts` + `src/components/shared/VoiceAssistantSheet.tsx`. **Goal comments** add an asynchronous review thread per goal (`goal_comments`). Native Android parity work is underway on branch `claude/interesting-rubin-97ecf6` — a cross-platform `kvStore` abstraction and `expo-secure-store` dep have landed; OAuth driver and finance transaction native branches are next. Social module is still WIP.
+**Current Phase:** Phase 1.5 — local-first, with a thin Cloudflare Workers backend (`workers/ai-proxy/`) brokering all AI traffic and Supabase handling auth. Core onboarding, goals, health, finance, career, and routine engines are implemented. A full gamification overhaul has shipped: Rewards tab, level progression (XP → levels 1–12+), daily/weekly quests, 8 badges with gallery, 5 streak types with grace period, hexagonal radar "Life Balance" chart, and a full-screen level-up overlay. The Polymath (Explore) module ships: interests CRUD, weekly-target tracking, exploration log with minute chips, and gamification hooks. Aurora Glass redesign across Home/Welcome/Reflect with unified motion tokens (`SPRING`, `TIMING`) and a shared `AuroraBackground` component. Evening reflect — a nightly 60s ritual (review blocks → mood → AI-suggested tweak for tomorrow) — ships behind an 18:00 "Wrap up today" CTA on Home. Discovery Import lets users paste a ChatGPT/Claude self-description and have it extracted into a structured profile (raw stashed in `discovery_imports`, structured output surfaced on a confidence-scored preview screen). **Chatbot** ("Ask LifeOS") ships at `app/chat.tsx`, persisted to the `chat_messages` table. **Voice assistant** prototype (Gemini Live, WebSocket via the worker) is wired in `src/ai/voiceClient.ts` + `src/components/shared/VoiceAssistantSheet.tsx`. **Goal comments** add an asynchronous review thread per goal (`goal_comments`). The Social module ships (conversation starters, contact cadence, overdue-reconnect signals). A cognitive layer now sits above the engines and is live behind feature flags: an **event-sourced mutation log** (`src/sync/`, hash-chained) recording every goal/routine/reflection write; a **domain-stagnation nudge** in evening reflect; **Explore v2** (daily Spark + concurrent Expeditions with conflict-free merge + Constellation); and **Priority Change → Routine Adjustment** (adjust-today diff preview + 24h undo, or start-fresh-tomorrow). A cross-platform `kvStore` abstraction and the Dexie-backed web storage shim (`src/db/webStorage/`) support the web build alongside native.
 
 ---
 
@@ -474,7 +474,7 @@ users (1) ──── (N) goals
 | dayOfWeek | integer | 0-6, Sunday=0 |
 
 #### Contacts, Contact Interactions, Interests, Exploration Log, Habits
-Schema defined but modules not yet fully implemented (Social and Polymath are WIP).
+Backing tables for the Social (contacts, interactions) and Polymath/Explore (interests, exploration log, expeditions) modules, both shipped.
 
 ### Key Design Decisions
 
@@ -613,7 +613,7 @@ Worker (`workers/ai-proxy/wrangler.toml` / secrets):
 
 ### Current Branch
 
-`lifeosv1` is the trunk. Active feature work happens on `claude/*` branches (current: `claude/interesting-rubin-97ecf6`, focused on Android parity).
+`lifeosv1` is the trunk. Active feature work happens on short-lived `claude/*` / `feat/*` branches merged back via PR. Check `git branch` for what's current rather than relying on a branch name here.
 
 ---
 

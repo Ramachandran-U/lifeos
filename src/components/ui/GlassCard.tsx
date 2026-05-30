@@ -9,7 +9,9 @@ import {
   Pressable,
   GestureResponderEvent,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useColors } from '@/theme/colors';
+import { useThemeStore } from '@/store/useThemeStore';
 import { radii } from '@/theme/radii';
 import { spacing } from '@/theme/spacing';
 import { useElevation, type Elevation } from '@/theme/elevation';
@@ -39,6 +41,8 @@ export function GlassCard({
 }: GlassCardProps) {
   const c = useColors();
   const elev = useElevation(elevation);
+  const mode = useThemeStore((s) => s.mode);
+  const isWeb = Platform.OS === 'web';
   const padValue = typeof padding === 'number' ? padding : spacing[padding];
   const radiusValue = typeof radius === 'number' ? radius : radii[radius];
 
@@ -56,7 +60,7 @@ export function GlassCard({
         elev,
         { borderRadius: radiusValue, padding: padValue },
         // Subtle backdrop-filter on web only.
-        Platform.OS === 'web'
+        isWeb
           ? ({ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as ViewStyle)
           : null,
         accentBorder,
@@ -64,6 +68,16 @@ export function GlassCard({
       ]}
       {...rest}
     >
+      {/* Native frosted-glass backdrop — clipped by the base's rounded overflow.
+          z0 (ground) stays unblurred; web uses backdropFilter above instead. */}
+      {!isWeb && elevation !== 'z0' ? (
+        <BlurView
+          intensity={24}
+          tint={mode === 'light' ? 'light' : 'dark'}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
       {accent ? (
         <View
           pointerEvents="none"

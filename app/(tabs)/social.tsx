@@ -12,6 +12,7 @@ import { Body, Caption, Heading } from '@/components/ui/Typography';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -92,7 +93,7 @@ export default function SocialScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          <ModuleHeader title="Social" icon="people" color={c.social} />
+          <ModuleHeader title="Social" domain="social" color={c.social} />
 
           <Caption style={{ color: c.textMuted, marginBottom: spacing.md }}>
             Stay close to people who matter. Names stay on this device.
@@ -141,18 +142,12 @@ export default function SocialScreen() {
           })}
 
           {contacts.length === 0 ? (
-            <View style={[styles.empty, { borderColor: c.border }]}>
-              <View style={[styles.emptyIcon, { backgroundColor: c.social + '22' }]}>
-                <Ionicons name="people-outline" size={28} color={c.social} />
-              </View>
-              <Heading style={{ color: c.textPrimary, textAlign: 'center' }}>
-                Build your inner orbit
-              </Heading>
-              <Caption style={{ color: c.textMuted, textAlign: 'center' }}>
-                Add the people you actually want to stay close to.{'\n'}
-                We'll quietly tell you when it's been too long.
-              </Caption>
-            </View>
+            <EmptyState
+              icon="people-outline"
+              title="Build your inner orbit"
+              caption={"Add the people you actually want to stay close to.\nWe'll quietly tell you when it's been too long."}
+              accent={c.social}
+            />
           ) : null}
 
           <View style={{ height: spacing.xxl }} />
@@ -168,7 +163,7 @@ export default function SocialScreen() {
             },
           ]}
         >
-          <Ionicons name="add" size={26} color="#1A0612" />
+          <Ionicons name="add" size={26} color={c.inkOnColor} />
         </Pressable>
       </SafeAreaView>
 

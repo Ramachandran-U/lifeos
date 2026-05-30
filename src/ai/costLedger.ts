@@ -14,9 +14,15 @@ export interface ModelPricing {
 }
 
 export const PRICING: Record<string, ModelPricing> = {
+  // Anthropic (fallback chain only — runtime provider is Gemini)
   'claude-haiku-4-5-20251001': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
   'claude-sonnet-4-6': { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
   'claude-opus-4-7': { input: 15, output: 75, cacheRead: 1.5, cacheWrite: 18.75 },
+  // Gemini (the live provider — see modelRouter.ts MODELS). Gemini bills caching
+  // as storage-per-hour, not a per-token write, so cacheWrite is 0 here.
+  'gemini-2.5-flash': { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 },
+  'gemini-3.5-flash': { input: 1.5, output: 9, cacheRead: 0.15, cacheWrite: 0 },
+  'gemini-flash-latest': { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 },
 };
 
 export interface UsageRecord {
@@ -32,7 +38,12 @@ export interface UsageRecord {
 const ledger: UsageRecord[] = [];
 
 function priceFor(model: string): ModelPricing {
-  return PRICING[model] ?? PRICING['claude-haiku-4-5-20251001']!;
+  const exact = PRICING[model];
+  if (exact) return exact;
+  // Unknown model: fall back within the same provider family so a renamed or
+  // preview model ID isn't priced against the wrong vendor's rates.
+  if (model.startsWith('gemini-')) return PRICING['gemini-2.5-flash']!;
+  return PRICING['claude-haiku-4-5-20251001']!;
 }
 
 export function computeCost(

@@ -44,11 +44,11 @@ describe('buildLifeOsTools', () => {
 
   it('getGoals returns only active goals in compact shape', async () => {
     goalsMock.mockReturnValue([
-      { title: 'Ship', goalType: 'career', level: 'yearly', status: 'active' },
-      { title: 'Old', goalType: 'health', level: 'yearly', status: 'abandoned' },
+      { id: 'g1', title: 'Ship', goalType: 'career', level: 'yearly', status: 'active' },
+      { id: 'g2', title: 'Old', goalType: 'health', level: 'yearly', status: 'abandoned' },
     ]);
     const out = await toolByName('getGoals').execute({});
-    expect(out).toEqual([{ title: 'Ship', domain: 'career', level: 'yearly', status: 'active' }]);
+    expect(out).toEqual([{ ref: 'g1', title: 'Ship', domain: 'career', level: 'yearly', status: 'active' }]);
   });
 
   it('getTodayRoutine queries the injected date', async () => {
@@ -58,7 +58,7 @@ describe('buildLifeOsTools', () => {
     const out = await toolByName('getTodayRoutine').execute({});
     expect(routineMock).toHaveBeenCalledWith('2026-05-30');
     expect(out).toEqual([
-      { startTime: '09:00', endTime: '10:00', title: 'Focus', module: 'career', status: 'upcoming' },
+      { ref: 'x', startTime: '09:00', endTime: '10:00', title: 'Focus', module: 'career', status: 'upcoming' },
     ]);
   });
 

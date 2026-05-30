@@ -9,6 +9,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Body, Caption } from '@/components/ui/Typography';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { GoalCard } from '@/components/modules/goals/GoalCard';
 import { AddGoalSheet } from '@/components/modules/goals/AddGoalSheet';
@@ -165,7 +166,7 @@ export default function GoalsScreen() {
       <AuroraBackground />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <ModuleHeader title="Goals" icon="flag" color={c.goal} />
+        <ModuleHeader title="Goals" domain="goal" color={c.goal} />
 
         <View style={styles.legendRow}>
           {GOAL_TYPE_LEGEND.map((entry) => {
@@ -184,11 +185,12 @@ export default function GoalsScreen() {
         )}
 
         {mainGoals.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="flag-outline" size={48} color={c.textMuted} />
-            <Body style={styles.emptyText}>No goals yet</Body>
-            <Caption>Tap + to add your first goal</Caption>
-          </View>
+          <EmptyState
+            icon="flag-outline"
+            title="No goals yet"
+            caption="Tap + to add your first goal"
+            accent={c.goal}
+          />
         ) : (
           <View style={styles.section}>
             {mainGoals.map((g, i) => (

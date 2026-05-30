@@ -42,7 +42,7 @@ The AI layer is real engineering, not a chatbot wrapper:
 
 - A **multi-step planning agent** — retrieve → propose → critique → commit — every step traced.
 - **RAG, model routing, prompt caching, and a cost ledger** so each call uses the right model at the right price.
-- **Seven eval suites** (mock for CI, live against real Claude) gating anything that touches the AI surface — including medical-adjacent safety checks with PII and prompt-injection resistance.
+- **Eleven eval suites** (mock for CI, live against the AI proxy) gating anything that touches the AI surface — including medical-adjacent safety checks with PII and prompt-injection resistance.
 
 Want the wiring diagrams, eval thresholds, and the distillation track? They moved to [`docs/`](docs/) and [`evals/`](evals/) so this page stays honest about what matters.
 

@@ -1,12 +1,23 @@
 # LifeOS Admin Portal
 
-Next.js 14 ops portal for prompts, flags, telemetry, feedback. Talks to the
-existing Cloudflare Worker (`workers/ai-proxy/`) via the user's Supabase JWT.
+Next.js 14 ops portal for prompts, flags, telemetry, feedback, and AI operations.
+Talks to the existing Cloudflare Worker ([`workers/ai-proxy/`](../workers/ai-proxy)) via
+the user's Supabase JWT.
 
-## Phase 1 status — flags only
+## Tabs
 
-Working: magic-link sign-in, role gate, list/toggle/kill feature flags.
-Coming: prompts, telemetry, feedback, audit log, push broadcast.
+Working (magic-link sign-in + admins-table role gate in front of all of them):
+
+- **Overview** — health snapshot across the worker.
+- **AI Operations** — consolidated AI ops view (also surfaces eval runs and schema failures, which remain reachable as deep-links).
+- **Users** — registered users.
+- **Telemetry** — event/usage telemetry.
+- **Feedback** — in-app feedback inbox.
+- **Flags** — list / toggle / kill feature flags.
+- **Prompts** — view and edit per-key system prompts.
+- **Push** — broadcast push notifications.
+
+Coming: audit log (sidebar entry shown as "soon").
 
 ## Setup
 
@@ -34,6 +45,9 @@ npm run dev   # http://localhost:3030
    - `GET  /v1/config` — public, consumer app fetches resolved flags.
    - `GET  /v1/admin/flags` — JWT + admins-table gated.
    - `PATCH /v1/admin/flags/:key` — `editor` and `owner` only.
+   - plus the other JWT-gated admin routes the portal consumes under `/v1/admin/`:
+     `prompts`, `telemetry`, `feedback`, `push`, `evals`, `overview`, `ai-ops`, `users`
+     (see [`workers/ai-proxy/src/routes/admin/`](../workers/ai-proxy/src/routes/admin)).
 
 ## Architecture rule
 

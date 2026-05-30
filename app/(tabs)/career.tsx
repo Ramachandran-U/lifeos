@@ -465,9 +465,10 @@ export default function CareerScreen() {
             </View>
 
             <Button
-              title={loading ? 'Designing strategy…' : 'Generate strategy'}
+              title="Generate strategy"
+              loadingTitle="Designing strategy…"
+              loading={loading}
               onPress={handleGenerateStrategy}
-              disabled={loading}
             />
           </Card>
         ) : (
@@ -619,7 +620,7 @@ export default function CareerScreen() {
       <AuroraBackground />
       <SafeAreaView style={s.container}>
       <ScrollView style={s.flex} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        <ModuleHeader title="Career" icon="briefcase" color={c.career} />
+        <ModuleHeader title="Career" domain="career" color={c.career} />
 
         {loading && !analysis && (
           <View style={s.loadingContainer}>
