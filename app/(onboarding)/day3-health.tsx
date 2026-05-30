@@ -27,6 +27,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
 import { createHealthLog } from '@/db/queries/health';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
+import { SEX_OPTIONS, ACTIVITY_OPTIONS } from '@/utils/health';
 
 const GOAL_TYPES: Array<{ value: string; label: string }> = [
   { value: 'build_strength',   label: 'Build strength'    },
@@ -51,6 +52,8 @@ export default function Day3HealthScreen() {
   const [heightCm, setHeightCm] = useState('');
   const [sleepTargetHours, setSleepTargetHours] = useState(8);
   const [goalType, setGoalType] = useState<string>('build_strength');
+  const [sex, setSex] = useState<string | null>(null);
+  const [activityLevel, setActivityLevel] = useState<string | null>(null);
 
   const weightNum = parseFloat(weight) || 0;
   const heightNum = parseFloat(heightCm) || 0;
@@ -63,6 +66,8 @@ export default function Day3HealthScreen() {
       // chosen health goal. These feed the Health Hub + routine/health prompts.
       updateUser(userId, {
         ...(heightNum > 0 ? { heightCm: heightNum } : {}),
+        ...(sex ? { sex } : {}),
+        ...(activityLevel ? { activityLevel } : {}),
         sleepTargetHours,
         healthGoalType: goalType,
       });
@@ -168,6 +173,46 @@ export default function Day3HealthScreen() {
                       ]}
                     >
                       <Body style={{ color: active ? c.health : c.textSecondary }}>{g.label}</Body>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
+            </View>
+
+            <Label style={styles.fieldLabel}>Sex <Caption style={{ color: c.textMuted }}>· sharpens your calorie target</Caption></Label>
+            <View style={styles.chipRow}>
+              {SEX_OPTIONS.map((s, i) => {
+                const active = s.value === sex;
+                return (
+                  <Animated.View key={s.value} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                    <Pressable
+                      onPress={() => setSex(s.value)}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: active ? c.healthLight : c.surface, borderColor: active ? c.health : c.border },
+                      ]}
+                    >
+                      <Body style={{ color: active ? c.health : c.textSecondary }}>{s.label}</Body>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
+            </View>
+
+            <Label style={styles.fieldLabel}>Activity level</Label>
+            <View style={styles.chipGrid}>
+              {ACTIVITY_OPTIONS.map((a, i) => {
+                const active = a.value === activityLevel;
+                return (
+                  <Animated.View key={a.value} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>
+                    <Pressable
+                      onPress={() => setActivityLevel(a.value)}
+                      style={[
+                        styles.chip,
+                        { backgroundColor: active ? c.healthLight : c.surface, borderColor: active ? c.health : c.border },
+                      ]}
+                    >
+                      <Body style={{ color: active ? c.health : c.textSecondary }}>{a.label}</Body>
                     </Pressable>
                   </Animated.View>
                 );

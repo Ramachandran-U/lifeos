@@ -38,13 +38,20 @@ Low-risk wins, mostly wiring existing pieces. Shipped on `test/coverage-ci-follo
 
 Added 3 `calorieTargets` tests (sex constants + activity scaling) → 18/18 health-util tests pass.
 
-### Remaining from Sprint 2
+### ✅ Sprint 2 follow-ups (DONE)
 
-- [ ] **Voice food logging** *(deferred — the one larger lift)*. Reuse
-  `src/ai/voiceClient.ts` (Gemini Live) → transcript → parse into food entries.
-  MyFitnessPal's headline 2025 feature. Touches the audio-capture path.
-- [ ] **Collect sex + activity during onboarding** — currently only editable post-hoc
-  via `EditVitalsSheet`. Add to `day3-health` so new users get an exact target from day one.
+- [x] **Voice food logging (web)** — `useSpeechRecognition` (Web Speech API, feature-detected,
+  web-only) transcribes on-device → new self-contained `src/ai/voiceFood.ts` `parseSpokenMeal()`
+  → AddFoodSheet "Speak" mode reuses the existing review/confirm flow. Deliberately does **not**
+  touch the Gemini Live `voiceClient.ts` path (active in a parallel branch) — it reuses the
+  `FoodRecognition` schema/mock and the `recogniseFood` model tier, so no shared AI-registry edits.
+- [x] **Collect sex + activity during onboarding** — added to `day3-health` (optional chips), so
+  new users get an exact calorie target from day one instead of only via `EditVitalsSheet`.
+
+### Remaining
+
+- [ ] **Voice food logging on native** — needs a native STT module (`@react-native-voice/voice`)
+  + rebuild; the Web Speech API path is web-only. The "Speak" entry point hides itself on native.
 - [ ] **Infer activity from Fit** — optionally seed the activity level from recent
   average steps instead of asking.
 
