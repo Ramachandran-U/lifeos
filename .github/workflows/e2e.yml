@@ -46,6 +46,10 @@ jobs:
       # (forks, or repo without secrets), the authenticated step is skipped.
       PLAYWRIGHT_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_EMAIL }}
       PLAYWRIGHT_TEST_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_PASSWORD }}
+      # Admin-grade key so the authenticated project's ephemeral-user specs
+      # (auth-routing, onboarding-fresh) can create a throwaway account. Repo
+      # secret only — never committed, never echoed.
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - uses: actions/checkout@v4
