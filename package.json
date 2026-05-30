@@ -80,10 +80,13 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
+    "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
     "cross-env": "^10.1.0",
     "jest": "^30.3.0",
+    "jest-expo": "~54.0.0",
+    "react-test-renderer": "^19.1.0",
     "ts-jest": "^29.4.9",
     "typescript": "~5.9.2",
     "xlsx": "^0.18.5"
