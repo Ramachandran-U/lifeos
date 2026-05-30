@@ -11,10 +11,13 @@ interface UserState {
   onboardingStage: number;
   primaryDomains: DomainId[];
   activatedModules: DomainId[];
+  /** file:// URI of the generated gamified avatar, if any. */
+  avatarUri: string | null;
   setUser: (userId: string, name: string, email: string, onboardingStage: number) => void;
   setOnboardingStage: (stage: number) => void;
   setPrimaryDomains: (domains: DomainId[]) => void;
   markModuleActivated: (module: DomainId) => void;
+  setAvatarUri: (uri: string | null) => void;
   reset: () => void;
 }
 
@@ -25,6 +28,7 @@ export const useUserStore = create<UserState>((set) => ({
   onboardingStage: 0,
   primaryDomains: [],
   activatedModules: [],
+  avatarUri: null,
   setUser: (userId, name, email, onboardingStage) => set({ userId, name, email, onboardingStage }),
   setOnboardingStage: (onboardingStage) => set({ onboardingStage }),
   setPrimaryDomains: (primaryDomains) => set({ primaryDomains }),
@@ -34,6 +38,7 @@ export const useUserStore = create<UserState>((set) => ({
         ? s
         : { activatedModules: [...s.activatedModules, module] },
     ),
+  setAvatarUri: (avatarUri) => set({ avatarUri }),
   reset: () =>
-    set({ userId: null, name: '', email: '', onboardingStage: 0, primaryDomains: [], activatedModules: [] }),
+    set({ userId: null, name: '', email: '', onboardingStage: 0, primaryDomains: [], activatedModules: [], avatarUri: null }),
 }));

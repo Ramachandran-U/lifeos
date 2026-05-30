@@ -1,4 +1,4 @@
-import { callAI } from './client';
+import { callAI, generateAvatarViaProxy } from './client';
 import { extractJson } from './extractJson';
 import { pickModel } from './modelRouter';
 import { track, EVENTS } from '@/utils/telemetry';
@@ -540,6 +540,24 @@ export async function recogniseFood(imageBase64: string, mediaType: string): Pro
   } catch (err) {
     recordSchemaFailure('recogniseFood', 'FoodRecognition', response, err);
   }
+}
+
+/**
+ * Turn a user photo into a gamified cartoon avatar via nano banana.
+ * In mock mode, echoes the source image back so the UI flow is exercisable
+ * without a billable image-gen call.
+ */
+export async function generateGamifiedAvatar(input: {
+  imageBase64: string;
+  mimeType?: string;
+  stylePrompt?: string;
+  signal?: AbortSignal;
+}): Promise<{ imageBase64: string; mimeType: string }> {
+  if (isMock) {
+    return { imageBase64: input.imageBase64, mimeType: input.mimeType ?? 'image/jpeg' };
+  }
+  const { imageBase64, mimeType } = await generateAvatarViaProxy(input);
+  return { imageBase64, mimeType };
 }
 
 export async function generateCareerStrategy(input: CareerStrategyInput): Promise<CareerStrategy> {

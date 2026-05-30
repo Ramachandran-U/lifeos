@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,8 @@ import { getUser } from '@/db/queries/users';
 import { getUsageStats, type UsageRange, type UsageStats } from '@/db/queries/behaviour';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { signOutEverything } from '@/utils/signOut';
+import { isEnabled } from '@/config/flags';
+import { AvatarEditSheet } from '@/components/modules/profile/AvatarEditSheet';
 
 const MODULE_LABELS: Record<string, string> = {
   today: 'Today',
@@ -49,12 +51,30 @@ const EVENT_LABELS: Record<string, string> = {
   reflection_saved: 'Reflections saved',
 };
 
-function Avatar({ name, size, c }: { name: string; size: number; c: ReturnType<typeof useColors> }) {
+function Avatar({
+  name,
+  size,
+  c,
+  uri,
+}: {
+  name: string;
+  size: number;
+  c: ReturnType<typeof useColors>;
+  uri?: string | null;
+}) {
   const initials = name
     .split(' ')
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.surfaceAlt }}
+      />
+    );
+  }
   return (
     <View
       style={{
@@ -149,6 +169,9 @@ export default function ProfileScreen() {
   const c = useColors();
   const router = useRouter();
   const { name, email } = useUserStore();
+  const avatarUri = useUserStore((s) => s.avatarUri);
+  const avatarGenEnabled = isEnabled('profileAvatarGen');
+  const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
   const themeMode = usePreferencesStore((s) => s.theme);
   const toggleTheme = usePreferencesStore((s) => s.toggleTheme);
   const density = usePreferencesStore((s) => s.density);
@@ -206,7 +229,20 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Avatar name={name || 'User'} size={72} c={c} />
+          {avatarGenEnabled ? (
+            <Pressable
+              onPress={() => setAvatarSheetOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile avatar"
+            >
+              <Avatar name={name || 'User'} size={72} c={c} uri={avatarUri} />
+              <View style={[styles.avatarBadge, { backgroundColor: c.primary, borderColor: c.background }]}>
+                <Ionicons name="camera" size={12} color="#FFF" />
+              </View>
+            </Pressable>
+          ) : (
+            <Avatar name={name || 'User'} size={72} c={c} uri={avatarUri} />
+          )}
           <Heading style={[styles.name, { color: c.textPrimary }]} numberOfLines={1}>
             {name || 'Your Name'}
           </Heading>
@@ -511,6 +547,10 @@ export default function ProfileScreen() {
           <Body style={{ color: c.error, fontFamily: fonts.bodyMedium }}>Log out</Body>
         </Pressable>
       </ScrollView>
+
+      {avatarGenEnabled && (
+        <AvatarEditSheet visible={avatarSheetOpen} onClose={() => setAvatarSheetOpen(false)} />
+      )}
     </SafeAreaView>
   );
 }
@@ -530,6 +570,17 @@ const styles = StyleSheet.create({
   },
   name: {
     marginTop: spacing.sm,
+  },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   card: {
     gap: spacing.xs,

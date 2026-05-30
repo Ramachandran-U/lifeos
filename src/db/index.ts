@@ -364,6 +364,8 @@ export async function initDatabase() {
   };
   await safeAlter(`ALTER TABLE interests ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`);
   await safeAlter(`ALTER TABLE users ADD COLUMN height_cm REAL`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN avatar_uri TEXT`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN avatar_source_uri TEXT`);
   await safeAlter(`ALTER TABLE goals ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`);
 
   // Drop zombie tables — never had queries, no UI, no roadmap commitment

@@ -61,6 +61,25 @@ export interface AIToolResponse {
   model: string;
 }
 
+/** Input to the avatar image-generation path (nano banana via the proxy). */
+export interface AvatarGenInput {
+  /** Base64-encoded source photo (no `data:` prefix). */
+  imageBase64: string;
+  /** MIME type of the source photo. Defaults to image/jpeg. */
+  mimeType?: string;
+  /** Optional override for the cartoon-ification instruction. */
+  stylePrompt?: string;
+  /** Optional cancellation — aborts the underlying fetch. */
+  signal?: AbortSignal;
+}
+
+/** Generated-avatar result — a base64 image, not text. */
+export interface AvatarGenResult {
+  imageBase64: string;
+  mimeType: string;
+  model: string;
+}
+
 // --- Goal Types ---
 
 export const GoalHierarchySchema = z.object({

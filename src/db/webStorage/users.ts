@@ -58,6 +58,8 @@ export interface WebUser {
   workEndTime?: string;
   sleepTargetHours?: number;
   healthGoalType?: string;
+  avatarUri?: string;
+  avatarSourceUri?: string;
   onboardingStage: number;
   primaryDomains?: string[];
   activatedModules?: string[];

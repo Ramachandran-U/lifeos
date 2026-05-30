@@ -1,4 +1,4 @@
-import { AIRequest, AIToolResponse } from './types';
+import { AIRequest, AIToolResponse, AvatarGenInput, AvatarGenResult } from './types';
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import { recordUsage, computeCost } from './costLedger';
 import { startSpan, endSpan } from './tracing';
@@ -89,4 +89,77 @@ export async function callAI(request: AIRequest): Promise<string> {
  */
 export async function callAIRaw(request: AIRequest): Promise<AIToolResponse> {
   return callViaProxy(request);
+}
+
+/**
+ * Avatar image generation (nano banana). A SEPARATE transport from
+ * `callViaProxy` because the response is a base64 image, not text — but it
+ * keeps the same auth, error-surfacing, cost-ledger, telemetry, and tracing
+ * guarantees so this entry point doesn't bypass any of them.
+ */
+export async function generateAvatarViaProxy(input: AvatarGenInput): Promise<AvatarGenResult> {
+  const task = 'generateAvatar';
+  const span = startSpan('callAvatar', { task });
+
+  try {
+    const token = await getSupabaseAccessToken();
+    if (!token) {
+      throw new Error('Sign in required to use AI features.');
+    }
+
+    const response = await fetch(`${PROXY_URL}/v1/image/avatar`, {
+      method: 'POST',
+      signal: input.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        imageBase64: input.imageBase64,
+        mimeType: input.mimeType,
+        stylePrompt: input.stylePrompt,
+      }),
+    });
+
+    if (response.status === 429) {
+      throw new Error("You've hit today's avatar limit. Try again tomorrow.");
+    }
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`AI proxy ${response.status}: ${body.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    if (!data.imageBase64) throw new Error('No avatar image returned.');
+
+    const model = data.model ?? 'gemini-2.5-flash-image';
+    if (data.usage) {
+      recordUsage({ model, task, usage: data.usage });
+      track(EVENTS.aiCall, {
+        task,
+        model,
+        input_tokens: data.usage.input_tokens,
+        output_tokens: data.usage.output_tokens,
+        cache_read_tokens: data.usage.cache_read_input_tokens,
+      });
+      endSpan(span, {
+        model,
+        inputTokens: data.usage.input_tokens,
+        outputTokens: data.usage.output_tokens,
+        costUsd: computeCost(model, data.usage),
+      });
+    } else {
+      endSpan(span, { model });
+    }
+
+    return {
+      imageBase64: data.imageBase64,
+      mimeType: data.mimeType ?? 'image/png',
+      model,
+    };
+  } catch (err) {
+    endSpan(span, { status: 'error', error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
 }
