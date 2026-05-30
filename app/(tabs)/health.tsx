@@ -19,7 +19,8 @@ import { CalorieRing } from '@/components/modules/health/CalorieRing';
 import { FoodEntryRow } from '@/components/modules/health/FoodEntryRow';
 import { WeightChart } from '@/components/modules/health/WeightChart';
 import { BloodReportCard } from '@/components/modules/health/BloodReportCard';
-import { AddFoodSheet } from '@/components/modules/health/AddFoodSheet';
+import { AddFoodSheet, type FoodEntryEdit } from '@/components/modules/health/AddFoodSheet';
+import { MealSuggestionsCard } from '@/components/modules/health/MealSuggestionsCard';
 import { VitalsCard } from '@/components/modules/health/VitalsCard';
 import { HealthSummaryCard } from '@/components/modules/health/HealthSummaryCard';
 import { EditVitalsSheet } from '@/components/modules/health/EditVitalsSheet';
@@ -28,10 +29,11 @@ import {
   getRecentWeightLogs,
   getBloodReports,
   createHealthLog,
+  deleteFoodEntry,
 } from '@/db/queries/health';
 import { getUser, updateUser } from '@/db/queries/users';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
-import { weightTrend, summarizeVitals } from '@/utils/health';
+import { weightTrend, summarizeVitals, calorieTargets } from '@/utils/health';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
@@ -63,8 +65,6 @@ type FoodEntry = {
   createdAt: string;
 };
 
-const CALORIE_TARGET = 2000;
-
 export default function HealthScreen() {
   useScreenTracking('health');
   const c = useColors();
@@ -72,8 +72,11 @@ export default function HealthScreen() {
   const [foodEntries, setFoodEntries] = useState<FoodEntry[]>([]);
   const [weightLogs, setWeightLogs] = useState<{ date: string; weight: number }[]>([]);
   const [heightCm, setHeightCm] = useState<number | null>(null);
+  const [userAge, setUserAge] = useState<number | null>(null);
+  const [goalType, setGoalType] = useState<string | null>(null);
   const [bloodReportResult, setBloodReportResult] = useState<BloodReportResult | null>(null);
   const [showAddFood, setShowAddFood] = useState(false);
+  const [editEntry, setEditEntry] = useState<FoodEntryEdit | null>(null);
   const [showEditVitals, setShowEditVitals] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('breakfast');
   const [openSection, setOpenSection] = useState<Section | null>(null);
@@ -86,6 +89,8 @@ export default function HealthScreen() {
   const { userId } = useUserStore();
   const { awardBadge, addXP } = useGameStore();
   const advanceQuest = useGameStore((s) => s.advanceQuest);
+  const triggerStreak = useGameStore((s) => s.triggerStreak);
+  const streaks = useGameStore((s) => s.streaks);
 
   const loadData = useCallback(() => {
     setFoodEntries(
@@ -102,6 +107,8 @@ export default function HealthScreen() {
     );
     const user = getUser();
     setHeightCm(user?.heightCm ?? null);
+    setUserAge(user?.age ?? null);
+    setGoalType(user?.healthGoalType ?? null);
 
     const reports = getBloodReports();
     if (reports.length > 0 && reports[0].parsedMarkers) {
@@ -164,6 +171,11 @@ export default function HealthScreen() {
           });
         }
       }
+      // A workout logged today (via Fit) keeps the workout streak alive.
+      const latestDate = result.days[result.days.length - 1]?.date;
+      if (userId && latestDate && result.workouts.some((w) => w.date === latestDate)) {
+        triggerStreak(userId, 'workout');
+      }
       const totalSteps = result.days.reduce((s, d) => s + d.steps, 0);
       setFitStatus(
         `Synced 14 days · ${totalSteps.toLocaleString()} steps · ${result.workouts.length} workouts` +
@@ -186,6 +198,17 @@ export default function HealthScreen() {
         trendDirection: trend.direction,
       }),
     [trend, heightCm],
+  );
+
+  const targets = useMemo(
+    () =>
+      calorieTargets({
+        weightKg: trend.latest,
+        heightCm,
+        age: userAge,
+        goalType,
+      }),
+    [trend.latest, heightCm, userAge, goalType],
   );
 
   const totals = useMemo(() => {
@@ -229,9 +252,53 @@ export default function HealthScreen() {
   };
 
   const openAddFood = (meal: MealType) => {
+    setEditEntry(null);
     setActiveMealType(meal);
     setShowAddFood(true);
   };
+
+  // Shared post-log path: behaviour event, food-log streak, refresh. Used by
+  // both the manual/photo add sheet and the AI meal suggestions.
+  const handleFoodLogged = () => {
+    logBehaviourEvent('food_logged', 'health');
+    advanceQuest('q_food', 1);
+    if (userId) triggerStreak(userId, 'foodTracking');
+    loadData();
+  };
+
+  const handleEditFood = (entry: FoodEntry) => {
+    setEditEntry({
+      id: entry.id,
+      mealType: entry.mealType,
+      foodName: entry.foodName,
+      quantityG: entry.quantityG,
+      calories: entry.calories,
+      protein: entry.protein,
+      carbs: entry.carbs,
+      fat: entry.fat,
+    });
+    setActiveMealType((entry.mealType as MealType) ?? 'snack');
+    setShowAddFood(true);
+  };
+
+  const handleDeleteFood = (id: string) => {
+    deleteFoodEntry(id);
+    loadData();
+  };
+
+  const closeAddFood = () => {
+    setShowAddFood(false);
+    setEditEntry(null);
+  };
+
+  // Flagged blood markers bias meal suggestions toward foods that address them.
+  const flaggedMarkers = useMemo(
+    () =>
+      (bloodReportResult?.markers ?? [])
+        .filter((m) => m.status === 'high' || m.status === 'low')
+        .map((m) => ({ marker: m.marker, status: m.status as 'high' | 'low' })),
+    [bloodReportResult],
+  );
 
   const toggleSection = (s: Section) => setOpenSection((cur) => (cur === s ? null : s));
 
@@ -263,6 +330,26 @@ export default function HealthScreen() {
             <WeightChart entries={weightLogs.slice(0, 7)} />
           </Animated.View>
         )}
+
+        <Animated.View entering={FadeInDown.delay(250).duration(400)}>
+          <Card style={styles.streakCard}>
+            <View style={styles.streakHeader}>
+              <Ionicons name="flame" size={16} color={c.health} />
+              <SectionLabel>STREAKS</SectionLabel>
+            </View>
+            <View style={styles.streakRow}>
+              {([
+                ['workout', 'Workout', '💪'],
+                ['foodTracking', 'Food log', '🥗'],
+              ] as const).map(([key, label, emoji]) => (
+                <View key={key} style={styles.streakItem}>
+                  <Body style={styles.streakCount}>{streaks[key].count}</Body>
+                  <Caption style={{ color: c.textSecondary }}>{emoji} {label}</Caption>
+                </View>
+              ))}
+            </View>
+          </Card>
+        </Animated.View>
 
         <Card style={styles.fitCard}>
           <View style={styles.fitHeader}>
@@ -318,7 +405,8 @@ export default function HealthScreen() {
               <View>
                 <SectionLabel color={c.health}>CALORIE TRACKING</SectionLabel>
                 <Caption>
-                  {Math.round(totals.calories)} / {CALORIE_TARGET} kcal today
+                  {Math.round(totals.calories)} / {targets.calories} kcal today
+                  {targets.estimated ? '' : ' · add age + vitals to personalise'}
                 </Caption>
               </View>
               <Ionicons
@@ -334,10 +422,13 @@ export default function HealthScreen() {
           <Animated.View entering={FadeInDown.duration(300)} style={styles.sectionBody}>
             <CalorieRing
               consumed={totals.calories}
-              target={CALORIE_TARGET}
+              target={targets.calories}
               protein={totals.protein}
               carbs={totals.carbs}
               fat={totals.fat}
+              proteinTarget={targets.protein}
+              carbsTarget={targets.carbs}
+              fatTarget={targets.fat}
             />
 
             <View style={styles.mealsSection}>
@@ -360,6 +451,8 @@ export default function HealthScreen() {
                         carbs={entry.carbs}
                         fat={entry.fat}
                         quantityG={entry.quantityG}
+                        onEdit={() => handleEditFood(entry)}
+                        onDelete={() => handleDeleteFood(entry.id)}
                       />
                     ))
                   ) : (
@@ -368,6 +461,16 @@ export default function HealthScreen() {
                 </Card>
               ))}
             </View>
+
+            <MealSuggestionsCard
+              calorieTarget={targets.calories}
+              caloriesEaten={totals.calories}
+              proteinEaten={totals.protein}
+              carbsEaten={totals.carbs}
+              fatEaten={totals.fat}
+              bloodMarkers={flaggedMarkers}
+              onLogged={handleFoodLogged}
+            />
           </Animated.View>
         )}
 
@@ -426,11 +529,15 @@ export default function HealthScreen() {
       <AddFoodSheet
         visible={showAddFood}
         mealType={activeMealType}
-        onClose={() => setShowAddFood(false)}
+        editEntry={editEntry}
+        onClose={closeAddFood}
         onSaved={() => {
-          logBehaviourEvent('food_logged', 'health');
-          advanceQuest('q_food', 1);
-          loadData();
+          // Editing an existing entry shouldn't re-trigger the streak/quest.
+          if (editEntry) {
+            loadData();
+            return;
+          }
+          handleFoodLogged();
         }}
         onPhotoUsed={() => {
           logBehaviourEvent('photo_food', 'health');
@@ -469,6 +576,11 @@ const styles = StyleSheet.create({
   uploadDesc: { marginTop: spacing.xs },
   loadingContainer: { alignItems: 'center', paddingVertical: spacing.md, gap: spacing.sm },
   loadingText: {},
+  streakCard: { gap: spacing.sm },
+  streakHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  streakRow: { flexDirection: 'row', gap: spacing.xl },
+  streakItem: { alignItems: 'flex-start', gap: 2 },
+  streakCount: { fontFamily: fonts.display, fontSize: fontSizes.xxl },
   fitCard: { gap: spacing.sm },
   fitHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   fitActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },

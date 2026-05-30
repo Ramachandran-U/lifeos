@@ -59,6 +59,17 @@ export function webGetFoodEntriesByDate(date: string): WebFoodEntry[] {
   return load<WebFoodEntry>(FOOD_ENTRIES_KEY).filter((e) => e.date === date);
 }
 
+export function webUpdateFoodEntry(id: string, data: Partial<WebFoodEntry>): void {
+  const all = load<WebFoodEntry>(FOOD_ENTRIES_KEY);
+  const next = all.map((e) => (e.id === id ? { ...e, ...data, id: e.id } : e));
+  save(FOOD_ENTRIES_KEY, next);
+}
+
+export function webDeleteFoodEntry(id: string): void {
+  const all = load<WebFoodEntry>(FOOD_ENTRIES_KEY);
+  save(FOOD_ENTRIES_KEY, all.filter((e) => e.id !== id));
+}
+
 export interface WebBloodReport {
   id: string;
   date: string;

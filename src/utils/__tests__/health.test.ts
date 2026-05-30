@@ -1,4 +1,4 @@
-import { calculateBMI, bmiCategory, weightTrend, summarizeVitals } from '../health';
+import { calculateBMI, bmiCategory, weightTrend, summarizeVitals, calorieTargets } from '../health';
 
 describe('calculateBMI', () => {
   it('computes BMI from kg and cm', () => {
@@ -65,5 +65,39 @@ describe('summarizeVitals', () => {
     const r = summarizeVitals({ weightKg: 90, heightCm: 175, trendDirection: 'up' });
     expect(r.category).toBe('overweight');
     expect(r.suggestions.some((s) => /calorie/i.test(s))).toBe(true);
+  });
+});
+
+describe('calorieTargets', () => {
+  it('falls back to the generic 2000 target when vitals are missing', () => {
+    const r = calorieTargets({ weightKg: null, heightCm: null, age: null });
+    expect(r.estimated).toBe(false);
+    expect(r.calories).toBe(2000);
+  });
+
+  it('derives a maintenance target from vitals (sex-neutral Mifflin-St Jeor)', () => {
+    // BMR = 10*75 + 6.25*178 - 5*30 - 78 = 1635; TDEE = 1635 * 1.45 ≈ 2371 → round to 2370
+    const r = calorieTargets({ weightKg: 75, heightCm: 178, age: 30, goalType: 'maintain' });
+    expect(r.estimated).toBe(true);
+    expect(r.calories).toBe(2370);
+    // protein 1.6 g/kg → 120g; fat 25% of energy; carbs fill the rest
+    expect(r.protein).toBe(120);
+    expect(r.fat).toBe(Math.round((2370 * 0.25) / 9));
+    expect(r.carbs).toBe(Math.max(0, Math.round((2370 - 120 * 4 - r.fat * 9) / 4)));
+  });
+
+  it('applies a deficit for lose_weight and a surplus for build_strength', () => {
+    const base = calorieTargets({ weightKg: 75, heightCm: 178, age: 30, goalType: 'maintain' });
+    const cut = calorieTargets({ weightKg: 75, heightCm: 178, age: 30, goalType: 'lose_weight' });
+    const bulk = calorieTargets({ weightKg: 75, heightCm: 178, age: 30, goalType: 'build_strength' });
+    expect(cut.calories).toBeLessThan(base.calories);
+    expect(bulk.calories).toBeGreaterThan(base.calories);
+    // lose_weight pushes protein higher (1.8 g/kg) to spare muscle
+    expect(cut.protein).toBe(Math.round(1.8 * 75));
+  });
+
+  it('never recommends below the 1200 kcal floor', () => {
+    const r = calorieTargets({ weightKg: 40, heightCm: 150, age: 70, goalType: 'lose_weight' });
+    expect(r.calories).toBeGreaterThanOrEqual(1200);
   });
 });
