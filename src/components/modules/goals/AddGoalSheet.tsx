@@ -20,6 +20,16 @@ interface AddGoalSheetProps {
   onClose: () => void;
 }
 
+// Rotating prompts for the empty goal box — span domains so the field reads as
+// "any goal, your words", not a single template.
+const GOAL_PLACEHOLDERS = [
+  'I want to run a marathon',
+  'I want to switch into product management',
+  'I want to save 6 months of runway',
+  'I want to read 24 books this year',
+  'I want to get fit and sleep better',
+];
+
 export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
@@ -100,7 +110,7 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
 
             <Input
               label="What do you want to achieve?"
-              placeholder="I want to..."
+              rotatingPlaceholders={GOAL_PLACEHOLDERS}
               value={goalText}
               onChangeText={setGoalText}
               multiline
