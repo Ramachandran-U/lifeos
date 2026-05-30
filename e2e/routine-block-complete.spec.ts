@@ -17,18 +17,12 @@ test.describe('Routine block — hold to complete', () => {
     await seedAuthedUser(page);
   });
 
-  // QUARANTINED (fixme) — pre-existing regression, NOT a flake or a crash.
-  // This test passed until the #57 merge and has failed since. Trace analysis of
-  // the CI failure (run 26679985750) shows: no page errors / no exceptions (only
-  // benign Reanimated/useNativeDriver warnings), but the failure screenshot is a
-  // blank dark screen. Completing a block calls enqueueXPReward (index.tsx:264),
-  // which raises a full-screen XP celebration overlay that covers the collapsed-
-  // header "1 of 1 done" counter this test asserts on. So the block DOES complete;
-  // the assertion target is just hidden behind the reward overlay.
-  // Proper fix (separate change): assert on the block's own completed state, or
-  // wait for the reward overlay to dismiss before checking the counter. Tracked
-  // in docs/TEST_COVERAGE_AND_CI_REPORT.md (Step 3).
-  test.fixme('hold the status button → block flips to completed', async ({ page }) => {
+  // Asserts the BLOCK's own completed state (its checkmark testid) rather than
+  // the Today header's "X of Y done" counter. That counter lives in the scroll-
+  // collapsed sticky header and was previously hidden behind the level-up modal
+  // (now a non-blocking banner). The block checkmark is overlay-proof and is the
+  // direct signal that "the block flipped to completed".
+  test('hold the status button → block flips to completed', async ({ page }) => {
     await page.goto('/');
 
     // Today screen mounts (greeting is the smoke selector and works here too).
@@ -50,11 +44,8 @@ test.describe('Routine block — hold to complete', () => {
     await page.waitForTimeout(600);
     await page.mouse.up();
 
-    // The completed state replaces the press button with a checkmark icon.
-    // The block container stays mounted; the title gets a line-through. We
-    // assert on the most observable signal: the "done" counter on the chip.
-    // Seeded block count = 1, so after completion the visible chip text reads
-    // "… · 1 of 1 done". Use a regex tolerant to surrounding metadata.
-    await expect(page.getByText(/1 of 1 done/i)).toBeVisible({ timeout: 5_000 });
+    // Completion swaps the press button for a checkmark carrying a dedicated
+    // testid — a stable signal that isn't affected by scroll state or overlays.
+    await expect(page.getByTestId('routine-block-e2e-block-1-completed')).toBeVisible({ timeout: 8_000 });
   });
 });
