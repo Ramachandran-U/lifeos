@@ -74,6 +74,10 @@ export function useVoice(
   const lastVoiceAtRef = useRef(0);
   const userSpeakingRef = useRef(false);
   const turnCompleteRef = useRef(false);
+  // Manual VAD: whether we're inside a user utterance (between activityStart
+  // and activityEnd). Audio chunks are only streamed while this is true, which
+  // also keeps the model's own playback from echoing back as user speech.
+  const activityActiveRef = useRef(false);
 
   const setStatus = useCallback((s: VoiceStatus) => {
     statusRef.current = s;
@@ -99,6 +103,12 @@ export function useVoice(
           userSpeakingRef.current = true;
           setUserSpeaking(true);
         }
+        // Speech onset → open a manual-VAD activity window so audio is streamed
+        // and the model knows the user has started talking.
+        if (!activityActiveRef.current) {
+          activityActiveRef.current = true;
+          sessionRef.current?.markActivityStart();
+        }
         spokeThisTurnRef.current = true;
         lastVoiceAtRef.current = now;
         if (statusRef.current === 'thinking') setStatus('listening');
@@ -113,6 +123,13 @@ export function useVoice(
           now - lastVoiceAtRef.current > SILENCE_MS
         ) {
           setStatus('thinking');
+          // Speech ended → close the activity window. This is the signal that
+          // makes the model actually start generating (without it, the turn
+          // never completes and the UI hangs on "thinking").
+          if (activityActiveRef.current) {
+            activityActiveRef.current = false;
+            sessionRef.current?.markActivityEnd();
+          }
         }
       }
     },
@@ -126,6 +143,7 @@ export function useVoice(
     setUserTranscript('');
     spokeThisTurnRef.current = false;
     turnCompleteRef.current = false;
+    activityActiveRef.current = false;
     setStatus('connecting');
 
     // Create the player up front (before the async session opens) so a user
@@ -165,7 +183,12 @@ export function useVoice(
             // Mic capture is non-fatal — in CI (headless) getUserMedia fails,
             // but voice still works via text input.
             micRef.current = startMicCapture({
-              onChunk: (pcm16Base64: string) => sessionRef.current?.sendAudioChunk(pcm16Base64),
+              // Only stream audio inside an active utterance window (manual VAD).
+              // This brackets each turn for the model and prevents the model's
+              // own playback from being captured and echoed back as input.
+              onChunk: (pcm16Base64: string) => {
+                if (activityActiveRef.current) sessionRef.current?.sendAudioChunk(pcm16Base64);
+              },
               onLevel: handleLevel,
               onError: (msg: string) => console.warn('[voice] mic:', msg),
             });
@@ -211,6 +234,7 @@ export function useVoice(
             setConnected(false);
             setUserSpeaking(false);
             userSpeakingRef.current = false;
+            activityActiveRef.current = false;
             setAudioLevel(0);
             if (statusRef.current !== 'error') setStatus('idle');
             break;
@@ -229,6 +253,7 @@ export function useVoice(
     setConnected(false);
     setUserSpeaking(false);
     userSpeakingRef.current = false;
+    activityActiveRef.current = false;
     setAudioLevel(0);
     setStatus('idle');
   }, [setStatus]);

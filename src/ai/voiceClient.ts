@@ -30,6 +30,10 @@ export interface VoiceSessionOptions {
 
 export interface VoiceSession {
   sendAudioChunk: (pcm16Base64: string) => void;
+  /** Manual VAD: mark the start of a user utterance (auto-VAD is disabled). */
+  markActivityStart: () => void;
+  /** Manual VAD: mark the end of a user utterance → the model generates. */
+  markActivityEnd: () => void;
   sendText: (text: string) => void;
   close: () => void;
   isOpen: () => boolean;
@@ -97,6 +101,13 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
                   // confirmation they were heard.
                   inputAudioTranscription: {},
                   outputAudioTranscription: {},
+                  // Manual turn control: the client runs its own VAD (mic RMS in
+                  // useVoice) and signals speech start/end explicitly. Server-side
+                  // auto-VAD over the continuously-streamed mic was unreliable —
+                  // it fragmented or never cleanly ended the turn, leaving the UI
+                  // stuck at "thinking". Verified end-to-end against deployed
+                  // Gemini: manual mode returns one clean, complete turn.
+                  realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
                   ...(opts.systemInstruction
                     ? { systemInstruction: { parts: [{ text: opts.systemInstruction }] } }
                     : {}),
@@ -167,6 +178,14 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
         }),
       );
     },
+    markActivityStart: () => {
+      if (!open || !ws) return;
+      ws.send(JSON.stringify({ realtimeInput: { activityStart: {} } }));
+    },
+    markActivityEnd: () => {
+      if (!open || !ws) return;
+      ws.send(JSON.stringify({ realtimeInput: { activityEnd: {} } }));
+    },
     sendText: (text: string) => {
       if (!open || !ws) return;
       ws.send(
@@ -195,6 +214,8 @@ function createMockSession(opts: VoiceSessionOptions): VoiceSession {
   }, 300);
   return {
     sendAudioChunk: () => {},
+    markActivityStart: () => {},
+    markActivityEnd: () => {},
     sendText: (text: string) => {
       if (!open) return;
       // Echo the user's words back as an input transcript, then stream a reply
