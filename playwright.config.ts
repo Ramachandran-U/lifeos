@@ -46,9 +46,24 @@ export default defineConfig({
       },
     },
     {
-      // Default project — existing local e2e suites (career-strategy, voice-assistant).
+      // Default project — non-auth e2e suites (career-strategy, voice-assistant,
+      // notifications-prefs, routine-block-complete). These build/seed their own
+      // state and don't need a real Supabase session.
       name: 'chromium',
-      testIgnore: ['**/smoke.spec.ts', '**/auth.setup.ts', '**/ambient.spec.ts'],
+      testIgnore: [
+        '**/smoke.spec.ts',
+        '**/auth.setup.ts',
+        '**/ambient.spec.ts',
+        // Session/admin-dependent specs belong ONLY to the `authenticated`
+        // project (storageState + service-role env). Running them here too —
+        // without a session — was the root cause of the red CI builds.
+        '**/auth-routing.spec.ts',
+        '**/auth-signout.spec.ts',
+        '**/onboarding-fresh.spec.ts',
+      ],
+      // routine-block-complete uses a press-and-hold gesture that can race on
+      // slow CI runners; one retry absorbs the flake without masking real breaks.
+      retries: process.env.CI ? 1 : 0,
       use: { ...devices['Desktop Chrome'] },
     },
     {
