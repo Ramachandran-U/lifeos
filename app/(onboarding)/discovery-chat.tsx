@@ -10,6 +10,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
+import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { discoveryChatTurn } from '@/ai/functions';
 import { mergeProfilePatch } from '@/ai/profileMerge';
 import { track, EVENTS } from '@/utils/telemetry';
@@ -30,6 +31,13 @@ interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;
 }
+
+const ANSWER_PLACEHOLDERS = [
+  'Type your answer…',
+  'A sentence or two is plenty…',
+  "Tell me what's on your mind…",
+  'No wrong answers here…',
+];
 
 export default function DiscoveryChatScreen() {
   const c = useColors();
@@ -217,17 +225,24 @@ export default function DiscoveryChatScreen() {
           </View>
         ) : (
           <View style={styles.composer}>
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder="Type your answer…"
-              placeholderTextColor={c.textMuted}
-              style={styles.input}
-              editable={!busy}
-              onSubmitEditing={handleSend}
-              returnKeyType="send"
-              multiline
-            />
+            <View style={styles.inputWrap}>
+              <TextInput
+                value={input}
+                onChangeText={setInput}
+                placeholderTextColor={c.textMuted}
+                style={styles.input}
+                editable={!busy}
+                onSubmitEditing={handleSend}
+                returnKeyType="send"
+                multiline
+              />
+              <RotatingPlaceholder
+                phrases={ANSWER_PLACEHOLDERS}
+                active={!input}
+                color={c.textMuted}
+                style={styles.rotatingHint}
+              />
+            </View>
             <Pressable
               onPress={handleSend}
               disabled={busy || !input.trim()}
@@ -327,8 +342,11 @@ const makeStyles = (colors: AppColors) =>
       borderTopColor: colors.border,
       backgroundColor: colors.background,
     },
-    input: {
+    inputWrap: {
       flex: 1,
+      justifyContent: 'center',
+    },
+    input: {
       minHeight: 48,
       maxHeight: 120,
       paddingHorizontal: spacing.md,
@@ -339,6 +357,12 @@ const makeStyles = (colors: AppColors) =>
       backgroundColor: colors.surface,
       color: colors.textPrimary,
       fontFamily: fonts.body,
+      fontSize: fontSizes.sm,
+    },
+    // Overlay aligned to the native placeholder inset (fontSize matches input).
+    rotatingHint: {
+      left: spacing.md,
+      top: spacing.sm + 1,
       fontSize: fontSizes.sm,
     },
     sendBtn: {

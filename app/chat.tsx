@@ -9,6 +9,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
+import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { useUserStore } from '@/store/useUserStore';
 import { usePromptStore } from '@/store/usePromptStore';
 import { callAI } from '@/ai/client';
@@ -23,6 +24,14 @@ import { getUserProfile } from '@/db/queries/userProfile';
 import { getRoutineBlocksByDate } from '@/db/queries/routine';
 import { buildProfileContext } from '@/ai/profileContext';
 import { format } from 'date-fns';
+
+const CHAT_PLACEHOLDERS = [
+  'What should I do next?',
+  'Why did you skip my workout today?',
+  'How am I tracking on my goals?',
+  'Plan the rest of my afternoon…',
+  'What did I learn this week?',
+];
 
 export default function ChatScreen() {
   const c = useColors();
@@ -175,18 +184,25 @@ export default function ChatScreen() {
         </ScrollView>
 
         <View style={styles.composer}>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder="Ask about LifeOS…"
-            placeholderTextColor={c.textMuted}
-            style={styles.input}
-            multiline
-            maxLength={2000}
-            editable={!busy}
-            onSubmitEditing={send}
-            blurOnSubmit
-          />
+          <View style={styles.inputWrap}>
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholderTextColor={c.textMuted}
+              style={styles.input}
+              multiline
+              maxLength={2000}
+              editable={!busy}
+              onSubmitEditing={send}
+              blurOnSubmit
+            />
+            <RotatingPlaceholder
+              phrases={CHAT_PLACEHOLDERS}
+              active={!input}
+              color={c.textMuted}
+              style={styles.rotatingHint}
+            />
+          </View>
           <Pressable
             onPress={send}
             disabled={busy || !input.trim()}
@@ -240,8 +256,11 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     borderTopWidth: 1,
     alignItems: 'flex-end',
   },
-  input: {
+  inputWrap: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  input: {
     backgroundColor: colors.surface,
     color: colors.textPrimary,
     borderRadius: 16,
@@ -253,6 +272,12 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     minHeight: 44,
     borderColor: colors.border,
     borderWidth: 1,
+  },
+  // Sits over the empty composer at the same inset as the native placeholder.
+  rotatingHint: {
+    left: spacing.md,
+    top: spacing.sm + 1,
+    fontSize: fontSizes.md,
   },
   sendBtn: {
     backgroundColor: colors.primary,
