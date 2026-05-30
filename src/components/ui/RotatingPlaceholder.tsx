@@ -23,7 +23,7 @@ interface Props {
    * would sit, plus any `fontSize`/`fontFamily` to match the input.
    */
   style?: TextStyle | TextStyle[];
-  /** Dwell time per phrase, in ms. Default 3200. */
+  /** Dwell time per phrase, in ms. Default 2000. */
   intervalMs?: number;
 }
 
