@@ -1,13 +1,77 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TextInput, View, ScrollView } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  SlideOutDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  cancelAnimation,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
-import { useVoice } from '@/hooks/useVoice';
+import { useVoice, type VoiceStatus } from '@/hooks/useVoice';
 import { SPRING, useStaggerDelay } from '@/theme/motion';
+
+// ─── Status presentation ──────────────────────────────────────────────────────
+function statusColor(c: AppColors, status: VoiceStatus, hasError: boolean): string {
+  if (hasError) return c.error;
+  switch (status) {
+    case 'speaking':
+      return c.primary;
+    case 'thinking':
+      return c.warning;
+    case 'listening':
+      return c.success;
+    case 'connecting':
+    case 'idle':
+    case 'error':
+    default:
+      return c.textMuted;
+  }
+}
+
+function statusHelp(status: VoiceStatus, userSpeaking: boolean, hasError: boolean): string {
+  if (hasError) return 'Something went wrong — try again.';
+  switch (status) {
+    case 'connecting':
+      return 'Connecting…';
+    case 'listening':
+      return userSpeaking ? "I hear you — keep going." : "Listening — go ahead and speak.";
+    case 'thinking':
+      return 'Thinking…';
+    case 'speaking':
+      return 'Speaking…';
+    default:
+      return 'Speak or type to begin.';
+  }
+}
+
+// Three pulsing dots shown while the assistant is thinking.
+function ThinkingDots({ color }: { color: string }) {
+  const p = useSharedValue(0.3);
+  useEffect(() => {
+    p.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
+    return () => cancelAnimation(p);
+  }, [p]);
+  const dot = useAnimatedStyle(() => ({ opacity: p.value }));
+  return (
+    <View style={styles.thinkingRow} testID="voice-thinking">
+      {[0, 1, 2].map((i) => (
+        <Animated.View
+          key={i}
+          style={[styles.thinkingDot, { backgroundColor: color }, dot]}
+        />
+      ))}
+    </View>
+  );
+}
 
 interface VoiceAssistantSheetProps {
   visible: boolean;
@@ -42,11 +106,18 @@ export function VoiceAssistantSheet({
     ? 'ERROR'
     : voice.isSpeaking
     ? 'SPEAKING'
+    : voice.isThinking
+    ? 'THINKING'
     : voice.isListening
-    ? 'LISTENING'
+    ? voice.userSpeaking
+      ? 'LISTENING…'
+      : 'LISTENING'
     : voice.isConnected
     ? 'CONNECTED'
     : 'CONNECTING…';
+
+  const helpText = statusHelp(voice.status, voice.userSpeaking, !!voice.error);
+  const dotColor = statusColor(c, voice.status, !!voice.error);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -74,24 +145,18 @@ export function VoiceAssistantSheet({
           </Animated.View>
 
           <Animated.View entering={FadeIn.delay(700 + stagger(1, 50)).duration(320)} style={styles.statusRow}>
-            <View
-              style={[
-                styles.statusDot,
-                {
-                  backgroundColor: voice.error
-                    ? c.error
-                    : voice.isConnected
-                    ? c.success
-                    : c.textMuted,
-                },
-              ]}
-            />
-            <Label color={c.textSecondary}>{statusLabel}</Label>
+            <View style={[styles.statusDot, { backgroundColor: dotColor }]} testID="voice-status-dot" />
+            <Label color={c.textSecondary} testID="voice-status">{statusLabel}</Label>
           </Animated.View>
+
+          {/* Plain-language hint so the user always knows the current state. */}
+          <Caption style={{ color: c.textSecondary, textAlign: 'center' }} testID="voice-status-help">
+            {helpText}
+          </Caption>
 
           {/* Audio waveform — shows mic intensity while listening */}
           {voice.isListening && (
-            <Animated.View entering={FadeIn.delay(200).duration(300)} style={styles.waveRow}>
+            <Animated.View entering={FadeIn.delay(200).duration(300)} style={styles.waveRow} testID="voice-wave">
               {[0.6, 0.8, 1.0, 0.9, 0.7, 0.5, 0.85].map((weight, i) => {
                 const h = Math.max(4, voice.audioLevel * weight * 32);
                 return (
@@ -111,10 +176,43 @@ export function VoiceAssistantSheet({
             </Animated.View>
           )}
 
+          {/* Processing indicator — model is generating a reply. */}
+          {voice.isThinking && (
+            <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(160)}>
+              <ThinkingDots color={c.warning} />
+            </Animated.View>
+          )}
+
+          {/* Speaking indicator — model audio is playing back. */}
+          {voice.isSpeaking && (
+            <Animated.View
+              entering={FadeIn.duration(220)}
+              style={styles.speakingRow}
+              testID="voice-speaking"
+            >
+              <Ionicons name="volume-high" size={16} color={c.primary} />
+              <Caption style={{ color: c.primary }}>Responding…</Caption>
+            </Animated.View>
+          )}
+
           <ScrollView
             style={[styles.transcript, { borderColor: c.border, backgroundColor: c.card }]}
             contentContainerStyle={styles.transcriptContent}
           >
+            {!!voice.userTranscript && (
+              <View style={{ marginBottom: spacing.sm }}>
+                <Caption style={{ color: c.textMuted, marginBottom: 2 }}>You</Caption>
+                <Body
+                  style={{ color: c.textSecondary, fontSize: fontSizes.sm }}
+                  testID="voice-user-transcript"
+                >
+                  {voice.userTranscript}
+                </Body>
+              </View>
+            )}
+            {!!voice.transcript && (
+              <Caption style={{ color: c.textMuted, marginBottom: 2 }}>Assistant</Caption>
+            )}
             <Body
               style={{
                 color: voice.transcript ? c.textPrimary : c.textMuted,
@@ -235,5 +333,24 @@ const styles = StyleSheet.create({
   waveBar: {
     width: 4,
     borderRadius: 2,
+  },
+  thinkingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 24,
+  },
+  thinkingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  speakingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    height: 24,
   },
 });
