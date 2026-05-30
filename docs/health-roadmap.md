@@ -57,11 +57,13 @@ Added 3 `calorieTargets` tests (sex constants + activity scaling) → 18/18 heal
 
 ## Tier 2 — the differentiators (medium effort)
 
-- [ ] 🌟 **Recovery score → Routine Builder** — synthesize Fit sleep + resting HR +
-  active minutes into a 0–100 readiness score (Oura/Whoop-style), then feed it into
-  `replanRestOfToday` so a low-recovery day automatically softens the plan. *No
-  competitor can do this — they have no planner.* Sleep is already persisted
-  (`getLatestSleepHours`); `fitInsights.ts` already computes rule-based signals.
+- [x] 🌟 **Recovery score → Routine Builder (Sprint 3)** — `src/utils/recovery.ts`
+  `computeRecoveryScore()` blends sleep duration, deep-sleep %, HR-vs-baseline, and
+  prior-day load into a 0–100 score (Oura/Whoop-style), shown on the Health tab via
+  `RecoveryCard`. Persisted to `health_logs.recovery_score`; `useReplanFlow` feeds it into
+  the existing `softenForRecovery` wire so a low-recovery day eases the re-plan — **no edits
+  to the replan core** (`types.ts`/`replanApply.ts`/prompts). Degrades gracefully to a
+  sleep-only score without Fit.
 - [ ] 🌟 **Conversational health coach** — extend the `whatNext` tool-use agent
   (`src/ai/agent/`) with read-only health tools (food, sleep, blood markers) so users
   can ask "why am I tired this week?" — Ria-style.
