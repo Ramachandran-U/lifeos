@@ -24,12 +24,16 @@ import { MealSuggestionsCard } from '@/components/modules/health/MealSuggestions
 import { VitalsCard } from '@/components/modules/health/VitalsCard';
 import { HealthSummaryCard } from '@/components/modules/health/HealthSummaryCard';
 import { EditVitalsSheet } from '@/components/modules/health/EditVitalsSheet';
+import { WaterCard } from '@/components/modules/health/WaterCard';
+import { EnergyCard } from '@/components/modules/health/EnergyCard';
 import {
   getFoodEntriesByDate,
   getRecentWeightLogs,
   getBloodReports,
   createHealthLog,
   deleteFoodEntry,
+  getWaterMlForDate,
+  getLatestEnergyForDate,
 } from '@/db/queries/health';
 import { getUser, updateUser } from '@/db/queries/users';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -74,6 +78,10 @@ export default function HealthScreen() {
   const [heightCm, setHeightCm] = useState<number | null>(null);
   const [userAge, setUserAge] = useState<number | null>(null);
   const [goalType, setGoalType] = useState<string | null>(null);
+  const [sex, setSex] = useState<string | null>(null);
+  const [activityLevel, setActivityLevel] = useState<string | null>(null);
+  const [waterMl, setWaterMl] = useState(0);
+  const [energy, setEnergy] = useState<number | null>(null);
   const [bloodReportResult, setBloodReportResult] = useState<BloodReportResult | null>(null);
   const [showAddFood, setShowAddFood] = useState(false);
   const [editEntry, setEditEntry] = useState<FoodEntryEdit | null>(null);
@@ -109,6 +117,10 @@ export default function HealthScreen() {
     setHeightCm(user?.heightCm ?? null);
     setUserAge(user?.age ?? null);
     setGoalType(user?.healthGoalType ?? null);
+    setSex(user?.sex ?? null);
+    setActivityLevel(user?.activityLevel ?? null);
+    setWaterMl(getWaterMlForDate(today));
+    setEnergy(getLatestEnergyForDate(today));
 
     const reports = getBloodReports();
     if (reports.length > 0 && reports[0].parsedMarkers) {
@@ -207,8 +219,16 @@ export default function HealthScreen() {
         heightCm,
         age: userAge,
         goalType,
+        sex,
+        activityLevel,
       }),
-    [trend.latest, heightCm, userAge, goalType],
+    [trend.latest, heightCm, userAge, goalType, sex, activityLevel],
+  );
+
+  // Hydration goal ≈ 35 ml per kg bodyweight (rounded to 100ml), default 2.5 L.
+  const waterGoalMl = useMemo(
+    () => (trend.latest ? Math.round((trend.latest * 35) / 100) * 100 : 2500),
+    [trend.latest],
   );
 
   const totals = useMemo(() => {
@@ -234,14 +254,18 @@ export default function HealthScreen() {
     return groups;
   }, [foodEntries]);
 
-  const handleSaveVitals = (data: { weightKg?: number; heightCm?: number }) => {
+  const handleSaveVitals = (data: { weightKg?: number; heightCm?: number; sex?: string; activityLevel?: string }) => {
     if (data.weightKg != null) {
       createHealthLog({ date: today, weight: data.weightKg });
       logBehaviourEvent('weight_logged', 'health');
       if (userId) addXP(userId, 10);
     }
-    if (data.heightCm != null && userId) {
-      updateUser(userId, { heightCm: data.heightCm });
+    const profile: { heightCm?: number; sex?: string; activityLevel?: string } = {};
+    if (data.heightCm != null) profile.heightCm = data.heightCm;
+    if (data.sex != null) profile.sex = data.sex;
+    if (data.activityLevel != null) profile.activityLevel = data.activityLevel;
+    if (userId && Object.keys(profile).length > 0) {
+      updateUser(userId, profile);
     }
     loadData();
   };
@@ -349,6 +373,14 @@ export default function HealthScreen() {
               ))}
             </View>
           </Card>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+          <WaterCard totalMl={waterMl} goalMl={waterGoalMl} onLogged={loadData} />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(350).duration(400)}>
+          <EnergyCard current={energy} onLogged={loadData} />
         </Animated.View>
 
         <Card style={styles.fitCard}>
@@ -522,6 +554,8 @@ export default function HealthScreen() {
         visible={showEditVitals}
         initialWeightKg={trend.latest}
         initialHeightCm={heightCm}
+        initialSex={sex}
+        initialActivityLevel={activityLevel}
         onClose={() => setShowEditVitals(false)}
         onSave={handleSaveVitals}
       />

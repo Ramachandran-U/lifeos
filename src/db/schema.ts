@@ -10,6 +10,8 @@ export const users = sqliteTable('users', {
   name: text('name').notNull(),
   age: integer('age'),
   heightCm: real('height_cm'),
+  sex: text('sex'), // 'male' | 'female' — used for exact BMR; optional
+  activityLevel: text('activity_level'), // sedentary | light | moderate | active | very_active
   visionStatement: text('vision_statement'),
   wakeTime: text('wake_time'),
   sleepTime: text('sleep_time'),
@@ -82,6 +84,7 @@ export const healthLogs = sqliteTable('health_logs', {
   sleepHours: real('sleep_hours'),
   steps: integer('steps'),
   energyLevel: integer('energy_level'), // 1-5
+  waterMl: real('water_ml'), // per-row increment; sum across the day's rows = total intake
   notes: text('notes'),
   source: text('source').notNull().default('manual'), // manual | healthkit | health_connect
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),

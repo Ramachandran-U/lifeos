@@ -51,6 +51,8 @@ export interface WebUser {
   name: string;
   age?: number;
   heightCm?: number;
+  sex?: string;
+  activityLevel?: string;
   visionStatement?: string;
   wakeTime?: string;
   sleepTime?: string;
