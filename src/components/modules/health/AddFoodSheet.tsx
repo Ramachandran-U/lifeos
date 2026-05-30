@@ -48,6 +48,15 @@ interface AddFoodSheetProps {
 
 type Mode = 'choose' | 'manual' | 'scanning' | 'review' | 'barcode';
 
+// Rotating prompts for the empty food-search box — concrete dishes read as
+// "type anything", and hint that the bundled DB covers everyday meals.
+const FOOD_SEARCH_PLACEHOLDERS = [
+  'Type to search (dal, biryani, idli…)',
+  'Search a dish — paneer tikka, oats…',
+  'Grilled chicken, banana, coffee…',
+  'What did you eat?',
+];
+
 export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, onPhotoUsed }: AddFoodSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
@@ -446,7 +455,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
       <View style={styles.form}>
         <Input
           label="Food name"
-          placeholder="Type to search (dal, biryani, idli…)"
+          rotatingPlaceholders={FOOD_SEARCH_PLACEHOLDERS}
           value={foodName}
           onChangeText={handleNameChange}
         />
