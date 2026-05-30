@@ -24,6 +24,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { LoadingDots } from '@/components/ui/LoadingDots';
+import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { FinanceGoalCard } from '@/components/modules/finance/FinanceGoalCard';
 import { MilestoneTracker } from '@/components/modules/finance/MilestoneTracker';
 import { WeeklyInsightCard } from '@/components/modules/finance/WeeklyInsightCard';
@@ -59,6 +60,14 @@ const webTextInputOutline = Platform.select({
   web: { outlineStyle: 'none' as const } as object,
   default: {},
 });
+
+// Rotating prompts for the empty transaction-search box.
+const TXN_SEARCH_PLACEHOLDERS = [
+  'Search merchant or category',
+  'Try "Swiggy" or "groceries"…',
+  'Find a transaction…',
+  'Coffee, rent, Amazon…',
+];
 
 const GOAL_TYPES = [
   { value: 'home', label: 'Home Down Payment', icon: 'home' },
@@ -935,14 +944,21 @@ function TransactionsTab({
     <>
       <View style={[styles.searchRow, { backgroundColor: c.card, borderColor: c.border }]}>
         <Ionicons name="search" size={16} color={c.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search merchant or category"
-          placeholderTextColor={c.textMuted}
-          autoCapitalize="none"
-        />
+        <View style={styles.searchInputWrap}>
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholderTextColor={c.textMuted}
+            autoCapitalize="none"
+          />
+          <RotatingPlaceholder
+            phrases={TXN_SEARCH_PLACEHOLDERS}
+            active={!query}
+            color={c.textMuted}
+            style={styles.searchHint}
+          />
+        </View>
         {query.length > 0 && (
           <Pressable onPress={() => setQuery('')} hitSlop={8}>
             <Ionicons name="close-circle" size={16} color={c.textMuted} />
@@ -1439,12 +1455,20 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       borderWidth: 1,
       marginBottom: spacing.sm,
     },
-    searchInput: {
+    searchInputWrap: {
       flex: 1,
+      justifyContent: 'center',
+    },
+    searchInput: {
       color: c.textPrimary,
       fontFamily: fonts.body,
       fontSize: fontSizes.md,
       padding: 0,
+    },
+    // Overlay aligned to the search text (row is vertically centered).
+    searchHint: {
+      left: 0,
+      fontSize: fontSizes.md,
     },
     filterRow: {
       flexDirection: 'row',
