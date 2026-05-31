@@ -46,6 +46,7 @@ import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
 import { XP_VALUES } from '@/utils/gamification';
 import { useUserStore } from '@/store/useUserStore';
+import { useFitSyncStore } from '@/store/useFitSyncStore';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import type { BloodReportResult } from '@/ai/types';
 import {
@@ -53,7 +54,7 @@ import {
   startFitOAuth,
   clearFitTokens,
 } from '@/integrations/googleFit/oauth';
-import { syncFitDailyData, type DailyFitPoint, type WorkoutSession } from '@/integrations/googleFit/client';
+import { syncFitDailyData } from '@/integrations/googleFit/client';
 import { FitDashboard } from '@/components/modules/health/FitDashboard';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -97,8 +98,12 @@ export default function HealthScreen() {
   const [fitConnected, setFitConnected] = useState(false);
   const [fitSyncing, setFitSyncing] = useState(false);
   const [fitStatus, setFitStatus] = useState<string | null>(null);
-  const [fitDays, setFitDays] = useState<DailyFitPoint[]>([]);
-  const [fitWorkouts, setFitWorkouts] = useState<WorkoutSession[]>([]);
+  // Synced Fit data is cached in a persisted store so it survives navigating
+  // away from the tab — otherwise the dashboard cleared and forced a re-sync.
+  const fitDays = useFitSyncStore((s) => s.days);
+  const fitWorkouts = useFitSyncStore((s) => s.workouts);
+  const setFitSync = useFitSyncStore((s) => s.setSync);
+  const clearFitSync = useFitSyncStore((s) => s.clear);
   const { call, loading } = useAI();
   const { userId } = useUserStore();
   const { awardBadge, addXP } = useGameStore();
@@ -162,8 +167,7 @@ export default function HealthScreen() {
   const handleFitDisconnect = () => {
     clearFitTokens();
     setFitConnected(false);
-    setFitDays([]);
-    setFitWorkouts([]);
+    clearFitSync();
     setFitStatus('Disconnected.');
   };
 
@@ -174,8 +178,7 @@ export default function HealthScreen() {
     setFitStatus(null);
     try {
       const result = await syncFitDailyData(clientId, 14);
-      setFitDays(result.days);
-      setFitWorkouts(result.workouts);
+      setFitSync(result.days, result.workouts, Date.now());
       const today = result.days[result.days.length - 1];
       if (today && today.weightKg && today.weightKg > 0) {
         createHealthLog({ date: today.date, weight: today.weightKg });
