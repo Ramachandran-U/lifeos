@@ -48,6 +48,12 @@ export interface LocalSink {
   getCursor(): Promise<number>;
   /** Persist the pull cursor (server `seq`). */
   setCursor(seq: number): Promise<void>;
+  /** Every mutation with its sync state — for compaction planning (T9). */
+  readAllWithState(): Promise<{ record: MutationRecord; syncState: SyncState }[]>;
+  /** Apply a compaction plan: delete the given ids, insert checkpoints ('acked'). */
+  applyCompaction(plan: { checkpoints: MutationRecord[]; deleteIds: string[] }): Promise<void>;
+  /** Total rows in the log (for the size gauge). */
+  count(): Promise<number>;
 }
 
 const WEB_KEY = 'lifeos_mutation_log';
@@ -146,6 +152,22 @@ function createWebSink(): LocalSink {
     },
     async setCursor(seq: number): Promise<void> {
       try { localStorage.setItem(WEB_CURSOR_KEY, String(seq)); } catch { /* ignore */ }
+    },
+    async readAllWithState() {
+      return readWebBuffer().map((e) => ({
+        record: stripSyncState(e),
+        syncState: (e.syncState ?? 'pending') as SyncState,
+      }));
+    },
+    async applyCompaction({ checkpoints, deleteIds }) {
+      const del = new Set(deleteIds);
+      const buf = readWebBuffer().filter((e) => !del.has(e.id));
+      for (const c of checkpoints) buf.push({ ...c, syncState: 'acked' });
+      if (buf.length > WEB_CAP) buf.splice(0, buf.length - WEB_CAP);
+      writeWebBuffer(buf);
+    },
+    async count() {
+      return readWebBuffer().length;
     },
   };
 }
@@ -375,6 +397,48 @@ function createNativeSink(): LocalSink {
         );
       } catch {
         // Non-fatal: a lost cursor just re-pulls (apply is idempotent).
+      }
+    },
+    async readAllWithState() {
+      try {
+        const rows = (await getDB().getAllAsync('SELECT * FROM mutation_log')) as (RawRow & { sync_state?: string })[];
+        return rows.map((r) => ({ record: rowToRecord(r), syncState: (r.sync_state ?? 'pending') as SyncState }));
+      } catch {
+        return [];
+      }
+    },
+    async applyCompaction({ checkpoints, deleteIds }) {
+      try {
+        const db = getDB();
+        for (let i = 0; i < deleteIds.length; i += 400) {
+          const chunk = deleteIds.slice(i, i + 400);
+          const ph = chunk.map(() => '?').join(',');
+          await db.runAsync(`DELETE FROM mutation_log WHERE id IN (${ph})`, chunk);
+        }
+        for (const c of checkpoints) {
+          await db.runAsync(
+            `INSERT OR REPLACE INTO mutation_log
+               (id, entity, entity_id, op, before_json, after_json, fields_json,
+                ts, lamport, device_id, user_id, prev_hash, hash, sync_state)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'acked')`,
+            [
+              c.id, c.entity, c.entityId, c.op,
+              c.before === null ? null : JSON.stringify(c.before),
+              c.after === null ? null : JSON.stringify(c.after),
+              JSON.stringify(c.fields), c.ts, c.lamport, c.deviceId, c.userId, c.prevHash, c.hash,
+            ],
+          );
+        }
+      } catch {
+        // Best-effort: a failed compaction leaves the log intact.
+      }
+    },
+    async count() {
+      try {
+        const row = (await getDB().getFirstAsync('SELECT COUNT(*) AS n FROM mutation_log')) as { n: number } | null;
+        return row?.n ?? 0;
+      } catch {
+        return 0;
       }
     },
   };

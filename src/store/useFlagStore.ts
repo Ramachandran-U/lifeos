@@ -26,6 +26,10 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // remote kill switch — default OFF until rollout; requires mutation_log_enabled.
   // Flip on per-cohort from the Worker /v1/config; flip off to freeze sync.
   sync_engine_enabled: false,
+  // P1-T9 mutation-log compaction (collapses synced/dormant entities into
+  // checkpoints to bound log growth). Off until device-validated — it deletes
+  // log rows. Independent of sync_engine_enabled.
+  compaction_enabled: false,
   // Multi-step agent for goal decomposition. Off by default — flip on per-user
   // to A/B against the single-shot baseline. Kill criterion lives in migration
   // 0004_ai_suggestions.sql.

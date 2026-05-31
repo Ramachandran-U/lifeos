@@ -32,6 +32,7 @@ import { increment, gauge } from '@/observability/metrics';
 import { getDeviceId } from '@/utils/telemetry';
 import { getLocalSink } from './sink';
 import { applyRemoteMutation } from './reducer';
+import { planCompaction, COMMUTATIVE_ENTITIES } from './compaction';
 import type { MutationRecord } from './mutationLog';
 
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
@@ -57,9 +58,15 @@ interface PullResult {
   skipped?: 'disabled' | 'signed_out' | 'busy';
 }
 
+/** Compaction: only collapse entities with at least this many rows. */
+const COMPACT_MIN_MUTATIONS = 50;
+/** A document entity is "dormant" (safe to collapse) after this long. */
+const COMPACT_RETAIN_DAYS = 30;
+
 let started = false;
 let draining = false;
 let pulling = false;
+let compactedThisSession = false;
 let timer: ReturnType<typeof setInterval> | null = null;
 // Structural type avoids depending on RN's AppState return-type name, which has
 // drifted across versions (NativeEventSubscription / EventSubscription).
@@ -213,18 +220,56 @@ export async function pullRemote(): Promise<PullResult> {
   }
 }
 
+/** Update the log-size gauge (ungated — the log grows whether or not sync is on). */
+function gaugeLogSize(): void {
+  void getLocalSink().count().then((n) => gauge('mutations.log.size', n)).catch(() => {});
+}
+
+/**
+ * Bound the local log: collapse synced, commutative-or-dormant entities into
+ * checkpoints (P1-T9). Flag-gated ('compaction', off) + once per session, since
+ * it deletes rows. Independent of sync (the log grows from local writes too).
+ * Never throws.
+ */
+async function maybeCompact(): Promise<void> {
+  if (compactedThisSession) return;
+  if (!useFlagStore.getState().isEnabled('compaction_enabled')) return;
+  compactedThisSession = true;
+  try {
+    const sink = getLocalSink();
+    const entries = await sink.readAllWithState();
+    gauge('mutations.log.size', entries.length);
+    const cutoff = new Date(Date.now() - COMPACT_RETAIN_DAYS * 86_400_000).toISOString();
+    const plan = planCompaction(entries, {
+      minMutations: COMPACT_MIN_MUTATIONS,
+      retainCutoffTs: cutoff,
+      commutative: COMMUTATIVE_ENTITIES,
+    });
+    if (plan.deleteIds.length === 0) return;
+    await sink.applyCompaction(plan);
+    increment('sync.compaction.collapsed', {}, plan.deleteIds.length);
+    gauge('mutations.log.size', await sink.count());
+  } catch {
+    // best-effort — a failed compaction leaves the log intact
+  }
+}
+
 /** Fire-and-forget drain (push then pull) — timer / foreground / boot trigger.
- *  Also drives the status pill's phase via useSyncStore. */
+ *  Also drives the status pill, the log-size gauge, and (gated) compaction. */
 function drain(): void {
   void (async () => {
     const store = useSyncStore.getState();
-    if (!isEnabled()) { store.setPhase('disabled'); return; }
-    if (!useUserStore.getState().userId) { store.setPhase('signed_out'); return; }
-    store.setPhase('pushing');
-    await pushPending();
-    store.setPhase('pulling');
-    await pullRemote(); // records lastSyncedAt on a successful round
-    store.setPhase('idle');
+    if (isEnabled() && useUserStore.getState().userId) {
+      store.setPhase('pushing');
+      await pushPending();
+      store.setPhase('pulling');
+      await pullRemote(); // records lastSyncedAt on a successful round
+      store.setPhase('idle');
+    } else {
+      store.setPhase(!isEnabled() ? 'disabled' : 'signed_out');
+    }
+    gaugeLogSize();
+    void maybeCompact();
   })();
 }
 
@@ -294,6 +339,7 @@ export function _resetSyncEngineForTests(): void {
   started = false;
   draining = false;
   pulling = false;
+  compactedThisSession = false;
   timer = null;
   appStateSub = null;
   webVisibilityHandler = null;
