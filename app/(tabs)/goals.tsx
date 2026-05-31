@@ -19,6 +19,7 @@ import { MotivationBanner } from '@/components/shared/MotivationBanner';
 import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useGameStore } from '@/store/useGameStore';
+import { useSyncStore } from '@/store/useSyncStore';
 import { updateGoalStatus } from '@/db/queries/goals';
 import { listGoalComments } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
@@ -33,6 +34,9 @@ export default function GoalsScreen() {
   const { userId } = useUserStore();
   const { goals, loadGoals } = useGoalStore();
   const completeGoalNode = useGameStore((s) => s.completeGoalNode);
+  // Re-read when the sync engine applies a remote pull (P1 Increment 3), so a
+  // goal synced from another device repaints without a manual reload.
+  const syncTick = useSyncStore((s) => s.appliedTick);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
@@ -41,7 +45,7 @@ export default function GoalsScreen() {
   useFocusEffect(
     useCallback(() => {
       if (userId) loadGoals(userId);
-    }, [userId, loadGoals])
+    }, [userId, loadGoals, syncTick])
   );
 
   const mainGoals = useMemo(

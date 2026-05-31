@@ -26,6 +26,7 @@ import { Platform, AppState } from 'react-native';
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import { useUserStore } from '@/store/useUserStore';
 import { useFlagStore } from '@/store/useFlagStore';
+import { useSyncStore } from '@/store/useSyncStore';
 import { withSpan } from '@/ai/tracing';
 import { increment, gauge } from '@/observability/metrics';
 import { getDeviceId } from '@/utils/telemetry';
@@ -63,6 +64,9 @@ let timer: ReturnType<typeof setInterval> | null = null;
 // Structural type avoids depending on RN's AppState return-type name, which has
 // drifted across versions (NativeEventSubscription / EventSubscription).
 let appStateSub: { remove: () => void } | null = null;
+// Web: drain when the tab becomes visible/focused (the web equivalent of the
+// native AppState 'active' trigger).
+let webVisibilityHandler: (() => void) | null = null;
 
 async function postPush(token: string, mutations: MutationRecord[]): Promise<string[]> {
   const res = await fetch(`${PROXY_URL}/v1/sync/push`, {
@@ -195,6 +199,8 @@ export async function pullRemote(): Promise<PullResult> {
       }
       increment('sync.mutations.applied', {}, applied);
       increment('sync.pull.ok');
+      // Reactive signal so focused screens repaint without a manual reload.
+      if (applied > 0) useSyncStore.getState().markApplied(applied);
       return { applied };
     });
   } catch {
@@ -226,12 +232,17 @@ export const syncEngine = {
 
     timer = setInterval(drain, DRAIN_INTERVAL_MS);
 
-    // Native: drain on return-to-foreground (mirrors the AppState pattern in
-    // src/integrations/supabase/client.ts). Web relies on the periodic timer.
+    // Drain on return-to-foreground: native via AppState (mirrors
+    // src/integrations/supabase/client.ts), web via the tab visibility event.
     if (Platform.OS !== 'web') {
       appStateSub = AppState.addEventListener('change', (state) => {
         if (state === 'active') drain();
       });
+    } else if (typeof document !== 'undefined') {
+      webVisibilityHandler = () => {
+        if (document.visibilityState === 'visible') drain();
+      };
+      document.addEventListener('visibilitychange', webVisibilityHandler);
     }
   },
 
@@ -245,6 +256,10 @@ export const syncEngine = {
     if (appStateSub) {
       appStateSub.remove();
       appStateSub = null;
+    }
+    if (webVisibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', webVisibilityHandler);
+      webVisibilityHandler = null;
     }
   },
 
@@ -264,9 +279,13 @@ export const syncEngine = {
 export function _resetSyncEngineForTests(): void {
   if (timer) clearInterval(timer);
   if (appStateSub) appStateSub.remove();
+  if (webVisibilityHandler && typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', webVisibilityHandler);
+  }
   started = false;
   draining = false;
   pulling = false;
   timer = null;
   appStateSub = null;
+  webVisibilityHandler = null;
 }
