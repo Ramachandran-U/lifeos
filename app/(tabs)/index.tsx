@@ -95,7 +95,6 @@ export default function TodayScreen() {
   }, [userId, setOnboardingStage, router]);
   const loadGame = useGameStore((s) => s.loadFromDB);
   const completeBlock = useGameStore((s) => s.completeBlock);
-  const addXP = useGameStore((s) => s.addXP);
   const triggerStreak = useGameStore((s) => s.triggerStreak);
   const streaks = useGameStore((s) => s.streaks);
   const totalXP = useGameStore((s) => s.totalXP);
@@ -258,8 +257,9 @@ export default function TodayScreen() {
       const mod = block?.module ?? 'goal';
       const todayBlocks = blocks.filter(b => b.module === mod);
       const completed = todayBlocks.filter(b => b.id === blockId || b.status === 'completed').length;
+      // completeBlock credits the XP itself — do NOT also addXP here (that was
+      // the double-credit in QA RW-01). The beat below is purely visual.
       completeBlock(userId, mod, completed, todayBlocks.length || 1);
-      addXP(userId, XP_VALUES.completeBlock);
       // Aurora XP beat — flyaway chip near the top of the screen. Map the
       // routine-block `module` to a canonical domain; non-domain modules
       // (rest/meal/work/…) pass `undefined` so the beat renders without a
@@ -288,8 +288,8 @@ export default function TodayScreen() {
     // Backfilled completion — credit the domain score + XP, same as a same-day
     // completion, so a forgotten check-in still counts.
     if (!userId) return;
+    // completeBlock credits XP itself — no extra addXP (QA double-credit fix).
     completeBlock(userId, mod, 1, 1);
-    addXP(userId, XP_VALUES.completeBlock);
   };
 
   const handleUncomplete = (blockId: string) => {

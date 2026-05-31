@@ -177,14 +177,20 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   completeBlock: (userId, module, completedCount, totalCount) => {
     const { domainScores, badges, streaks, totalXP, weeklyXP } = get();
-    const domain = MODULE_TO_DOMAIN[module];
-    if (!domain) return;
 
-    const newScores = { ...domainScores };
-    newScores[domain] = calculateDomainScore(completedCount, totalCount, newScores[domain]);
-
+    // XP is credited for EVERY completed block, including non-domain modules
+    // (rest/meal/work). This is the single source of block-completion XP —
+    // callers must NOT also call addXP(completeBlock) or they'd double-credit
+    // (QA RW-01/double-credit fix). The domain-score bump below is gated on a
+    // known domain; non-domain blocks still earn XP but move no domain score.
     const newXP = totalXP + XP_VALUES.completeBlock;
     const newWeeklyXP = weeklyXP + XP_VALUES.completeBlock;
+
+    const domain = MODULE_TO_DOMAIN[module];
+    const newScores = { ...domainScores };
+    if (domain) {
+      newScores[domain] = calculateDomainScore(completedCount, totalCount, newScores[domain]);
+    }
 
     const newBadges = checkBadges(badges, { domainScores: newScores, streaks });
     const allBadges = [...badges, ...newBadges];

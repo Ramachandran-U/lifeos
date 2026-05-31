@@ -189,7 +189,16 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const accent = getTypeColor(domainType).color;
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      // KB-04: without onRequestClose, RN-web's Modal ignores Esc entirely
+      // (focus is irrelevant — Esc was a no-op from anywhere). Every other
+      // sheet wires this; AddGoalSheet was the lone omission. This is the
+      // definitive KB-04 fix.
+      onRequestClose={handleClose}
+    >
       <Pressable style={styles.backdrop} onPress={handleClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />

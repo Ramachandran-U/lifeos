@@ -16,7 +16,6 @@ import { MODULE_META, type Quest } from '@/constants/gamification';
 import { getRoutineBlocksByDate, updateRoutineBlockStatus } from '@/db/queries/routine';
 import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
-import { XP_VALUES } from '@/utils/gamification';
 
 // What the user actually does to move each quest forward, plus where to do it
 // when there's no checkable routine block today.
@@ -41,7 +40,6 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
   const completeBlock = useGameStore((s) => s.completeBlock);
-  const addXP = useGameStore((s) => s.addXP);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   type BlockRow = { id: string; title: string; startTime: string; endTime: string; status: string; module: string };
@@ -73,8 +71,8 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
     updateRoutineBlockStatus(blockId, 'completed');
     const moduleBlocks = blocks.filter((b) => b.module === quest.module);
     const completed = moduleBlocks.filter((b) => b.id === blockId || b.status === 'completed').length;
+    // completeBlock credits XP itself — no extra addXP (QA double-credit fix).
     completeBlock(userId, quest.module, completed, moduleBlocks.length || 1);
-    addXP(userId, XP_VALUES.completeBlock);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     refresh();
     onChanged?.();

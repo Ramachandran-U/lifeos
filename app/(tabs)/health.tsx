@@ -44,6 +44,7 @@ import { recoveryFromFitDays, computeRecoveryScore } from '@/utils/recovery';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
+import { XP_VALUES } from '@/utils/gamification';
 import { useUserStore } from '@/store/useUserStore';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import type { BloodReportResult } from '@/ai/types';
@@ -308,7 +309,13 @@ export default function HealthScreen() {
   const handleFoodLogged = () => {
     logBehaviourEvent('food_logged', 'health');
     advanceQuest('q_food', 1);
-    if (userId) triggerStreak(userId, 'foodTracking');
+    if (userId) {
+      triggerStreak(userId, 'foodTracking');
+      // Logging a meal awards XP, same as any tracked action — previously only
+      // the photo-recognition path credited XP, so manual logging advanced the
+      // streak/quest but never moved the XP total (QA GAM finding).
+      addXP(userId, XP_VALUES.logFood);
+    }
     loadData();
   };
 

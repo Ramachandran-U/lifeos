@@ -75,6 +75,8 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  // Validation message for the manual form (QA HE-02: reject negatives / NaN).
+  const [manualError, setManualError] = useState<string | null>(null);
 
   // Bundled-DB search state. When the user picks a result we autofill the
   // macro fields from its default serving; if they then change the quantity,
@@ -301,16 +303,38 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
     handleClose();
   };
 
+  // Parse a nutrition field: must be a finite, non-negative number. Returns
+  // null for invalid input (negative or non-numeric like "abc") so we reject
+  // the save instead of silently coercing to 0 / corrupting the daily total.
+  // `defaultIfEmpty` covers optional fields left blank.
+  const parseField = (raw: string, defaultIfEmpty: number): number | null => {
+    if (!raw.trim()) return defaultIfEmpty;
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
+  };
+
   const handleManualSave = () => {
     if (!foodName.trim() || !calories.trim()) return;
 
+    const calVal = parseField(calories, 0);
+    const qtyVal = parseField(quantity, 100);
+    const proVal = parseField(protein, 0);
+    const carbVal = parseField(carbs, 0);
+    const fatVal = parseField(fat, 0);
+    if (calVal === null || qtyVal === null || proVal === null || carbVal === null || fatVal === null) {
+      setManualError('Enter valid, non-negative numbers.');
+      return;
+    }
+    setManualError(null);
+
     const fields = {
       foodName: foodName.trim(),
-      quantityG: parseFloat(quantity) || 100,
-      calories: parseFloat(calories) || 0,
-      protein: parseFloat(protein) || 0,
-      carbs: parseFloat(carbs) || 0,
-      fat: parseFloat(fat) || 0,
+      quantityG: qtyVal || 100,
+      calories: calVal,
+      protein: proVal,
+      carbs: carbVal,
+      fat: fatVal,
     };
 
     if (editEntry) {
@@ -562,6 +586,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
             <Input label="Fat (g)" placeholder="0" value={fat} onChangeText={setFat} keyboardType="numeric" />
           </View>
         </View>
+        {manualError ? <Body style={styles.barcodeError}>{manualError}</Body> : null}
         <Button title={isEditing ? 'Save changes' : 'Add food'} onPress={handleManualSave} disabled={!foodName.trim() || !calories.trim()} />
         <Button title={isEditing ? 'Cancel' : 'Back'} variant="ghost" onPress={() => (isEditing ? handleClose() : setMode('choose'))} />
       </View>
