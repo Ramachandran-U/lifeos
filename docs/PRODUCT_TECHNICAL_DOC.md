@@ -88,7 +88,7 @@ lifeos/
 │   │   ├── googleCalendar/        # Calendar API client
 │   │   └── googleFit/             # Fit aggregate + sessions client
 │   ├── db/
-│   │   ├── schema.ts              # Drizzle table definitions (22 tables)
+│   │   ├── schema.ts              # Drizzle table definitions (26 tables)
 │   │   ├── index.ts               # DB init (WAL mode, foreign keys)
 │   │   ├── webStorage.ts          # localStorage user + session store (web)
 │   │   ├── careerStorage.ts       # Named career path snapshots
@@ -296,7 +296,7 @@ Prop contract:
 
 ## 4. Data Model
 
-**22 tables** defined in `src/db/schema.ts`. All use UUID primary keys (`expo-crypto`), `createdAt`/`updatedAt` timestamps, and soft deletes where applicable. Tables added since the last revision: `goal_comments`, `daily_reflections`, `discovery_imports`, `chat_messages`.
+**26 tables** defined in `src/db/schema.ts`. All use UUID primary keys (`expo-crypto`), `createdAt`/`updatedAt` timestamps, and soft deletes where applicable. Tables added in recent revisions: `goal_comments`, `daily_reflections`, `discovery_imports`, `chat_messages`, plus the Explore-v2 + cognition spine (`sparks`, `expeditions`, `expedition_progress`, `cognitive_insights`, mutation log) and health additions (`recovery_score` column on `health_logs`).
 
 ### Entity Relationship Diagram
 

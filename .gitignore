@@ -50,3 +50,10 @@ playwright-report/
 .auth/
 .env.test
 .claude/
+
+# Generated eval output — regenerated on every `npm run evals` / benchmark run.
+# (production-outcomes.md is an intentional stub and stays tracked.)
+evals/reports/latest.md
+evals/reports/latest.json
+evals/reports/traces.jsonl
+evals/reports/benchmark-merchant.md

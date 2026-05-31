@@ -220,11 +220,11 @@ Tests: `analytics`, `categorizer`, `categoryGroups`, `merchantClassifier`, `mone
 
 ## Explore (`src/explore/`)
 
-`constellation.ts`, `expeditions.ts`, `expeditionGen.ts`, `spark.ts`. Tests: all four.
+`constellation.ts`, `expeditions.ts`, `expeditionGen.ts`, `spark.ts`, `rabbitHole.ts`, plus the flag-gated redesign `chasing.ts` + `frontier.ts` (flags `exploreChasing` / `exploreFrontier`). Tests: constellation, expeditions, expeditionGen, spark, rabbitHole, chasing, frontier. The agentic "pull thread" lives in `src/ai/agent/exploreThread.ts` + `exploreTools.ts` (flag `exploreAgenticThread`).
 
 ## Cognition (`src/cognition/`)
 
-`domainStagnation.ts`, `domainSuggestions.ts`, `types.ts`. Tests for both behaviours.
+`domainStagnation.ts`, `domainSuggestions.ts`, `priorityChangeHandler.ts`, `overcommitment.ts`, `replanStash.ts`, `streakAtRisk.ts`, `types.ts`. Tests co-located for each behaviour.
 
 ## Sync (`src/sync/`)
 
