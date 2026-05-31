@@ -49,3 +49,24 @@ describe('MODULE_ICONS', () => {
     expect(MODULE_ICONS.meal).toBeDefined();
   });
 });
+
+// Regression: DomainGlyph used to do `DOMAIN_ICONS[domain]` unguarded. Callers
+// pass a routine-block `module` cast to DomainKey, and modules like 'rest' /
+// 'meal' / 'work' are NOT domain keys → the lookup returned `undefined`, and
+// rendering `<undefined/>` threw React #130 (blank screen) on block complete.
+// The glyph now falls back to the goal icon for any non-canonical key.
+describe('DomainGlyph icon resolution (React #130 guard)', () => {
+  const resolve = (domain: string) =>
+    (DOMAIN_ICONS as Record<string, unknown>)[domain] ?? DOMAIN_ICONS.goal;
+
+  it('resolves a real icon for canonical domains', () => {
+    DOMAINS.forEach((d) => expect(resolve(d)).toBe(DOMAIN_ICONS[d]));
+  });
+
+  it('falls back to the goal icon for non-domain block modules', () => {
+    ['rest', 'meal', 'work', '', 'bogus'].forEach((m) => {
+      expect(resolve(m)).toBe(DOMAIN_ICONS.goal);
+      expect(resolve(m)).toBeDefined(); // never undefined → never <undefined/>
+    });
+  });
+});

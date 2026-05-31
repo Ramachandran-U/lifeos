@@ -260,8 +260,18 @@ export default function TodayScreen() {
       const completed = todayBlocks.filter(b => b.id === blockId || b.status === 'completed').length;
       completeBlock(userId, mod, completed, todayBlocks.length || 1);
       addXP(userId, XP_VALUES.completeBlock);
-      // Aurora XP beat — flyaway chip near the top of the screen.
-      enqueueXPReward(XP_VALUES.completeBlock, mod as DomainKey);
+      // Aurora XP beat — flyaway chip near the top of the screen. Map the
+      // routine-block `module` to a canonical domain; non-domain modules
+      // (rest/meal/work/…) pass `undefined` so the beat renders without a
+      // glyph rather than feeding DomainGlyph a key it can't resolve.
+      // DomainKey (the glyph/icon key space) uses 'goal' (singular), unlike the
+      // DomainScores key 'goals'. Only the 6 canonical domains have a glyph;
+      // other modules (rest/meal/work/…) map to undefined → beat shows no glyph.
+      const MODULE_TO_GLYPH: Record<string, DomainKey> = {
+        goal: 'goal', health: 'health', finance: 'finance',
+        career: 'career', social: 'social', polymath: 'polymath',
+      };
+      enqueueXPReward(XP_VALUES.completeBlock, MODULE_TO_GLYPH[mod]);
       const streakMap: Record<string, 'workout' | 'learning' | 'social'> = {
         health: 'workout',
         polymath: 'learning',
