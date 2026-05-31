@@ -12,6 +12,11 @@
 
 const IGNORE = ['/node_modules/', '/\\.claude/'];
 
+// Pull jest-expo's own setupFiles so we can prepend our winter-runtime fix
+// without dropping the preset's react-native + expo setup (a project's
+// `setupFiles` REPLACES the preset's rather than merging).
+const expoPreset = require('jest-expo/jest-preset');
+
 module.exports = {
   projects: [
     {
@@ -36,12 +41,14 @@ module.exports = {
     {
       displayName: 'components',
       preset: 'jest-expo',
-      // NOTE: this project runs locally but is NOT yet wired into CI — Expo 54's
-      // "winter" runtime (expo/src/winter/runtime*.ts) ships untransformed ESM
-      // that jest's CJS runtime rejects in a clean Linux checkout ("trying to
-      // import a file outside of the scope of the test code"). Needs a jest-expo
-      // SDK-54 setup fix (transform/setupFile for expo/src/winter) before it can
-      // gate CI. Tracked as a follow-up. Run locally with: npm run test:components
+      // Expo 54's "winter" runtime installs a lazy `__ExpoImportMetaRegistry`
+      // global getter that fires a deferred require() at access time, which
+      // jest rejects ("import a file outside of the scope of the test code").
+      // jest.setup.winter.js stubs that module so the suite runs in a clean
+      // checkout / CI. See the file header and issue #70 for the mechanism.
+      // Prepended to the preset's own setupFiles (which we must re-list, since
+      // a project's setupFiles replaces — not merges with — the preset's).
+      setupFiles: ['<rootDir>/jest.setup.winter.js', ...expoPreset.setupFiles],
       // Relative glob (not <rootDir>/…) — an absolute glob breaks on Windows
       // where the path mixes \ and /. Matches src/components/**/*.test.tsx.
       testMatch: ['**/src/components/**/*.test.tsx'],
