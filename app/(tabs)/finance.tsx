@@ -1187,7 +1187,7 @@ function CategoryPickerModal({
   return (
     <Modal visible={!!tx} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={[modalStyles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
-        <Pressable style={[modalStyles.sheet, { backgroundColor: c.card, borderColor: c.border }]}>
+        <Pressable style={[modalStyles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Label color={c.finance}>RECATEGORISE</Label>
           <Body style={{ color: c.textPrimary, marginVertical: spacing.xs }}>{tx.merchant}</Body>
           <Caption style={{ color: c.textMuted }}>
