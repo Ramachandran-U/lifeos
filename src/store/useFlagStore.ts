@@ -30,6 +30,10 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // checkpoints to bound log growth). Off until device-validated — it deletes
   // log rows. Independent of sync_engine_enabled.
   compaction_enabled: false,
+  // P1-T8 encrypted backup/export/import UI (Settings). Off until the native
+  // file/SQLite paths are device-validated — import OVERWRITES local data. The
+  // crypto core is unit-tested; the plumbing is not yet runtime-tested.
+  backup_enabled: false,
   // Multi-step agent for goal decomposition. Off by default — flip on per-user
   // to A/B against the single-shot baseline. Kill criterion lives in migration
   // 0004_ai_suggestions.sql.

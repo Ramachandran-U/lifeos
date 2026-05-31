@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, Switch } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
@@ -15,6 +15,8 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { SyncStatus } from '@/components/shared/SyncStatus';
+import { exportBackup, importBackup } from '@/sync/backup';
+import { useFlagStore } from '@/store/useFlagStore';
 import { useUserStore } from '@/store/useUserStore';
 import { getUser, updateUser } from '@/db/queries/users';
 import { db } from '@/db';
@@ -41,6 +43,9 @@ export default function SettingsScreen() {
   const [notifGoalReminder, setNotifGoalReminder] = useState(true);
   const [notifStreakAtRisk, setNotifStreakAtRisk] = useState(true);
   const [notifSocialNudge, setNotifSocialNudge] = useState(true);
+  const [backupPass, setBackupPass] = useState('');
+  const [backupBusy, setBackupBusy] = useState(false);
+  const backupEnabled = useFlagStore((s) => s.isEnabled('backup_enabled'));
 
   useFocusEffect(
     useCallback(() => {
@@ -58,6 +63,64 @@ export default function SettingsScreen() {
       name: editName,
       age: editAge ? parseInt(editAge, 10) : undefined,
     });
+  };
+
+  const handleExport = async () => {
+    if (backupPass.trim().length < 6) {
+      Alert.alert('Passphrase too short', 'Use at least 6 characters — you will need it to restore.');
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      await exportBackup(backupPass);
+      setBackupPass('');
+      Alert.alert('Backup created', 'Your encrypted backup was saved. Keep the passphrase safe — without it the backup cannot be restored.');
+    } catch (e) {
+      Alert.alert('Export failed', e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const doImport = async () => {
+    setBackupBusy(true);
+    try {
+      const res = await importBackup(backupPass);
+      if (res.applied) {
+        setBackupPass('');
+        if (Platform.OS === 'web') {
+          Alert.alert('Restored', 'Your data was restored. The page will reload.', [
+            { text: 'OK', onPress: () => window.location.reload() },
+          ]);
+        } else {
+          Alert.alert('Restored', 'Your data was restored. Fully close and reopen the app to see it.');
+        }
+      } else if (res.reason === 'wrong_platform') {
+        Alert.alert('Different platform', 'That backup was made on a different platform and can only be restored there.');
+      } else if (res.reason === 'invalid_file') {
+        Alert.alert('Not a LifeOS backup', 'That file is not a valid LifeOS backup.');
+      }
+      // cancelled → silent
+    } catch (e) {
+      Alert.alert('Restore failed', e instanceof Error ? e.message : 'Wrong passphrase or corrupted file.');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleImport = () => {
+    if (backupPass.trim().length < 6) {
+      Alert.alert('Enter the passphrase', 'Type the passphrase for the backup you want to restore.');
+      return;
+    }
+    Alert.alert(
+      'Restore from backup?',
+      'This OVERWRITES the data on this device with the backup. It cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restore', style: 'destructive', onPress: () => { void doImport(); } },
+      ],
+    );
   };
 
   const handleExportData = async () => {
@@ -128,6 +191,29 @@ export default function SettingsScreen() {
           <Label>Sync</Label>
           <SyncStatus />
         </Card>
+
+        {backupEnabled && (
+        <Card style={styles.section}>
+          <Label>Backup & Restore</Label>
+          <Body style={styles.infoText}>
+            Export an encrypted copy of everything (including data that never syncs), or restore from one. Your passphrase encrypts it and can&apos;t be recovered — keep it safe.
+          </Body>
+          <Input
+            label="Passphrase"
+            value={backupPass}
+            onChangeText={setBackupPass}
+            secureTextEntry
+            placeholder="At least 6 characters"
+          />
+          <Button
+            title={backupBusy ? 'Working…' : 'Export encrypted backup'}
+            variant="secondary"
+            onPress={handleExport}
+            disabled={backupBusy}
+          />
+          <Button title="Restore from backup…" variant="ghost" onPress={handleImport} disabled={backupBusy} />
+        </Card>
+        )}
 
         <Card style={styles.section}>
           <Label>Notifications</Label>
