@@ -1,0 +1,20 @@
+{
+  "entry": [
+    "app/**/*.tsx",
+    "app/**/*.ts",
+    "admin/app/**/page.tsx",
+    "admin/app/**/layout.tsx",
+    "admin/app/**/route.ts",
+    "admin/middleware.ts",
+    "e2e/**/*.ts",
+    "scripts/**/*.js",
+    "workers/ai-proxy/src/index.ts"
+  ],
+  "ignore": [
+    "design-bundle/**"
+  ],
+  "ignoreDependencies": [
+    "expo-updates",
+    "expo-system-ui"
+  ]
+}

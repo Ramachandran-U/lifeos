@@ -44,6 +44,7 @@ yarn-error.*
 # Runtime logs
 expo.log
 ai-proxy.log
+tmp/
 test-results/
 smoke-output/
 playwright-report/

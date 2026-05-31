@@ -1,0 +1,11 @@
+# Files copied into every Claude Code worktree created with `claude --worktree`.
+#
+# Syntax is the same as .gitignore. Claude only copies files that BOTH match a
+# pattern here AND are gitignored — tracked files (e.g. .env.example) are never
+# duplicated. This guarantees a fresh worktree starts with the secret keys the
+# app needs (Supabase, AI proxy) instead of the "supabaseUrl is required" blank
+# screen. The matching git-based helper in scripts/worktree.ps1 copies the same
+# list.
+.env
+.env.local
+.env.test
