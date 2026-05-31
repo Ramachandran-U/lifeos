@@ -87,7 +87,7 @@ export default function RootLayout() {
       // values cover the case where the worker is unreachable. Trigger a sync
       // drain once flags resolve, so a freshly-enabled sync engine pushes the
       // backlog immediately rather than waiting for the next periodic tick.
-      useFlagStore.getState().fetchFlags().then(() => { void syncEngine.flush(); }).catch(() => {});
+      useFlagStore.getState().fetchFlags({ force: true }).then(() => { void syncEngine.flush(); }).catch(() => {});
       usePromptStore.getState().fetchPrompts().catch(() => {});
 
       // Start the sync outbox drain (P1-T5). No-ops unless sync_engine_enabled
