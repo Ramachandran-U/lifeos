@@ -323,28 +323,6 @@ export default function TodayScreen() {
   const completedCount = blocks.filter((b) => b.status === 'completed').length;
   const allComplete = blocks.length > 0 && completedCount === blocks.length;
 
-  // 60-second tick so liveBlockModule (and other time-derived UI) re-evaluates
-  // without waiting for a focus event. The aurora colour follows the current
-  // block as the day moves on.
-  const [nowTick, setNowTick] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setNowTick((n) => n + 1), 60_000);
-    return () => clearInterval(t);
-  }, []);
-
-  const liveBlockModule = useMemo(() => {
-    const now = new Date();
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-    const live = blocks.find((b) => {
-      if (b.status === 'completed' || b.status === 'skipped') return false;
-      const [sh, sm] = (b.startTime ?? '').split(':').map(Number);
-      const [eh, em] = (b.endTime ?? '').split(':').map(Number);
-      if (isNaN(sh) || isNaN(eh)) return false;
-      return nowMins >= sh * 60 + (sm || 0) && nowMins < eh * 60 + (em || 0);
-    });
-    return live?.module ?? null;
-  }, [blocks, nowTick]);
-
   // P4-02: assemble the morning briefing input from the slices the Today
   // screen already has loaded. The hook generates 1-3 lines once per day and
   // caches them; we fall back to the static blocks-count line below if it's
@@ -451,7 +429,7 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.root}>
-      <AuroraBackground scrollY={scrollY} liveBlockModule={liveBlockModule} allBlocksDone={allComplete} />
+      <AuroraBackground scrollY={scrollY} allBlocksDone={allComplete} />
       <SafeAreaView style={styles.container}>
 
         <Animated.ScrollView

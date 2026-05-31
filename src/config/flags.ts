@@ -66,9 +66,9 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   memoryGraph: false,
   priorityAdjust: false,
   orchestration: false,
-  exploreChasing: false,
-  exploreAgenticThread: false,
-  exploreFrontier: false,
+  exploreChasing: true,
+  exploreAgenticThread: true,
+  exploreFrontier: true,
   profileAvatarGen: false,
 });
 

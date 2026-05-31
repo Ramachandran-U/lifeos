@@ -26,6 +26,7 @@ import { getUser } from '@/db/queries/users';
 import { getUsageStats, type UsageRange, type UsageStats } from '@/db/queries/behaviour';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { signOutEverything } from '@/utils/signOut';
+import { formatDuration } from '@/utils/duration';
 import { isEnabled } from '@/config/flags';
 import { AvatarEditSheet } from '@/components/modules/profile/AvatarEditSheet';
 
@@ -287,9 +288,9 @@ export default function ProfileScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statBlock}>
               <Heading style={[styles.statValue, { color: c.textPrimary }]}>
-                {stats?.totalMinutes ?? 0}
+                {formatDuration(stats?.totalMinutes ?? 0)}
               </Heading>
-              <Caption style={{ color: c.textMuted }}>min active</Caption>
+              <Caption style={{ color: c.textMuted }}>active</Caption>
             </View>
             <View style={styles.statBlock}>
               <Heading style={[styles.statValue, { color: c.xp }]}>{totalXP}</Heading>
@@ -327,7 +328,7 @@ export default function ProfileScreen() {
               {topModules.map(([mod, mins]) => (
                 <View key={mod} style={styles.topRow}>
                   <Body style={{ color: c.textPrimary }}>{MODULE_LABELS[mod] ?? mod}</Body>
-                  <Caption style={{ color: c.textMuted }}>{mins} min</Caption>
+                  <Caption style={{ color: c.textMuted }}>{formatDuration(mins)}</Caption>
                 </View>
               ))}
             </View>

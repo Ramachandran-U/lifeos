@@ -99,7 +99,12 @@ export function webUpdateUser(
 ): void {
   const users = load<WebUser>(USERS_KEY);
   const idx = users.findIndex((u) => u.id === id);
-  if (idx === -1) return;
+  if (idx === -1) {
+    // Previously a silent no-op, which is how a height/weight save could vanish
+    // without a trace when the id drifted from the stored rows. Surface it.
+    console.warn(`[users] webUpdateUser: no row for id "${id}" — update dropped`);
+    return;
+  }
   users[idx] = { ...users[idx], ...data, updatedAt: new Date().toISOString() };
   save(USERS_KEY, users);
 }
