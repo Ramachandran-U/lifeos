@@ -17,6 +17,8 @@
 
 **Category-completeness moved roughly 30 → 55** since the program kicked off — the cognitive moat (stagnation detector + Explore curiosity loop + priority adaptation) is now visible to a flag-enabled user, but the bigger moats (coach, memory graph, orchestration) are still ahead.
 
+**Parked decisions:** External interop via MCP (Model Context Protocol — server *and* client) was evaluated 2026-05-31 and deliberately deferred — see [mcp-interop-decision.md](../docs/architecture/mcp-interop-decision.md). The tool layer is already MCP-shaped, so adoption is a later thin adapter, not a rewrite; an agent-to-agent bridge, if ever built, lives at P5+.
+
 ## 0. Strategic frame
 
 We are **not** building features. We are building a **spine** (the mutation log) and **four projections** over it (sync, cognition, memory, orchestration). See [00-architecture-audit.md](./00-architecture-audit.md) §3.
