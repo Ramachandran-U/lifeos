@@ -251,6 +251,45 @@ export const DOMAIN_META: { key: DomainKey; label: string; emoji: string; colorK
   { key: 'polymath', label: 'Mind',   emoji: '🔭', colorKey: 'polymath', angle: -150 },
 ];
 
+// ─── Goal completion → domain scoring ────────────────────────────────────────
+// Completing a goal node should move the life/domain score (it never did before
+// — goal status was a dead-end flip). Map the goal's `goalType` onto a domain
+// score key, and weight the bump by how big the completed node is.
+export const GOALTYPE_TO_DOMAIN: Record<string, DomainKey> = {
+  career: 'career',
+  health: 'health',
+  finance: 'finance',
+  learning: 'polymath',
+  social: 'social',
+  personal: 'goals',
+};
+
+// How many points completing a node of each level adds to its domain. A daily
+// task is a nudge; finishing the whole life goal is a celebration.
+export const GOAL_LEVEL_BUMP: Record<string, number> = {
+  daily: 3,
+  weekly: 5,
+  monthly: 8,
+  yearly: 12,
+  life: 20,
+};
+
+/** Clamp a domain score to 0..100 after applying a delta. */
+export function bumpDomainScore(current: number, delta: number): number {
+  return Math.min(100, Math.max(0, Math.round(current + delta)));
+}
+
+// Map a goal's `goalType` to the routine-block `module` it belongs in, so a
+// focus block created from a goal is colour/scored under the right domain.
+export const GOALTYPE_TO_MODULE: Record<string, string> = {
+  career: 'career',
+  health: 'health',
+  finance: 'finance',
+  learning: 'polymath',
+  social: 'social',
+  personal: 'goal',
+};
+
 // ─── Module metadata (used by QuestCard + RoutineBlock) ──────────────────────
 export const MODULE_META: Record<string, { label: string; emoji: string; colorKey: string }> = {
   goal:     { label: 'Goals',   emoji: '🎯', colorKey: 'goal'     },

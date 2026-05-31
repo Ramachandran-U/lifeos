@@ -12,6 +12,9 @@ import {
   checkBadges,
   XP_VALUES,
   levelFromXP,
+  GOALTYPE_TO_DOMAIN,
+  GOAL_LEVEL_BUMP,
+  bumpDomainScore,
 } from '@/utils/gamification';
 import { DEFAULT_QUESTS, type Quest } from '@/constants/gamification';
 
@@ -56,6 +59,7 @@ interface GameState {
 
   loadFromDB: (userId: string) => void;
   completeBlock: (userId: string, module: string, completedCount: number, totalCount: number) => void;
+  completeGoalNode: (userId: string, goalType: string, level: string) => void;
   addXP: (userId: string, amount: number) => void;
   triggerStreak: (userId: string, streakType: keyof Streaks) => void;
   awardBadge: (userId: string, badgeId: BadgeId) => void;
@@ -202,6 +206,48 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Routine quest — every completed block ticks toward "Complete morning routine".
     get().advanceQuest('q_routine', 1);
+  },
+
+  completeGoalNode: (userId, goalType, level) => {
+    const { domainScores, badges, totalXP, weeklyXP } = get();
+    const domain = GOALTYPE_TO_DOMAIN[goalType] ?? 'goals';
+    const delta = GOAL_LEVEL_BUMP[level] ?? GOAL_LEVEL_BUMP.daily;
+
+    const newScores = { ...domainScores };
+    newScores[domain] = bumpDomainScore(newScores[domain], delta);
+
+    // A finished daily task is worth a task; a finished milestone is worth more.
+    const xpGain = level === 'daily' ? XP_VALUES.completeGoalTask : XP_VALUES.completeGoalTask * 2;
+    const newXP = totalXP + xpGain;
+    const newWeeklyXP = weeklyXP + xpGain;
+
+    // The 'Goal Crusher' badge fires only when the whole life goal is done.
+    const newBadges = checkBadges(badges, {
+      domainScores: newScores,
+      completedGoal: level === 'life',
+    });
+    const allBadges = [...badges, ...newBadges];
+
+    updateGamification(userId, {
+      domainScores: JSON.stringify(newScores),
+      badges: JSON.stringify(allBadges),
+      totalXP: newXP,
+      weeklyXP: newWeeklyXP,
+    });
+
+    set({
+      domainScores: newScores,
+      badges: allBadges,
+      totalXP: newXP,
+      weeklyXP: newWeeklyXP,
+      pendingBadges: [...get().pendingBadges, ...newBadges],
+    });
+
+    // Snapshot the new scores so the Life Score trend/sparkline reflects the
+    // completion immediately (mirrors loadFromDB's history record).
+    import('./useDomainHistoryStore').then(({ useDomainHistoryStore }) =>
+      useDomainHistoryStore.getState().record(newScores),
+    ).catch(() => { /* non-fatal */ });
   },
 
   addXP: (userId, amount) => {

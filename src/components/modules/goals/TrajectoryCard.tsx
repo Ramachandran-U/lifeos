@@ -47,9 +47,15 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
   // Nothing meaningful to say until the vision has a sub-goal tree.
   if (t.status === 'no_data') return null;
 
-  const statusColor =
-    t.status === 'behind' ? c.warning : t.status === 'ahead' ? c.success : c.primary;
+  // In the opening window the pace verdict is meaningless (0% vs 0% is trivially
+  // "on track"), so present a neutral "just getting started" state instead.
+  const statusColor = t.justStarted
+    ? c.textSecondary
+    : t.status === 'behind' ? c.warning : t.status === 'ahead' ? c.success : c.primary;
   const meta = STATUS_META[t.status];
+  const headerIcon: keyof typeof Ionicons.glyphMap = t.justStarted ? 'sparkles-outline' : meta.icon;
+  // Never present a defaulted horizon as the user's chosen timeline.
+  const visionLabel = t.horizonIsDefault ? 'LONG-TERM' : `${t.horizonMonths}-MONTH`;
 
   const handleReview = async () => {
     if (loading) return;
@@ -80,9 +86,9 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
   return (
     <Card moduleColor={statusColor} style={styles.card}>
       <View style={styles.header}>
-        <Ionicons name={meta.icon} size={16} color={statusColor} />
-        <Label color={statusColor}>TRAJECTORY · {t.horizonMonths}-MONTH VISION</Label>
-        {needsReview && !assessment && (
+        <Ionicons name={headerIcon} size={16} color={statusColor} />
+        <Label color={statusColor}>TRAJECTORY · {visionLabel} VISION</Label>
+        {!t.justStarted && needsReview && !assessment && (
           <View style={[styles.pill, { backgroundColor: statusColor + '22', borderColor: statusColor + '55' }]}>
             <Caption style={{ color: statusColor }}>{quarterKey()} check-in</Caption>
           </View>
@@ -93,66 +99,86 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
         {lifeGoal.title}
       </Body>
 
-      {/* Expected vs actual progress comparison */}
-      <View style={styles.barWrap}>
-        <View style={styles.barRow}>
-          <Caption style={{ color: c.textMuted, width: 64 }}>Expected</Caption>
-          <View style={[styles.track, { backgroundColor: c.surface }]}>
-            <View style={[styles.fill, { width: `${Math.round(t.expectedProgress * 100)}%`, backgroundColor: c.textMuted }]} />
-          </View>
-          <Caption style={{ color: c.textMuted, width: 36, textAlign: 'right' }}>{Math.round(t.expectedProgress * 100)}%</Caption>
-        </View>
-        <View style={styles.barRow}>
-          <Caption style={{ color: c.textSecondary, width: 64 }}>Actual</Caption>
-          <View style={[styles.track, { backgroundColor: c.surface }]}>
-            <View style={[styles.fill, { width: `${Math.round(t.actualProgress * 100)}%`, backgroundColor: statusColor }]} />
-          </View>
-          <Caption style={{ color: statusColor, width: 36, textAlign: 'right' }}>{Math.round(t.actualProgress * 100)}%</Caption>
-        </View>
-      </View>
-
-      <View style={styles.statusRow}>
-        <View style={[styles.pill, { backgroundColor: statusColor + '22', borderColor: statusColor + '55' }]}>
-          <Caption style={{ color: statusColor, fontFamily: fonts.heading }}>{meta.label}</Caption>
-        </View>
-        <Caption style={{ color: c.textMuted }}>
-          {t.completedSubGoals}/{t.totalSubGoals} milestones · month {t.elapsedMonths} of {t.horizonMonths}
-        </Caption>
-      </View>
-
-      {assessment ? (
-        <View style={styles.assessment}>
-          <Body style={{ color: c.textSecondary }}>{assessment.verdict}</Body>
-          {assessment.recalibration.map((step, i) => (
-            <View key={i} style={styles.stepRow}>
-              <Ionicons name="arrow-forward-circle-outline" size={16} color={statusColor} />
-              <Body style={[styles.stepText, { color: c.textPrimary }]}>{step}</Body>
+      {t.justStarted ? (
+        // Opening window: no pace verdict, no AI recalibration to assess yet —
+        // just orient the user and tell them what unlocks the trajectory read.
+        <View style={styles.justStarted}>
+          <View style={styles.statusRow}>
+            <View style={[styles.pill, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Caption style={{ color: c.textSecondary, fontFamily: fonts.heading }}>Just getting started</Caption>
             </View>
-          ))}
+            <Caption style={{ color: c.textMuted }}>
+              {t.totalSubGoals} milestone{t.totalSubGoals === 1 ? '' : 's'} ahead
+            </Caption>
+          </View>
+          <Caption style={{ color: c.textMuted }}>
+            Complete your first milestone, then come back to see if you're on pace.
+          </Caption>
         </View>
       ) : (
-        <Pressable
-          onPress={handleReview}
-          disabled={loading}
-          style={({ pressed }) => [
-            styles.btn,
-            {
-              backgroundColor: pressed ? statusColor + 'cc' : statusColor,
-              opacity: loading ? 0.7 : 1,
-            },
-          ]}
-        >
-          {loading ? (
-            <LoadingDots />
-          ) : (
-            <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
-              {error ? 'Try again' : needsReview ? 'Recalibrate this quarter' : 'Review trajectory'}
-            </Body>
-          )}
-        </Pressable>
-      )}
+        <>
+          {/* Expected vs actual progress comparison */}
+          <View style={styles.barWrap}>
+            <View style={styles.barRow}>
+              <Caption style={{ color: c.textMuted, width: 64 }}>Expected</Caption>
+              <View style={[styles.track, { backgroundColor: c.surface }]}>
+                <View style={[styles.fill, { width: `${Math.round(t.expectedProgress * 100)}%`, backgroundColor: c.textMuted }]} />
+              </View>
+              <Caption style={{ color: c.textMuted, width: 36, textAlign: 'right' }}>{Math.round(t.expectedProgress * 100)}%</Caption>
+            </View>
+            <View style={styles.barRow}>
+              <Caption style={{ color: c.textSecondary, width: 64 }}>Actual</Caption>
+              <View style={[styles.track, { backgroundColor: c.surface }]}>
+                <View style={[styles.fill, { width: `${Math.round(t.actualProgress * 100)}%`, backgroundColor: statusColor }]} />
+              </View>
+              <Caption style={{ color: statusColor, width: 36, textAlign: 'right' }}>{Math.round(t.actualProgress * 100)}%</Caption>
+            </View>
+          </View>
 
-      {error && <Caption style={{ color: c.error }}>{error}</Caption>}
+          <View style={styles.statusRow}>
+            <View style={[styles.pill, { backgroundColor: statusColor + '22', borderColor: statusColor + '55' }]}>
+              <Caption style={{ color: statusColor, fontFamily: fonts.heading }}>{meta.label}</Caption>
+            </View>
+            <Caption style={{ color: c.textMuted }}>
+              {t.completedSubGoals}/{t.totalSubGoals} milestones{t.horizonIsDefault ? '' : ` · month ${t.elapsedMonths} of ${t.horizonMonths}`}
+            </Caption>
+          </View>
+
+          {assessment ? (
+            <View style={styles.assessment}>
+              <Body style={{ color: c.textSecondary }}>{assessment.verdict}</Body>
+              {assessment.recalibration.map((step, i) => (
+                <View key={i} style={styles.stepRow}>
+                  <Ionicons name="arrow-forward-circle-outline" size={16} color={statusColor} />
+                  <Body style={[styles.stepText, { color: c.textPrimary }]}>{step}</Body>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Pressable
+              onPress={handleReview}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.btn,
+                {
+                  backgroundColor: pressed ? statusColor + 'cc' : statusColor,
+                  opacity: loading ? 0.7 : 1,
+                },
+              ]}
+            >
+              {loading ? (
+                <LoadingDots />
+              ) : (
+                <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+                  {error ? 'Try again' : needsReview ? 'Recalibrate this quarter' : 'Review trajectory'}
+                </Body>
+              )}
+            </Pressable>
+          )}
+
+          {error && <Caption style={{ color: c.error }}>{error}</Caption>}
+        </>
+      )}
     </Card>
   );
 }
@@ -183,6 +209,7 @@ const makeStyles = (c: AppColors) => StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: spacing.xs,
   },
+  justStarted: { gap: spacing.xs, marginTop: spacing.xs },
   assessment: { gap: spacing.xs, marginTop: spacing.sm },
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
   stepText: { flex: 1 },

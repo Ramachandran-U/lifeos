@@ -52,13 +52,59 @@ describe('computeTrajectory', () => {
     expect(t.status).toBe('ahead');
   });
 
-  it('counts nested descendants and collects lagging titles', () => {
-    const monthly = goal({ id: 'm1', parentId: 'life', status: 'completed', title: 'Month 1' });
-    const weekly = goal({ id: 'w1', parentId: 'm1', status: 'active', title: 'Week 1' });
-    const t = computeTrajectory(life, [life, monthly, weekly], new Date('2026-02-01'));
+  it('counts only milestone levels (yearly/monthly), never weekly/daily tasks', () => {
+    const m1 = goal({ id: 'm1', parentId: 'life', level: 'monthly', status: 'completed', title: 'Month 1' });
+    const m2 = goal({ id: 'm2', parentId: 'life', level: 'monthly', status: 'active', title: 'Month 2' });
+    const w1 = goal({ id: 'w1', parentId: 'm1', level: 'weekly', status: 'active', title: 'Week 1' });
+    const d1 = goal({ id: 'd1', parentId: 'w1', level: 'daily', status: 'active', title: 'Day 1' });
+    const t = computeTrajectory(life, [life, m1, m2, w1, d1], new Date('2026-06-01'));
+    // Only m1 + m2 count; the weekly + daily tasks are excluded.
     expect(t.totalSubGoals).toBe(2);
     expect(t.completedSubGoals).toBe(1);
-    expect(t.laggingTitles).toContain('Week 1');
+    expect(t.laggingTitles).toContain('Month 2');
+    expect(t.laggingTitles).not.toContain('Week 1');
+    expect(t.laggingTitles).not.toContain('Day 1');
+  });
+});
+
+describe('computeTrajectory — horizon default flag', () => {
+  it('marks horizon as default when no timeline is set', () => {
+    const life = goal({ id: 'life', level: 'life', timeline: null, createdAt: '2026-01-01' });
+    const sub = goal({ id: 'm1', parentId: 'life', level: 'monthly' });
+    const t = computeTrajectory(life, [life, sub], new Date('2026-08-01'));
+    expect(t.horizonIsDefault).toBe(true);
+    expect(t.horizonMonths).toBe(36);
+  });
+
+  it('uses the user-set horizon and is not default', () => {
+    const life = goal({ id: 'life', level: 'life', timeline: '1 year', createdAt: '2026-01-01' });
+    const sub = goal({ id: 'm1', parentId: 'life', level: 'monthly' });
+    const t = computeTrajectory(life, [life, sub], new Date('2026-08-01'));
+    expect(t.horizonIsDefault).toBe(false);
+    expect(t.horizonMonths).toBe(12);
+  });
+});
+
+describe('computeTrajectory — justStarted', () => {
+  it('is true in the opening window with nothing completed', () => {
+    const life = goal({ id: 'life', level: 'life', timeline: '1 year', createdAt: '2026-01-01' });
+    const sub = goal({ id: 'm1', parentId: 'life', level: 'monthly', status: 'active' });
+    const t = computeTrajectory(life, [life, sub], new Date('2026-01-05'));
+    expect(t.justStarted).toBe(true);
+  });
+
+  it('is false once a milestone is completed', () => {
+    const life = goal({ id: 'life', level: 'life', timeline: '1 year', createdAt: '2026-01-01' });
+    const sub = goal({ id: 'm1', parentId: 'life', level: 'monthly', status: 'completed' });
+    const t = computeTrajectory(life, [life, sub], new Date('2026-01-05'));
+    expect(t.justStarted).toBe(false);
+  });
+
+  it('is false once more than a month has elapsed', () => {
+    const life = goal({ id: 'life', level: 'life', timeline: '1 year', createdAt: '2026-01-01' });
+    const sub = goal({ id: 'm1', parentId: 'life', level: 'monthly', status: 'active' });
+    const t = computeTrajectory(life, [life, sub], new Date('2026-03-01'));
+    expect(t.justStarted).toBe(false);
   });
 });
 
