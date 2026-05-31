@@ -69,3 +69,91 @@ export function foldEntity(mutations: MutationRecord[]): EntitySnapshot {
 
   return state;
 }
+
+// ── entity-specific CRDT merge (P1 coverage extension) ──────────────────────
+//
+// Some entities are NOT document-shaped: they hold counters, sets, or gauges in
+// one row, where field-LWW would silently lose data (e.g. XP earned on two
+// devices, or a badge earned on the other one). Those register a commutative,
+// idempotent merge here instead of using the default fold.
+
+type Snapshot = Record<string, unknown>;
+
+function parseJson<T>(v: unknown, fallback: T): T {
+  if (typeof v !== 'string') return ((v as T) ?? fallback);
+  try {
+    return JSON.parse(v) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/** The snapshot that "wins" gauge fields: later updatedAt, id as a tiebreak. */
+function pickLater(a: Snapshot, b: Snapshot): Snapshot {
+  const ua = String(a.updatedAt ?? '');
+  const ub = String(b.updatedAt ?? '');
+  if (ua !== ub) return ua > ub ? a : b;
+  return String(a.id ?? '') <= String(b.id ?? '') ? a : b;
+}
+
+/**
+ * Field-aware gamification merge (chosen strategy):
+ *  - badges            → set union (never drop an earned achievement)
+ *  - totalXP/weeklyXP  → max (monotonic; exact for one-device-at-a-time use)
+ *  - streaks           → per-streak max count
+ *  - domainScores      → last-writer by updatedAt (a 0-100 gauge, not a counter)
+ * Commutative + idempotent ⇒ two devices converge regardless of arrival order.
+ */
+export function mergeGamification(a: Snapshot, b: Snapshot): Snapshot {
+  const later = pickLater(a, b);
+
+  // sort() so the merged output is byte-identical regardless of arg order —
+  // set-union alone preserves insertion order, which would make merge(a,b) and
+  // merge(b,a) stringify differently and break convergence.
+  const badges = Array.from(
+    new Set([...parseJson<string[]>(a.badges, []), ...parseJson<string[]>(b.badges, [])]),
+  ).sort();
+
+  const sa = parseJson<Record<string, { count?: number }>>(a.streaks, {});
+  const sb = parseJson<Record<string, { count?: number }>>(b.streaks, {});
+  const streaks: Record<string, unknown> = {};
+  for (const k of [...new Set([...Object.keys(sa), ...Object.keys(sb)])].sort()) {
+    streaks[k] = (sa[k]?.count ?? -1) >= (sb[k]?.count ?? -1) ? sa[k] : sb[k];
+  }
+
+  return {
+    ...later, // id/userId/createdAt/updatedAt + the last-writer domainScores
+    badges: JSON.stringify(badges),
+    streaks: JSON.stringify(streaks),
+    totalXP: Math.max(Number(a.totalXP ?? 0), Number(b.totalXP ?? 0)),
+    weeklyXP: Math.max(Number(a.weeklyXP ?? 0), Number(b.weeklyXP ?? 0)),
+  };
+}
+
+/** Entities whose history must be merged with a CRDT instead of field-LWW. */
+const ENTITY_MERGERS: Record<string, (a: Snapshot, b: Snapshot) => Snapshot> = {
+  gamification: mergeGamification,
+};
+
+/**
+ * Materialize an entity's current state from its full mutation history. Uses a
+ * registered CRDT merge when the entity has one (gamification today), otherwise
+ * the default document fold (goals/routine/reflections — unchanged).
+ */
+export function materializeEntity(entity: string, mutations: MutationRecord[]): EntitySnapshot {
+  const merger = ENTITY_MERGERS[entity];
+  if (!merger) return foldEntity(mutations);
+
+  const ordered = [...mutations].sort(compareMutationOrder);
+  let state: Snapshot | null = null;
+  for (const m of ordered) {
+    if (m.op === 'delete') {
+      state = null;
+      continue;
+    }
+    if (!m.after) continue;
+    const snap = m.after as Snapshot;
+    state = state ? merger(state, snap) : { ...snap };
+  }
+  return state;
+}

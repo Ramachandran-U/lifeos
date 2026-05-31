@@ -20,26 +20,28 @@
 import { Platform } from 'react-native';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { goals, routineBlocks, dailyReflections } from '@/db/schema';
+import { goals, routineBlocks, dailyReflections, gamification } from '@/db/schema';
 import {
   webUpsertGoalById,
   webSoftDeleteGoal,
   webUpsertRoutineBlockById,
   webDeleteRoutineBlockById,
   webUpsertReflectionById,
+  webUpdateGamification,
   type WebGoal,
   type WebRoutineBlock,
   type WebDailyReflection,
 } from '@/db/webStorage';
+import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getLocalSink, type LocalSink } from './sink';
-import { foldEntity } from './resolve';
+import { materializeEntity } from './resolve';
 import { observeRemoteLamport } from './runtime';
 import type { MutationRecord, EntitySnapshot } from './mutationLog';
 
 const isWeb = Platform.OS === 'web';
 
 /** Entities the reducer knows how to materialize into a local table. */
-const MATERIALIZED = new Set(['goals', 'routine_blocks', 'daily_reflections']);
+const MATERIALIZED = new Set(['goals', 'routine_blocks', 'daily_reflections', 'gamification']);
 
 /**
  * Apply one pulled mutation. Returns true if it was newly applied (false ⇒
@@ -58,7 +60,7 @@ export async function applyRemoteMutation(
 
     if (MATERIALIZED.has(record.entity)) {
       const history = await sink.readEntityHistory(record.entity, record.entityId);
-      applyState(record.entity, record.entityId, foldEntity(history));
+      applyState(record.entity, record.entityId, materializeEntity(record.entity, history));
     }
     return true;
   } catch {
@@ -75,6 +77,8 @@ function applyState(entity: string, entityId: string, state: EntitySnapshot): vo
       return applyRoutineBlock(entityId, state);
     case 'daily_reflections':
       return applyReflection(entityId, state);
+    case 'gamification':
+      return applyGamification(entityId, state);
     default:
       return;
   }
@@ -121,5 +125,40 @@ function applyReflection(id: string, state: EntitySnapshot): void {
   } else {
     const row = state as unknown as typeof dailyReflections.$inferInsert;
     db.insert(dailyReflections).values(row).onConflictDoUpdate({ target: dailyReflections.id, set: row }).run();
+  }
+}
+
+// ── gamification (per-user singleton, keyed by userId; CRDT-merged) ──────────
+// `entityId` here is the userId. We write the merged counter/set/gauge fields
+// by userId, preserving the local row's own id, and never call
+// updateGamification (which logs a mutation) — that would echo-loop.
+function applyGamification(userId: string, state: EntitySnapshot): void {
+  if (state === null) return;
+  const fields = {
+    domainScores: asJsonString(state.domainScores, '{}'),
+    streaks: asJsonString(state.streaks, '{}'),
+    badges: asJsonString(state.badges, '[]'),
+    totalXP: Number(state.totalXP ?? 0),
+    weeklyXP: Number(state.weeklyXP ?? 0),
+  };
+  getOrCreateGamification(userId); // ensure a local row exists (records nothing)
+  if (isWeb) {
+    webUpdateGamification(userId, fields);
+  } else {
+    db.update(gamification)
+      .set({ ...fields, updatedAt: new Date().toISOString() })
+      .where(eq(gamification.userId, userId))
+      .run();
+  }
+}
+
+/** Coerce a possibly-object/possibly-string JSON column to its string form. */
+function asJsonString(v: unknown, fallback: string): string {
+  if (typeof v === 'string') return v;
+  if (v == null) return fallback;
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return fallback;
   }
 }
