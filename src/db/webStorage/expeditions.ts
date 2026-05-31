@@ -36,6 +36,15 @@ export function webInsertExpedition(row: WebExpedition): void {
   save(EXPEDITIONS_KEY, all);
 }
 
+/** Upsert an expedition definition by id — used by the sync reducer (echo-safe). */
+export function webUpsertExpeditionById(row: WebExpedition): void {
+  const all = load<WebExpedition>(EXPEDITIONS_KEY);
+  const idx = all.findIndex((e) => e.id === row.id);
+  if (idx === -1) all.push(row);
+  else all[idx] = row;
+  save(EXPEDITIONS_KEY, all);
+}
+
 export function webGetExpedition(id: string): WebExpedition | undefined {
   return load<WebExpedition>(EXPEDITIONS_KEY).find((e) => e.id === id);
 }

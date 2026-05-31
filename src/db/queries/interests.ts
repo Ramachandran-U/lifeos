@@ -14,6 +14,7 @@ import {
   type WebInterest,
   type WebExplorationLog,
 } from '../webStorage';
+import { recordMutation } from '@/sync/runtime';
 
 const isWeb = Platform.OS === 'web';
 
@@ -50,23 +51,24 @@ export function createInterest(input: CreateInterestInput): string {
   };
   if (isWeb) {
     webInsertInterest(record);
-    return id;
+  } else {
+    db.insert(interests).values({
+      id,
+      userId: record.userId,
+      name: record.name,
+      category: record.category,
+      weeklyMinutesTarget: record.weeklyMinutesTarget,
+      weeklyMinutesActual: 0,
+      enjoymentLevel: record.enjoymentLevel,
+      explorationDepth: record.explorationDepth,
+      status: record.status,
+      discoveredBy: record.discoveredBy,
+      timeProtected: false,
+      createdAt: now,
+      updatedAt: now,
+    }).run();
   }
-  db.insert(interests).values({
-    id,
-    userId: record.userId,
-    name: record.name,
-    category: record.category,
-    weeklyMinutesTarget: record.weeklyMinutesTarget,
-    weeklyMinutesActual: 0,
-    enjoymentLevel: record.enjoymentLevel,
-    explorationDepth: record.explorationDepth,
-    status: record.status,
-    discoveredBy: record.discoveredBy,
-    timeProtected: false,
-    createdAt: now,
-    updatedAt: now,
-  }).run();
+  recordMutation({ entity: 'interests', entityId: id, op: 'insert', before: null, after: record as unknown as Record<string, unknown> });
   return id;
 }
 
@@ -81,25 +83,24 @@ export function getInterestsByUser(userId: string): Interest[] {
 }
 
 export function updateInterest(id: string, data: Partial<Interest>): void {
+  const now = new Date().toISOString();
   if (isWeb) {
     webUpdateInterest(id, data);
-    return;
+  } else {
+    db.update(interests).set({ ...data, updatedAt: now }).where(eq(interests.id, id)).run();
   }
-  db.update(interests)
-    .set({ ...data, updatedAt: new Date().toISOString() })
-    .where(eq(interests.id, id))
-    .run();
+  recordMutation({ entity: 'interests', entityId: id, op: 'update', before: null, after: { ...data, updatedAt: now } as Record<string, unknown> });
 }
 
 export function softDeleteInterest(id: string): void {
+  const now = new Date().toISOString();
   if (isWeb) {
     webSoftDeleteInterest(id);
-    return;
+  } else {
+    db.update(interests).set({ status: 'deleted', updatedAt: now }).where(eq(interests.id, id)).run();
   }
-  db.update(interests)
-    .set({ status: 'deleted', updatedAt: new Date().toISOString() })
-    .where(eq(interests.id, id))
-    .run();
+  // Soft delete = status flip, so it syncs as an update (getInterestsByUser filters 'deleted').
+  recordMutation({ entity: 'interests', entityId: id, op: 'update', before: null, after: { status: 'deleted', updatedAt: now } });
 }
 
 export interface CreateExplorationInput {
@@ -122,9 +123,10 @@ export function logExploration(input: CreateExplorationInput): string {
   };
   if (isWeb) {
     webInsertExploration(record);
-    return id;
+  } else {
+    db.insert(explorationLog).values(record).run();
   }
-  db.insert(explorationLog).values(record).run();
+  recordMutation({ entity: 'exploration_log', entityId: id, op: 'insert', before: null, after: record as unknown as Record<string, unknown> });
   return id;
 }
 

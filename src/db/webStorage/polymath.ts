@@ -39,6 +39,15 @@ export function webSoftDeleteInterest(id: string): void {
   webUpdateInterest(id, { status: 'deleted' });
 }
 
+/** Upsert a full interest row by id — used by the sync reducer (echo-safe). */
+export function webUpsertInterestById(i: WebInterest): void {
+  const all = load<WebInterest>(INTERESTS_KEY);
+  const idx = all.findIndex((x) => x.id === i.id);
+  if (idx === -1) all.push(i);
+  else all[idx] = i;
+  save(INTERESTS_KEY, all);
+}
+
 export interface WebExplorationLog {
   id: string;
   interestId: string;
@@ -51,6 +60,15 @@ export interface WebExplorationLog {
 export function webInsertExploration(e: WebExplorationLog): void {
   const all = load<WebExplorationLog>(EXPLORATION_LOG_KEY);
   all.push(e);
+  save(EXPLORATION_LOG_KEY, all);
+}
+
+/** Upsert an exploration-log row by id — used by the sync reducer (echo-safe). */
+export function webUpsertExplorationById(e: WebExplorationLog): void {
+  const all = load<WebExplorationLog>(EXPLORATION_LOG_KEY);
+  const idx = all.findIndex((x) => x.id === e.id);
+  if (idx === -1) all.push(e);
+  else all[idx] = e;
   save(EXPLORATION_LOG_KEY, all);
 }
 
