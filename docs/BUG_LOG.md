@@ -2,7 +2,7 @@
 
 > Running log of issues and feature requests surfaced during testing, with status + where they were fixed. Newest batch at the bottom. "Fixed (commit)" links the commit/PR that resolved it; "Needs ops" means the code is ready but a dashboard/secret/deploy action is required.
 
-Last updated: 2026-05-28
+Last updated: 2026-05-31
 
 ---
 
@@ -70,3 +70,25 @@ Last updated: 2026-05-28
 ## Known follow-ups
 - **Worker `MAX_TOKENS_CAP`** ✅ Resolved — raised 4096 → 8000 in `workers/ai-proxy/wrangler.toml` and redeployed. Goal-hierarchy decompose (maxTokens 6000) and the 7-day week plan no longer truncate ("Unbalanced JSON").
 - **BUG-011 / BUG-013** ✅ Hardened (see Batch 4 above) — addressed with unit-level coverage (`goalInjection.test.ts`, `routeGuard.test.ts`) + prompt hardening rather than full Playwright e2e plumbing, which kept the cost proportionate to the (low) risk.
+
+---
+
+## Batch 5 — first web-deploy of `lifeosv1` + QA report (2026-05-31)
+
+> `lifeosv1` was deployed to web for the first time this round (prior prod deploys were the voice branch), which surfaced a latent crash and a QA report. Validate-before-fix was applied — several reported items were stale or misdiagnosed.
+
+| ID | Issue | Status | Notes |
+|---|---|---|---|
+| WEB-130 | Blank white screen when completing a routine block (React #130) | ✅ Fixed (#78, merged) | `DomainGlyph` did `DOMAIN_ICONS[domain]` unguarded; a non-domain module (`rest`/`meal`/`work`) → `undefined` component → #130. Added `?? DOMAIN_ICONS.goal` fallback + regression spec. Surfaced only because lifeosv1 hit web for the first time |
+| WEB-BUILD | Blank deploy from junctioned `node_modules` | ✅ Process fix | Building in a worktree whose `node_modules` is a junction breaks Expo Router static route discovery → routeless blank bundle. Deploys now use a real `npm ci`, render-verified before going live |
+| RW-01 | "XP never credits / totalXP stays 0" | ❌ Refuted (stale) | Live repro: completing a goal moved totalXP 0→15, domainScores updated. Crediting pipeline works. Report tested an older build |
+| GAM-double | Routine-block completion double-credits XP (`completeBlock` + `addXP`) | 🟡 Fix open (#80) | `completeBlock` is being made the single XP source; manual meal logging will award `XP_VALUES.logFood`. **Not yet merged** — current lifeosv1 still double-credits domain blocks |
+| HE-02 | Calorie field accepts negatives / coerces non-numeric to 0 | 🟡 Fix open (#80) | `AddFoodSheet` validation; not yet merged |
+| KB-04 | Esc doesn't close Add-goal sheet | 🟡 Fix open (#80) | Missing `onRequestClose` on the Modal; not yet merged |
+| UI-circles | "Two concentric circles moving in the middle" | 🔍 Investigating | Likely the ambient halo/loader; parallel session owns |
+| FIN-gmail | Must reconnect Gmail on every refresh/login | 🔍 Investigating | Token-persistence gap; parallel session owns |
+| HEALTH-vitals | Height/weight not persisting across sessions | 🔍 Investigating | Vitals write/read path; parallel session owns |
+| INT-04 | 2nd chat message dropped during in-flight reply | ⬜ Not a bug (stale) | Composer is `editable={!busy}` on current build |
+| XT-sync | No live cross-tab UI sync | ⬜ By design | Local-first; no data loss, reload reconciles |
+| EXPLORE-vis | "Explore revamp not visible" | ⬜ By design | Chasing/frontier/agentic-thread ship behind flags (`exploreChasing`/`exploreFrontier`/`exploreAgenticThread`), default OFF |
+| AVATAR-vis | "Profile picture upload not wired" | ⬜ By design | `profileAvatarGen` flag default OFF (paid image-gen) |

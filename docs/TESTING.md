@@ -1,11 +1,11 @@
 # Testing
 
-Minimal Jest + ts-jest setup for pure-logic tests. Component/integration tests need `jest-expo` later.
+Jest is a two-project setup: a **`node`** project (ts-jest, pure-logic suite — the default `npm test`) and a **`components`** project (`jest-expo` + `@testing-library/react-native`, for RN component render tests). See `jest.config.js`.
 
 ## Run
 
 ```bash
-npm test             # unit tests (pure logic) — ~12s, 356 tests
+npm test             # node project — pure-logic suite (~15s, ~688 tests / 87 suites)
 npm run test:watch   # watch mode
 npm run evals        # AI eval harness (mock mode, free, ~2s)
 npm run evals:live   # same but hits real LLMs (sets EVAL_REAL=true)
@@ -24,8 +24,8 @@ npm run verify
 
 This runs `tsc --noEmit && jest && npm run smoke` in order. Each gate must be green:
 - `tsc` — 0 errors (strict mode)
-- `jest` — full suite (currently 356 tests; planner agent, analyseSkillGap sanitizer, scheduleSync invariants, gamification, finance parsers, etc.)
-- `smoke` — Playwright against `https://lifeos-6r5-eqa.pages.dev` (currently 14 tests; ~45s)
+- `jest` — node suite (~688 tests across 87 suites; planner agent, trajectory, gamification incl. completeBlock, finance parsers, explore guards, domain-icon resolution, etc.)
+- `smoke` — Playwright against `https://lifeos-6r5-eqa.pages.dev` (a data-driven route + nav walk; ~45s)
 
 The smoke runs against the deployed canonical URL, not the local build — so it catches CORS misconfigs, missing env vars, and bundle-vs-runtime drift that `npm run web` would mask.
 

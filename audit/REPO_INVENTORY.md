@@ -2,6 +2,8 @@
 
 Snapshot date: 2026-05-29. Branch: `lifeosv1`. Root: `c:\personal\Project X\lifeos`.
 
+> **Stale note (2026-05-31):** predates the explore-v2 redesign (`src/explore/chasing.ts`, `frontier.ts`, `src/ai/agent/exploreThread.ts`) and the priority-change cognition work (`src/cognition/priorityChangeHandler.ts` et al.). Directory layout + tech stack remain accurate; the notable-files / integrations tables under-count those additions. Regenerate on the next inventory pass.
+
 ## Top-level layout
 
 | Path | Files | Purpose |

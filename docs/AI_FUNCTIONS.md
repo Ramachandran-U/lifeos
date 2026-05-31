@@ -1,6 +1,6 @@
 # AI Functions Reference
 
-All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → the `workers/ai-proxy` Cloudflare Worker (`POST /claude`, Bearer = Supabase JWT, `task` field forwarded for per-feature rate-limit bucketing) → the configured LLM. The Worker has routes for Anthropic Claude (`/claude`) and Google Gemini (`/gemini`); the per-task `pickModel()` in [`src/ai/modelRouter.ts`](../src/ai/modelRouter.ts) chooses which provider/model a given task hits. **As of 2026-05-14 only the Anthropic path is exercised in production** — Gemini code paths exist and are wired but unverified end-to-end against live traffic. `LLM_PROVIDER` as a single switch on the Worker is not currently honoured; provider selection happens per-task client-side via `pickModel()`. The chatbot (`app/chat.tsx`) and voice assistant (Gemini Live, `src/ai/voiceClient.ts`) share the same auth/transport. Every function:
+All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → the `workers/ai-proxy` Cloudflare Worker (`POST /claude` — name is historical; the body is provider-neutral, Bearer = Supabase JWT, `task` field forwarded for per-feature rate-limit bucketing) → the configured LLM. **The Worker runs `LLM_PROVIDER` (currently Gemini by default).** The per-task `pickModel()` in [`src/ai/modelRouter.ts`](../src/ai/modelRouter.ts) selects the model tier (cheap / planning / reasoning); see `MODELS` there for current Gemini model IDs. The chatbot (`app/chat.tsx`) and voice assistant (Gemini Live, `src/ai/voiceClient.ts`) share the same auth/transport. Every function:
 - Has a Zod schema in [`src/ai/types.ts`](../src/ai/types.ts)
 - Has a prompt in [`src/ai/prompts/`](../src/ai/prompts/)
 - Has a mock in [`src/ai/mocks/`](../src/ai/mocks/) (`EXPO_PUBLIC_USE_AI_MOCK=true` serves these)
@@ -27,6 +27,21 @@ All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → the `worke
 | `recogniseFood` | `(base64, mediaType)` | `FoodRecognition` (items + macros) | Health photo food |
 | `suggestTomorrowTweak` | `{ today, tomorrow, primaryDomains }` | `TomorrowTweak` (move/resize/swap/add + rationale) | Evening reflect — one-tap tweak for tomorrow's plan |
 | `extractDiscoveryProfile` | raw Discovery Prompt paste (string) | `DiscoveryExtraction` (identity, goals, health, finance, career, relationships, curiosity, values, workingStyle, communication, struggles, triedAlready, asks + per-section confidence) | Welcome-intent → `(onboarding)/discovery-intro` (copy `DISCOVERY_USER_PROMPT` + deep-link to ChatGPT/Claude) → `discovery-paste` → extract into strict JSON, stash raw in `discovery_imports` → `discovery-confirm` preview |
+| `generateMoneyReview` | month's transactions + budgets | `MonthlyMoneyReview` | Finance monthly review |
+| `discoveryChatTurn` | transcript + profile snapshot | `DiscoveryChatTurn` | Discovery chat (conversational onboarding) |
+| `replanRemainingDay` | today's remaining blocks + signal | `ReplanRemainingDay` | Intra-day replan (priority change → adjust now) |
+| `generateTomorrowRoutine` | profile + history | `GeneratedRoutine` | Plan-tomorrow (priority change → start tomorrow) |
+| `generateWeekRoutine` | profile + history | `GeneratedWeekRoutine` | Plan-the-week |
+| `generateConversationStarters` | `{ relationshipType, daysSinceContact, contextNote? }` (name-stripped) | `ConversationStarters` | Social — reconnect prompts |
+| `suggestInterestAreas` | existing interests | `InterestSuggestions` | Explore — Discover grid |
+| `suggestCrossDisciplineLink` | two interests | `CrossDisciplineLink` | Explore — cross-discipline card |
+| `generateMonthlyInsightReport` | month's behaviour data | `MonthlyInsightReport` | Monthly insight screen |
+| `generateDailyBriefing` | today's plan + state | `DailyBriefingResult` | Today — proactive briefing |
+| `assessTrajectory` | goal + progress | `TrajectoryAssessment` | Goals — trajectory card |
+| `generateAnnualReview` | year's data | `AnnualReview` | Annual review |
+| `generateGamifiedAvatar` | `(base64 photo, mimeType)` | base64 avatar image | Profile — AI avatar (flag `profileAvatarGen`, default OFF — paid image-gen) |
+
+> Not in `functions.ts` but the same `callAI`/Zod/mock contract: `generateDailySpark`, `generateExpedition`, `generateRabbitHoleNode` (`src/explore/*`), the flag-gated `chasingNow` / `frontier` (`src/explore/chasing.ts`, `frontier.ts`), and the tool-use agent `whatShouldIDoNext` (`src/ai/agent/whatNext.ts`).
 
 ## Conventions
 

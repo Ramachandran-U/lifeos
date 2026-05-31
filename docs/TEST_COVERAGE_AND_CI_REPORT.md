@@ -1,7 +1,8 @@
 # Test Coverage & CI Report — autonomous session (night of 2026-05-30)
 
-Branch: `test/coverage-ci-followup` (off `lifeosv1`). **Nothing pushed or merged** —
-this is for your review. New tests are committed here; CI fixes are *planned*, not applied.
+> **Historical snapshot (closed 2026-05-31).** The CI fixes proposed in this report have since LANDED on `lifeosv1` — the E2E auth specs are now scoped to the `authenticated` Playwright project (see `playwright.config.ts`), and the node suite has grown to ~688 tests. Kept as a record of that session; not a live action list.
+
+Branch: `test/coverage-ci-followup` (off `lifeosv1`). _(At the time of writing: nothing pushed/merged — now superseded, see banner above.)_
 
 ---
 

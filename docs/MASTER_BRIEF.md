@@ -195,8 +195,8 @@ Every function is Zod-validated. Validation failures emit an `ai_schema_failure`
 ## 11. Metrics / Proof Points for Decks
 
 - **6 life engines** feeding 1 master planner
-- **22 AI functions**, all Zod-validated, all with mock fallbacks (added in Phase 3/4: `generateConversationStarters`, `suggestInterestAreas`, `suggestCrossDisciplineLink`, `generateWeekRoutine`, `generateMonthlyInsightReport`, `generateDailyBriefing`, `assessTrajectory`, `generateAnnualReview`)
-- **11 badges, 5 streaks, 12+ level tiers, 2–3 daily + 1 weekly quest**
+- **28 AI functions** in `src/ai/functions.ts` (plus the agent + explore entry points — `whatShouldIDoNext`, `generateDailySpark`, `generateExpedition`, `generateRabbitHoleNode`, and the flag-gated chasing/frontier), all Zod-validated, all with mock fallbacks
+- **14 badges, 5 streaks, triangular XP levels, 2–3 daily + 1 weekly quest**
 - **3-screen onboarding** (or 1-step Discovery Import) **→ full AI-generated routine**
 - **3 banks + UPI** supported for Gmail-based transaction ingest (HDFC, ICICI, Axis) — extensible via regex
 - **iOS, Android, and Web (PWA on Cloudflare Pages)** from a single codebase

@@ -1,5 +1,7 @@
 # Claude Design Prompt — LifeOS Gamification & Game-Feel UI (Web)
 
+> ⚠️ **OBSOLETE DESIGN TOKENS — historical reference only.** The colour palette here (`goal #FF6B35`, `health #00C896`, `finance #F0B429`, `primary #5B4FE8`, …) is the **pre-Aurora** iteration and no longer matches the live design system; current tokens live in `src/theme/colors.ts` (Aurora Refined: `primary #A584FF`, canvas `#0A0612`, etc.). It also assumes Tailwind, whereas the stack is React Native Web with `src/theme/` tokens. Do **not** generate new UI from this prompt as-is — see [`docs/aurora-refined-v2/`](aurora-refined-v2/README.md). Kept for historical reference.
+
 Paste the prompt below into Claude (claude.ai) with the **Artifacts** feature on. It will return a React + Tailwind artifact optimised for desktop/tablet web. After review, paste the artifact back to the Claude Code session so it can be ported to the React Native Web build.
 
 ---
