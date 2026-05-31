@@ -38,6 +38,7 @@ export default function RootLayout() {
   const { userId, onboardingStage, name, setUser } = useUserStore();
   const setPrimaryDomains = useUserStore((s) => s.setPrimaryDomains);
   const markModuleActivated = useUserStore((s) => s.markModuleActivated);
+  const setAvatarUri = useUserStore((s) => s.setAvatarUri);
   const pendingLevelUp = useGameStore((s) => s.pendingLevelUp);
   const dismissLevelUp = useGameStore((s) => s.dismissLevelUp);
 
@@ -79,6 +80,7 @@ export default function RootLayout() {
         const isDomain = (s: string): s is DomainId => (VALID as string[]).includes(s);
         setPrimaryDomains(domains.filter(isDomain));
         activated.filter(isDomain).forEach(markModuleActivated);
+        setAvatarUri((user as { avatarUri?: string | null }).avatarUri ?? null);
       }
       // Fetch admin-portal-managed feature flags. Non-blocking — fallback
       // values cover the case where the worker is unreachable.

@@ -67,7 +67,7 @@ setup('authenticate', async ({ page }) => {
     const sessionId = localStorage.getItem('lifeos_session');
     if (!sessionId) return;
     const now = new Date().toISOString();
-    const existing = JSON.parse(localStorage.getItem('lifeos_users') ?? '[]') as Array<{ id: string }>;
+    const existing = JSON.parse(localStorage.getItem('lifeos_users') ?? '[]') as Array<{ id: string; [key: string]: unknown }>;
     const filtered = existing.filter((u) => u.id !== sessionId);
     filtered.push({
       id: sessionId,

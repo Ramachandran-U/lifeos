@@ -30,6 +30,8 @@ export function createHealthLog(data: {
   sleepHours?: number;
   steps?: number;
   energyLevel?: number;
+  waterMl?: number;
+  recoveryScore?: number;
   notes?: string;
   source?: string;
 }) {
@@ -42,6 +44,8 @@ export function createHealthLog(data: {
       sleepHours: data.sleepHours ?? null,
       steps: data.steps ?? null,
       energyLevel: data.energyLevel ?? null,
+      waterMl: data.waterMl ?? null,
+      recoveryScore: data.recoveryScore ?? null,
       notes: data.notes ?? null,
       source: data.source ?? 'manual',
       createdAt: new Date().toISOString(),
@@ -51,6 +55,43 @@ export function createHealthLog(data: {
   }
   db.insert(healthLogs).values({ id, ...data }).run();
   return id;
+}
+
+/** Total water (ml) logged today — sums the day's `waterMl` increments. */
+export function getWaterMlForDate(date: string): number {
+  const rows = getHealthLogsByDate(date) as Array<{ waterMl?: number | null }>;
+  return rows.reduce((sum, r) => sum + (r.waterMl ?? 0), 0);
+}
+
+/** Most recent energy level (1-5) logged today, or null if none. */
+export function getLatestEnergyForDate(date: string): number | null {
+  const rows = getHealthLogsByDate(date) as Array<{ energyLevel?: number | null; createdAt: string }>;
+  const withEnergy = rows
+    .filter((r) => r.energyLevel != null)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return withEnergy.length ? withEnergy[0].energyLevel ?? null : null;
+}
+
+/**
+ * Most recent recovery score (0-100) within `maxAgeDays`, or null. The Routine
+ * Builder reads this to decide whether to soften the rest of the day, so a stale
+ * score (e.g. last week's) must not count — mirrors getLatestSleepHours.
+ */
+export function getLatestRecoveryScore(maxAgeDays = 1): number | null {
+  const rows = isWeb
+    ? webGetAllHealthLogs()
+    : (db.select().from(healthLogs).orderBy(desc(healthLogs.date)).all() as Array<{
+        date: string;
+        recoveryScore: number | null;
+      }>);
+  const withScore = (rows as Array<{ date: string; recoveryScore?: number | null }>)
+    .filter((r) => r.recoveryScore !== null && r.recoveryScore !== undefined)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  if (withScore.length === 0) return null;
+  const latest = withScore[0];
+  const ageDays = Math.floor((Date.now() - new Date(`${latest.date}T00:00:00`).getTime()) / 86_400_000);
+  if (ageDays > maxAgeDays) return null;
+  return latest.recoveryScore ?? null;
 }
 
 export function getHealthLogsByDate(date: string) {

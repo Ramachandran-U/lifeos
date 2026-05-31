@@ -1,0 +1,38 @@
+name: Typecheck
+
+# CI had no type gate — `tsc --noEmit` only ran in the local `npm run verify`
+# script, so type regressions could merge (the E2E workflow transpiles specs
+# without strict checks). This is a fast, browser-free gate that catches them.
+
+on:
+  pull_request:
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - 'tsconfig.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/typecheck.yml'
+  push:
+    branches: [lifeosv1, main]
+
+concurrency:
+  group: typecheck-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: tsc --noEmit
+        run: npx tsc --noEmit

@@ -27,28 +27,43 @@ Low-risk wins, mostly wiring existing pieces. Shipped on `test/coverage-ci-follo
 
 ---
 
-## Sprint 2 candidates — Tier 1 remainder (low effort)
+## ✅ Sprint 2 — Tier 1 remainder, profile-accuracy & quick logs (DONE except voice)
 
-- [ ] **Voice food logging** *(deferred from Sprint 1 — larger lift)*. Reuse
-  `src/ai/voiceClient.ts` (Gemini Live) → transcript → parse into food entries.
-  MyFitnessPal's headline 2025 feature. Touches the audio-capture path, hence its own
-  sprint.
-- [ ] **Water tracker** — most-requested simple tracker. New lightweight log + a quick
-  +250ml tap row. No AI.
-- [ ] **Energy-level quick log** — the `healthLogs.energyLevel` (1–5) column already
-  exists with no UI. Add a one-tap row; feeds future correlations.
-- [ ] **Biological sex on profile** — unblocks an exact (non-sex-neutral) BMR in
-  `calorieTargets()`. Needs a `users.sex` column + migration + one onboarding question.
-- [ ] **Activity-level selector** — replace the fixed 1.45 TDEE multiplier; could be
-  inferred from recent Fit avg steps.
+| Item | What shipped |
+|------|--------------|
+| **Biological sex** | `users.sex` column (+ migration, web shim). Feeds the exact Mifflin-St Jeor constant (+5 male / −161 female) in `calorieTargets()`; still falls back to the −78 midpoint when unset. Set via `EditVitalsSheet`. |
+| **Activity level** | `users.activity_level` column. Replaces the fixed 1.45 multiplier with sedentary→very_active factors (`ACTIVITY_OPTIONS`). Set via `EditVitalsSheet`. |
+| **Water tracker** | `health_logs.water_ml` increments; `WaterCard` with +250/+500 quick-add, undo, and a goal (~35 ml/kg). Summed per day via `getWaterMlForDate`. |
+| **Energy-level quick log** | `EnergyCard` 1–5 check-in writing `health_logs.energyLevel` (column existed, had no UI). `getLatestEnergyForDate` reads today's value. |
+
+Added 3 `calorieTargets` tests (sex constants + activity scaling) → 18/18 health-util tests pass.
+
+### ✅ Sprint 2 follow-ups (DONE)
+
+- [x] **Voice food logging (web)** — `useSpeechRecognition` (Web Speech API, feature-detected,
+  web-only) transcribes on-device → new self-contained `src/ai/voiceFood.ts` `parseSpokenMeal()`
+  → AddFoodSheet "Speak" mode reuses the existing review/confirm flow. Deliberately does **not**
+  touch the Gemini Live `voiceClient.ts` path (active in a parallel branch) — it reuses the
+  `FoodRecognition` schema/mock and the `recogniseFood` model tier, so no shared AI-registry edits.
+- [x] **Collect sex + activity during onboarding** — added to `day3-health` (optional chips), so
+  new users get an exact calorie target from day one instead of only via `EditVitalsSheet`.
+
+### Remaining
+
+- [ ] **Voice food logging on native** — needs a native STT module (`@react-native-voice/voice`)
+  + rebuild; the Web Speech API path is web-only. The "Speak" entry point hides itself on native.
+- [ ] **Infer activity from Fit** — optionally seed the activity level from recent
+  average steps instead of asking.
 
 ## Tier 2 — the differentiators (medium effort)
 
-- [ ] 🌟 **Recovery score → Routine Builder** — synthesize Fit sleep + resting HR +
-  active minutes into a 0–100 readiness score (Oura/Whoop-style), then feed it into
-  `replanRestOfToday` so a low-recovery day automatically softens the plan. *No
-  competitor can do this — they have no planner.* Sleep is already persisted
-  (`getLatestSleepHours`); `fitInsights.ts` already computes rule-based signals.
+- [x] 🌟 **Recovery score → Routine Builder (Sprint 3)** — `src/utils/recovery.ts`
+  `computeRecoveryScore()` blends sleep duration, deep-sleep %, HR-vs-baseline, and
+  prior-day load into a 0–100 score (Oura/Whoop-style), shown on the Health tab via
+  `RecoveryCard`. Persisted to `health_logs.recovery_score`; `useReplanFlow` feeds it into
+  the existing `softenForRecovery` wire so a low-recovery day eases the re-plan — **no edits
+  to the replan core** (`types.ts`/`replanApply.ts`/prompts). Degrades gracefully to a
+  sleep-only score without Fit.
 - [ ] 🌟 **Conversational health coach** — extend the `whatNext` tool-use agent
   (`src/ai/agent/`) with read-only health tools (food, sleep, blood markers) so users
   can ask "why am I tired this week?" — Ria-style.
@@ -77,10 +92,14 @@ Low-risk wins, mostly wiring existing pieces. Shipped on `test/coverage-ci-follo
 
 ## Notes / known shortcuts to revisit
 
-- `calorieTargets()` uses a **sex-neutral** Mifflin-St Jeor (midpoint offset −78) and a
-  **fixed 1.45** activity multiplier because the `users` table stores neither sex nor
-  activity level. Both are Sprint-2 Tier-1 items above.
+- `calorieTargets()` now uses **exact** Mifflin-St Jeor sex constants and an activity
+  factor when `users.sex` / `users.activity_level` are set (Sprint 2); it still falls
+  back to the −78 midpoint offset and a 1.45 factor when they're unset (e.g. before the
+  user opens *Edit vitals*).
 - Food entries are **hard-deleted** (no `deletedAt` column, like routine blocks). The
   soft-delete convention applies to durable data (goals, contacts), not daily logs.
 - Meal-suggestion entries are logged with `quantityG: 0` (a composed meal has no single
   weight) and `source: 'search'`.
+- **Water** is stored as signed `health_logs.water_ml` increments summed per day; the
+  *Undo* button logs a negative increment rather than deleting a row. **Energy** takes
+  the latest row's `energyLevel` for the day.

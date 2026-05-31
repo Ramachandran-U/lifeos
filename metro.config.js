@@ -4,6 +4,22 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
+// expo-sqlite's web worker imports `wa-sqlite.wasm` as a module; Metro only
+// resolves it when `.wasm` is a registered asset extension. Without this the
+// web cold-bundle fails to resolve the wasm import.
+if (!config.resolver.assetExts.includes('wasm')) config.resolver.assetExts.push('wasm');
+
+// Exclude the web-export output dir (`dist/`) from Metro's file map so the
+// watcher doesn't crawl/crash on it during local web dev (`expo start --web`
+// after a `web:export`). The node_modules negative-lookahead keeps package
+// `dist/` folders resolvable — without it, every `node_modules/*/dist/` would
+// be excluded and the bundle breaks.
+const distBlock = /^(?!.*[\\/]node_modules[\\/]).*[\\/]dist[\\/].*/;
+const existingBlockList = config.resolver.blockList;
+config.resolver.blockList = existingBlockList
+  ? (Array.isArray(existingBlockList) ? [...existingBlockList, distBlock] : [existingBlockList, distBlock])
+  : distBlock;
+
 /**
  * zustand@5.0.12 ships an ESM build (`zustand/esm/middleware.mjs`) that uses
  * `import.meta.env.MODE` for devtools mode detection. Metro's web bundler

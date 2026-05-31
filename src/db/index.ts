@@ -364,7 +364,13 @@ export async function initDatabase() {
   };
   await safeAlter(`ALTER TABLE interests ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`);
   await safeAlter(`ALTER TABLE users ADD COLUMN height_cm REAL`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN avatar_uri TEXT`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN avatar_source_uri TEXT`);
   await safeAlter(`ALTER TABLE goals ADD COLUMN priority INTEGER NOT NULL DEFAULT 0`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN sex TEXT`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN activity_level TEXT`);
+  await safeAlter(`ALTER TABLE health_logs ADD COLUMN water_ml REAL`);
+  await safeAlter(`ALTER TABLE health_logs ADD COLUMN recovery_score REAL`);
 
   // Drop zombie tables — never had queries, no UI, no roadmap commitment
   // (architect-review §P1-5). Idempotent: DROP IF EXISTS is a no-op when the

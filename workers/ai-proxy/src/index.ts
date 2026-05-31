@@ -1,6 +1,7 @@
 import { verifySupabaseJwt } from './auth';
 import { checkAndIncrement } from './rateLimit';
 import { proxyClaude } from './claude';
+import { proxyAvatar } from './avatar';
 import { proxyGeminiLive } from './gemini';
 import { handleConfig } from './routes/config';
 import { handleAdminFlags } from './routes/admin/flags';
@@ -32,6 +33,8 @@ export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   DAILY_AI_REQUEST_LIMIT: string;
+  /** Daily per-user cap for avatar image generation. Defaults to 20 when unset. */
+  DAILY_AVATAR_LIMIT?: string;
   /** Hard upper bound for output tokens per /claude call. Tune from wrangler.toml
    *  ([vars] MAX_TOKENS_CAP). Default 4096; raise toward 8000 when long-form
    *  generations (goal hierarchies, week-52 routines) need it. Parsed and
@@ -270,6 +273,15 @@ export default {
         return jsonError(429, message, req, env);
       }
       return proxyClaude(req, env, corsHeaders(req, env), ctx, userId);
+    }
+
+    if (url.pathname === '/v1/image/avatar' && req.method === 'POST') {
+      // Image generation is expensive — give it its own small daily bucket so a
+      // user spamming "regenerate" can't drain the planner's AI quota.
+      const limit = Number(env.DAILY_AVATAR_LIMIT) || 20;
+      const ok = await checkAndIncrement(env.RATE_LIMIT, `ai:avatar:${userId}`, limit);
+      if (!ok) return jsonError(429, 'daily avatar limit reached', req, env);
+      return proxyAvatar(req, env, corsHeaders(req, env), ctx, userId);
     }
 
     if (url.pathname === '/health' && req.method === 'GET') {

@@ -100,4 +100,23 @@ describe('calorieTargets', () => {
     const r = calorieTargets({ weightKg: 40, heightCm: 150, age: 70, goalType: 'lose_weight' });
     expect(r.calories).toBeGreaterThanOrEqual(1200);
   });
+
+  it('uses the exact male BMR constant + activity factor when provided', () => {
+    // BMR = 10*75 + 6.25*178 - 5*30 + 5 = 1717.5; moderate 1.55 => 2662 -> 2660
+    const r = calorieTargets({ weightKg: 75, heightCm: 178, age: 30, goalType: 'maintain', sex: 'male', activityLevel: 'moderate' });
+    expect(r.calories).toBe(2660);
+  });
+
+  it('uses the female BMR constant', () => {
+    // BMR = 1551.5; sedentary 1.2 => 1861.8 -> 1860
+    const r = calorieTargets({ weightKg: 75, heightCm: 178, age: 30, goalType: 'maintain', sex: 'female', activityLevel: 'sedentary' });
+    expect(r.calories).toBe(1860);
+  });
+
+  it('scales the target with activity level', () => {
+    const base = { weightKg: 75, heightCm: 178, age: 30, goalType: 'maintain', sex: 'male' } as const;
+    const sedentary = calorieTargets({ ...base, activityLevel: 'sedentary' });
+    const active = calorieTargets({ ...base, activityLevel: 'active' });
+    expect(active.calories).toBeGreaterThan(sedentary.calories);
+  });
 });

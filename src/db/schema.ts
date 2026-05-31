@@ -10,6 +10,8 @@ export const users = sqliteTable('users', {
   name: text('name').notNull(),
   age: integer('age'),
   heightCm: real('height_cm'),
+  sex: text('sex'), // 'male' | 'female' — used for exact BMR; optional
+  activityLevel: text('activity_level'), // sedentary | light | moderate | active | very_active
   visionStatement: text('vision_statement'),
   wakeTime: text('wake_time'),
   sleepTime: text('sleep_time'),
@@ -17,6 +19,8 @@ export const users = sqliteTable('users', {
   workEndTime: text('work_end_time'),
   sleepTargetHours: integer('sleep_target_hours'), // Day 3 onboarding: target hours/night
   healthGoalType: text('health_goal_type'), // Day 3 onboarding: build_strength | lose_weight | gain_endurance | improve_sleep | reduce_stress | maintain
+  avatarUri: text('avatar_uri'), // file:// URI of the generated gamified avatar (on-device only)
+  avatarSourceUri: text('avatar_source_uri'), // file:// URI of the original photo, kept for regeneration
   onboardingStage: integer('onboarding_stage').notNull().default(0),
   primaryDomains: text('primary_domains'), // JSON string[] — user's chosen focus domains from welcome-intent
   activatedModules: text('activated_modules'), // JSON string[] — modules user has supplied data for
@@ -80,6 +84,8 @@ export const healthLogs = sqliteTable('health_logs', {
   sleepHours: real('sleep_hours'),
   steps: integer('steps'),
   energyLevel: integer('energy_level'), // 1-5
+  waterMl: real('water_ml'), // per-row increment; sum across the day's rows = total intake
+  recoveryScore: real('recovery_score'), // 0-100 readiness; latest per day feeds the replanner
   notes: text('notes'),
   source: text('source').notNull().default('manual'), // manual | healthkit | health_connect
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),

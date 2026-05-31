@@ -13,7 +13,9 @@ import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { createFoodEntry, updateFoodEntry } from '@/db/queries/health';
 import { recogniseFood } from '@/ai/functions';
+import { parseSpokenMeal } from '@/ai/voiceFood';
 import { useAI } from '@/hooks/useAI';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { format } from 'date-fns';
 import type { FoodRecognition } from '@/ai/types';
 import { searchFoods, scaleMacros } from '@/utils/foodSearch';
@@ -46,7 +48,7 @@ interface AddFoodSheetProps {
   onPhotoUsed?: () => void;
 }
 
-type Mode = 'choose' | 'manual' | 'scanning' | 'review' | 'barcode';
+type Mode = 'choose' | 'manual' | 'scanning' | 'review' | 'barcode' | 'listening';
 
 // Rotating prompts for the empty food-search box — concrete dishes read as
 // "type anything", and hint that the bundled DB covers everyday meals.
@@ -87,6 +89,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
   const [scannerOn, setScannerOn] = useState(false);
   const canScan = isBarcodeDetectorSupported();
   const isEditing = !!editEntry;
+  const speech = useSpeechRecognition();
 
   // When opened to edit an existing entry, jump straight to the manual form
   // with its values prefilled.
@@ -172,6 +175,35 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
     setBarcode('');
     setBarcodeError(null);
     setScannerOn(false);
+    speech.stop();
+    speech.reset();
+  };
+
+  // Voice food logging: dictate → transcribe (Web Speech API) → parse to items.
+  const handleStartVoice = () => {
+    speech.reset();
+    setMode('listening');
+    speech.start();
+  };
+
+  const handleVoiceDone = async () => {
+    speech.stop();
+    const text = speech.transcript.trim();
+    if (!text) {
+      setMode('choose');
+      return;
+    }
+    setMode('scanning'); // reuse the spinner state while the model parses
+    const raw = await call(() => parseSpokenMeal(text));
+    if (raw) {
+      const { recognition } = upgradeFoodRecognition(raw);
+      setRecognised(recognition);
+      setSelectedItems(recognition.items.map(() => true));
+      setMode('review');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      setMode('choose');
+    }
   };
 
   const handleClose = () => {
@@ -323,6 +355,38 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
           <Caption>~1,600 foods + macros</Caption>
         </Pressable>
       </View>
+      {speech.supported && (
+        <View style={styles.optionRow}>
+          <Pressable style={styles.optionCard} onPress={handleStartVoice}>
+            <Ionicons name="mic" size={32} color={c.health} />
+            <Body style={styles.optionLabel}>Speak</Body>
+            <Caption>Say what you ate</Caption>
+          </Pressable>
+          <View style={styles.optionSpacer} />
+        </View>
+      )}
+    </>
+  );
+
+  const renderListening = () => (
+    <>
+      <View style={styles.handle} />
+      <Heading style={styles.title}>Say what you ate</Heading>
+      <Caption style={styles.voiceHint}>
+        e.g. &ldquo;two eggs, a slice of toast with butter, and a black coffee&rdquo;
+      </Caption>
+      <Card style={styles.voiceCard}>
+        <View style={styles.voiceMicRow}>
+          <Ionicons name={speech.listening ? 'mic' : 'mic-off'} size={20} color={speech.listening ? c.health : c.textMuted} />
+          <Caption style={{ color: c.textSecondary }}>{speech.listening ? 'Listening…' : 'Paused'}</Caption>
+        </View>
+        <Body style={styles.voiceTranscript}>
+          {speech.transcript || 'Your words will appear here.'}
+        </Body>
+      </Card>
+      {speech.error ? <Body style={styles.voiceError}>{speech.error}</Body> : null}
+      <Button title="Done" onPress={handleVoiceDone} disabled={!speech.transcript.trim()} />
+      <Button title="Cancel" variant="ghost" onPress={() => { speech.stop(); setMode('choose'); }} />
     </>
   );
 
@@ -514,6 +578,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
             {mode === 'review' && renderReview()}
             {mode === 'manual' && renderManual()}
             {mode === 'barcode' && renderBarcode()}
+            {mode === 'listening' && renderListening()}
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -565,6 +630,12 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     fontFamily: fonts.heading,
     fontSize: fontSizes.md,
   },
+  optionSpacer: { flex: 1 },
+  voiceHint: { color: colors.textMuted, marginBottom: spacing.sm },
+  voiceCard: { gap: spacing.sm, minHeight: 96, marginBottom: spacing.md },
+  voiceMicRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  voiceTranscript: { color: colors.textPrimary },
+  voiceError: { color: colors.error, textAlign: 'center', marginBottom: spacing.sm },
   manualBtn: {
     marginTop: spacing.xs,
   },

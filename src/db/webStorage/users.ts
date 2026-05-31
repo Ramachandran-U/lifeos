@@ -51,6 +51,8 @@ export interface WebUser {
   name: string;
   age?: number;
   heightCm?: number;
+  sex?: string;
+  activityLevel?: string;
   visionStatement?: string;
   wakeTime?: string;
   sleepTime?: string;
@@ -58,6 +60,8 @@ export interface WebUser {
   workEndTime?: string;
   sleepTargetHours?: number;
   healthGoalType?: string;
+  avatarUri?: string;
+  avatarSourceUri?: string;
   onboardingStage: number;
   primaryDomains?: string[];
   activatedModules?: string[];
