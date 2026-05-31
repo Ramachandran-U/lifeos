@@ -26,6 +26,7 @@ import { HealthSummaryCard } from '@/components/modules/health/HealthSummaryCard
 import { EditVitalsSheet } from '@/components/modules/health/EditVitalsSheet';
 import { WaterCard } from '@/components/modules/health/WaterCard';
 import { EnergyCard } from '@/components/modules/health/EnergyCard';
+import { RecoveryCard } from '@/components/modules/health/RecoveryCard';
 import {
   getFoodEntriesByDate,
   getRecentWeightLogs,
@@ -34,10 +35,12 @@ import {
   deleteFoodEntry,
   getWaterMlForDate,
   getLatestEnergyForDate,
+  getLatestSleepHours,
 } from '@/db/queries/health';
 import { getUser, updateUser } from '@/db/queries/users';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { weightTrend, summarizeVitals, calorieTargets } from '@/utils/health';
+import { recoveryFromFitDays, computeRecoveryScore } from '@/utils/recovery';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
@@ -82,6 +85,8 @@ export default function HealthScreen() {
   const [activityLevel, setActivityLevel] = useState<string | null>(null);
   const [waterMl, setWaterMl] = useState(0);
   const [energy, setEnergy] = useState<number | null>(null);
+  const [sleepTargetHours, setSleepTargetHours] = useState<number | null>(null);
+  const [latestSleepHours, setLatestSleepHours] = useState<number | null>(null);
   const [bloodReportResult, setBloodReportResult] = useState<BloodReportResult | null>(null);
   const [showAddFood, setShowAddFood] = useState(false);
   const [editEntry, setEditEntry] = useState<FoodEntryEdit | null>(null);
@@ -119,8 +124,10 @@ export default function HealthScreen() {
     setGoalType(user?.healthGoalType ?? null);
     setSex(user?.sex ?? null);
     setActivityLevel(user?.activityLevel ?? null);
+    setSleepTargetHours(user?.sleepTargetHours ?? null);
     setWaterMl(getWaterMlForDate(today));
     setEnergy(getLatestEnergyForDate(today));
+    setLatestSleepHours(getLatestSleepHours(2));
 
     const reports = getBloodReports();
     if (reports.length > 0 && reports[0].parsedMarkers) {
@@ -183,8 +190,14 @@ export default function HealthScreen() {
           });
         }
       }
-      // A workout logged today (via Fit) keeps the workout streak alive.
+      // Compute + persist today's recovery score so the Routine Builder can
+      // read it (getLatestRecoveryScore) when softening the rest of the day.
       const latestDate = result.days[result.days.length - 1]?.date;
+      const rec = recoveryFromFitDays(result.days, sleepTargetHours ?? undefined);
+      if (latestDate && rec.hasData) {
+        createHealthLog({ date: latestDate, recoveryScore: rec.score });
+      }
+      // A workout logged today (via Fit) keeps the workout streak alive.
       if (userId && latestDate && result.workouts.some((w) => w.date === latestDate)) {
         triggerStreak(userId, 'workout');
       }
@@ -229,6 +242,15 @@ export default function HealthScreen() {
   const waterGoalMl = useMemo(
     () => (trend.latest ? Math.round((trend.latest * 35) / 100) * 100 : 2500),
     [trend.latest],
+  );
+
+  // Readiness score: rich when Google Fit is synced, else sleep-only fallback.
+  const recovery = useMemo(
+    () =>
+      fitDays.length > 0
+        ? recoveryFromFitDays(fitDays, sleepTargetHours ?? undefined)
+        : computeRecoveryScore({ sleepHours: latestSleepHours, sleepNeedHours: sleepTargetHours ?? undefined }),
+    [fitDays, sleepTargetHours, latestSleepHours],
   );
 
   const totals = useMemo(() => {
@@ -374,6 +396,12 @@ export default function HealthScreen() {
             </View>
           </Card>
         </Animated.View>
+
+        {recovery.hasData && (
+          <Animated.View entering={FadeInDown.delay(275).duration(400)}>
+            <RecoveryCard result={recovery} />
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
           <WaterCard totalMl={waterMl} goalMl={waterGoalMl} onLogged={loadData} />

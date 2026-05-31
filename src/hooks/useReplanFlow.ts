@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { rebalanceRestOfToday, isRecoveryLow, generateAndSaveWeek } from '@/ai/replanApply';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { getReflectionByDate } from '@/db/queries/reflections';
-import { getLatestSleepHours } from '@/db/queries/health';
+import { getLatestSleepHours, getLatestRecoveryScore } from '@/db/queries/health';
+import { RECOVERY_SOFTEN_THRESHOLD } from '@/utils/recovery';
 import { emptyUserProfile } from '@/ai/types';
 import { track, EVENTS } from '@/utils/telemetry';
 
@@ -80,11 +81,16 @@ export function useReplanFlow(args: UseReplanFlowArgs): UseReplanFlowResult {
         return;
       }
       const reflection = getReflectionByDate(today);
-      const soften = isRecoveryLow({
-        lastSleepHours: getLatestSleepHours(3),
-        skippedTodayCount: skippedCount,
-        lastMood: reflection?.mood ?? null,
-      });
+      // Prefer the graded recovery score (Fit-derived) when today's is available;
+      // fall back to the coarse sleep/mood/skipped heuristic otherwise.
+      const recoveryScore = getLatestRecoveryScore(1);
+      const soften =
+        (recoveryScore != null && recoveryScore < RECOVERY_SOFTEN_THRESHOLD) ||
+        isRecoveryLow({
+          lastSleepHours: getLatestSleepHours(3),
+          skippedTodayCount: skippedCount,
+          lastMood: reflection?.mood ?? null,
+        });
       const { rationale: rebalanceRationale, changeCount } =
         await rebalanceRestOfToday({ profile, softenForRecovery: soften });
       track(EVENTS.routineReplanned, { soften, changes: changeCount });
