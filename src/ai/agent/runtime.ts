@@ -6,6 +6,12 @@ import type { AIMessage, AIToolDeclaration, AIToolPart } from '../types';
  * A tool the agent can call. `declaration` is the schema sent to the model;
  * `execute` runs on-device against local SQLite (or any data source) and
  * returns a JSON-serialisable result.
+ *
+ * Keep tools in this `{ declaration, execute }` shape and provider-agnostic —
+ * don't let provider wire formats (e.g. Gemini functionCall/functionResponse)
+ * leak past this file into tool definitions. This decoupling is what keeps a
+ * future MCP server/client a thin adapter rather than a rewrite. See
+ * docs/architecture/mcp-interop-decision.md.
  */
 export interface AgentTool {
   declaration: AIToolDeclaration;

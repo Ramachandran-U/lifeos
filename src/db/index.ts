@@ -346,10 +346,23 @@ export async function initDatabase() {
       device_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
       prev_hash TEXT,
-      hash TEXT NOT NULL
+      hash TEXT NOT NULL,
+      -- Outbox state for the sync engine (P1-T5): 'pending' until pushed to
+      -- Supabase, then 'acked'. Locally-applied remote mutations are written
+      -- 'applied_remote' so they're never pushed back (echo prevention).
+      sync_state TEXT NOT NULL DEFAULT 'pending'
     );
     CREATE INDEX IF NOT EXISTS mutation_log_lamport_idx ON mutation_log (lamport);
     CREATE INDEX IF NOT EXISTS mutation_log_entity_idx ON mutation_log (entity, entity_id);
+    CREATE INDEX IF NOT EXISTS mutation_log_sync_state_idx ON mutation_log (sync_state, lamport);
+
+    -- Pull cursor for the sync engine (P1-T5/T6): the last server seq this
+    -- device has pulled. Single row keyed 'remote'. Server seq is a gap-free
+    -- monotonic sequence, so seq-greater-than-cursor never misses or duplicates.
+    CREATE TABLE IF NOT EXISTS sync_cursor (
+      id       TEXT PRIMARY KEY,
+      last_seq INTEGER NOT NULL DEFAULT 0
+    );
   `);
 
   // Lightweight migrations for columns added after initial release.
@@ -371,6 +384,12 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE users ADD COLUMN activity_level TEXT`);
   await safeAlter(`ALTER TABLE health_logs ADD COLUMN water_ml REAL`);
   await safeAlter(`ALTER TABLE health_logs ADD COLUMN recovery_score REAL`);
+  // Sync outbox state for installs created before P1-T5. Existing rows backfill
+  // to 'pending' so the first sync drains the accumulated beta history.
+  await safeAlter(`ALTER TABLE mutation_log ADD COLUMN sync_state TEXT NOT NULL DEFAULT 'pending'`);
+  await expo.execAsync(
+    `CREATE INDEX IF NOT EXISTS mutation_log_sync_state_idx ON mutation_log (sync_state, lamport);`,
+  );
 
   // Drop zombie tables — never had queries, no UI, no roadmap commitment
   // (architect-review §P1-5). Idempotent: DROP IF EXISTS is a no-op when the

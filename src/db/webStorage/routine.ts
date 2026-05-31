@@ -58,6 +58,16 @@ export function webDeleteRoutineBlockById(id: string): void {
   save(ROUTINE_KEY, all);
 }
 
+/** Upsert a full routine-block row by id. Used by the sync reducer to apply
+ *  remote state directly (echo-safe — never records a mutation). */
+export function webUpsertRoutineBlockById(block: WebRoutineBlock): void {
+  const all = load<WebRoutineBlock>(ROUTINE_KEY);
+  const idx = all.findIndex((b) => b.id === block.id);
+  if (idx === -1) all.push(block);
+  else all[idx] = block;
+  save(ROUTINE_KEY, all);
+}
+
 export function webUpdateRoutineBlock(id: string, data: Partial<WebRoutineBlock>): void {
   const all = load<WebRoutineBlock>(ROUTINE_KEY);
   const idx = all.findIndex((b) => b.id === id);

@@ -22,6 +22,10 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // failures inside the log never surface to the user. Default-on so beta
   // history accumulates; flip off in the Worker if it ever misbehaves.
   mutation_log_enabled: true,
+  // P1-T5 cross-device sync engine (push to Supabase via the Worker). The
+  // remote kill switch — default OFF until rollout; requires mutation_log_enabled.
+  // Flip on per-cohort from the Worker /v1/config; flip off to freeze sync.
+  sync_engine_enabled: false,
   // Multi-step agent for goal decomposition. Off by default — flip on per-user
   // to A/B against the single-shot baseline. Kill criterion lives in migration
   // 0004_ai_suggestions.sql.

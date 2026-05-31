@@ -15,7 +15,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { getDeviceId } from '@/utils/telemetry';
 import { MutationLog, type MutationInput } from './mutationLog';
 import { getProductionHasher } from './hasher';
-import { createLocalSink } from './sink';
+import { getLocalSink } from './sink';
 
 let instance: MutationLog | null = null;
 let initPromise: Promise<MutationLog | null> | null = null;
@@ -34,7 +34,7 @@ async function init(): Promise<MutationLog | null> {
   if (!userId) return null; // pre-signin writes are not logged
 
   const deviceId = await getDeviceId();
-  const sink = createLocalSink();
+  const sink = getLocalSink();
   const resume = await sink.resume();
   instance = new MutationLog({
     hasher: getProductionHasher(),
@@ -74,6 +74,24 @@ export function recordMutation(input: MutationInput): void {
   })();
   pending.add(p);
   void p.finally(() => pending.delete(p));
+}
+
+/**
+ * Fold a logical time observed from a remote (pulled) mutation into the local
+ * clock, so the next LOCAL write is ordered strictly after everything we've
+ * applied. Fire-and-forget; safe to call from the sync reducer. (On a cold
+ * start the same guarantee comes from `resume()` seeding the clock at the
+ * global max lamport.)
+ */
+export function observeRemoteLamport(lamport: number): void {
+  void (async () => {
+    try {
+      const log = await getLog();
+      log?.observeRemote(lamport);
+    } catch {
+      // Observer-only: never affect the caller.
+    }
+  })();
 }
 
 /**
