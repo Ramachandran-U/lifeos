@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, Modal, Pressable, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
@@ -81,7 +80,7 @@ export function GoalDetailSheet({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <Animated.View entering={FadeInDown.duration(250)} style={[styles.box, { backgroundColor: c.card, borderColor: c.border }]}>
+        <View style={[styles.box, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Label color={typeColor.color}>{typeColor.label.toUpperCase()}</Label>
           <Body style={[styles.title, { color: c.textPrimary }]}>{goalTitle}</Body>
 
@@ -138,7 +137,7 @@ export function GoalDetailSheet({
 
           <View style={styles.inputRow}>
             <TextInput
-              style={[styles.input, { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary }]}
+              style={[styles.input, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
               placeholder="Add a comment…"
               placeholderTextColor={c.textMuted}
               value={draft}
@@ -159,7 +158,7 @@ export function GoalDetailSheet({
           <Pressable style={styles.closeBtn} onPress={onClose}>
             <Caption style={{ color: c.textSecondary }}>Close</Caption>
           </Pressable>
-        </Animated.View>
+        </View>
       </KeyboardAvoidingView>
     </Modal>
   );
