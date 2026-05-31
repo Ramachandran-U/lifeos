@@ -23,6 +23,7 @@ import { db } from '@/db';
 import {
   goals, routineBlocks, dailyReflections, gamification,
   interests, explorationLog, expeditions, expeditionProgress, sparks,
+  userProfiles, users,
 } from '@/db/schema';
 import {
   webUpsertGoalById,
@@ -36,6 +37,8 @@ import {
   webUpsertExpeditionById,
   webUpsertExpeditionProgress,
   webUpsertSparkById,
+  webUpsertUserProfile,
+  webUpdateUser,
   type WebGoal,
   type WebRoutineBlock,
   type WebDailyReflection,
@@ -57,6 +60,7 @@ const isWeb = Platform.OS === 'web';
 const MATERIALIZED = new Set([
   'goals', 'routine_blocks', 'daily_reflections', 'gamification',
   'interests', 'exploration_log', 'expeditions', 'expedition_progress', 'sparks',
+  'user_profiles', 'users',
 ]);
 
 /**
@@ -105,6 +109,10 @@ function applyState(entity: string, entityId: string, state: EntitySnapshot): vo
       return applyExpeditionProgress(state);
     case 'sparks':
       return applySpark(state);
+    case 'user_profiles':
+      return applyUserProfile(entityId, state);
+    case 'users':
+      return applyUser(entityId, state);
     default:
       return;
   }
@@ -228,4 +236,51 @@ function applyExpeditionProgress(state: EntitySnapshot): void {
     .get();
   if (existing) db.update(expeditionProgress).set(row).where(eq(expeditionProgress.id, existing.id)).run();
   else db.insert(expeditionProgress).values(row).run();
+}
+
+// ── profile: per-user singletons keyed by userId ─────────────────────────────
+function applyUserProfile(userId: string, state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) {
+    try {
+      webUpsertUserProfile(
+        userId,
+        JSON.parse(asJsonString(state.profile, '{}')) as Parameters<typeof webUpsertUserProfile>[1],
+      );
+    } catch {
+      // malformed profile JSON — skip rather than crash the pull loop
+    }
+    return;
+  }
+  const row = {
+    userId,
+    profile: asJsonString(state.profile, '{}'),
+    source: String(state.source ?? 'chat'),
+    confidenceOverall: Number(state.confidenceOverall ?? 0),
+    routineUnlocked: Boolean(state.routineUnlocked),
+    updatedAt: new Date().toISOString(),
+  };
+  const existing = db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).get();
+  if (existing) db.update(userProfiles).set(row).where(eq(userProfiles.userId, userId)).run();
+  else db.insert(userProfiles).values({ ...row, createdAt: new Date().toISOString() }).run();
+}
+
+// users: UPDATE-ONLY profile fields. Never creates a credential-less row, never
+// writes identity/credential columns (the snapshot carries none, but strip
+// defensively).
+function applyUser(userId: string, state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) {
+    webUpdateUser(userId, state as unknown as Parameters<typeof webUpdateUser>[1]);
+    return;
+  }
+  const set: Record<string, unknown> = { ...state, updatedAt: new Date().toISOString() };
+  if (Array.isArray(set.primaryDomains)) set.primaryDomains = JSON.stringify(set.primaryDomains);
+  if (Array.isArray(set.activatedModules)) set.activatedModules = JSON.stringify(set.activatedModules);
+  delete set.id;
+  delete set.email;
+  delete set.passwordHash;
+  delete set.passwordSalt;
+  delete set.createdAt;
+  db.update(users).set(set as Partial<typeof users.$inferInsert>).where(eq(users.id, userId)).run();
 }

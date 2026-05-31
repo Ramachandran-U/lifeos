@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { userProfiles } from '@/db/schema';
 import { emptyUserProfile, UserProfile, UserProfileSchema } from '@/ai/types';
 import { webGetUserProfile, webUpsertUserProfile } from '@/db/webStorage';
+import { recordMutation } from '@/sync/runtime';
 
 const isWeb = Platform.OS === 'web';
 
@@ -17,36 +18,52 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
 export async function upsertUserProfile(userId: string, profile: UserProfile): Promise<void> {
   const next: UserProfile = { ...profile, lastUpdated: new Date().toISOString() };
+  const now = new Date().toISOString();
   if (isWeb) {
     webUpsertUserProfile(userId, next);
-    return;
-  }
-  const existing = db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).get();
-  const now = new Date().toISOString();
-  if (existing) {
-    db.update(userProfiles)
-      .set({
-        profile: JSON.stringify(next),
-        source: next.source,
-        confidenceOverall: next.confidence.overall,
-        routineUnlocked: next.confidence.overall >= 0.7,
-        updatedAt: now,
-      })
-      .where(eq(userProfiles.userId, userId))
-      .run();
   } else {
-    db.insert(userProfiles)
-      .values({
-        userId,
-        profile: JSON.stringify(next),
-        source: next.source,
-        confidenceOverall: next.confidence.overall,
-        routineUnlocked: next.confidence.overall >= 0.7,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run();
+    const existing = db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).get();
+    if (existing) {
+      db.update(userProfiles)
+        .set({
+          profile: JSON.stringify(next),
+          source: next.source,
+          confidenceOverall: next.confidence.overall,
+          routineUnlocked: next.confidence.overall >= 0.7,
+          updatedAt: now,
+        })
+        .where(eq(userProfiles.userId, userId))
+        .run();
+    } else {
+      db.insert(userProfiles)
+        .values({
+          userId,
+          profile: JSON.stringify(next),
+          source: next.source,
+          confidenceOverall: next.confidence.overall,
+          routineUnlocked: next.confidence.overall >= 0.7,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
   }
+  // Per-user singleton → sync entityId is the userId. Canonical snapshot uses the
+  // native row shape (profile as a JSON string); the web reducer parses it back.
+  recordMutation({
+    entity: 'user_profiles',
+    entityId: userId,
+    op: 'update',
+    before: null,
+    after: {
+      userId,
+      profile: JSON.stringify(next),
+      source: next.source,
+      confidenceOverall: next.confidence.overall,
+      routineUnlocked: next.confidence.overall >= 0.7,
+      updatedAt: now,
+    },
+  });
 }
 
 export async function getOrInitUserProfile(
