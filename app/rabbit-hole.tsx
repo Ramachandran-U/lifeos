@@ -16,6 +16,8 @@ import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { getSparkByDate, listRecentSparkTitles } from '@/db/queries/sparks';
 import { generateRabbitHoleNode, type GeneratedNode, type RabbitHoleDirection } from '@/explore/rabbitHole';
+import { exploreThreadNode } from '@/ai/agent/exploreThread';
+import { isEnabled } from '@/config/flags';
 import { XP_VALUES } from '@/utils/gamification';
 import { track, EVENTS } from '@/utils/telemetry';
 import { format } from 'date-fns';
@@ -31,13 +33,29 @@ export default function RabbitHoleScreen() {
   const c = useColors();
   const styles = makeStyles(c);
   const router = useRouter();
-  const { sparkId } = useLocalSearchParams<{ sparkId: string }>();
+  const { sparkId, seedTitle, seedBody, seedInterest } = useLocalSearchParams<{
+    sparkId?: string;
+    seedTitle?: string;
+    seedBody?: string;
+    seedInterest?: string;
+  }>();
   const userId = useUserStore((s) => s.userId);
   const addXP = useGameStore((s) => s.addXP);
 
-  // Pull the originating spark via today's row (sparkId is mainly for telemetry/audit).
+  // Anchor source: an inline seed (e.g. a "Chasing now" thread) takes
+  // precedence; otherwise fall back to today's spark row. sparkId is mainly
+  // for telemetry/audit.
   const today = format(new Date(), 'yyyy-MM-dd');
-  const anchorSpark = userId ? getSparkByDate(userId, today) : undefined;
+  const inlineAnchor = seedTitle
+    ? {
+        title: seedTitle,
+        body: seedBody ?? '',
+        threadStarter: seedTitle,
+        seedInterest: seedInterest ?? '',
+        adjacentField: '',
+      }
+    : undefined;
+  const anchorSpark = inlineAnchor ?? (userId ? getSparkByDate(userId, today) : undefined);
 
   const [thread, setThread] = useState<ThreadNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -65,7 +83,7 @@ export default function RabbitHoleScreen() {
     setLoading(true);
     setError(null);
     try {
-      const next = await generateRabbitHoleNode({
+      const params = {
         parent: { title: current.title, body: current.body },
         anchor: {
           title: anchorSpark.title,
@@ -73,7 +91,12 @@ export default function RabbitHoleScreen() {
           adjacentField: anchorSpark.adjacentField,
         },
         direction,
-      });
+      };
+      // Agentic path grounds the node in the user's real exploration history;
+      // single-shot is the fallback when the flag is off (or no userId).
+      const next = isEnabled('exploreAgenticThread') && userId
+        ? await exploreThreadNode({ ...params, userId })
+        : await generateRabbitHoleNode(params);
       setThread((prev) => [...prev, { ...next, arrivedVia: direction }]);
       if (userId) addXP(userId, Math.round(XP_VALUES.completeGoalTask / 2));
       track(EVENTS.sparkThreadPulled, { direction, depth: thread.length });

@@ -40,6 +40,12 @@ export interface FeatureFlags {
   priorityAdjust: boolean;
   /** P5: autonomous calendar-aware orchestration suggestions. */
   orchestration: boolean;
+  /** Explore redesign: "Chasing now" — model-surfaced live questions grounded in real exploration signal. */
+  exploreChasing: boolean;
+  /** Explore redesign: "Pull thread" runs a tool-use agent grounded in the user's real exploration history (vs. single-shot confabulation). */
+  exploreAgenticThread: boolean;
+  /** Explore redesign: "The frontier" — model picks the most fertile UNEXPLORED edge between the user's interests (replaces the Discover grid). */
+  exploreFrontier: boolean;
   /** Profile: upload a photo → AI-generated gamified avatar (nano banana). Paid image-gen — off until billing is enabled. */
   profileAvatarGen: boolean;
 }
@@ -60,6 +66,9 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   memoryGraph: false,
   priorityAdjust: false,
   orchestration: false,
+  exploreChasing: false,
+  exploreAgenticThread: false,
+  exploreFrontier: false,
   profileAvatarGen: false,
 });
 
