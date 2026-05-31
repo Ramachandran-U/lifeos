@@ -34,8 +34,12 @@ module.exports = {
         '^@react-native-async-storage/async-storage$': '<rootDir>/jest.mocks/async-storage.ts',
       },
       transform: {
-        '^.+\\.tsx?$': ['ts-jest', { tsconfig: { jsx: 'react', isolatedModules: true } }],
+        '^.+\\.[jt]sx?$': ['ts-jest', { tsconfig: { jsx: 'react', isolatedModules: true, allowJs: true } }],
       },
+      // @noble/{ciphers,hashes} ship pure ESM with no CJS build, so the
+      // ts-jest/CJS node suite must transform them (everything else in
+      // node_modules stays ignored).
+      transformIgnorePatterns: ['/node_modules/(?!@noble/)'],
       testPathIgnorePatterns: [...IGNORE, '/app/', '/src/components/'],
     },
     {
