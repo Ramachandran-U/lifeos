@@ -34,9 +34,13 @@ import type { Interest } from '@/db/queries/interests';
 import type { ExplorationDepth } from '@/ai/types';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { useRouter } from 'expo-router';
-import { format } from 'date-fns';
+import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { isEnabled } from '@/config/flags';
 import { SparkHeroCard } from '@/components/modules/polymath/SparkHeroCard';
+import { ChasingNowCard } from '@/components/modules/polymath/ChasingNowCard';
+import { generateChasingNow, type ChasingSignal, type ChasingThread } from '@/explore/chasing';
+import { FrontierCard } from '@/components/modules/polymath/FrontierCard';
+import { generateFrontier, type Frontier } from '@/explore/frontier';
 import { ExpeditionProgressRow } from '@/components/modules/polymath/ExpeditionProgressRow';
 import { ConstellationView } from '@/components/modules/polymath/ConstellationView';
 import { generateDailySpark, type Spark } from '@/explore/spark';
@@ -72,6 +76,7 @@ export default function ExploreScreen() {
   const { userId } = useUserStore();
   const {
     interests,
+    log,
     load,
     addInterest,
     editInterest,
@@ -94,6 +99,13 @@ export default function ExploreScreen() {
   const { call: callSuggestions, loading: suggestionsLoading } = useAI();
   const { call: callCross, loading: crossLoading } = useAI();
   const router = useRouter();
+
+  // ─── Explore redesign: "Chasing now" live questions ────────────────────
+  const [chasingThreads, setChasingThreads] = useState<ChasingThread[] | null>(null);
+
+  // ─── Explore redesign: "The frontier" — best unexplored edge ────────────
+  const [frontier, setFrontier] = useState<Frontier | null>(null);
+  const frontierEnabled = isEnabled('exploreFrontier');
 
   // ─── Explore v2: sparks + expeditions + constellation ──────────────────
   const [todaySpark, setTodaySpark] = useState<Spark | null>(null);
@@ -146,6 +158,67 @@ export default function ExploreScreen() {
       setExpeditionData(loaded);
     }, [userId, load, interests.length]),
   );
+
+  // Generate "Chasing now" once interests are loaded (once per mount), grounded
+  // in the user's real exploration signal — interests + recently-logged sessions
+  // (minutes + their own notes). An empty result is valid (thin signal).
+  useEffect(() => {
+    if (!userId || !isEnabled('exploreChasing')) return;
+    if (chasingThreads !== null) return;
+    if (interests.length === 0) return;
+    const idToName = new Map(interests.map((i) => [i.id, i.name] as const));
+    const today = new Date();
+    const signal: ChasingSignal = {
+      interests: interests.map((i) => ({
+        name: i.name,
+        category: i.category,
+        explorationDepth: i.explorationDepth,
+      })),
+      recentExploration: log
+        .filter((e) => differenceInCalendarDays(today, parseISO(e.date)) <= 14)
+        .map((e) => ({
+          interest: idToName.get(e.interestId) ?? 'unknown',
+          minutes: e.minutesSpent,
+          notes: e.notes ?? undefined,
+          daysAgo: Math.max(0, differenceInCalendarDays(today, parseISO(e.date))),
+        })),
+    };
+    generateChasingNow(signal)
+      .then((threads) => {
+        setChasingThreads(threads);
+        if (threads.length > 0) track(EVENTS.chasingShown, { count: threads.length });
+      })
+      .catch(() => setChasingThreads([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, interests.length, log.length]);
+
+  // Generate "The frontier" once interests are loaded — the single most fertile
+  // unexplored edge between two interests the user already has. Needs at least
+  // two interests; a null result (no honest edge) is valid.
+  useEffect(() => {
+    if (!userId || !frontierEnabled) return;
+    if (frontier !== null) return;
+    if (interests.length < 2) return;
+    const today = new Date();
+    const recentById = new Map<string, number>();
+    log
+      .filter((e) => differenceInCalendarDays(today, parseISO(e.date)) <= 14)
+      .forEach((e) => recentById.set(e.interestId, (recentById.get(e.interestId) ?? 0) + e.minutesSpent));
+    generateFrontier({
+      interests: interests.map((i) => ({
+        name: i.name,
+        category: i.category,
+        explorationDepth: i.explorationDepth,
+        recentMinutes: recentById.get(i.id) ?? 0,
+      })),
+    })
+      .then((f) => {
+        setFrontier(f);
+        if (f) track(EVENTS.frontierShown, { a: f.interestA, b: f.interestB });
+      })
+      .catch(() => setFrontier(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, frontierEnabled, interests.length, log.length]);
 
   const totals = useMemo(() => weeklyMinutes(), [weeklyMinutes, interests]);
   const totalMinutesWeek = useMemo(
@@ -330,6 +403,41 @@ export default function ExploreScreen() {
     if (action === 'dismiss') track(EVENTS.sparkDismissed, {});
   }, [todaySpark, userId, addXP, triggerStreak, router]);
 
+  // ─── Chasing-now actions ─────────────────────────────────────────────────────
+  const handlePullThread = useCallback((thread: ChasingThread) => {
+    if (!userId) return;
+    track(EVENTS.chasingThreadPulled, { seedInterest: thread.seedInterest });
+    triggerStreak(userId, 'learning');
+    track(EVENTS.curiosityStreakDay, {});
+    router.push({
+      pathname: '/rabbit-hole',
+      params: {
+        seedTitle: thread.question,
+        seedBody: thread.rationale,
+        seedInterest: thread.seedInterest,
+      },
+    });
+  }, [userId, router, triggerStreak]);
+
+  const handleDismissThread = useCallback((thread: ChasingThread) => {
+    setChasingThreads((prev) => (prev ? prev.filter((t) => t.question !== thread.question) : prev));
+  }, []);
+
+  const handleExploreFrontier = useCallback((f: Frontier) => {
+    if (!userId) return;
+    track(EVENTS.frontierExplored, { a: f.interestA, b: f.interestB });
+    triggerStreak(userId, 'learning');
+    track(EVENTS.curiosityStreakDay, {});
+    router.push({
+      pathname: '/rabbit-hole',
+      params: {
+        seedTitle: f.headline,
+        seedBody: f.insight,
+        seedInterest: f.interestA,
+      },
+    });
+  }, [userId, router, triggerStreak]);
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   const discoverAreas = useMemo(
@@ -345,6 +453,17 @@ export default function ExploreScreen() {
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
           <ModuleHeader title="Explore" domain="polymath" color={c.polymath} />
+
+          {/* ─── Explore redesign: Chasing now (live questions) ─── */}
+          {isEnabled('exploreChasing') && chasingThreads && chasingThreads.length > 0 && (
+            <Animated.View entering={FadeInDown.duration(400)}>
+              <ChasingNowCard
+                threads={chasingThreads}
+                onPull={handlePullThread}
+                onDismiss={handleDismissThread}
+              />
+            </Animated.View>
+          )}
 
           {/* ─── Explore v2: Spark hero ─── */}
           {todaySpark && (
@@ -379,24 +498,37 @@ export default function ExploreScreen() {
             />
           ) : null}
 
-          <View style={styles.listHeader}>
-            <Label>DISCOVER</Label>
-            <Pressable onPress={fetchSuggestions} hitSlop={6}>
-              <Ionicons
-                name="refresh"
-                size={16}
-                color={suggestionsLoading ? c.textMuted : c.polymath}
-              />
-            </Pressable>
-          </View>
-          {suggestions && discoverAreas ? (
-            <Caption style={{ color: c.textMuted }}>
-              Personalised from your {suggestions.basedOnInterestIds.length} active interests.
-            </Caption>
-          ) : suggestionsLoading ? (
-            <Caption style={{ color: c.textMuted }}>Generating suggestions…</Caption>
-          ) : null}
-          <DiscoverGrid onPick={handlePickArea} areas={discoverAreas} />
+          {/* ─── Explore redesign: The frontier (replaces the Discover grid) ─── */}
+          {frontierEnabled && frontier && (
+            <Animated.View entering={FadeInDown.duration(400)}>
+              <FrontierCard frontier={frontier} onExplore={handleExploreFrontier} />
+            </Animated.View>
+          )}
+
+          {/* Discover grid — adjacent topics to add. Hidden when the frontier
+              (the gap BETWEEN existing interests) is the discovery surface. */}
+          {!frontierEnabled && (
+            <>
+              <View style={styles.listHeader}>
+                <Label>DISCOVER</Label>
+                <Pressable onPress={fetchSuggestions} hitSlop={6}>
+                  <Ionicons
+                    name="refresh"
+                    size={16}
+                    color={suggestionsLoading ? c.textMuted : c.polymath}
+                  />
+                </Pressable>
+              </View>
+              {suggestions && discoverAreas ? (
+                <Caption style={{ color: c.textMuted }}>
+                  Personalised from your {suggestions.basedOnInterestIds.length} active interests.
+                </Caption>
+              ) : suggestionsLoading ? (
+                <Caption style={{ color: c.textMuted }}>Generating suggestions…</Caption>
+              ) : null}
+              <DiscoverGrid onPick={handlePickArea} areas={discoverAreas} />
+            </>
+          )}
 
           <View style={styles.listHeader}>
             <Label>YOUR INTERESTS</Label>

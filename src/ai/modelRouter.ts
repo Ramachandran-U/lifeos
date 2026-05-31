@@ -44,7 +44,9 @@ export type AITask =
   | 'generateConversationStarters'
   | 'suggestInterestAreas'
   | 'suggestCrossDisciplineLink'
+  | 'frontier'
   | 'generateDailySpark'
+  | 'chasingNow'
   | 'generateExpedition'
   | 'generateRabbitHoleNode'
   | 'generateMonthlyInsightReport'
@@ -59,7 +61,8 @@ export type AITask =
   | 'agent.brief'
   | 'agent.goal.propose'
   | 'agent.goal.critique'
-  | 'agent.whatNext';
+  | 'agent.whatNext'
+  | 'agent.exploreThread';
 
 const TASK_TIER: Record<AITask, Tier> = {
   categorizeMerchant: 'cheap',
@@ -69,7 +72,9 @@ const TASK_TIER: Record<AITask, Tier> = {
   generateConversationStarters: 'cheap',
   suggestInterestAreas: 'planning',
   suggestCrossDisciplineLink: 'planning',
+  frontier: 'planning', // ranks the best unexplored edge across all interests — reasoning-ish
   generateDailySpark: 'cheap', // one short call per day — keep it cheap
+  chasingNow: 'planning', // synthesises real history into live questions — quality is the whole point
   generateExpedition: 'planning', // structure matters — worth the better model
   generateRabbitHoleNode: 'cheap', // short interactive calls; cost adds up if user pulls 10 threads
   generateMonthlyInsightReport: 'planning',
@@ -100,6 +105,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   'agent.goal.critique': 'planning',
   // Tool-use loop: needs the better model to choose tools + synthesise well.
   'agent.whatNext': 'planning',
+  // Exploration tool-loop: grounds the next thread in the user's real history.
+  'agent.exploreThread': 'planning',
 
   parseBloodReport: 'reasoning',
 };
