@@ -118,6 +118,16 @@ function applyState(entity: string, entityId: string, state: EntitySnapshot): vo
   }
 }
 
+/**
+ * Apply a materialized state to an entity's local table WITHOUT logging a
+ * mutation (echo-safe). Exposed for version-history restore (src/sync/history.ts),
+ * which writes the as-of state here and records the restore as its own auditable
+ * mutation separately.
+ */
+export function applyEntityState(entity: string, entityId: string, state: EntitySnapshot): void {
+  applyState(entity, entityId, state);
+}
+
 // ── goals (soft-delete on tombstone) ────────────────────────────────────────
 function applyGoal(id: string, state: EntitySnapshot): void {
   if (state === null) {
