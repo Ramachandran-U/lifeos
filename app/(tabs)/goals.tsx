@@ -18,6 +18,7 @@ import { GoalDetailSheet } from '@/components/modules/goals/GoalDetailSheet';
 import { MotivationBanner } from '@/components/shared/MotivationBanner';
 import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
+import { useGameStore } from '@/store/useGameStore';
 import { updateGoalStatus } from '@/db/queries/goals';
 import { listGoalComments } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
@@ -31,6 +32,7 @@ export default function GoalsScreen() {
   const getTypeColor = useGoalTypeColor();
   const { userId } = useUserStore();
   const { goals, loadGoals } = useGoalStore();
+  const completeGoalNode = useGameStore((s) => s.completeGoalNode);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
@@ -107,7 +109,11 @@ export default function GoalsScreen() {
   };
 
   const handleCompleteTask = (id: string) => {
+    const goal = goals.find((g) => g.id === id);
+    if (goal?.status === 'completed') return; // don't double-score a re-tap
     updateGoalStatus(id, 'completed');
+    // Completing any goal node now moves its domain (and thus the Life Score).
+    if (goal && userId) completeGoalNode(userId, goal.goalType, goal.level);
     if (userId) loadGoals(userId);
   };
 

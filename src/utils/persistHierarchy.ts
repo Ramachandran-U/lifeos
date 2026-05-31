@@ -7,9 +7,18 @@ type CreateGoalFn = (data: {
   goalType: string;
   parentId?: string;
   level: string;
+  timeline?: string;
   aiGenerated?: boolean;
   metadata?: string;
 }) => string;
+
+export interface PersistHierarchyOptions {
+  /** User-chosen horizon (e.g. "6 months"). Stamped on the life goal so the UI
+   *  shows the user's own timeline instead of an AI-imposed one. */
+  timeline?: string;
+  /** Override the goal domain the AI inferred (user re-tagged it in the sheet). */
+  goalType?: string;
+}
 
 export interface PersistResult {
   lifeId: string;
@@ -28,12 +37,17 @@ export function persistHierarchy(
   userId: string,
   h: GoalHierarchy,
   createGoal: CreateGoalFn,
+  opts: PersistHierarchyOptions = {},
 ): PersistResult {
+  // The user may re-tag the domain in the sheet; fall back to the AI's guess.
+  const goalType = opts.goalType ?? h.primaryGoal.type;
+
   const lifeId = createGoal({
     userId,
     title: h.primaryGoal.title,
-    goalType: h.primaryGoal.type,
+    goalType,
     level: 'life',
+    timeline: opts.timeline,
     aiGenerated: true,
   });
 
@@ -41,7 +55,7 @@ export function persistHierarchy(
     userId,
     title: h.yearly.title,
     description: h.yearly.milestone,
-    goalType: h.primaryGoal.type,
+    goalType,
     parentId: lifeId,
     level: 'yearly',
     aiGenerated: true,
@@ -52,7 +66,7 @@ export function persistHierarchy(
       userId,
       title: m.title,
       description: m.milestone,
-      goalType: h.primaryGoal.type,
+      goalType,
       parentId: yearlyId,
       level: 'monthly',
       aiGenerated: true,
@@ -65,7 +79,7 @@ export function persistHierarchy(
       userId,
       title: w.focus,
       description: w.tasks.join('\n'),
-      goalType: h.primaryGoal.type,
+      goalType,
       parentId: monthlyIds[0] ?? yearlyId,
       level: 'weekly',
       aiGenerated: true,
@@ -78,7 +92,7 @@ export function persistHierarchy(
     createGoal({
       userId,
       title: task,
-      goalType: h.primaryGoal.type,
+      goalType,
       parentId: weeklyParent,
       level: 'daily',
       aiGenerated: true,
