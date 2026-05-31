@@ -72,6 +72,18 @@ export function webSoftDeleteGoal(id: string): void {
   save(GOALS_KEY, all);
 }
 
+export function webGetDeletedGoals(userId: string): WebGoal[] {
+  return load<WebGoal>(GOALS_KEY).filter((g) => g.userId === userId && !!g.deletedAt);
+}
+
+export function webRestoreGoal(id: string): void {
+  const all = load<WebGoal>(GOALS_KEY);
+  const idx = all.findIndex((g) => g.id === id);
+  if (idx === -1) return;
+  all[idx] = { ...all[idx], deletedAt: undefined, updatedAt: new Date().toISOString() };
+  save(GOALS_KEY, all);
+}
+
 export function webSetGoalPriorities(updates: { id: string; priority: number }[]): void {
   const all = load<WebGoal>(GOALS_KEY);
   const byId = new Map(updates.map((u) => [u.id, u.priority]));
