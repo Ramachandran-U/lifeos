@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '../index';
 import { goals } from '../schema';
@@ -12,6 +12,8 @@ import {
   webUpdateGoalDescription,
   webSoftDeleteGoal,
   webSetGoalPriorities,
+  webGetDeletedGoals,
+  webRestoreGoal,
   type WebGoal,
 } from '../webStorage';
 import { recordMutation } from '@/sync/runtime';
@@ -166,4 +168,25 @@ export function softDeleteGoal(id: string) {
   }
   // Soft-delete is logged as 'delete' so replay/sync treats it as a tombstone.
   recordMutation({ entity: 'goals', entityId: id, op: 'delete', before, after: null });
+}
+
+/** Soft-deleted goals for a user (most recent edit first), for the restore UI. */
+export function getDeletedGoals(userId: string) {
+  if (isWeb) return webGetDeletedGoals(userId);
+  return db.select().from(goals)
+    .where(and(eq(goals.userId, userId), isNotNull(goals.deletedAt)))
+    .all();
+}
+
+/** Undo a soft-delete: clear deletedAt. Recorded as an update that clears the
+ *  tombstone, so it resurrects on fold and syncs to other devices. */
+export function restoreGoal(id: string) {
+  const before = readGoalSnapshot(id);
+  const now = new Date().toISOString();
+  if (isWeb) {
+    webRestoreGoal(id);
+  } else {
+    db.update(goals).set({ deletedAt: null, updatedAt: now }).where(eq(goals.id, id)).run();
+  }
+  recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), deletedAt: null, updatedAt: now } });
 }

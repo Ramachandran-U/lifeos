@@ -20,7 +20,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useSyncStore } from '@/store/useSyncStore';
-import { updateGoalStatus } from '@/db/queries/goals';
+import { updateGoalStatus, getDeletedGoals, restoreGoal } from '@/db/queries/goals';
 import { listGoalComments } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -41,10 +41,15 @@ export default function GoalsScreen() {
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [deletedGoals, setDeletedGoals] = useState<GoalLike[]>([]);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) loadGoals(userId);
+      if (userId) {
+        loadGoals(userId);
+        setDeletedGoals(getDeletedGoals(userId));
+      }
     }, [userId, loadGoals, syncTick])
   );
 
@@ -119,6 +124,14 @@ export default function GoalsScreen() {
     // Completing any goal node now moves its domain (and thus the Life Score).
     if (goal && userId) completeGoalNode(userId, goal.goalType, goal.level);
     if (userId) loadGoals(userId);
+  };
+
+  const handleRestore = (id: string) => {
+    restoreGoal(id);
+    if (userId) {
+      loadGoals(userId);
+      setDeletedGoals(getDeletedGoals(userId));
+    }
   };
 
   const detailGoal = detailGoalId ? goals.find((g) => g.id === detailGoalId) : null;
@@ -262,6 +275,47 @@ export default function GoalsScreen() {
             )}
           </View>
         )}
+
+        {deletedGoals.length > 0 && (
+          <View style={styles.section}>
+            <Pressable
+              style={styles.achievementsHeader}
+              onPress={() => setShowDeleted((s) => !s)}
+            >
+              <Ionicons name="trash-outline" size={18} color={c.textMuted} />
+              <Body style={[styles.sectionTitle, { flex: 1, marginBottom: 0 }]}>
+                Recently deleted · {deletedGoals.length}
+              </Body>
+              <Ionicons name={showDeleted ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
+            </Pressable>
+            {showDeleted && (
+              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                {deletedGoals.map((g) => {
+                  const tc = getTypeColor(g.goalType);
+                  return (
+                    <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                      <View style={{ flex: 1 }}>
+                        <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
+                        <Caption style={{ color: c.textMuted }}>
+                          {g.level.charAt(0).toUpperCase() + g.level.slice(1)}
+                          {g.deletedAt ? ` · deleted ${g.deletedAt.slice(0, 10)}` : ''}
+                        </Caption>
+                      </View>
+                      <Pressable
+                        onPress={() => handleRestore(g.id)}
+                        style={[styles.restoreBtn, { borderColor: c.goal }]}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="arrow-undo" size={16} color={c.goal} />
+                        <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>Restore</Caption>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       <Pressable style={styles.fab} onPress={() => setShowAddSheet(true)}>
@@ -320,6 +374,11 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     achievementRow: {
       flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
       padding: spacing.md, borderRadius: 12, borderLeftWidth: 3,
+    },
+    restoreBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+      paddingVertical: spacing.xs, paddingHorizontal: spacing.sm,
+      borderRadius: 10, borderWidth: 1,
     },
     nodeWrap: { gap: spacing.sm },
     nodeRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
