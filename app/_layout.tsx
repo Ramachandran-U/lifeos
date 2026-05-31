@@ -19,6 +19,7 @@ import { RewardOrchestrator } from '@/components/gamification/RewardOrchestrator
 import { useGameStore } from '@/store/useGameStore';
 import { useFlagStore } from '@/store/useFlagStore';
 import { usePromptStore } from '@/store/usePromptStore';
+import { syncEngine } from '@/sync/engine';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -83,9 +84,15 @@ export default function RootLayout() {
         setAvatarUri((user as { avatarUri?: string | null }).avatarUri ?? null);
       }
       // Fetch admin-portal-managed feature flags. Non-blocking — fallback
-      // values cover the case where the worker is unreachable.
-      useFlagStore.getState().fetchFlags().catch(() => {});
+      // values cover the case where the worker is unreachable. Trigger a sync
+      // drain once flags resolve, so a freshly-enabled sync engine pushes the
+      // backlog immediately rather than waiting for the next periodic tick.
+      useFlagStore.getState().fetchFlags().then(() => { void syncEngine.flush(); }).catch(() => {});
       usePromptStore.getState().fetchPrompts().catch(() => {});
+
+      // Start the sync outbox drain (P1-T5). No-ops unless sync_engine_enabled
+      // && mutation_log_enabled && signed-in; safe to call on every boot.
+      syncEngine.start();
 
       setDbReady(true);
     }
@@ -99,6 +106,11 @@ export default function RootLayout() {
       if (event === 'SIGNED_OUT') {
         setWebSession(null);
         useUserStore.getState().reset();
+        syncEngine.stop();
+      } else if (event === 'SIGNED_IN') {
+        // Restart the drain after an in-session sign-in (start() is idempotent
+        // and gated, so this is a no-op if it's already running).
+        syncEngine.start();
       }
     });
     return () => listener.subscription.unsubscribe();

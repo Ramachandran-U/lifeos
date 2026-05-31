@@ -49,6 +49,7 @@ import type { DailyBriefingInput } from '@/ai/types';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
+import { useSyncStore } from '@/store/useSyncStore';
 import { AvatarRing } from '@/components/gamification/AvatarRing';
 import { HexRadar } from '@/components/gamification/HexRadar';
 import { XpBar } from '@/components/gamification/XpBar';
@@ -209,6 +210,10 @@ export default function TodayScreen() {
 
   const prog = useMemo(() => xpProgressInLevel(totalXP), [totalXP]);
 
+  // Re-run the loader when the sync engine applies a remote pull (Increment 3),
+  // so synced data (goals, today's routine) repaints without a manual reload.
+  const syncTick = useSyncStore((s) => s.appliedTick);
+
   useFocusEffect(useCallback(() => {
     loadData();
     setCalConnected(isCalendarConnected());
@@ -229,7 +234,7 @@ export default function TodayScreen() {
         }
       }).catch(() => { /* non-fatal */ });
     }
-  }, [loadData, onboardingV2, userId]));
+  }, [loadData, onboardingV2, userId, syncTick]));
 
   const handleComplete = (blockId: string) => {
     const block = blocks.find(b => b.id === blockId);

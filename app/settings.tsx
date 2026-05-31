@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
+import { SyncStatus } from '@/components/shared/SyncStatus';
 import { useUserStore } from '@/store/useUserStore';
 import { getUser, updateUser } from '@/db/queries/users';
 import { db } from '@/db';
@@ -121,6 +122,11 @@ export default function SettingsScreen() {
           <Body style={styles.infoText}>
             Mode: {process.env.ANTHROPIC_API_KEY ? 'API Key' : process.env.USE_AI_MOCK === 'true' ? 'Mock Mode' : 'CLI Proxy'}
           </Body>
+        </Card>
+
+        <Card style={styles.section}>
+          <Label>Sync</Label>
+          <SyncStatus />
         </Card>
 
         <Card style={styles.section}>

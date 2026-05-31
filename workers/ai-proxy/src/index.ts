@@ -19,6 +19,7 @@ import { handleAdminUsers } from './routes/admin/users';
 import { handlePrompts } from './routes/prompts';
 import { handleGoogleToken } from './routes/googleToken';
 import { handleTelemetry } from './routes/telemetry';
+import { handleSyncPush, handleSyncPull } from './routes/sync';
 import { requireAdmin } from './lib/adminAuth';
 
 export interface Env {
@@ -42,6 +43,9 @@ export interface Env {
   MAX_TOKENS_CAP?: string;
   DAILY_CHATBOT_LIMIT: string;
   DAILY_VOICE_MINUTES_LIMIT: string;
+  /** Daily per-user cap for sync push/pull requests. Generous; abuse backstop
+   *  only. Defaults to 10000 when unset. */
+  DAILY_SYNC_LIMIT?: string;
   ALLOWED_ORIGINS: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
@@ -301,6 +305,31 @@ export default {
         return await handlePushRegister(req, env, corsHeaders(req, env));
       } catch (e) {
         return jsonError(500, e instanceof Error ? e.message : 'push register error', req, env);
+      }
+    }
+
+    // Cross-device sync (P1-T5). userId is the verified jwt.sub; the handlers
+    // force every stored/queried row to it, so a client cannot reach another
+    // user's stream. One generous daily bucket guards against abuse.
+    if (url.pathname === '/v1/sync/push' && req.method === 'POST') {
+      const limit = Number(env.DAILY_SYNC_LIMIT) || 10000;
+      const ok = await checkAndIncrement(env.RATE_LIMIT, `sync:${userId}`, limit);
+      if (!ok) return jsonError(429, 'daily sync limit reached', req, env);
+      try {
+        return await handleSyncPush(req, env, userId, corsHeaders(req, env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'sync push error', req, env);
+      }
+    }
+
+    if (url.pathname === '/v1/sync/pull' && req.method === 'GET') {
+      const limit = Number(env.DAILY_SYNC_LIMIT) || 10000;
+      const ok = await checkAndIncrement(env.RATE_LIMIT, `sync:${userId}`, limit);
+      if (!ok) return jsonError(429, 'daily sync limit reached', req, env);
+      try {
+        return await handleSyncPull(req, env, userId, corsHeaders(req, env));
+      } catch (e) {
+        return jsonError(500, e instanceof Error ? e.message : 'sync pull error', req, env);
       }
     }
 

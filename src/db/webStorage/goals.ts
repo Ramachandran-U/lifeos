@@ -54,6 +54,16 @@ export function webUpdateGoalDescription(id: string, description: string): void 
   save(GOALS_KEY, all);
 }
 
+/** Upsert a full goal row by id. Used by the sync reducer to apply remote
+ *  state — it must NOT touch updatedAt or record a mutation (echo-safe). */
+export function webUpsertGoalById(goal: WebGoal): void {
+  const all = load<WebGoal>(GOALS_KEY);
+  const idx = all.findIndex((g) => g.id === goal.id);
+  if (idx === -1) all.push(goal);
+  else all[idx] = goal;
+  save(GOALS_KEY, all);
+}
+
 export function webSoftDeleteGoal(id: string): void {
   const all = load<WebGoal>(GOALS_KEY);
   const idx = all.findIndex((g) => g.id === id);

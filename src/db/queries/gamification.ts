@@ -9,6 +9,7 @@ import {
   webUpdateGamification,
   type WebGamification,
 } from '../webStorage';
+import { recordMutation } from '@/sync/runtime';
 
 const isWeb = Platform.OS === 'web';
 
@@ -81,12 +82,26 @@ export function updateGamification(userId: string, data: Partial<{
   totalXP: number;
   weeklyXP: number;
 }>) {
+  // Read the full row first so the mutation carries a complete snapshot, then
+  // apply, then log. Gamification is a per-user SINGLETON, so the sync entityId
+  // is the userId (not the random per-device row id) — otherwise two devices'
+  // rows would never merge. The merge is a CRDT (see mergeGamification).
+  const before = getOrCreateGamification(userId);
+  const now = new Date().toISOString();
   if (isWeb) {
     webUpdateGamification(userId, data);
-    return;
+  } else {
+    db.update(gamification)
+      .set({ ...data, updatedAt: now })
+      .where(eq(gamification.userId, userId))
+      .run();
   }
-  db.update(gamification)
-    .set({ ...data, updatedAt: new Date().toISOString() })
-    .where(eq(gamification.userId, userId))
-    .run();
+  const after = { ...(before as unknown as Record<string, unknown>), ...data, updatedAt: now };
+  recordMutation({
+    entity: 'gamification',
+    entityId: userId,
+    op: 'update',
+    before: before as unknown as Record<string, unknown>,
+    after,
+  });
 }

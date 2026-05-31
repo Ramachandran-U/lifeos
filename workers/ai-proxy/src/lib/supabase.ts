@@ -43,6 +43,27 @@ export async function pgInsert<T>(
   return rows[0];
 }
 
+/**
+ * Idempotent batch insert. On a primary-key conflict the row is ignored
+ * (`resolution=ignore-duplicates`) rather than erroring — so re-pushing an
+ * already-stored mutation is a safe no-op. `return=minimal` skips the response
+ * body. Pass the rows as an array.
+ */
+export async function pgUpsert(
+  env: SupabaseEnv,
+  table: string,
+  rows: unknown[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  const url = `${env.SUPABASE_URL}/rest/v1/${table}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: headers(env, { Prefer: 'resolution=ignore-duplicates,return=minimal' }),
+    body: JSON.stringify(rows),
+  });
+  if (!res.ok) throw new Error(`supabase upsert ${table}: ${res.status} ${await res.text()}`);
+}
+
 export async function pgUpdate<T>(
   env: SupabaseEnv,
   table: string,

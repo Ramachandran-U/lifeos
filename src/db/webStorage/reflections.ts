@@ -21,6 +21,16 @@ export function webUpsertReflection(r: WebDailyReflection): void {
   save(REFLECTIONS_KEY, all);
 }
 
+/** Upsert a reflection row by id (the sync reducer applies remote state by id,
+ *  not by date — echo-safe, records no mutation). */
+export function webUpsertReflectionById(r: WebDailyReflection): void {
+  const all = load<WebDailyReflection>(REFLECTIONS_KEY);
+  const idx = all.findIndex((x) => x.id === r.id);
+  if (idx === -1) all.push(r);
+  else all[idx] = r;
+  save(REFLECTIONS_KEY, all);
+}
+
 export function webGetReflectionByDate(date: string): WebDailyReflection | undefined {
   return load<WebDailyReflection>(REFLECTIONS_KEY).find((r) => r.date === date);
 }
