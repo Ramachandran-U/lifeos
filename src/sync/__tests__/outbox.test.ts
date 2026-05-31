@@ -67,7 +67,7 @@ describe('web sync outbox', () => {
     expect(limited.map((r) => r.id)).toEqual(['1', '2']);
 
     // The web-only syncState marker must not leak into handed-out records.
-    expect((all[0] as Record<string, unknown>).syncState).toBeUndefined();
+    expect((all[0] as { syncState?: unknown }).syncState).toBeUndefined();
   });
 
   test('markSynced removes records from the pending set and is idempotent', async () => {
