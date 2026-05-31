@@ -295,6 +295,7 @@ export default function CareerScreen() {
         <View style={s.formGap}>
           <Input
             label="Current role"
+            accessibilityLabel="Current role"
             rotatingPlaceholders={CURRENT_ROLE_PLACEHOLDERS}
             value={currentRole}
             onChangeText={setCurrentRole}
@@ -302,6 +303,7 @@ export default function CareerScreen() {
 
           <Input
             label="Target role"
+            accessibilityLabel="Target role"
             rotatingPlaceholders={TARGET_ROLE_PLACEHOLDERS}
             value={targetRole}
             onChangeText={setTargetRole}
@@ -339,6 +341,7 @@ export default function CareerScreen() {
               <View style={s.skillInputWrap}>
                 <TextInput
                   style={[s.skillTextInput, s.skillInputFlush, { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary }]}
+                  accessibilityLabel="Current skills"
                   placeholderTextColor={c.textMuted}
                   value={skillInput}
                   onChangeText={setSkillInput}

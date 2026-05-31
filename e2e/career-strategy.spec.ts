@@ -10,11 +10,13 @@ test.describe('Career Strategist E2E', () => {
     await page.goto('/career');
     await expect(page.getByText('NEW CAREER PATH')).toBeVisible();
 
-    await page.getByPlaceholder('e.g. Software Engineer').fill('Data Analyst');
-    await page.getByPlaceholder('e.g. Engineering Manager').fill('ML Engineer');
+    // These inputs use rotating (animated) placeholders, so there's no static
+    // placeholder to target — locate them by their accessibility label instead.
+    await page.getByLabel('Current role').fill('Data Analyst');
+    await page.getByLabel('Target role').fill('ML Engineer');
 
-    await page.getByPlaceholder('e.g. JavaScript').fill('Python');
-    await page.getByPlaceholder('e.g. JavaScript').press('Enter');
+    await page.getByLabel('Current skills').fill('Python');
+    await page.getByLabel('Current skills').press('Enter');
 
     await page.getByText('Analyse my career path', { exact: true }).click();
 
