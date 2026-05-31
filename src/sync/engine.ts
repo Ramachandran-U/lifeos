@@ -199,7 +199,9 @@ export async function pullRemote(): Promise<PullResult> {
       }
       increment('sync.mutations.applied', {}, applied);
       increment('sync.pull.ok');
-      // Reactive signal so focused screens repaint without a manual reload.
+      // Reached the server cleanly → mark synced; bump the repaint signal only
+      // if something actually changed.
+      useSyncStore.getState().noteSynced();
       if (applied > 0) useSyncStore.getState().markApplied(applied);
       return { applied };
     });
@@ -211,11 +213,18 @@ export async function pullRemote(): Promise<PullResult> {
   }
 }
 
-/** Fire-and-forget drain (push then pull) — timer / foreground / boot trigger. */
+/** Fire-and-forget drain (push then pull) — timer / foreground / boot trigger.
+ *  Also drives the status pill's phase via useSyncStore. */
 function drain(): void {
   void (async () => {
+    const store = useSyncStore.getState();
+    if (!isEnabled()) { store.setPhase('disabled'); return; }
+    if (!useUserStore.getState().userId) { store.setPhase('signed_out'); return; }
+    store.setPhase('pushing');
     await pushPending();
-    await pullRemote();
+    store.setPhase('pulling');
+    await pullRemote(); // records lastSyncedAt on a successful round
+    store.setPhase('idle');
   })();
 }
 
