@@ -130,9 +130,73 @@ export function mergeGamification(a: Snapshot, b: Snapshot): Snapshot {
   };
 }
 
+function minIso(a: unknown, b: unknown): string {
+  const sa = String(a ?? '');
+  const sb = String(b ?? '');
+  if (!sa) return sb;
+  if (!sb) return sa;
+  return sa <= sb ? sa : sb;
+}
+
+function maxIso(a: unknown, b: unknown): string {
+  const sa = String(a ?? '');
+  const sb = String(b ?? '');
+  return sa >= sb ? sa : sb;
+}
+
+/**
+ * interests: document-shaped except `weeklyMinutesActual` is an accumulating
+ * counter → max (logging time on two devices never loses minutes). `b` is the
+ * later snapshot in fold order, so its (possibly partial) changed fields win
+ * via the spread — incl. `status`, which carries the soft-delete tombstone
+ * 'deleted'. Spread-merge tolerates partial update snapshots, so interest
+ * writes don't need a full before-read.
+ */
+export function mergeInterests(a: Snapshot, b: Snapshot): Snapshot {
+  return {
+    ...a,
+    ...b,
+    weeklyMinutesActual: Math.max(Number(a.weeklyMinutesActual ?? 0), Number(b.weeklyMinutesActual ?? 0)),
+  };
+}
+
+const EP_STATUS_RANK: Record<string, number> = { abandoned: 0, active: 1, completed: 2 };
+
+/**
+ * expedition_progress (per-user-per-expedition): conflict-free merge mirroring
+ * mergeExpeditionProgress (src/explore/expeditions.ts) at the DB-snapshot level
+ * — `completedSteps` is a JSON string here. Never loses a completed step.
+ *   - completedSteps → sorted set union
+ *   - currentStep    → max
+ *   - status         → precedence completed > active > abandoned
+ */
+export function mergeExpeditionProgressSnapshot(a: Snapshot, b: Snapshot): Snapshot {
+  const completed = Array.from(
+    new Set([
+      ...parseJson<number[]>(a.completedSteps, []),
+      ...parseJson<number[]>(b.completedSteps, []),
+    ]),
+  ).sort((x, y) => x - y);
+  const sa = String(a.status ?? 'active');
+  const sb = String(b.status ?? 'active');
+  const status = (EP_STATUS_RANK[sa] ?? 1) >= (EP_STATUS_RANK[sb] ?? 1) ? sa : sb;
+  const completedAt = (a.completedAt as string | null) ?? (b.completedAt as string | null) ?? null;
+  return {
+    ...pickLater(a, b),
+    status,
+    currentStep: Math.max(Number(a.currentStep ?? 0), Number(b.currentStep ?? 0)),
+    completedSteps: JSON.stringify(completed),
+    startedAt: minIso(a.startedAt, b.startedAt),
+    lastActivityAt: maxIso(a.lastActivityAt, b.lastActivityAt),
+    completedAt: status === 'completed' ? completedAt : null,
+  };
+}
+
 /** Entities whose history must be merged with a CRDT instead of field-LWW. */
 const ENTITY_MERGERS: Record<string, (a: Snapshot, b: Snapshot) => Snapshot> = {
   gamification: mergeGamification,
+  interests: mergeInterests,
+  expedition_progress: mergeExpeditionProgressSnapshot,
 };
 
 /**

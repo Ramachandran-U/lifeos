@@ -22,6 +22,15 @@ export function webInsertSpark(row: WebSpark): void {
   save(SPARKS_KEY, all);
 }
 
+/** Upsert a full spark row by id — used by the sync reducer (echo-safe). */
+export function webUpsertSparkById(row: WebSpark): void {
+  const all = load<WebSpark>(SPARKS_KEY);
+  const idx = all.findIndex((s) => s.id === row.id);
+  if (idx === -1) all.push(row);
+  else all[idx] = row;
+  save(SPARKS_KEY, all);
+}
+
 export function webGetSparkByDate(userId: string, date: string): WebSpark | undefined {
   return load<WebSpark>(SPARKS_KEY).find((s) => s.userId === userId && s.date === date);
 }

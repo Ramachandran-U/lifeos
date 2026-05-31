@@ -13,6 +13,7 @@ import {
   type WebExpeditionProgress,
 } from '../webStorage';
 import type { Expedition, ExpeditionProgress, ExpeditionStep } from '@/explore/expeditions';
+import { recordMutation } from '@/sync/runtime';
 
 const isWeb = Platform.OS === 'web';
 
@@ -38,8 +39,9 @@ function progressFromWeb(r: WebExpeditionProgress): ExpeditionProgress {
 // --- definitions ---
 export function createExpedition(e: Expedition): void {
   const row: WebExpedition = { ...e, steps: JSON.stringify(e.steps) };
-  if (isWeb) { webInsertExpedition(row); return; }
-  db.insert(expeditions).values(row).run();
+  if (isWeb) { webInsertExpedition(row); }
+  else { db.insert(expeditions).values(row).run(); }
+  recordMutation({ entity: 'expeditions', entityId: e.id, op: 'insert', before: null, after: row as unknown as Record<string, unknown> });
 }
 
 export function getExpedition(id: string): Expedition | undefined {
@@ -57,15 +59,27 @@ export function listExpeditions(userId: string): Expedition[] {
 // --- progress (upsert keyed by user+expedition) ---
 export function saveExpeditionProgress(p: ExpeditionProgress): void {
   const row: WebExpeditionProgress = { ...p, completedSteps: JSON.stringify(p.completedSteps) };
-  if (isWeb) { webUpsertExpeditionProgress(row); return; }
-  const existing = db.select().from(expeditionProgress)
-    .where(and(eq(expeditionProgress.userId, p.userId), eq(expeditionProgress.expeditionId, p.expeditionId)))
-    .get();
-  if (existing) {
-    db.update(expeditionProgress).set(row).where(eq(expeditionProgress.id, existing.id)).run();
+  if (isWeb) {
+    webUpsertExpeditionProgress(row);
   } else {
-    db.insert(expeditionProgress).values(row).run();
+    const existing = db.select().from(expeditionProgress)
+      .where(and(eq(expeditionProgress.userId, p.userId), eq(expeditionProgress.expeditionId, p.expeditionId)))
+      .get();
+    if (existing) {
+      db.update(expeditionProgress).set(row).where(eq(expeditionProgress.id, existing.id)).run();
+    } else {
+      db.insert(expeditionProgress).values(row).run();
+    }
   }
+  // Per-user-per-expedition singleton → sync entityId is the composite key, so
+  // both devices' progress on the same expedition merge (CRDT, never loses a step).
+  recordMutation({
+    entity: 'expedition_progress',
+    entityId: `${p.userId}#${p.expeditionId}`,
+    op: 'update',
+    before: null,
+    after: row as unknown as Record<string, unknown>,
+  });
 }
 
 export function getExpeditionProgress(userId: string, expeditionId: string): ExpeditionProgress | undefined {

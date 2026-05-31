@@ -10,6 +10,7 @@ import {
   type WebSpark,
 } from '../webStorage';
 import type { Spark, SparkStatus } from '@/explore/spark';
+import { recordMutation } from '@/sync/runtime';
 
 const isWeb = Platform.OS === 'web';
 
@@ -21,8 +22,10 @@ const fromRow = (r: WebSpark): Spark => ({
 });
 
 export function recordSpark(s: Spark): void {
-  if (isWeb) { webInsertSpark(toRow(s)); return; }
-  db.insert(sparks).values(toRow(s)).run();
+  const row = toRow(s);
+  if (isWeb) { webInsertSpark(row); }
+  else { db.insert(sparks).values(row).run(); }
+  recordMutation({ entity: 'sparks', entityId: s.id, op: 'insert', before: null, after: row as unknown as Record<string, unknown> });
 }
 
 export function getSparkByDate(userId: string, date: string): Spark | undefined {
@@ -41,8 +44,17 @@ export function listRecentSparkTitles(userId: string, days = 14): string[] {
 }
 
 export function updateSparkStatus(id: string, status: SparkStatus, threadId?: string | null): void {
-  if (isWeb) { webUpdateSparkStatus(id, status, threadId); return; }
-  db.update(sparks)
-    .set({ status, ...(threadId !== undefined ? { threadId } : {}) })
-    .where(eq(sparks.id, id)).run();
+  if (isWeb) { webUpdateSparkStatus(id, status, threadId); }
+  else {
+    db.update(sparks)
+      .set({ status, ...(threadId !== undefined ? { threadId } : {}) })
+      .where(eq(sparks.id, id)).run();
+  }
+  recordMutation({
+    entity: 'sparks',
+    entityId: id,
+    op: 'update',
+    before: null,
+    after: { status, ...(threadId !== undefined ? { threadId } : {}) },
+  });
 }

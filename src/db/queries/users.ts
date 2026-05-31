@@ -22,6 +22,7 @@ import {
   webSetSession,
   type WebUser,
 } from '../webStorage';
+import { recordMutation } from '@/sync/runtime';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -119,15 +120,20 @@ export function updateUser(
     activatedModules: string[];
   }>,
 ): void {
+  const now = new Date().toISOString();
   if (isWeb) {
     webUpdateUser(id, data);
-    return;
+  } else {
+    const { primaryDomains, activatedModules, ...rest } = data;
+    const native: Record<string, unknown> = { ...rest, updatedAt: now };
+    if (primaryDomains !== undefined) native.primaryDomains = JSON.stringify(primaryDomains);
+    if (activatedModules !== undefined) native.activatedModules = JSON.stringify(activatedModules);
+    db.update(users).set(native).where(eq(users.id, id)).run();
   }
-  const { primaryDomains, activatedModules, ...rest } = data;
-  const native: Record<string, unknown> = { ...rest, updatedAt: new Date().toISOString() };
-  if (primaryDomains !== undefined) native.primaryDomains = JSON.stringify(primaryDomains);
-  if (activatedModules !== undefined) native.activatedModules = JSON.stringify(activatedModules);
-  db.update(users).set(native).where(eq(users.id, id)).run();
+  // Profile fields only — `data` carries no credentials (see the signature), so
+  // nothing sensitive reaches the log. Per-user singleton keyed by id; the
+  // reducer applies update-only (never creates a credential-less user row).
+  recordMutation({ entity: 'users', entityId: id, op: 'update', before: null, after: { ...data, updatedAt: now } as Record<string, unknown> });
 }
 
 export function getUserOnboardingStage(): number | undefined {

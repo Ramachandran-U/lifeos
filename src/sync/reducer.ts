@@ -18,9 +18,13 @@
  * written, so adding a new synced entity is just a new case here.
  */
 import { Platform } from 'react-native';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '@/db';
-import { goals, routineBlocks, dailyReflections, gamification } from '@/db/schema';
+import {
+  goals, routineBlocks, dailyReflections, gamification,
+  interests, explorationLog, expeditions, expeditionProgress, sparks,
+  userProfiles, users,
+} from '@/db/schema';
 import {
   webUpsertGoalById,
   webSoftDeleteGoal,
@@ -28,9 +32,21 @@ import {
   webDeleteRoutineBlockById,
   webUpsertReflectionById,
   webUpdateGamification,
+  webUpsertInterestById,
+  webUpsertExplorationById,
+  webUpsertExpeditionById,
+  webUpsertExpeditionProgress,
+  webUpsertSparkById,
+  webUpsertUserProfile,
+  webUpdateUser,
   type WebGoal,
   type WebRoutineBlock,
   type WebDailyReflection,
+  type WebInterest,
+  type WebExplorationLog,
+  type WebExpedition,
+  type WebExpeditionProgress,
+  type WebSpark,
 } from '@/db/webStorage';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getLocalSink, type LocalSink } from './sink';
@@ -41,7 +57,11 @@ import type { MutationRecord, EntitySnapshot } from './mutationLog';
 const isWeb = Platform.OS === 'web';
 
 /** Entities the reducer knows how to materialize into a local table. */
-const MATERIALIZED = new Set(['goals', 'routine_blocks', 'daily_reflections', 'gamification']);
+const MATERIALIZED = new Set([
+  'goals', 'routine_blocks', 'daily_reflections', 'gamification',
+  'interests', 'exploration_log', 'expeditions', 'expedition_progress', 'sparks',
+  'user_profiles', 'users',
+]);
 
 /**
  * Apply one pulled mutation. Returns true if it was newly applied (false ⇒
@@ -79,6 +99,20 @@ function applyState(entity: string, entityId: string, state: EntitySnapshot): vo
       return applyReflection(entityId, state);
     case 'gamification':
       return applyGamification(entityId, state);
+    case 'interests':
+      return applyInterest(state);
+    case 'exploration_log':
+      return applyExploration(state);
+    case 'expeditions':
+      return applyExpedition(state);
+    case 'expedition_progress':
+      return applyExpeditionProgress(state);
+    case 'sparks':
+      return applySpark(state);
+    case 'user_profiles':
+      return applyUserProfile(entityId, state);
+    case 'users':
+      return applyUser(entityId, state);
     default:
       return;
   }
@@ -161,4 +195,92 @@ function asJsonString(v: unknown, fallback: string): string {
   } catch {
     return fallback;
   }
+}
+
+// ── Explore: id-keyed entities (interests soft-deletes via status, never null) ──
+function applyInterest(state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) { webUpsertInterestById(state as unknown as WebInterest); return; }
+  const row = state as unknown as typeof interests.$inferInsert;
+  db.insert(interests).values(row).onConflictDoUpdate({ target: interests.id, set: row }).run();
+}
+
+function applyExploration(state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) { webUpsertExplorationById(state as unknown as WebExplorationLog); return; }
+  const row = state as unknown as typeof explorationLog.$inferInsert;
+  db.insert(explorationLog).values(row).onConflictDoUpdate({ target: explorationLog.id, set: row }).run();
+}
+
+function applyExpedition(state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) { webUpsertExpeditionById(state as unknown as WebExpedition); return; }
+  const row = state as unknown as typeof expeditions.$inferInsert;
+  db.insert(expeditions).values(row).onConflictDoUpdate({ target: expeditions.id, set: row }).run();
+}
+
+function applySpark(state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) { webUpsertSparkById(state as unknown as WebSpark); return; }
+  const row = state as unknown as typeof sparks.$inferInsert;
+  db.insert(sparks).values(row).onConflictDoUpdate({ target: sparks.id, set: row }).run();
+}
+
+// ── expedition_progress: per-user-per-expedition singleton; upsert by the key ──
+function applyExpeditionProgress(state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) { webUpsertExpeditionProgress(state as unknown as WebExpeditionProgress); return; }
+  const row = state as unknown as typeof expeditionProgress.$inferInsert;
+  const existing = db.select().from(expeditionProgress)
+    .where(and(eq(expeditionProgress.userId, row.userId), eq(expeditionProgress.expeditionId, row.expeditionId)))
+    .get();
+  if (existing) db.update(expeditionProgress).set(row).where(eq(expeditionProgress.id, existing.id)).run();
+  else db.insert(expeditionProgress).values(row).run();
+}
+
+// ── profile: per-user singletons keyed by userId ─────────────────────────────
+function applyUserProfile(userId: string, state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) {
+    try {
+      webUpsertUserProfile(
+        userId,
+        JSON.parse(asJsonString(state.profile, '{}')) as Parameters<typeof webUpsertUserProfile>[1],
+      );
+    } catch {
+      // malformed profile JSON — skip rather than crash the pull loop
+    }
+    return;
+  }
+  const row = {
+    userId,
+    profile: asJsonString(state.profile, '{}'),
+    source: String(state.source ?? 'chat'),
+    confidenceOverall: Number(state.confidenceOverall ?? 0),
+    routineUnlocked: Boolean(state.routineUnlocked),
+    updatedAt: new Date().toISOString(),
+  };
+  const existing = db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).get();
+  if (existing) db.update(userProfiles).set(row).where(eq(userProfiles.userId, userId)).run();
+  else db.insert(userProfiles).values({ ...row, createdAt: new Date().toISOString() }).run();
+}
+
+// users: UPDATE-ONLY profile fields. Never creates a credential-less row, never
+// writes identity/credential columns (the snapshot carries none, but strip
+// defensively).
+function applyUser(userId: string, state: EntitySnapshot): void {
+  if (state === null) return;
+  if (isWeb) {
+    webUpdateUser(userId, state as unknown as Parameters<typeof webUpdateUser>[1]);
+    return;
+  }
+  const set: Record<string, unknown> = { ...state, updatedAt: new Date().toISOString() };
+  if (Array.isArray(set.primaryDomains)) set.primaryDomains = JSON.stringify(set.primaryDomains);
+  if (Array.isArray(set.activatedModules)) set.activatedModules = JSON.stringify(set.activatedModules);
+  delete set.id;
+  delete set.email;
+  delete set.passwordHash;
+  delete set.passwordSalt;
+  delete set.createdAt;
+  db.update(users).set(set as Partial<typeof users.$inferInsert>).where(eq(users.id, userId)).run();
 }

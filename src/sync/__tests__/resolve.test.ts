@@ -3,7 +3,10 @@
  * acceptance bar for convergence (criterion J): the same set of mutations folds
  * to identical state regardless of arrival order, with field-merge + LWW.
  */
-import { foldEntity, compareMutationOrder, mergeGamification, materializeEntity } from '../resolve';
+import {
+  foldEntity, compareMutationOrder, mergeGamification, materializeEntity,
+  mergeInterests, mergeExpeditionProgressSnapshot,
+} from '../resolve';
 import type { MutationRecord } from '../mutationLog';
 
 type M = {
@@ -214,5 +217,53 @@ describe('materializeEntity', () => {
       deviceId: 'A', userId: 'u', prevHash: null, hash: 'a',
     };
     expect(materializeEntity('goals', [ins])).toEqual(foldEntity([ins]));
+  });
+});
+
+describe('mergeInterests', () => {
+  const base = (o: Record<string, unknown>) => ({
+    id: 'i1', userId: 'u', name: 'Chess', category: 'mind',
+    weeklyMinutesActual: 30, status: 'active', updatedAt: '2026-05-31T10:00:00.000Z', ...o,
+  });
+
+  test('weeklyMinutesActual takes max; the later snapshot wins other fields', () => {
+    const a = base({ weeklyMinutesActual: 50, name: 'Chess' });
+    const b = base({ weeklyMinutesActual: 20, name: 'Chess Openings' }); // later in fold order
+    const m = mergeInterests(a, b);
+    expect(m.weeklyMinutesActual).toBe(50); // max, not LWW
+    expect(m.name).toBe('Chess Openings');
+  });
+
+  test('partial later snapshot preserves untouched fields (no before-read needed)', () => {
+    const a = base({ weeklyMinutesActual: 40, name: 'Chess' });
+    const b = { status: 'deleted', updatedAt: '2026-06-01T00:00:00.000Z' }; // partial soft-delete
+    const m = mergeInterests(a, b);
+    expect(m.status).toBe('deleted');
+    expect(m.name).toBe('Chess'); // preserved
+    expect(m.weeklyMinutesActual).toBe(40); // preserved (b had none)
+  });
+});
+
+describe('mergeExpeditionProgressSnapshot', () => {
+  const ep = (o: Record<string, unknown>) => ({
+    id: 'p', userId: 'u', expeditionId: 'e1', status: 'active', currentStep: 1,
+    completedSteps: '[0]', startedAt: '2026-05-30T00:00:00.000Z',
+    lastActivityAt: '2026-05-31T00:00:00.000Z', completedAt: null,
+    updatedAt: '2026-05-31T00:00:00.000Z', ...o,
+  });
+
+  test('completedSteps union (sorted), currentStep max, status precedence', () => {
+    const a = ep({ completedSteps: '[0,2]', currentStep: 3, status: 'active' });
+    const b = ep({ completedSteps: '[1]', currentStep: 2, status: 'completed' });
+    const m = mergeExpeditionProgressSnapshot(a, b);
+    expect(JSON.parse(m.completedSteps as string)).toEqual([0, 1, 2]);
+    expect(m.currentStep).toBe(3);
+    expect(m.status).toBe('completed'); // completed > active
+  });
+
+  test('order-independent — two devices converge regardless of arrival order', () => {
+    const a = ep({ completedSteps: '[0,2]', currentStep: 3, status: 'active', updatedAt: '2026-05-31T12:00:00.000Z' });
+    const b = ep({ completedSteps: '[1]', currentStep: 2, status: 'abandoned', updatedAt: '2026-05-31T09:00:00.000Z' });
+    expect(mergeExpeditionProgressSnapshot(a, b)).toEqual(mergeExpeditionProgressSnapshot(b, a));
   });
 });

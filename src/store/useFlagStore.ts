@@ -41,7 +41,7 @@ interface FlagState {
   fetchedAt: number | null;
   loading: boolean;
   error: string | null;
-  fetchFlags: (opts?: { email?: string }) => Promise<void>;
+  fetchFlags: (opts?: { email?: string; force?: boolean }) => Promise<void>;
   isEnabled: (key: string) => boolean;
   getFlag: <T = unknown>(key: string, fallback: T) => T;
 }
@@ -63,8 +63,13 @@ export const useFlagStore = create<FlagState>()(
           set({ flags: { ...FALLBACK_FLAGS }, fetchedAt: Date.now() });
           return;
         }
+        // `force` (used on boot) bypasses the staleness window so a flag flip
+        // in the Worker/Supabase takes effect on the next app launch instead of
+        // up to STALE_MS later — and survives reloads (the persisted fetchedAt
+        // would otherwise keep serving the stale value). Persisted flags still
+        // act as the immediate/offline value until this fetch resolves.
         const fetchedAt = get().fetchedAt;
-        if (fetchedAt && Date.now() - fetchedAt < STALE_MS) return;
+        if (!opts?.force && fetchedAt && Date.now() - fetchedAt < STALE_MS) return;
 
         set({ loading: true, error: null });
         try {
