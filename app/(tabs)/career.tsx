@@ -22,6 +22,7 @@ import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
@@ -44,6 +45,26 @@ import {
   type SavedCareerPath,
 } from '@/db/careerStorage';
 import type { SkillGapAnalysis, CareerStrategy } from '@/ai/types';
+
+// Rotating prompts for the career setup inputs (cross-fade while empty).
+const CURRENT_ROLE_PLACEHOLDERS = [
+  'e.g. Software Engineer',
+  'e.g. Product Designer',
+  'e.g. Data Analyst',
+  'Where are you now?',
+];
+const TARGET_ROLE_PLACEHOLDERS = [
+  'e.g. Engineering Manager',
+  'e.g. Staff Engineer',
+  'e.g. Head of Design',
+  'Where do you want to be?',
+];
+const SKILL_PLACEHOLDERS = [
+  'e.g. TypeScript',
+  'e.g. System design',
+  'e.g. Public speaking',
+  'Add a skill you already have…',
+];
 
 const TIMELINE_OPTIONS = [
   { label: '1 yr',  months: 12  },
@@ -274,14 +295,16 @@ export default function CareerScreen() {
         <View style={s.formGap}>
           <Input
             label="Current role"
-            placeholder="e.g. Software Engineer"
+            accessibilityLabel="Current role"
+            rotatingPlaceholders={CURRENT_ROLE_PLACEHOLDERS}
             value={currentRole}
             onChangeText={setCurrentRole}
           />
 
           <Input
             label="Target role"
-            placeholder="e.g. Engineering Manager"
+            accessibilityLabel="Target role"
+            rotatingPlaceholders={TARGET_ROLE_PLACEHOLDERS}
             value={targetRole}
             onChangeText={setTargetRole}
           />
@@ -315,15 +338,23 @@ export default function CareerScreen() {
           <View>
             <Label style={s.fieldLabel}>Your current skills</Label>
             <View style={s.skillInputRow}>
-              <TextInput
-                style={[s.skillTextInput, { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary }]}
-                placeholder="e.g. JavaScript"
-                placeholderTextColor={c.textMuted}
-                value={skillInput}
-                onChangeText={setSkillInput}
-                onSubmitEditing={addSkill}
-                returnKeyType="done"
-              />
+              <View style={s.skillInputWrap}>
+                <TextInput
+                  style={[s.skillTextInput, s.skillInputFlush, { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary }]}
+                  accessibilityLabel="Current skills"
+                  placeholderTextColor={c.textMuted}
+                  value={skillInput}
+                  onChangeText={setSkillInput}
+                  onSubmitEditing={addSkill}
+                  returnKeyType="done"
+                />
+                <RotatingPlaceholder
+                  phrases={SKILL_PLACEHOLDERS}
+                  active={!skillInput}
+                  color={c.textMuted}
+                  style={s.skillRotating}
+                />
+              </View>
               <Pressable style={[s.addBtn, { backgroundColor: c.career }]} onPress={addSkill}>
                 <Ionicons name="add" size={20} color="#FFF" />
               </Pressable>
@@ -571,19 +602,16 @@ export default function CareerScreen() {
       animationType="fade"
       onRequestClose={() => setSaveModalVisible(false)}
     >
-      <KeyboardAvoidingView
-        style={s.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setSaveModalVisible(false)} />
-        <Animated.View entering={FadeInDown.duration(250)} style={[s.modalBox, { backgroundColor: c.card, borderColor: c.border }]}>
+        <Animated.View entering={FadeInDown.duration(250)} style={[s.modalBox, { backgroundColor: c.surface, borderColor: c.border }]}>
           <Body style={[s.modalTitle, { color: c.textPrimary }]}>Save career path</Body>
           <Caption style={{ color: c.textMuted, marginBottom: spacing.md }}>
             Give this path a name so you can load it later.
           </Caption>
 
           <TextInput
-            style={[s.modalInput, { backgroundColor: c.surface, borderColor: c.border, color: c.textPrimary }]}
+            style={[s.modalInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
             placeholder="e.g. My PM journey"
             placeholderTextColor={c.textMuted}
             value={saveName}
@@ -666,6 +694,11 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     timelineLabel: { fontSize: fontSizes.sm, fontFamily: fonts.bodyMedium },
     skillInputRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+    skillInputWrap: { flex: 1, position: 'relative', justifyContent: 'center' },
+    // Inside skillInputWrap the flex:1 moves to the wrapper, so the field fills width.
+    skillInputFlush: { flex: 0, width: '100%' },
+    // Aligns the cross-fading overlay with the field's text (paddingHorizontal md, paddingVertical 12).
+    skillRotating: { left: spacing.md, top: 12, fontSize: fontSizes.md },
     skillTextInput: {
       flex: 1,
       borderRadius: 12,

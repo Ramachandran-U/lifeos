@@ -15,9 +15,14 @@ describe('feature flags', () => {
     process.env = { ...envSnapshot };
   });
 
-  it('defaults every flag to false', () => {
+  // Flags intentionally graduated to on-by-default (the explore "thinking
+  // partner" revamp shipped GA). Every OTHER flag must still default to false
+  // so unfinished subsystems stay dark on merge.
+  const GRADUATED_ON: FeatureFlag[] = ['exploreChasing', 'exploreAgenticThread', 'exploreFrontier'];
+
+  it('keeps every non-graduated flag off by default', () => {
     (Object.keys(DEFAULT_FLAGS) as FeatureFlag[]).forEach((k) => {
-      expect(isEnabled(k)).toBe(false);
+      expect(isEnabled(k)).toBe(GRADUATED_ON.includes(k));
     });
   });
 

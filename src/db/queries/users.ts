@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '../index';
 import {
@@ -81,7 +81,11 @@ export async function createUser(data: CreateUserData): Promise<string> {
 
 export function getUser() {
   if (isWeb) return webGetUser();
-  return db.select().from(users).limit(1).get();
+  // Order by updatedAt so that if more than one user row exists on a device
+  // (e.g. a legacy local signup later linked to a Supabase id), we return the
+  // most-recently-active one rather than an arbitrary first() row. A wrong-row
+  // read here is what made height/weight appear to vanish on native.
+  return db.select().from(users).orderBy(desc(users.updatedAt)).limit(1).get();
 }
 
 export function getUserByEmail(email: string) {

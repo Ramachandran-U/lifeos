@@ -11,7 +11,6 @@ import { useThemeStore } from '@/store/useThemeStore';
 import { EASING, useMotionScale } from '@/theme/motion';
 import { useAmbientState } from './ambient/useAmbientState';
 import { GradientMesh } from './ambient/GradientMesh';
-import { PulseHalo } from './ambient/PulseHalo';
 import { ParticleField } from './ambient/ParticleField';
 import { EnergySweep } from './ambient/EnergySweep';
 import { useAmbientEventStore } from './ambient/useAmbientEventStore';
@@ -88,7 +87,6 @@ function DriftingBloom({
 interface AuroraBackgroundProps {
   blooms?: AmbientBloom[];
   scrollY?: SharedValue<number>;
-  liveBlockModule?: string | null;
   allBlocksDone?: boolean;
   voiceActive?: boolean;
 }
@@ -96,7 +94,6 @@ interface AuroraBackgroundProps {
 export function AuroraBackground({
   blooms,
   scrollY,
-  liveBlockModule,
   allBlocksDone,
   voiceActive,
 }: AuroraBackgroundProps) {
@@ -104,8 +101,7 @@ export function AuroraBackground({
   const isLight = mode === 'light';
   const motionScale = useMotionScale();
   const { height } = useWindowDimensions();
-  const { preset, pulse, particles } = useAmbientState({
-    liveBlockModule,
+  const { preset, particles } = useAmbientState({
     allBlocksDone,
     voiceActive,
   });
@@ -172,13 +168,6 @@ export function AuroraBackground({
             onComplete={clearSweep}
           />
         </View>
-
-        {/* Layer 5: Pulse halo (live block or voice) */}
-        {pulse && (
-          <View testID="ambient-pulse" style={StyleSheet.absoluteFill}>
-            <PulseHalo hue={pulse.hue} period={pulse.period} />
-          </View>
-        )}
       </Animated.View>
     </View>
   );

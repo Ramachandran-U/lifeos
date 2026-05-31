@@ -26,6 +26,27 @@ setSupabaseTokenGetter(async () => {
   return data.session?.access_token ?? null;
 });
 
+// supabase-js's timer-based autoRefreshToken does NOT run reliably while a
+// React Native app is backgrounded, so the access token silently lapses while
+// the phone sits overnight and the user is effectively signed out by next-day
+// boot. That broke two things on a ~daily cadence: Gmail sync (its token
+// refresh needs a live Supabase bearer) and height/weight reads (identity went
+// stale). Per Supabase's RN guidance, drive auto-refresh off AppState so it
+// resumes on foreground. Web refreshes via the browser, so it's native-only.
+if (Platform.OS !== 'web') {
+  // Lazy native-only require so the web bundle never has to resolve AppState
+  // (mirrors the platform-guarded require pattern in src/db/index.ts).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { AppState } = require('react-native') as typeof import('react-native');
+  AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      void supabase.auth.startAutoRefresh();
+    } else {
+      void supabase.auth.stopAutoRefresh();
+    }
+  });
+}
+
 export function isSupabaseConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
