@@ -363,6 +363,43 @@ export async function initDatabase() {
       id       TEXT PRIMARY KEY,
       last_seq INTEGER NOT NULL DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS memory_facts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      text TEXT NOT NULL,
+      embedding TEXT,
+      salience REAL NOT NULL DEFAULT 1,
+      source_window TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS memory_facts_user_idx ON memory_facts (user_id, last_seen_at);
+
+    CREATE TABLE IF NOT EXISTS ai_suggestions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      task TEXT NOT NULL,
+      variant TEXT NOT NULL,
+      model TEXT,
+      input_hash TEXT NOT NULL,
+      output_summary TEXT,
+      output_ref TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS suggestion_outcomes (
+      id TEXT PRIMARY KEY,
+      suggestion_id TEXT NOT NULL,
+      window_days INTEGER NOT NULL,
+      blocks_total INTEGER,
+      blocks_completed INTEGER,
+      completion_rate REAL,
+      domain_score_delta REAL,
+      measured_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Lightweight migrations for columns added after initial release.
@@ -390,6 +427,13 @@ export async function initDatabase() {
   await expo.execAsync(
     `CREATE INDEX IF NOT EXISTS mutation_log_sync_state_idx ON mutation_log (sync_state, lamport);`,
   );
+  // Schema-drift reconciliation (P1-T10): columns declared in schema.ts but
+  // never created here, so native writes to them threw "no such column".
+  await safeAlter(`ALTER TABLE users ADD COLUMN sleep_target_hours INTEGER`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN health_goal_type TEXT`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN primary_domains TEXT`);
+  await safeAlter(`ALTER TABLE users ADD COLUMN activated_modules TEXT`);
+  await safeAlter(`ALTER TABLE interests ADD COLUMN time_protected INTEGER NOT NULL DEFAULT 0`);
 
   // Drop zombie tables — never had queries, no UI, no roadmap commitment
   // (architect-review §P1-5). Idempotent: DROP IF EXISTS is a no-op when the
