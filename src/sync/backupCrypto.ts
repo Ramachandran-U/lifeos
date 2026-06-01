@@ -34,6 +34,14 @@ export interface BackupEnvelope {
   ct: string;
 }
 
+/**
+ * Derive the AES key from the passphrase. PBKDF2 at 150k iterations is a
+ * deliberate ~hundreds-of-ms cost (brute-force resistance) and runs synchronously
+ * on the JS thread. Acceptable because key derivation only happens on an explicit,
+ * user-initiated export/import — never on a hot path — but it WILL briefly block
+ * the UI on a low-end device, so the export/import screens must show a spinner
+ * around the call (and we never call this off a render/interaction path).
+ */
 function deriveKey(passphrase: string, salt: Uint8Array, iters: number): Uint8Array {
   return pbkdf2(sha256, utf8ToBytes(passphrase), salt, { c: iters, dkLen: KEY_LEN });
 }

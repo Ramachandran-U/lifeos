@@ -58,7 +58,14 @@ interface PullResult {
   skipped?: 'disabled' | 'signed_out' | 'busy';
 }
 
-/** Compaction: only collapse entities with at least this many rows. */
+/**
+ * Compaction: only collapse an entity once it has at least this many log rows.
+ * Set well above a normal active entity's lifetime row count so compaction is
+ * rare and targets only genuinely heavy histories (e.g. gamification, which logs
+ * on every XP change) — the goal is to bound pathological growth, not to churn
+ * ordinary logs. Tune up if compaction runs too eagerly; down if the log still
+ * grows unbounded for heavy users. Paired with COMPACT_RETAIN_DAYS (dormancy).
+ */
 const COMPACT_MIN_MUTATIONS = 50;
 /** A document entity is "dormant" (safe to collapse) after this long. */
 const COMPACT_RETAIN_DAYS = 30;

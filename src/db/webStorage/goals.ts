@@ -73,7 +73,10 @@ export function webSoftDeleteGoal(id: string): void {
 }
 
 export function webGetDeletedGoals(userId: string): WebGoal[] {
-  return load<WebGoal>(GOALS_KEY).filter((g) => g.userId === userId && !!g.deletedAt);
+  // Most-recently-deleted first, matching the native ORDER BY deletedAt DESC.
+  return load<WebGoal>(GOALS_KEY)
+    .filter((g) => g.userId === userId && !!g.deletedAt)
+    .sort((a, b) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? ''));
 }
 
 export function webRestoreGoal(id: string): void {

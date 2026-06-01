@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { eq, and, isNull, isNotNull } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '../index';
 import { goals } from '../schema';
@@ -175,6 +175,7 @@ export function getDeletedGoals(userId: string) {
   if (isWeb) return webGetDeletedGoals(userId);
   return db.select().from(goals)
     .where(and(eq(goals.userId, userId), isNotNull(goals.deletedAt)))
+    .orderBy(desc(goals.deletedAt))
     .all();
 }
 
