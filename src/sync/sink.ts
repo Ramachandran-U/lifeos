@@ -410,27 +410,33 @@ function createNativeSink(): LocalSink {
     async applyCompaction({ checkpoints, deleteIds }) {
       try {
         const db = getDB();
-        for (let i = 0; i < deleteIds.length; i += 400) {
-          const chunk = deleteIds.slice(i, i + 400);
-          const ph = chunk.map(() => '?').join(',');
-          await db.runAsync(`DELETE FROM mutation_log WHERE id IN (${ph})`, chunk);
-        }
-        for (const c of checkpoints) {
-          await db.runAsync(
-            `INSERT OR REPLACE INTO mutation_log
-               (id, entity, entity_id, op, before_json, after_json, fields_json,
-                ts, lamport, device_id, user_id, prev_hash, hash, sync_state)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'acked')`,
-            [
-              c.id, c.entity, c.entityId, c.op,
-              c.before === null ? null : JSON.stringify(c.before),
-              c.after === null ? null : JSON.stringify(c.after),
-              JSON.stringify(c.fields), c.ts, c.lamport, c.deviceId, c.userId, c.prevHash, c.hash,
-            ],
-          );
-        }
+        // Delete-then-insert in ONE transaction. Without it, a failure after the
+        // deletes but before the checkpoints are written would lose the collapsed
+        // rows outright (delete-first). The transaction rolls back atomically,
+        // leaving the log exactly as it was.
+        await db.withTransactionAsync(async () => {
+          for (let i = 0; i < deleteIds.length; i += 400) {
+            const chunk = deleteIds.slice(i, i + 400);
+            const ph = chunk.map(() => '?').join(',');
+            await db.runAsync(`DELETE FROM mutation_log WHERE id IN (${ph})`, chunk);
+          }
+          for (const c of checkpoints) {
+            await db.runAsync(
+              `INSERT OR REPLACE INTO mutation_log
+                 (id, entity, entity_id, op, before_json, after_json, fields_json,
+                  ts, lamport, device_id, user_id, prev_hash, hash, sync_state)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'acked')`,
+              [
+                c.id, c.entity, c.entityId, c.op,
+                c.before === null ? null : JSON.stringify(c.before),
+                c.after === null ? null : JSON.stringify(c.after),
+                JSON.stringify(c.fields), c.ts, c.lamport, c.deviceId, c.userId, c.prevHash, c.hash,
+              ],
+            );
+          }
+        });
       } catch {
-        // Best-effort: a failed compaction leaves the log intact.
+        // Best-effort: a failed (rolled-back) compaction leaves the log intact.
       }
     },
     async count() {
