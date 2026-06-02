@@ -17,6 +17,7 @@
  */
 import { Platform } from 'react-native';
 import type { MutationRecord, MutationSink } from './mutationLog';
+import { compareMutationOrder } from './resolve';
 
 export interface ResumeState {
   headHash: string | null;
@@ -50,8 +51,16 @@ export interface LocalSink {
   setCursor(seq: number): Promise<void>;
   /** Every mutation with its sync state — for compaction planning (T9). */
   readAllWithState(): Promise<{ record: MutationRecord; syncState: SyncState }[]>;
-  /** Apply a compaction plan: delete the given ids, insert checkpoints ('acked'). */
-  applyCompaction(plan: { checkpoints: MutationRecord[]; deleteIds: string[] }): Promise<void>;
+  /**
+   * Apply a compaction plan atomically: delete `deleteIds`, UPDATE the
+   * `rechained` survivors' chain links, and insert `checkpoints` ('acked'). The
+   * rechain keeps the local hash chain contiguous after interior deletes (T9).
+   */
+  applyCompaction(plan: {
+    checkpoints: MutationRecord[];
+    deleteIds: string[];
+    rechained: MutationRecord[];
+  }): Promise<void>;
   /** Total rows in the log (for the size gauge). */
   count(): Promise<number>;
 }
@@ -159,11 +168,24 @@ function createWebSink(): LocalSink {
         syncState: (e.syncState ?? 'pending') as SyncState,
       }));
     },
-    async applyCompaction({ checkpoints, deleteIds }) {
+    async applyCompaction({ checkpoints, deleteIds, rechained }) {
       const del = new Set(deleteIds);
-      const buf = readWebBuffer().filter((e) => !del.has(e.id));
+      const reMap = new Map(rechained.map((r) => [r.id, r] as const));
+      const buf = readWebBuffer()
+        .filter((e) => !del.has(e.id))
+        .map((e) => {
+          const r = reMap.get(e.id);
+          // Re-chain UPDATE: refresh only the chain link, keep the outbox state.
+          return r ? { ...e, prevHash: r.prevHash, hash: r.hash } : e;
+        });
       for (const c of checkpoints) buf.push({ ...c, syncState: 'acked' });
-      if (buf.length > WEB_CAP) buf.splice(0, buf.length - WEB_CAP);
+      // Keep the buffer in chain order so resume()'s "last non-applied_remote
+      // entry" is the max-lamport LOCAL head: a checkpoint carries an OLD lamport,
+      // so an unsorted append would wrongly become the head. Mirrors the native
+      // resume's `ORDER BY lamport DESC`. No WEB_CAP splice here: compaction only
+      // ever shrinks the buffer (deletes ≥ inserts), so the append-time cap holds
+      // and front-eviction can't drop the freshly-inserted (low-lamport) checkpoint.
+      buf.sort(compareMutationOrder);
       writeWebBuffer(buf);
     },
     async count() {
@@ -269,9 +291,13 @@ function createNativeSink(): LocalSink {
       try {
         const db = getDB();
         // Head hash continues the LOCAL chain only (ignore applied-remote rows).
+        // Tie-break by (device_id, id) DESC so the head is deterministic and
+        // matches compareMutationOrder's max — the same record compaction
+        // re-chains as the chain head (lamport ties are rare but possible when a
+        // checkpoint inherits a remote lamport).
         const headRow = (await db.getFirstAsync(
           `SELECT hash FROM mutation_log WHERE sync_state != 'applied_remote'
-           ORDER BY lamport DESC LIMIT 1`,
+           ORDER BY lamport DESC, device_id DESC, id DESC LIMIT 1`,
         )) as { hash: string } | null;
         // Clock resumes at the global max (local + remote) so new local writes
         // never get a lamport ≤ something we've already applied.
@@ -407,18 +433,26 @@ function createNativeSink(): LocalSink {
         return [];
       }
     },
-    async applyCompaction({ checkpoints, deleteIds }) {
+    async applyCompaction({ checkpoints, deleteIds, rechained }) {
       try {
         const db = getDB();
-        // Delete-then-insert in ONE transaction. Without it, a failure after the
-        // deletes but before the checkpoints are written would lose the collapsed
-        // rows outright (delete-first). The transaction rolls back atomically,
+        // Delete → re-chain survivors → insert checkpoints, all in ONE
+        // transaction. Without it, a failure mid-way would lose the collapsed
+        // rows or leave a broken chain. The transaction rolls back atomically,
         // leaving the log exactly as it was.
         await db.withTransactionAsync(async () => {
           for (let i = 0; i < deleteIds.length; i += 400) {
             const chunk = deleteIds.slice(i, i + 400);
             const ph = chunk.map(() => '?').join(',');
             await db.runAsync(`DELETE FROM mutation_log WHERE id IN (${ph})`, chunk);
+          }
+          // Re-link survivors whose chain hash shifted (interior delete). Update
+          // only the chain columns; sync_state and payload are untouched.
+          for (const r of rechained) {
+            await db.runAsync(
+              `UPDATE mutation_log SET prev_hash = ?, hash = ? WHERE id = ?`,
+              [r.prevHash, r.hash, r.id],
+            );
           }
           for (const c of checkpoints) {
             await db.runAsync(

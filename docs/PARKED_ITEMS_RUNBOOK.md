@@ -150,14 +150,8 @@ Only if you want the career engine grounded in real occupation/job data. **Your 
 
 **Goal: enable `compaction_enabled` + `backup_enabled` (item 1.3).** Three gates must clear first, in this order.
 
-### Step 1 — 2.4: Fix compaction breaking the hash chain 🤖 (you decide approach)
-Real correctness bug + hard blocker. Compaction writes checkpoint rows with `prevHash: null` + a fake `hash` (`ckpt:<entity>:<id>:<lamport>`), so `validateChain` fails at any checkpoint once compaction runs. **Not yet fixed.** Do **not** flip `compaction_enabled` to "test" — it permanently deletes log rows.
-
-**Your decision** — pick the fix:
-- **Option A (stronger):** re-hash checkpoints into the chain (real `prevHash` + `chainHash`, re-link survivors atomically). One continuous tamper-evident chain; bigger atomic rewrite.
-- **Option B (smaller):** make `validateChain`/`resume` treat a `ckpt:` row as a legitimate chain restart anchor. Localized; downgrades tamper-evidence to per-segment.
-
-Then say *"Fix 2.4 with option A/B."* Claude implements + a test proving `validateChain` returns no break over a compacted slice, runs `npm run typecheck` + `npx jest src/sync`, PRs it.
+### Step 1 — 2.4: Fix compaction breaking the hash chain ✅ DONE 2026-06-03 (Option A)
+Was a hard blocker: checkpoints had `prevHash: null` + a fake `hash`, so the chain broke once compaction ran. **Resolved** — `planCompaction` now re-chains the local subsequence with real `chainHash`, re-linking survivors atomically (the sink applies the deletes + survivor re-links + checkpoint inserts in one transaction). `validateChain` is intact end-to-end post-compaction; covered by 16 compaction tests + a sink-level test, and adversarially reviewed across 4 lenses. Merged to `lifeosv1`.
 
 ### Step 2 — 2.6: Backup spinner-yield 🤖 (soft gate for `backup_enabled`) — ✅ DONE 2026-06-03
 PBKDF2 (150k iters) runs synchronously, so the "Working…" state didn't paint before the freeze. Fixed: `handleExport`/`doImport` now yield a paint frame after `setBackupBusy(true)` (`app/settings.tsx`). Off-thread derivation for low-end Android remains an optional follow-up.

@@ -1,5 +1,5 @@
-import { MutationLog, diffFields, type MutationRecord, type MutationLogOptions } from '../mutationLog';
-import { validateChain } from '../hashChain';
+import { MutationLog, diffFields, chainPayload, type MutationRecord, type MutationLogOptions } from '../mutationLog';
+import { chainHash, validateChain } from '../hashChain';
 import { compareLamport } from '../lamport';
 import { testHasher } from './testHasher';
 
@@ -66,6 +66,17 @@ describe('MutationLog', () => {
       payload: { entity: r.entity, entityId: r.entityId, op: r.op, before: r.before, after: r.after, fields: r.fields, lamport: r.lamport, deviceId: r.deviceId, userId: r.userId },
     }));
     expect(await validateChain(chain, testHasher)).toBe(-1);
+  });
+
+  it('chainPayload reproduces a stored record hash exactly (compaction re-chain parity)', async () => {
+    // Compaction re-hashes survivors/checkpoints from chainPayload(record). If
+    // that shape ever drifts from what record() hashes, a re-chain would compute
+    // a different hash and silently break the chain — this locks them together.
+    const log = makeLog();
+    const r1 = await log.record({ entity: 'goals', entityId: 'g1', op: 'insert', before: null, after: { title: 'a' } });
+    const r2 = await log.record({ entity: 'goals', entityId: 'g1', op: 'update', before: { title: 'a' }, after: { title: 'b' } });
+    expect(await chainHash(r1.prevHash, chainPayload(r1), testHasher)).toBe(r1.hash);
+    expect(await chainHash(r2.prevHash, chainPayload(r2), testHasher)).toBe(r2.hash);
   });
 
   it('forwards every record to the sink', async () => {
