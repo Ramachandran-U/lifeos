@@ -73,6 +73,17 @@
 
 ---
 
+## 7. Type-check & CI tooling
+
+> Surfaced 2026-06-01 during the PR #93 review (backup/compaction hardening). Both are fixable; left as follow-ups because each needs a deliberate call rather than a ride-along edit.
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 7.1 🅿️ | **`tsc` crashes on the default Node stack** (`RangeError: Maximum call stack size exceeded`) — deep Drizzle type instantiation overflows the stack, so the checker aborts before reporting. It only completes via `node --stack-size=8000 node_modules/typescript/bin/tsc --noEmit`. Any `tsc` / `npm run verify` gate is therefore **unreliable** — the crash can read as a hard fail (or get ignored), masking real type errors. | The default-stack crash hid 4 real pre-existing errors until a large-stack run exposed them; PR #93 fixed 3 of them. | Bump the stack in the `verify` script + the CI typecheck step (e.g. `node --stack-size=8000 …/tsc --noEmit`), or split the typecheck into smaller `tsc -p` projects. Validate the stack value cross-platform — too high can segfault. |
+| 7.2 🅿️ | **`src/sync/__tests__/outbox.test.ts:70` pre-existing type error** — `Conversion of type 'MutationRecord' to 'Record<string, unknown>'` (TS2352). The last remaining error after PR #93 (4 → 1). | The TS-suggested fix (`as unknown as …`) conflicts with the repo's ban on `as unknown`, so it needs a rule-compliant approach (typed helper / restructured assertion), not a reflexive cast. Was masked by 7.1. | Fix alongside the 7.1 stack bump so the typecheck gate goes fully green. Low effort. |
+
+---
+
 ## Related canonical docs
 
 - [`docs/MANUAL_OPS_TODO.md`](MANUAL_OPS_TODO.md) — manual operational steps
