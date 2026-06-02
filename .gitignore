@@ -37,6 +37,11 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Supabase CLI scratch dirs — local-only state (branch metadata, temp downloads),
+# never meant to be committed.
+supabase/.branches/
+supabase/.temp/
+
 # generated native folders
 /ios
 /android

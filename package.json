@@ -13,6 +13,7 @@
     "web:preview": "npm run web:export && npm run web:serve",
     "deploy": "npm run web:export && npx wrangler pages deploy dist --project-name=lifeos-6r5 --branch=lifeos --commit-dirty=true",
     "test": "jest",
+    "typecheck": "node --stack-size=8000 node_modules/typescript/bin/tsc --noEmit",
     "test:watch": "jest --watch",
     "test:components": "jest --selectProjects components",
     "evals": "jest --testPathPatterns=evals --runInBand",
@@ -23,7 +24,7 @@
     "e2e": "playwright test --project=chromium",
     "e2e:auth": "playwright test --project=authenticated",
     "e2e:create-test-user": "npx ts-node e2e/create-test-user.ts",
-    "verify": "tsc --noEmit && jest && npm run smoke",
+    "verify": "npm run typecheck && jest && npm run smoke",
     "gen:onboarding-audio": "node scripts/generate-onboarding-audio.js"
   },
   "dependencies": {

@@ -34,5 +34,9 @@ jobs:
 
       - run: npm ci
 
-      - name: tsc --noEmit
-        run: npx tsc --noEmit
+      # `npm run typecheck` invokes tsc with `--stack-size=8000`. The default
+      # Node stack overflows on our deep Drizzle types (RangeError: Maximum call
+      # stack size exceeded) — reproducible locally on Node 22 and a latent
+      # crash risk here — so we raise it. See package.json `typecheck` script.
+      - name: typecheck (tsc --noEmit, raised stack)
+        run: npm run typecheck
