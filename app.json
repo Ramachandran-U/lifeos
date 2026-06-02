@@ -3,6 +3,9 @@
     "name": "LifeOS",
     "slug": "lifeos",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "scheme": "lifeos",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -42,10 +45,12 @@
     ],
     "ios": {
       "bundleIdentifier": "com.lifeos.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.lifeos.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#0D0D0D",
         "foregroundImage": "./assets/android-icon-foreground.png",
