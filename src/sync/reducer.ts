@@ -54,7 +54,10 @@ import { materializeEntity } from './resolve';
 import { observeRemoteLamport } from './runtime';
 import type { MutationRecord, EntitySnapshot } from './mutationLog';
 
-const isWeb = Platform.OS === 'web';
+// Call-time check (not a module constant) so platform-specific paths are unit
+// testable by flipping Platform.OS — production behaviour is identical since
+// Platform.OS never changes at runtime.
+const isWeb = () => Platform.OS === 'web';
 
 /** Entities the reducer knows how to materialize into a local table. */
 const MATERIALIZED = new Set([
@@ -131,11 +134,11 @@ export function applyEntityState(entity: string, entityId: string, state: Entity
 // ── goals (soft-delete on tombstone) ────────────────────────────────────────
 function applyGoal(id: string, state: EntitySnapshot): void {
   if (state === null) {
-    if (isWeb) webSoftDeleteGoal(id);
+    if (isWeb()) webSoftDeleteGoal(id);
     else db.update(goals).set({ deletedAt: new Date().toISOString() }).where(eq(goals.id, id)).run();
     return;
   }
-  if (isWeb) {
+  if (isWeb()) {
     webUpsertGoalById(state as unknown as WebGoal);
   } else {
     const row = state as unknown as typeof goals.$inferInsert;
@@ -146,11 +149,11 @@ function applyGoal(id: string, state: EntitySnapshot): void {
 // ── routine_blocks (hard-delete on tombstone) ───────────────────────────────
 function applyRoutineBlock(id: string, state: EntitySnapshot): void {
   if (state === null) {
-    if (isWeb) webDeleteRoutineBlockById(id);
+    if (isWeb()) webDeleteRoutineBlockById(id);
     else db.delete(routineBlocks).where(eq(routineBlocks.id, id)).run();
     return;
   }
-  if (isWeb) {
+  if (isWeb()) {
     webUpsertRoutineBlockById(state as unknown as WebRoutineBlock);
   } else {
     const row = state as unknown as typeof routineBlocks.$inferInsert;
@@ -161,10 +164,10 @@ function applyRoutineBlock(id: string, state: EntitySnapshot): void {
 // ── daily_reflections (upsert; deletes are not a real app path) ──────────────
 function applyReflection(id: string, state: EntitySnapshot): void {
   if (state === null) {
-    if (!isWeb) db.delete(dailyReflections).where(eq(dailyReflections.id, id)).run();
+    if (!isWeb()) db.delete(dailyReflections).where(eq(dailyReflections.id, id)).run();
     return;
   }
-  if (isWeb) {
+  if (isWeb()) {
     webUpsertReflectionById(state as unknown as WebDailyReflection);
   } else {
     const row = state as unknown as typeof dailyReflections.$inferInsert;
@@ -186,7 +189,7 @@ function applyGamification(userId: string, state: EntitySnapshot): void {
     weeklyXP: Number(state.weeklyXP ?? 0),
   };
   getOrCreateGamification(userId); // ensure a local row exists (records nothing)
-  if (isWeb) {
+  if (isWeb()) {
     webUpdateGamification(userId, fields);
   } else {
     db.update(gamification)
@@ -210,28 +213,28 @@ function asJsonString(v: unknown, fallback: string): string {
 // ── Explore: id-keyed entities (interests soft-deletes via status, never null) ──
 function applyInterest(state: EntitySnapshot): void {
   if (state === null) return;
-  if (isWeb) { webUpsertInterestById(state as unknown as WebInterest); return; }
+  if (isWeb()) { webUpsertInterestById(state as unknown as WebInterest); return; }
   const row = state as unknown as typeof interests.$inferInsert;
   db.insert(interests).values(row).onConflictDoUpdate({ target: interests.id, set: row }).run();
 }
 
 function applyExploration(state: EntitySnapshot): void {
   if (state === null) return;
-  if (isWeb) { webUpsertExplorationById(state as unknown as WebExplorationLog); return; }
+  if (isWeb()) { webUpsertExplorationById(state as unknown as WebExplorationLog); return; }
   const row = state as unknown as typeof explorationLog.$inferInsert;
   db.insert(explorationLog).values(row).onConflictDoUpdate({ target: explorationLog.id, set: row }).run();
 }
 
 function applyExpedition(state: EntitySnapshot): void {
   if (state === null) return;
-  if (isWeb) { webUpsertExpeditionById(state as unknown as WebExpedition); return; }
+  if (isWeb()) { webUpsertExpeditionById(state as unknown as WebExpedition); return; }
   const row = state as unknown as typeof expeditions.$inferInsert;
   db.insert(expeditions).values(row).onConflictDoUpdate({ target: expeditions.id, set: row }).run();
 }
 
 function applySpark(state: EntitySnapshot): void {
   if (state === null) return;
-  if (isWeb) { webUpsertSparkById(state as unknown as WebSpark); return; }
+  if (isWeb()) { webUpsertSparkById(state as unknown as WebSpark); return; }
   const row = state as unknown as typeof sparks.$inferInsert;
   db.insert(sparks).values(row).onConflictDoUpdate({ target: sparks.id, set: row }).run();
 }
@@ -239,7 +242,7 @@ function applySpark(state: EntitySnapshot): void {
 // ── expedition_progress: per-user-per-expedition singleton; upsert by the key ──
 function applyExpeditionProgress(state: EntitySnapshot): void {
   if (state === null) return;
-  if (isWeb) { webUpsertExpeditionProgress(state as unknown as WebExpeditionProgress); return; }
+  if (isWeb()) { webUpsertExpeditionProgress(state as unknown as WebExpeditionProgress); return; }
   const row = state as unknown as typeof expeditionProgress.$inferInsert;
   const existing = db.select().from(expeditionProgress)
     .where(and(eq(expeditionProgress.userId, row.userId), eq(expeditionProgress.expeditionId, row.expeditionId)))
@@ -251,7 +254,7 @@ function applyExpeditionProgress(state: EntitySnapshot): void {
 // ── profile: per-user singletons keyed by userId ─────────────────────────────
 function applyUserProfile(userId: string, state: EntitySnapshot): void {
   if (state === null) return;
-  if (isWeb) {
+  if (isWeb()) {
     try {
       webUpsertUserProfile(
         userId,
@@ -280,7 +283,7 @@ function applyUserProfile(userId: string, state: EntitySnapshot): void {
 // defensively).
 function applyUser(userId: string, state: EntitySnapshot): void {
   if (state === null) return;
-  if (isWeb) {
+  if (isWeb()) {
     webUpdateUser(userId, state as unknown as Parameters<typeof webUpdateUser>[1]);
     return;
   }
