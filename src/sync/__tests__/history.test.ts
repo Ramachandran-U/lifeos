@@ -1,9 +1,15 @@
 /**
  * Version-history read paths (P1-T7). Pure over an injected sink — no DB.
  */
-import { getEntityHistory, stateAsOf } from '../history';
+import { getEntityHistory, stateAsOf, restoreEntityTo } from '../history';
 import type { LocalSink } from '../sink';
 import type { MutationRecord, MutationOp, EntitySnapshot } from '../mutationLog';
+
+// restoreEntityTo lazy-imports these; mock so we assert the write + audit calls.
+jest.mock('../reducer', () => ({ applyEntityState: jest.fn() }));
+jest.mock('../runtime', () => ({ recordMutation: jest.fn() }));
+import { applyEntityState } from '../reducer';
+import { recordMutation } from '../runtime';
 
 function m(id: string, op: MutationOp, lamport: number, after: EntitySnapshot, fields: string[] = []): MutationRecord {
   return {
@@ -49,5 +55,33 @@ describe('stateAsOf', () => {
     const sink = stubSink(HISTORY);
     const s = await stateAsOf('goals', 'g1', { ts: new Date(2 * 1000).toISOString() }, sink);
     expect(s).toEqual({ id: 'g1', title: 'B' });
+  });
+
+  test('no bound → current materialized state (here: null, ends in delete)', async () => {
+    const sink = stubSink(HISTORY);
+    expect(await stateAsOf('goals', 'g1', {}, sink)).toBeNull();
+  });
+});
+
+describe('restoreEntityTo', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('restores the as-of state to the table AND records an auditable mutation', async () => {
+    const sink = stubSink(HISTORY);
+    const restored = await restoreEntityTo('goals', 'g1', { lamport: 2 }, sink); // just before the delete
+
+    expect(restored).toEqual({ id: 'g1', title: 'B' });
+    expect(applyEntityState).toHaveBeenCalledWith('goals', 'g1', { id: 'g1', title: 'B' });
+    expect(recordMutation).toHaveBeenCalledWith({
+      entity: 'goals', entityId: 'g1', op: 'update', before: null, after: { id: 'g1', title: 'B' },
+    });
+  });
+
+  test("returns null and writes nothing when the entity didn't exist at that point", async () => {
+    const sink = stubSink(HISTORY);
+    const restored = await restoreEntityTo('goals', 'g1', { lamport: 3 }, sink); // at/after the delete
+    expect(restored).toBeNull();
+    expect(applyEntityState).not.toHaveBeenCalled();
+    expect(recordMutation).not.toHaveBeenCalled();
   });
 });

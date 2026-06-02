@@ -267,3 +267,32 @@ describe('mergeExpeditionProgressSnapshot', () => {
     expect(mergeExpeditionProgressSnapshot(a, b)).toEqual(mergeExpeditionProgressSnapshot(b, a));
   });
 });
+
+// ── branch-gap coverage (P0): defensive paths the happy-path tests miss ──────
+describe('fold/merge defensive branches', () => {
+  test('foldEntity: an update with a null `after` is skipped, not applied', () => {
+    const state = foldEntity([
+      m({ id: '1', op: 'insert', lamport: 1, after: { id: 'g1', title: 'A' } }),
+      m({ id: '2', op: 'update', lamport: 2, after: null }), // defensive skip
+    ]);
+    expect(state).toEqual({ id: 'g1', title: 'A' });
+  });
+
+  test('materializeEntity: a delete on a CRDT entity tombstones to null', () => {
+    const gMut = (id: string, op: MutationRecord['op'], lamport: number): MutationRecord => ({
+      id, entity: 'gamification', entityId: 'u', op, before: null,
+      after: op === 'delete' ? null : { id: 'row', userId: 'u', totalXP: 5, weeklyXP: 0, badges: '[]', streaks: '{}', domainScores: '{}', updatedAt: 't' },
+      fields: [], ts: 't', lamport, deviceId: 'A', userId: 'u', prevHash: null, hash: id,
+    });
+    expect(materializeEntity('gamification', [gMut('a', 'insert', 1), gMut('b', 'delete', 2)])).toBeNull();
+  });
+
+  test('mergeGamification: malformed badges/streaks JSON falls back, never throws', () => {
+    const a = gami({ badges: '[broken', streaks: '{broken' });
+    const b = gami({ badges: JSON.stringify(['x']) });
+    let merged: ReturnType<typeof mergeGamification>;
+    expect(() => { merged = mergeGamification(a, b); }).not.toThrow();
+    // the broken side parses to [] (fallback); the union still includes b's badge
+    expect(JSON.parse(merged!.badges as string)).toContain('x');
+  });
+});
