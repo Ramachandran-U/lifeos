@@ -39,5 +39,5 @@ jobs:
 
       - run: npm ci
 
-      - name: jest (node + components projects)
-        run: npm test
+      - name: jest (node + components projects, with src/sync coverage gate)
+        run: npm test -- --coverage
