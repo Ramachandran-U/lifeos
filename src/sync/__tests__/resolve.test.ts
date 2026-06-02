@@ -272,8 +272,8 @@ describe('mergeExpeditionProgressSnapshot', () => {
 describe('fold/merge defensive branches', () => {
   test('foldEntity: an update with a null `after` is skipped, not applied', () => {
     const state = foldEntity([
-      m({ id: '1', op: 'insert', lamport: 1, after: { id: 'g1', title: 'A' } }),
-      m({ id: '2', op: 'update', lamport: 2, after: null }), // defensive skip
+      m({ id: '1', op: 'insert', lamport: 1, deviceId: 'A', after: { id: 'g1', title: 'A' } }),
+      m({ id: '2', op: 'update', lamport: 2, deviceId: 'A', after: null }), // defensive skip
     ]);
     expect(state).toEqual({ id: 'g1', title: 'A' });
   });
