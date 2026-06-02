@@ -86,6 +86,35 @@ function defaultId(): string {
   return `m_${Date.now().toString(36)}_${idCounter.toString(36)}`;
 }
 
+/** The hashed content of a chain link — the record minus its envelope. */
+export type ChainPayload = Pick<
+  MutationRecord,
+  'entity' | 'entityId' | 'op' | 'before' | 'after' | 'fields' | 'lamport' | 'deviceId' | 'userId'
+>;
+
+/**
+ * The exact object that gets hashed for a record's chain link. Deliberately the
+ * content + logical position only — it EXCLUDES the envelope (id/ts/prevHash/
+ * hash) so the hash commits to *what changed and where in logical time*, not to
+ * a random id or a wall clock. `record()` below builds the chain from this, and
+ * compaction re-chains checkpoints/survivors from the SAME shape — so a re-hash
+ * after compaction is bit-identical to the original write's hash. Keep these two
+ * call sites in lockstep (see mutationLog.test.ts `chainPayload parity`).
+ */
+export function chainPayload(r: ChainPayload): ChainPayload {
+  return {
+    entity: r.entity,
+    entityId: r.entityId,
+    op: r.op,
+    before: r.before,
+    after: r.after,
+    fields: r.fields,
+    lamport: r.lamport,
+    deviceId: r.deviceId,
+    userId: r.userId,
+  };
+}
+
 export class MutationLog {
   private readonly clock: LamportClock;
   private readonly hasher: Hasher;
@@ -134,7 +163,7 @@ export class MutationLog {
 
     // The hashed payload deliberately excludes id/hash/prevHash (the envelope)
     // so the hash commits to the *content + position*, not to a random id.
-    const payload = {
+    const payload = chainPayload({
       entity: input.entity,
       entityId: input.entityId,
       op: input.op,
@@ -144,7 +173,7 @@ export class MutationLog {
       lamport,
       deviceId: this.deviceId,
       userId: this.userId,
-    };
+    });
     const hash = await chainHash(this.headHash, payload, this.hasher);
 
     const rec: MutationRecord = {

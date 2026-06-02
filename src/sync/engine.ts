@@ -33,6 +33,7 @@ import { getDeviceId } from '@/utils/telemetry';
 import { getLocalSink } from './sink';
 import { applyRemoteMutation } from './reducer';
 import { planCompaction, COMMUTATIVE_ENTITIES } from './compaction';
+import { getProductionHasher } from './hasher';
 import type { MutationRecord } from './mutationLog';
 
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
@@ -241,23 +242,26 @@ function gaugeLogSize(): void {
 async function maybeCompact(): Promise<void> {
   if (compactedThisSession) return;
   if (!useFlagStore.getState().isEnabled('compaction_enabled')) return;
-  compactedThisSession = true;
+  compactedThisSession = true; // claim immediately so an overlapping drain can't double-run
   try {
     const sink = getLocalSink();
     const entries = await sink.readAllWithState();
     gauge('mutations.log.size', entries.length);
     const cutoff = new Date(Date.now() - COMPACT_RETAIN_DAYS * 86_400_000).toISOString();
-    const plan = planCompaction(entries, {
+    const plan = await planCompaction(entries, {
       minMutations: COMPACT_MIN_MUTATIONS,
       retainCutoffTs: cutoff,
       commutative: COMMUTATIVE_ENTITIES,
-    });
+    }, getProductionHasher());
     if (plan.deleteIds.length === 0) return;
     await sink.applyCompaction(plan);
     increment('sync.compaction.collapsed', {}, plan.deleteIds.length);
     gauge('mutations.log.size', await sink.count());
   } catch {
-    // best-effort — a failed compaction leaves the log intact
+    // Best-effort — a failed (e.g. hasher/IO) compaction leaves the log intact.
+    // Release the latch so a transient failure self-heals on the next drain
+    // rather than disabling compaction for the whole session.
+    compactedThisSession = false;
   }
 }
 

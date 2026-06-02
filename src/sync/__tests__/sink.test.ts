@@ -97,4 +97,74 @@ describe('web sink', () => {
     expect(stored[stored.length - 1].entityId).toBe('y');
     expect(stored[0].entityId).not.toBe('g0'); // oldest was rotated out
   });
+
+  test('applyCompaction re-chains survivors, inserts the checkpoint, and resume() still returns the max-lamport local head (T9)', async () => {
+    const { createLocalSink } = await import('../sink');
+    const { planCompaction, COMMUTATIVE_ENTITIES } = await import('../compaction');
+    const { validateChain } = await import('../hashChain');
+    const { chainPayload } = await import('../mutationLog');
+
+    const sink = createLocalSink();
+    const log = new MutationLog({ hasher: testHasher, deviceId: 'A', userId: 'u', sink: sink.append });
+    const gamiAfter = (xp: number) => ({ id: 'grow', userId: 'u', totalXP: xp, weeklyXP: 0, badges: '[]', streaks: '{}', domainScores: '{}', updatedAt: 't' });
+    // 3 commutative gamification writes (collapsible) + a LATER goal that survives.
+    await log.record({ entity: 'gamification', entityId: 'u', op: 'update', before: null, after: gamiAfter(100) });
+    await log.record({ entity: 'gamification', entityId: 'u', op: 'update', before: null, after: gamiAfter(150) });
+    await log.record({ entity: 'gamification', entityId: 'u', op: 'update', before: null, after: gamiAfter(120) });
+    await log.record({ entity: 'goals', entityId: 'g1', op: 'insert', before: null, after: { id: 'g1', title: 'Keep' } });
+
+    // planCompaction never touches pending rows → mark everything acked first.
+    const all = await sink.readAllWithState();
+    await sink.markSynced(all.map((x) => x.record.id));
+    const goalHashBefore = (await sink.readAllWithState()).find((x) => x.record.entity === 'goals')!.record.hash;
+
+    const plan = await planCompaction(
+      await sink.readAllWithState(),
+      { minMutations: 3, retainCutoffTs: '2000-01-01T00:00:00.000Z', commutative: COMMUTATIVE_ENTITIES },
+      testHasher,
+    );
+    expect(plan.checkpoints).toHaveLength(1);
+    const reGoal = plan.rechained.find((r) => r.entity === 'goals');
+    expect(reGoal).toBeTruthy(); // the goal sits after the collapsed run → re-linked
+
+    await sink.applyCompaction(plan);
+
+    const after = await sink.readAllWithState();
+    // Gamification collapsed to one checkpoint; the goal survives.
+    expect(after.filter((x) => x.record.entity === 'gamification')).toHaveLength(1);
+    expect(after.find((x) => x.record.id === 'ckpt:gamification:u')).toBeTruthy();
+
+    // The re-chain UPDATE actually landed in the buffer (not just the plan).
+    const goalAfter = after.find((x) => x.record.entity === 'goals')!.record;
+    expect(goalAfter.hash).toBe(reGoal!.hash);
+    expect(goalAfter.hash).not.toBe(goalHashBefore);
+
+    // resume head = the highest-lamport LOCAL record (the goal), NOT the
+    // checkpoint (which carries an older lamport). Regression guard for the
+    // unsorted-append bug where a checkpoint would wrongly become the head.
+    const localMax = after
+      .filter((x) => x.syncState !== 'applied_remote')
+      .map((x) => x.record)
+      .sort((a, b) => a.lamport - b.lamport)
+      .pop()!;
+    expect(localMax.entity).toBe('goals');
+    const resumed = await sink.resume();
+    expect(resumed.headHash).toBe(localMax.hash);
+
+    // The post-compaction local chain validates end-to-end.
+    const local = after
+      .filter((x) => x.syncState !== 'applied_remote')
+      .map((x) => x.record)
+      .sort((a, b) => a.lamport - b.lamport);
+    const broke = await validateChain(
+      local.map((r) => ({ prevHash: r.prevHash, hash: r.hash, payload: chainPayload(r) })),
+      testHasher,
+    );
+    expect(broke).toBe(-1);
+
+    // A fresh write chains cleanly off the resumed head.
+    const log2 = new MutationLog({ hasher: testHasher, deviceId: 'A', userId: 'u', sink: sink.append, headHash: resumed.headHash, initialLamport: resumed.lamport });
+    const next = await log2.record({ entity: 'goals', entityId: 'g1', op: 'update', before: null, after: { id: 'g1', title: 'Updated' } });
+    expect(next.prevHash).toBe(localMax.hash);
+  });
 });

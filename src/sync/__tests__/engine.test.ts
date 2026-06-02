@@ -32,7 +32,7 @@ jest.mock('@/ai/tracing', () => ({ withSpan: (_n: string, fn: () => unknown) => 
 jest.mock('@/observability/metrics', () => ({ increment: jest.fn(), gauge: jest.fn() }));
 jest.mock('../reducer', () => ({ applyRemoteMutation: jest.fn() }));
 jest.mock('../compaction', () => ({
-  planCompaction: jest.fn(() => ({ deleteIds: [], checkpoints: [] })),
+  planCompaction: jest.fn(async () => ({ deleteIds: [], checkpoints: [], rechained: [] })),
   COMMUTATIVE_ENTITIES: new Set<string>(),
 }));
 jest.mock('../sink', () => ({ getLocalSink: () => mockSink }));
