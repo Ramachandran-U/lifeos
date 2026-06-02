@@ -26,26 +26,31 @@ setSupabaseTokenGetter(async () => {
   return data.session?.access_token ?? null;
 });
 
-// supabase-js's timer-based autoRefreshToken does NOT run reliably while a
-// React Native app is backgrounded, so the access token silently lapses while
-// the phone sits overnight and the user is effectively signed out by next-day
-// boot. That broke two things on a ~daily cadence: Gmail sync (its token
-// refresh needs a live Supabase bearer) and height/weight reads (identity went
-// stale). Per Supabase's RN guidance, drive auto-refresh off AppState so it
-// resumes on foreground. Web refreshes via the browser, so it's native-only.
-if (Platform.OS !== 'web') {
+/** Minimal surface of the Supabase client this needs (keeps it mockable). */
+type AutoRefreshable = { auth: { startAutoRefresh: () => unknown; stopAutoRefresh: () => unknown } };
+
+/**
+ * Drive Supabase token auto-refresh off AppState on native: start on
+ * foreground, stop on background. supabase-js's timer does NOT run reliably
+ * while a React Native app is backgrounded, so without this the access token
+ * silently lapses overnight and the user is signed out by next-day boot — which
+ * broke Gmail sync (its token refresh needs a live Supabase bearer) and stale
+ * height/weight identity on a ~daily cadence. Web refreshes via the browser, so
+ * it's a native-only no-op. Exported for unit testing; invoked once below.
+ */
+export function wireAppStateAutoRefresh(client: AutoRefreshable): void {
+  if (Platform.OS === 'web') return;
   // Lazy native-only require so the web bundle never has to resolve AppState
   // (mirrors the platform-guarded require pattern in src/db/index.ts).
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { AppState } = require('react-native') as typeof import('react-native');
   AppState.addEventListener('change', (state) => {
-    if (state === 'active') {
-      void supabase.auth.startAutoRefresh();
-    } else {
-      void supabase.auth.stopAutoRefresh();
-    }
+    if (state === 'active') void client.auth.startAutoRefresh();
+    else void client.auth.stopAutoRefresh();
   });
 }
+
+wireAppStateAutoRefresh(supabase);
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);

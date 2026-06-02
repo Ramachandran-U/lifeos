@@ -18,6 +18,17 @@ const IGNORE = ['/node_modules/', '/\\.claude/'];
 const expoPreset = require('jest-expo/jest-preset');
 
 module.exports = {
+  // Regression guard for the sync engine (P1). Scoped to src/sync so `--coverage`
+  // stays fast and the bar targets the data-integrity core. Native expo-sqlite
+  // paths in sink.ts/backup.ts can't run under jest-node (device-smoke-tested),
+  // so the bar accounts for them. Enforced in CI via `npm test -- --coverage`.
+  collectCoverageFrom: ['src/sync/**/*.ts', '!src/sync/**/__tests__/**'],
+  // `global` = the aggregate over the collected files (scoped to src/sync above),
+  // i.e. a directory-level floor — not per-file, so the device-only native paths
+  // in sink.ts/backup.ts don't sink the bar while the core stays well-covered.
+  coverageThreshold: {
+    global: { lines: 76, statements: 73, branches: 60, functions: 62 },
+  },
   projects: [
     {
       displayName: 'node',
