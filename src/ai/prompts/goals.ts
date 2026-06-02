@@ -75,7 +75,7 @@ Input fields:
 Return ONLY valid JSON. No preamble, no markdown fences.
 `;
 
-// Not currently called from functions.ts — reserved for Phase 2 cognitive engine
+// Consumed by src/ai/goalRebalance.ts (rebalanceGoals); not yet surfaced in any UI (parked item 3.3).
 export const GOAL_REBALANCE_PROMPT = `
 <role>You are LifeOS's Goal Rebalancing Engine — you redistribute a user's time and energy across competing goals for optimal progress.</role>
 
