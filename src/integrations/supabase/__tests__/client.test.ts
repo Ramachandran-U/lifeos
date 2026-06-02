@@ -5,7 +5,9 @@
  * fixed sessions lapsing overnight, so it needs a regression guard.
  */
 const mockClient = { auth: { startAutoRefresh: jest.fn(), stopAutoRefresh: jest.fn(), getSession: jest.fn() } };
-const mockAddEventListener = jest.fn(() => ({ remove: jest.fn() }));
+const mockAddEventListener = jest.fn(
+  (_event: string, _handler: (state: string) => void): { remove: () => void } => ({ remove: jest.fn() }),
+);
 
 jest.mock('react-native-url-polyfill/auto', () => ({}));
 jest.mock('@supabase/supabase-js', () => ({ createClient: () => mockClient }));
@@ -31,7 +33,7 @@ describe('wireAppStateAutoRefresh', () => {
     wireAppStateAutoRefresh(mockClient);
     expect(mockAddEventListener).toHaveBeenCalledWith('change', expect.any(Function));
 
-    const handler = mockAddEventListener.mock.calls[0][1] as (s: string) => void;
+    const handler = mockAddEventListener.mock.calls[0][1];
     handler('active');
     expect(mockClient.auth.startAutoRefresh).toHaveBeenCalledTimes(1);
     expect(mockClient.auth.stopAutoRefresh).not.toHaveBeenCalled();
