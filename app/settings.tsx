@@ -29,6 +29,24 @@ import {
   cancelAllCustomNotifications,
 } from '@/hooks/useNotifications';
 
+/**
+ * Yield one painted frame before a synchronous, thread-blocking call.
+ * PBKDF2 key derivation (encrypt/decryptBackup → deriveKey, ~hundreds of ms at
+ * 150k iters) blocks the JS thread, so without this the `backupBusy` "Working…"
+ * state is set but React hasn't committed + painted it before the freeze — the
+ * spinner would only appear *after* the block. Double rAF resolves after the
+ * busy frame is on screen (setTimeout fallback where rAF is unavailable).
+ */
+function yieldToPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const c = useColors();
@@ -72,6 +90,7 @@ export default function SettingsScreen() {
     }
     setBackupBusy(true);
     try {
+      await yieldToPaint(); // paint the "Working…" state before PBKDF2 blocks the thread
       await exportBackup(backupPass);
       setBackupPass('');
       Alert.alert('Backup created', 'Your encrypted backup was saved. Keep the passphrase safe — without it the backup cannot be restored.');
@@ -85,6 +104,7 @@ export default function SettingsScreen() {
   const doImport = async () => {
     setBackupBusy(true);
     try {
+      await yieldToPaint(); // paint the "Working…" state before PBKDF2 blocks the thread
       const res = await importBackup(backupPass);
       if (res.applied) {
         setBackupPass('');

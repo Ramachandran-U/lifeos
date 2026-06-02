@@ -30,7 +30,7 @@
 | 2.3 🧱 | **Privacy non-goal — do NOT auto-sync sensitive entities.** Listed here so it isn't re-proposed as "missing coverage." | By design. Non-sensitive coverage (goals, routine, reflections, gamification, interests, exploration, expeditions, sparks, profile) is complete. | n/a — design boundary. |
 | 2.4 🅿️ | **Compaction breaks the hash chain.** `planCompaction` builds checkpoints with `prevHash: null` + a synthetic, non-cryptographic `hash` (`ckpt:…`), so post-compaction the `mutation_log` holds rows that don't validate as chain links (and a checkpoint can become the `resume()` head). | Surfaced in the PR #93 review; not fixed (flag-gated off). Undermines the chain's tamper-evidence guarantee once compaction runs. | Resolve **before** enabling `compaction_enabled`: re-hash checkpoints into the chain (real `prevHash` + hasher) or make integrity checks checkpoint-aware. `src/sync/compaction.ts:79-93`. |
 | 2.5 🅿️ | **Native backup apply: untested + latent hazards.** `applyNative` is atomic now (PR #93) but unverified on-device; `INSERT OR REPLACE` fires `ON DELETE CASCADE` if any table declares cascading FKs, and rows apply in `sqlite_master` order, not FK-dependency order. | Can't unit-test expo-sqlite here — needs a device smoke test. | Before enabling `backup_enabled`: two-device export→import smoke test; confirm no table declares `ON DELETE CASCADE` (else insert in dependency order). `src/sync/backup.ts`. |
-| 2.6 🅿️ | **PBKDF2 (150k iters) runs synchronously on the JS thread** during export/import (`backupCrypto.ts` `deriveKey`). | Fine for an explicit user action, but blocks the UI ~hundreds of ms on low-end devices. Documented in code; not mitigated. | Before enabling `backup_enabled`: show a spinner around the call; consider off-thread derivation for low-end Android. |
+| 2.6 🅿️ | **PBKDF2 (150k iters) runs synchronously on the JS thread** during export/import (`backupCrypto.ts` `deriveKey`). **Spinner-yield landed 2026-06-03** — `handleExport`/`doImport` (`app/settings.tsx`) now `yieldToPaint()` after `setBackupBusy(true)`, so the "Working…" state paints before the block. The `backup_enabled` soft-gate is cleared. | Fine for an explicit user action, but still blocks the UI ~hundreds of ms on low-end devices (the yield makes the spinner honest; it doesn't speed up derivation). | Remaining (optional): off-thread / chunked derivation for low-end Android. |
 
 ---
 
@@ -42,7 +42,7 @@
 |---|------|---------|-------|
 | 3.1 🅿️ | **Act-stage confirm-card UI (#1).** Propose-only write tools + the commit *logic* are done; the inline confirmable UI cards are still TODO. | ~30d | ALWAYS confirm (no "always allow this kind" bypass). Commit flows through existing `recordMutation` queries. |
 | 3.2 🅿️ | **Learning-loop act half (#3-act).** Measurement end is wired (`recordSuggestionOutcome`); the human-toggled variant switch is not. | ~90d | NO silent auto-flip — surface kill/keep verdict, human toggles. |
-| 3.3 🅿️ | **Goal replanning (#6).** Wire the unused `GOAL_REBALANCE_PROMPT`. | ~90d | |
+| 3.3 🅿️ | **Goal replanning (#6).** *(Correction: `GOAL_REBALANCE_PROMPT` is NOT unused — `src/ai/goalRebalance.ts` already consumes it via `rebalanceGoals()`. The misleading "Not currently called" comment in `goals.ts` was fixed 2026-06-03.)* The real gap: `goalRebalance.ts` has no UI consumer — surface it (manual "Rebalance hours" action, or a proactive `detectDomainDivergence()` trigger). | ~90d | `GOAL_SLIP_RECOVERY_PROMPT` in the same file *is* genuinely still unwired — don't confuse the two. |
 | 3.4 🅿️ | **Life graph (#8).** `entity_edges`, 1-hop traversal. | ~12mo | Every write query already calls `recordMutation` → the audit trail is the substrate. |
 
 ---
@@ -91,7 +91,8 @@
 
 ## Related canonical docs
 
-- [`docs/MANUAL_OPS_TODO.md`](MANUAL_OPS_TODO.md) — manual operational steps
+- [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
+- [`docs/MANUAL_OPS_TODO.md`](MANUAL_OPS_TODO.md) — manual operational steps (parked-items human actions mirrored as checkboxes)
 - [`docs/PRE_PRODUCTION_CHECKLIST.md`](PRE_PRODUCTION_CHECKLIST.md) — pre-launch gate
 - [`docs/architecture/mcp-interop-decision.md`](architecture/mcp-interop-decision.md) — MCP decision record (items 4.1–4.3)
 - `TASKS.md` / `roadmap/` / `implementation-plan/` — active work & sequencing

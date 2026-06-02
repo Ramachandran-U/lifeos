@@ -6,7 +6,7 @@
 >
 > **Status caveat:** open checkboxes below reflect the state at the dates noted, not live verification — confirm against the Supabase/Cloudflare dashboards before trusting any unchecked box.
 
-Last updated: 2026-05-08 (paths refreshed 2026-05-30; operational status not re-verified)
+Last updated: 2026-05-08 (paths refreshed 2026-05-30; operational status not re-verified; parked-items follow-ups added 2026-06-03)
 
 ---
 
@@ -93,6 +93,21 @@ These map to the 🟠 High tier in [PRE_PRODUCTION_CHECKLIST.md](PRE_PRODUCTION_
 
 - [ ] **#8 Configure custom SMTP in Supabase.** Free-tier email is 4/hour. SendGrid / Resend / Postmark + SPF/DKIM/DMARC DNS on sender domain.
 - [ ] **`aal2` MFA check in Worker.** Update `workers/ai-proxy/src/lib/adminAuth.ts` to reject JWTs with `aal < aal2` for `/v1/admin/*` once all admins have MFA enrolled.
+
+---
+
+## 🟣 Parked-items follow-ups (human actions)
+
+> Manual actions to un-park items from [PARKED_ITEMS.md](PARKED_ITEMS.md). **Full step-by-step (commands, console paths, gotchas) lives in [PARKED_ITEMS_RUNBOOK.md](PARKED_ITEMS_RUNBOOK.md)** — these checkboxes are just the index. Verified against the repo 2026-06-03.
+
+- [ ] **1.4 — Publish Google OAuth consent screen to Production.** *Highest value, zero code* — fixes the ~7-day Gmail-reconnect papercut. Console only: APIs & Services → OAuth consent screen → **Publish app**, then enable Gmail/Calendar/Fitness APIs and confirm prod redirect URIs. ([runbook §1.4](PARKED_ITEMS_RUNBOOK.md#14--publish-google-oauth-consent-screen-to-production-))
+- [ ] **1.1 — Deploy the apex Pages site** (decision-gated; only if you want users on `lifeos-6r5.pages.dev`). `npm run web:export` → `npx wrangler pages deploy dist --project-name=lifeos --branch=<prod-branch>`. CORS already allowlisted. ([runbook §1.1](PARKED_ITEMS_RUNBOOK.md#11--deploy-the-apex-cloudflare-pages-site-))
+- [ ] **1.2 — First native EAS build** (needs Expo + Apple Developer + Google Play credentials). `npx eas login` → `eas init` → `eas build -p ios/android --profile production`. Watch out for the `expo-health` `0.0.0` placeholder dep. ([runbook §1.2](PARKED_ITEMS_RUNBOOK.md#12--first-native-iosandroid-build-via-eas-))
+- [ ] **1.6 — Local Supabase stack** (only when you need local *auth* dev; app data does NOT flow through it). Start Docker daemon → `npx supabase init` → `start` → `status`. ([runbook §1.6](PARKED_ITEMS_RUNBOOK.md#16--local-supabase-stack-))
+- [ ] **5.2 — O*NET + Adzuna keys** (optional/future career grounding). Register both (free), then `npx wrangler secret put` the four keys from `workers/ai-proxy/`. Hand off to Claude for wiring. ([runbook §5.2](PARKED_ITEMS_RUNBOOK.md#52--onet--adzuna-api-keys-optionalfuture-))
+- [ ] **2.5 — Two-device native backup/compaction smoke test** *(gated: needs 2.4 fix + a native build first)*. Export on device A → restore on B → verify merge + compaction + wrong-passphrase abort. ([runbook §B step 3](PARKED_ITEMS_RUNBOOK.md#step-3--25-two-device-native-smoke-test--needs-a-native-build-from-12-first))
+- [ ] **1.3 — Flip `compaction_enabled` / `backup_enabled` per-cohort** *(gated: needs 2.4 + 2.5 + 2.6)*. Seed the flag rows + a `flag_overrides` row in Supabase SQL Editor (no admin API creates them). ([runbook §B step 4](PARKED_ITEMS_RUNBOOK.md#step-4--13-flip-the-flags-per-cohort-))
+- **2.1 — Sync monitoring** (ongoing, not a one-off): Settings sync pill + the `mutations`-table SQL queries + the kill switch. ([runbook §2.1](PARKED_ITEMS_RUNBOOK.md#21--monitor-the-now-globally-on-sync-engine-ongoing-))
 
 ---
 

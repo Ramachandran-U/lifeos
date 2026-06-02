@@ -53,6 +53,7 @@ tmp/
 test-results/
 smoke-output/
 playwright-report/
+coverage/
 .auth/
 .env.test
 .claude/
