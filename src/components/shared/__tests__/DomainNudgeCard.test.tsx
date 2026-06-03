@@ -24,7 +24,7 @@ jest.mock('@/db/queries/goals', () => ({ getGoalsByUser: () => [] }));
 jest.mock('@/db/queries/routine', () => ({ getRoutineBlocksByDate: () => [] }));
 jest.mock('@/db/queries/behaviour', () => ({ getEventsLastNDays: () => [] }));
 
-const mockRecordInsight = jest.fn(() => 'insight_fake_1');
+const mockRecordInsight = jest.fn((..._args: unknown[]) => 'insight_fake_1');
 const mockUpdateInsightStatus = jest.fn();
 jest.mock('@/db/queries/cognitiveInsights', () => ({
   recordInsight: (...args: unknown[]) => mockRecordInsight(...args),

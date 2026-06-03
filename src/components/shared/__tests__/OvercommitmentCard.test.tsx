@@ -21,7 +21,7 @@ jest.mock('@/cognition/overcommitment', () => ({
   detectOvercommitment: (...args: unknown[]) => mockDetect(...args),
 }));
 
-const mockRecordInsight = jest.fn(() => 'insight_fake_1');
+const mockRecordInsight = jest.fn((..._args: unknown[]) => 'insight_fake_1');
 const mockUpdateInsightStatus = jest.fn();
 jest.mock('@/db/queries/cognitiveInsights', () => ({
   recordInsight: (...args: unknown[]) => mockRecordInsight(...args),
