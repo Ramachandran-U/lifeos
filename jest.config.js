@@ -117,6 +117,20 @@ module.exports = {
         '^@/(.*)$': '<rootDir>/src/$1',
       },
       testPathIgnorePatterns: IGNORE,
+      // Coverage from this project is for src/components ONLY. Component tests
+      // import the logic dirs (sync/db/store/ai/…) transitively via the store
+      // chain; letting jest-expo's babel instrument them too — merged with the
+      // node project's ts-jest instrumentation — DILUTES the per-directory
+      // numbers the coverage gate checks (e.g. src/sync 82%→71% lines, 68%→49%
+      // branches). Ignoring those paths here keeps each gated dir measured by
+      // the node project alone, i.e. its true coverage. (coveragePathIgnore
+      // overrides collectCoverageFrom.)
+      coveragePathIgnorePatterns: [
+        ...IGNORE,
+        '/src/sync/', '/src/db/', '/src/store/', '/src/ai/', '/src/utils/',
+        '/src/finance/', '/src/explore/', '/src/cognition/', '/src/integrations/',
+        '/src/hooks/', '/workers/',
+      ],
     },
   ],
 };
