@@ -60,6 +60,10 @@ export default defineConfig({
         '**/auth-routing.spec.ts',
         '**/auth-signout.spec.ts',
         '**/onboarding-fresh.spec.ts',
+        // Real-session engine spec — needs storageState + a live session id, so
+        // it belongs only to the `authenticated` project (would throw under
+        // chromium with no session).
+        '**/engine-authed.spec.ts',
       ],
       // routine-block-complete uses a press-and-hold gesture that can race on
       // slow CI runners; one retry absorbs the flake without masking real breaks.
@@ -100,6 +104,7 @@ export default defineConfig({
         '**/auth-signout.spec.ts',
         '**/auth-routing.spec.ts',
         '**/onboarding-fresh.spec.ts',
+        '**/engine-authed.spec.ts',
       ],
       dependencies: ['setup'],
       use: {
