@@ -61,9 +61,10 @@ module.exports = {
     './src/ai/prompts/': { lines: 90 }, // string constants — no branches/functions
     './src/ai/': { lines: 40, branches: 25, functions: 32 },
     './src/utils/': { lines: 48, branches: 44, functions: 40 },
-    './src/finance/': { lines: 40, branches: 34, functions: 40 },
+    './src/finance/db/': { lines: 92, branches: 85, functions: 92 },
+    './src/finance/': { lines: 40, branches: 32, functions: 36 },
     './src/db/queries/': { lines: 28, branches: 9, functions: 18 },
-    './src/db/webStorage/': { lines: 60, branches: 42, functions: 40 },
+    './src/db/webStorage/': { lines: 90, branches: 72, functions: 88 },
     './src/db/': { lines: 34 },
     './src/store/': { lines: 40, branches: 28, functions: 40 },
     './src/integrations/google/': { lines: 58, branches: 55, functions: 38 },
