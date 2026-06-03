@@ -18,16 +18,59 @@ const IGNORE = ['/node_modules/', '/\\.claude/'];
 const expoPreset = require('jest-expo/jest-preset');
 
 module.exports = {
-  // Regression guard for the sync engine (P1). Scoped to src/sync so `--coverage`
-  // stays fast and the bar targets the data-integrity core. Native expo-sqlite
-  // paths in sink.ts/backup.ts can't run under jest-node (device-smoke-tested),
-  // so the bar accounts for them. Enforced in CI via `npm test -- --coverage`.
-  collectCoverageFrom: ['src/sync/**/*.ts', '!src/sync/**/__tests__/**'],
-  // `global` = the aggregate over the collected files (scoped to src/sync above),
-  // i.e. a directory-level floor — not per-file, so the device-only native paths
-  // in sink.ts/backup.ts don't sink the bar while the core stays well-covered.
+  // Coverage RATCHET. Each glob's floor is set a few points UNDER the measured %
+  // (run-to-run noise can't red CI). It is a ONE-WAY ratchet: PRs may RAISE a
+  // floor, never lower it without explicit justification. Most-specific glob
+  // wins, so the strong sub-areas (ai/agent, ai/prompts) keep a high bar while
+  // the noisier parent (ai/client.ts, functions.ts) clears a lower one. Floors
+  // are directory aggregates — native-only paths (expo-sqlite in db/*, sink/
+  // backup) and other device-smoke code stay device-tested, so the dir bar
+  // accounts for them. Enforced in CI via `npm test -- --coverage`.
+  //
+  // 0%-today areas are intentionally NOT collected yet (locking in 0% is a no-op
+  // gate that makes the aggregate look defended): src/components, src/hooks, and
+  // src/integrations/{supabase,elevenlabs,googleFit-not... }. Bring them in per
+  // phase once starter specs exist (see the test-coverage expansion plan).
+  collectCoverageFrom: [
+    'src/sync/**/*.ts',
+    'src/cognition/**/*.ts',
+    'src/explore/**/*.ts',
+    'src/ai/**/*.ts',
+    'src/utils/**/*.{ts,tsx}',
+    'src/finance/**/*.{ts,tsx}',
+    'src/db/**/*.ts',
+    'src/store/**/*.ts',
+    'src/integrations/google/**/*.ts',
+    'src/integrations/googleCalendar/**/*.ts',
+    'src/integrations/googleFit/**/*.ts',
+    'src/integrations/googleAuth/**/*.ts',
+    'workers/ai-proxy/src/**/*.ts',
+    '!**/__tests__/**',
+    '!src/**/*.d.ts',
+  ],
+  // DIRECTORY-path keys (trailing slash), NOT globs: jest aggregates coverage
+  // over each directory and applies the MOST-SPECIFIC matching key, so a
+  // directory's average is what's gated (glob keys are checked per-file, which
+  // would red on the native-only files like sink.ts/backup.ts). Floors sit a few
+  // points under the measured directory aggregate.
   coverageThreshold: {
-    global: { lines: 76, statements: 73, branches: 60, functions: 62 },
+    './src/sync/': { lines: 76, statements: 73, branches: 60, functions: 62 },
+    './src/cognition/': { lines: 90, branches: 82, functions: 85 },
+    './src/explore/': { lines: 76, branches: 62, functions: 78 },
+    './src/ai/agent/': { lines: 86, branches: 70, functions: 76 },
+    './src/ai/prompts/': { lines: 90 }, // string constants — no branches/functions
+    './src/ai/': { lines: 40, branches: 22, functions: 30 },
+    './src/utils/': { lines: 46, branches: 36, functions: 34 },
+    './src/finance/': { lines: 38, branches: 30, functions: 32 },
+    './src/db/queries/': { lines: 26, branches: 8, functions: 16 },
+    './src/db/webStorage/': { lines: 60, branches: 42, functions: 40 },
+    './src/db/': { lines: 32 },
+    './src/store/': { lines: 24, branches: 16, functions: 18 },
+    './src/integrations/google/': { lines: 58, branches: 55, functions: 38 },
+    './src/integrations/googleCalendar/': { lines: 70, branches: 58, functions: 80 },
+    './src/integrations/googleFit/': { lines: 78, branches: 44, functions: 78 },
+    './src/integrations/googleAuth/': { lines: 44 },
+    './workers/ai-proxy/src/': { lines: 9, branches: 6, functions: 12 },
   },
   projects: [
     {
