@@ -53,6 +53,7 @@ describe('resolveGuardRedirect — onboarded allowlist', () => {
     // Today. 'what-lifeos-remembers' was missing from the allowlist (the guard
     // sent it to /(tabs)); regression-guarded here for both.
     'what-lifeos-knows', 'what-lifeos-remembers',
+    'activity',
   ])('allows post-onboarding route: %s', (seg0) => {
     expect(resolveGuardRedirect(state({ seg0 }))).toBeNull();
   });

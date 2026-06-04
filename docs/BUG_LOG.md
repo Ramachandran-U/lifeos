@@ -82,9 +82,9 @@ Last updated: 2026-05-31
 | WEB-130 | Blank white screen when completing a routine block (React #130) | ✅ Fixed (#78, merged) | `DomainGlyph` did `DOMAIN_ICONS[domain]` unguarded; a non-domain module (`rest`/`meal`/`work`) → `undefined` component → #130. Added `?? DOMAIN_ICONS.goal` fallback + regression spec. Surfaced only because lifeosv1 hit web for the first time |
 | WEB-BUILD | Blank deploy from junctioned `node_modules` | ✅ Process fix | Building in a worktree whose `node_modules` is a junction breaks Expo Router static route discovery → routeless blank bundle. Deploys now use a real `npm ci`, render-verified before going live |
 | RW-01 | "XP never credits / totalXP stays 0" | ❌ Refuted (stale) | Live repro: completing a goal moved totalXP 0→15, domainScores updated. Crediting pipeline works. Report tested an older build |
-| GAM-double | Routine-block completion double-credits XP (`completeBlock` + `addXP`) | 🟡 Fix open (#80) | `completeBlock` is being made the single XP source; manual meal logging will award `XP_VALUES.logFood`. **Not yet merged** — current lifeosv1 still double-credits domain blocks |
-| HE-02 | Calorie field accepts negatives / coerces non-numeric to 0 | 🟡 Fix open (#80) | `AddFoodSheet` validation; not yet merged |
-| KB-04 | Esc doesn't close Add-goal sheet | 🟡 Fix open (#80) | Missing `onRequestClose` on the Modal; not yet merged |
+| GAM-double | Routine-block completion double-credits XP (`completeBlock` + `addXP`) | ✅ Fixed (#80, merged 2026-05-31) | `completeBlock` is now the single XP source (`useGameStore.ts` — callers must NOT also call `addXP(completeBlock)`); manual meal logging awards `XP_VALUES.logFood` |
+| HE-02 | Calorie field accepts negatives / coerces non-numeric to 0 | ✅ Fixed (#80, merged 2026-05-31) | `AddFoodSheet` now rejects negatives / non-numeric (parses to a finite ≥0 number, else rejects with a validation message) |
+| KB-04 | Esc doesn't close Add-goal sheet | ✅ Fixed (#80, merged 2026-05-31) | `onRequestClose={handleClose}` added to the `AddGoalSheet` Modal (RN-web ignores Esc without it) |
 | UI-circles | "Two concentric circles moving in the middle" | 🔍 Investigating | Likely the ambient halo/loader; parallel session owns |
 | FIN-gmail | Must reconnect Gmail on every refresh/login | 🔍 Investigating | Token-persistence gap; parallel session owns |
 | HEALTH-vitals | Height/weight not persisting across sessions | 🔍 Investigating | Vitals write/read path; parallel session owns |

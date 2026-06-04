@@ -37,6 +37,7 @@ import { DailySummarySheet } from '@/components/shared/DailySummarySheet';
 import { YesterdayLogSheet } from '@/components/shared/YesterdayLogSheet';
 import { AdaptationCard } from '@/components/shared/AdaptationCard';
 import { WhatNextCard } from '@/components/shared/WhatNextCard';
+import { CoachActionsCard } from '@/components/shared/CoachActionsCard';
 import { LifeScoreHero } from '@/components/shared/LifeScoreHero';
 import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
 import { getReflectionByDate } from '@/db/queries/reflections';
@@ -47,6 +48,7 @@ import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import { computeLifeScore, lifeScoreBand } from '@/utils/lifeScore';
 import type { DailyBriefingInput } from '@/ai/types';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
+import { buildVoiceTools } from '@/ai/agent/voiceTools';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useSyncStore } from '@/store/useSyncStore';
@@ -110,12 +112,31 @@ export default function TodayScreen() {
   // so we can show a skeleton instead of the empty-state on first paint.
   const [loaded, setLoaded] = useState(false);
   const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
+  // The acting coach supersedes the read-only "what next" card when enabled, so
+  // only one of the two shows.
+  const coachActionsEnabled = useFlagStore((s) => s.isEnabled('ai_coach_actions'));
   const [domainScores, setDomainScores] = useState({
     goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 0,
   });
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
   const [hasReflectedToday, setHasReflectedToday] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  // Read-only tools that let the voice assistant ground answers in the user's
+  // real data (routine, goals, momentum, sleep, contacts, spending). Rebuilt only
+  // when the user or the day changes; undefined until signed in.
+  const voiceTools = useMemo(
+    () => (userId ? buildVoiceTools({ userId, today }) : undefined),
+    [userId, today],
+  );
+  const voiceSystemInstruction =
+    "You are LifeOS's voice assistant — the user's Digital Life Architect. This is a " +
+    'spoken conversation, so reply in 1-3 natural sentences: no markdown, no bullet lists. ' +
+    'You have read-only tools that see the user\'s REAL data: goals, today\'s routine, recent ' +
+    'sleep, gamification momentum, overdue contacts, and recent spending. ALWAYS call the ' +
+    'relevant tool before answering anything about their day, plans, health, money, or ' +
+    'progress — never guess or invent data. Ground every answer in what the tools return, and ' +
+    'be specific and actionable. If a tool comes back empty, say so plainly and suggest the fix ' +
+    '(e.g. plan the day, or sync accounts for spending).';
   const [calConnected, setCalConnected] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
   const [calStatus, setCalStatus] = useState<string | null>(null);
@@ -642,7 +663,7 @@ export default function TodayScreen() {
 
           {blocks.length > 0 && (
             <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-              <WhatNextCard />
+              {coachActionsEnabled ? <CoachActionsCard /> : <WhatNextCard />}
             </Animated.View>
           )}
 
@@ -915,7 +936,8 @@ export default function TodayScreen() {
       <VoiceAssistantSheet
         visible={voiceOpen}
         onClose={() => setVoiceOpen(false)}
-        systemInstruction="You are the LifeOS Daily Briefing assistant. Be concise and actionable."
+        systemInstruction={voiceSystemInstruction}
+        tools={voiceTools}
       />
 
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}

@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
+import { subDays, format } from 'date-fns';
 import * as schema from './schema';
+import { BEHAVIOUR_RETENTION_DAYS } from './retention';
 
 type DB = ReturnType<typeof import('drizzle-orm/expo-sqlite').drizzle>;
 
@@ -445,6 +447,18 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE users ADD COLUMN activated_modules TEXT`);
   await safeAlter(`ALTER TABLE interests ADD COLUMN time_protected INTEGER NOT NULL DEFAULT 0`);
   await safeAlter(`ALTER TABLE memory_facts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
+
+  // Retention: behaviour_events is append-only analytics read only over the
+  // last ≤30 days, so prune anything older at boot to bound on-device growth.
+  // (The web sink caps by count + age in webInsertBehaviourEvent; native had no
+  // bound at all.) The cutoff is an app-computed date string, not user input.
+  // Best-effort — a failure here must never block DB init.
+  try {
+    const behaviourCutoff = format(subDays(new Date(), BEHAVIOUR_RETENTION_DAYS), 'yyyy-MM-dd');
+    await expo.runAsync(`DELETE FROM behaviour_events WHERE created_at < ?`, behaviourCutoff);
+  } catch {
+    /* non-fatal: pruning is housekeeping, not correctness */
+  }
 
   // Drop zombie tables — never had queries, no UI, no roadmap commitment
   // (architect-review §P1-5). Idempotent: DROP IF EXISTS is a no-op when the

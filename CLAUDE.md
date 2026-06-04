@@ -125,7 +125,7 @@ app ──→ callAI / callAIRaw ──→ POST {PROXY_URL}/claude ──→ Wor
 
 ### Tool-use agent
 
-`src/ai/agent/runtime.ts` runs a tool loop: ask the model → if it requests tool calls, execute them on-device against local data → feed results back → repeat until it answers or the iteration cap (clamped to [1,10], default 6) is hit. Tools are read-only over the user's real state (`buildLifeOsTools` in `agent/tools.ts`). The Worker executes no tools — it's a passthrough. The flagship consumer is `whatShouldIDoNext` (`agent/whatNext.ts`), gated by the `agent_what_next` flag.
+`src/ai/agent/runtime.ts` runs a tool loop: ask the model → if it requests tool calls, execute them on-device against local data → feed results back → repeat until it answers or the iteration cap (clamped to [1,10], default 6) is hit. The Worker executes no tools — it's a passthrough. Two on-device tool sets feed the loop: **read tools** (`buildLifeOsTools` in `agent/tools.ts`) read the user's real state, and **propose-only write tools** (`buildLifeOsWriteTools` in `agent/writeTools.ts`) that **never mutate** — each pushes a `ProposedAction` onto an in-memory queue (`agent/actionQueue.ts`) and returns `{ proposed: true }`. Only on explicit user confirmation does `commitActions` map a proposal to an existing DB query (which calls `recordMutation`, so the sync/audit layer keeps working) — "always confirm" holds by construction; no tool touches the DB. Consumers: `whatShouldIDoNext` (read-only, gated by `agent_what_next`) and the propose-capable `whatShouldIDoNextWithActions` (gated by `aiCoachActions`, default off; the per-action confirm UI is still being wired — parked item 3.1).
 
 ### Planning pipeline (the "master planner")
 
