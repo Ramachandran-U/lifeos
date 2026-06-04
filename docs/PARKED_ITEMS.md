@@ -89,6 +89,33 @@
 
 ---
 
+## 8. Google Maps integration
+
+> 🅿️ Researched **2026-06-04** (scoping only — no code). Full report in that session's transcript. **Un-park trigger: we obtain a Google Maps Platform API key.** Pull the chosen first features into `roadmap/` then. Verify exact per-1000 $ SKU rates on Google's [core pricing list](https://developers.google.com/maps/billing-and-pricing/pricing) before budgeting (research used some secondary sources for dollar figures).
+
+**2025 landscape shift (still current mid-2026):** classic Places / Directions / Distance Matrix are now **Legacy** → use **Places API (New)** + **Routes API**. The flat $200/mo credit was replaced (Mar 1 2025) by **per-SKU monthly free tiers** (~10k Essentials / 5k Pro / 1k Enterprise calls *per SKU, per month*) — cheap at our pre-scale volume.
+
+**Candidate features:**
+
+| # | Feature | Engine | API(s) | Proxyable? | Cost tier |
+|---|---------|--------|--------|-----------|-----------|
+| A | "Leave-by" + travel/commute time in the planner | Routine | Routes API | ✅ Worker | Essentials/Pro |
+| B | Nearby gyms / parks / running spots | Health | Places Nearby/Text Search | ✅ Worker | Pro |
+| C | Meetup-spot suggestions for overdue contacts | Social | Places + Routes | ✅ Worker | Pro |
+| D | Enrich transaction merchants w/ place+category | Finance | Places Text Search/Details | ✅ Worker | Pro/Enterprise |
+| E | Place-based discovery ideas | Explore | Places | ✅ Worker | Pro |
+| F | Outdoor-workout suitability (AQI / pollen) | Health | Air Quality / Pollen | ✅ Worker | Env APIs |
+| G | Rendered interactive map / place-card UI | any | Maps JS / react-native-maps / Places UI Kit | ❌ client-side key | Map SKUs |
+
+**🧱 Hard constraints (gotchas):**
+- **Data APIs (A–F) are REST → proxy through the Worker** (IP-restricted key) — fits our keys-server-side model. **Rendered maps (G) need a client-side bundled/exposed key → breaks that invariant**, and web map rendering is immature (`expo-maps` = alpha + no web; `react-native-web-maps` = unmaintained since 2020). Defer G.
+- **ToS: do NOT cache/store Places content locally except place IDs** (storable indefinitely). Conflicts with our local-first / event-sourced store → persist **place ID only**, re-hydrate display fields on read. Routes + Air Quality/Pollen sidestep this entirely.
+- **Mandatory Google attribution** on surfaced place data; **privacy** — send coordinates, not contact/merchant records; minimise what leaves the device.
+
+**Recommended first ship (4-lens review, this session):** **A (Routes "leave-by") first** — pure data, proxyable, ToS-clean, lands in the daily planner loop. Then **F (AQI/pollen workout suitability)** — cheapest "wow", feeds the existing replan/`cognition` machinery. Then **C (Social meetup spots)** / **D (Finance enrichment, place-ID-only)**. **Avoid G first.** Devil's-advocate guardrails to fold in before shipping: cap Places field masks to cheap tiers, lint against persisting Places payloads (place-ID-only), and don't send user location off-device without explicit consent. The location-egress concern is the gating product decision (opt-in, coarse, computed-then-discarded).
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
