@@ -23,6 +23,8 @@ import {
   type WebGamification,
   type WebBehaviourEvent,
 } from '../gamification';
+import { BEHAVIOUR_WEB_CAP, BEHAVIOUR_RETENTION_DAYS } from '../../retention';
+import { BEHAVIOUR_KEY } from '../_keys';
 
 function gam(over: Partial<WebGamification>): WebGamification {
   return {
@@ -82,5 +84,72 @@ describe('webGetBehaviourEventsLastNDays', () => {
     webInsertBehaviourEvent(event({ id: 'e1', createdAt: recent }));
     webInsertBehaviourEvent(event({ id: 'e2', createdAt: old }));
     expect(webGetBehaviourEventsLastNDays(7).map((e) => e.id)).toEqual(['e1']);
+  });
+});
+
+describe('webInsertBehaviourEvent — bounded growth', () => {
+  const today = () => format(new Date(), 'yyyy-MM-dd');
+  const raw = (): WebBehaviourEvent[] =>
+    JSON.parse(localStorage.getItem(BEHAVIOUR_KEY) ?? '[]') as WebBehaviourEvent[];
+
+  it('prunes past-retention events at write time, so stale rows never accumulate', () => {
+    const stale = format(subDays(new Date(), BEHAVIOUR_RETENTION_DAYS + 5), 'yyyy-MM-dd');
+    // An aged event already sitting in storage (the read filter alone would
+    // hide it but leave it on disk forever).
+    localStorage.setItem(BEHAVIOUR_KEY, JSON.stringify([event({ id: 'stale', createdAt: stale })]));
+    webInsertBehaviourEvent(event({ id: 'fresh', createdAt: today() }));
+    // It is physically gone, not merely filtered on read.
+    expect(raw().map((e) => e.id)).toEqual(['fresh']);
+  });
+
+  it('keeps an event exactly on the retention boundary', () => {
+    const boundary = format(subDays(new Date(), BEHAVIOUR_RETENTION_DAYS), 'yyyy-MM-dd');
+    webInsertBehaviourEvent(event({ id: 'edge', createdAt: boundary }));
+    expect(raw().map((e) => e.id)).toEqual(['edge']);
+  });
+
+  it('enforces a hard count cap, dropping the oldest and keeping the newest', () => {
+    // Seed exactly the cap with in-window events, then insert one more.
+    const seed: WebBehaviourEvent[] = Array.from({ length: BEHAVIOUR_WEB_CAP }, (_, i) =>
+      event({ id: `seed-${i}`, createdAt: today() }),
+    );
+    localStorage.setItem(BEHAVIOUR_KEY, JSON.stringify(seed));
+    webInsertBehaviourEvent(event({ id: 'newest', createdAt: today() }));
+    const stored = raw();
+    expect(stored).toHaveLength(BEHAVIOUR_WEB_CAP);
+    expect(stored[stored.length - 1].id).toBe('newest'); // newest retained
+    expect(stored.some((e) => e.id === 'seed-0')).toBe(false); // oldest evicted
+    expect(stored.some((e) => e.id === 'seed-1')).toBe(true);
+  });
+
+  it('recovers from a localStorage quota error by retrying with a trimmed tail', () => {
+    const seed: WebBehaviourEvent[] = Array.from({ length: 200 }, (_, i) =>
+      event({ id: `s-${i}`, createdAt: today() }),
+    );
+    localStorage.setItem(BEHAVIOUR_KEY, JSON.stringify(seed));
+    const realSet = localStorage.setItem.bind(localStorage);
+    let calls = 0;
+    localStorage.setItem = (k: string, v: string) => {
+      calls += 1;
+      if (calls === 1) throw new Error('QuotaExceededError'); // first (full) write fails
+      realSet(k, v);
+    };
+    expect(() =>
+      webInsertBehaviourEvent(event({ id: 'after-quota', createdAt: today() })),
+    ).not.toThrow();
+    localStorage.setItem = realSet;
+    // The retry persisted a trimmed tail that still includes the newest event.
+    const stored = raw();
+    expect(stored.length).toBeLessThanOrEqual(Math.floor(BEHAVIOUR_WEB_CAP / 5));
+    expect(stored[stored.length - 1].id).toBe('after-quota');
+  });
+
+  it('never throws even when every write fails (analytics must not break the UI)', () => {
+    const realSet = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
+    expect(() => webInsertBehaviourEvent(event({ id: 'x', createdAt: today() }))).not.toThrow();
+    localStorage.setItem = realSet;
   });
 });
