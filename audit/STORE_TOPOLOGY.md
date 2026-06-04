@@ -1,6 +1,6 @@
 # STORE_TOPOLOGY — Zustand stores
 
-15 stores under `src/store/` + 2 finance stores (`src/finance/store/`) + 2 ambient stores (`src/components/shared/ambient/`).
+15 stores under `src/store/` + 3 finance stores (`src/finance/store/`) + 2 ambient stores (`src/components/shared/ambient/`).
 
 ## Store inventory
 
@@ -23,6 +23,7 @@
 | `useAnnualReviewStore` | `src/store/useAnnualReviewStore.ts` | 36 | Cached annual review |
 | `useTransactionStore` | `src/finance/store/useTransactionStore.ts` | 197 | Finance transactions |
 | `useMoneyReviewStore` | `src/finance/store/useMoneyReviewStore.ts` | — | Monthly money review cache; exports `currentMonthKey` |
+| `useRecurringStore` | `src/finance/store/useRecurringStore.ts` | 124 | Subscriptions/bills audit from Gmail; `sync`/`dismiss`/`clear`, web-only |
 | `useAmbientEventStore` | `src/components/shared/ambient/useAmbientEventStore.ts` | — | Ambient UX events (energy sweep, pulses) |
 | `useAmbientState` | `src/components/shared/ambient/useAmbientState.ts` | — | Derived ambient render state |
 

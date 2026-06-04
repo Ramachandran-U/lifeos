@@ -80,7 +80,7 @@ Subsystem-by-subsystem map. Paths are repo-relative.
 
 **Stores:** `useUserStore`, `useGameStore`, `useGoalStore`, `usePolymathStore`, `useTrajectoryStore`, `useDomainHistoryStore`, `useFlagStore`, `useMotivationStore`, `usePreferencesStore`, `usePromptStore`, `useRewardQueueStore`, `useTelemetryStore`, `useThemeStore`, `useBehaviourSuggestionsStore`, `useAnnualReviewStore`.
 
-**Extra stores outside `src/store/`:** `src/finance/store/{useTransactionStore,useMoneyReviewStore}.ts`, `src/components/shared/ambient/useAmbientEventStore.ts` and `useAmbientState.ts`.
+**Extra stores outside `src/store/`:** `src/finance/store/{useTransactionStore,useMoneyReviewStore,useRecurringStore}.ts`, `src/components/shared/ambient/useAmbientEventStore.ts` and `useAmbientState.ts`.
 
 ---
 
@@ -155,7 +155,7 @@ Backed by `src/db/queries/{sparks,expeditions,interests}.ts`.
 
 ## 11. Finance subsystem (`src/finance/`)
 
-Self-contained domain: `analytics.ts`, `categorizer.ts`, `merchantClassifier.ts`, `categoryGroups.ts`, `display.ts`, `insights.ts`, `moneyReview.ts`, `parsers/emailParsers.ts`, `gmail/{fetcher,oauth}.ts`, `db/transactionDb.ts`, `store/{useTransactionStore,useMoneyReviewStore}.ts`. Feeds `app/(tabs)/finance.tsx` (1530 LOC) and AI prompts (finance, moneyReview).
+Self-contained domain: `analytics.ts` (+ `samePeriodMonthWindows`), `categorizer.ts`, `merchantClassifier.ts`, `categoryGroups.ts`, `display.ts`, `insights.ts`, `moneyReview.ts`, `recurringSummary.ts`, `parsers/{emailParsers,billParsers}.ts`, `gmail/{fetcher,oauth}.ts`, `db/transactionDb.ts`, `store/{useTransactionStore,useMoneyReviewStore,useRecurringStore}.ts`. Feeds `app/(tabs)/finance.tsx` and AI prompts (finance, moneyReview). Bills/subscriptions also feed the planner + what-next agent via `src/ai/billsContext.ts`.
 
 ---
 

@@ -22,18 +22,43 @@ Insight engine              src/finance/insights.ts   (spending spikes, category
 UI: app/(tabs)/finance.tsx  + goal engine (SQLite)
 ```
 
+## Subscriptions & bills (recurring commitments)
+
+A second ingestion path, on the **same `gmail.readonly` scope** (no new permission) and **regex-only (no AI, no cost)**:
+
+```
+Gmail API fetch          fetcher.ts → syncRecentBillEmails()  (BILLS_SUBSCRIPTIONS_QUERY, 60-day window)
+   ↓  renewal / invoice / bill emails
+Parser                   src/finance/parsers/billParsers.ts   parseBillOrSubscription()
+   ↓  { kind: 'subscription'|'bill', merchant, amount(paise), dueDate?, cadence?, confidence }
+Dexie (recurringItems)   src/finance/db/transactionDb.ts      dedupes by email id; dismissals survive re-sync
+   ↓
+useRecurringStore        src/finance/store/useRecurringStore.ts
+   ↓
+UI: SubscriptionsBillsCard   src/components/modules/finance/  (audit card on Finance → Overview)
+```
+
+- Detection requires a recurring keyword **plus** an amount or a due date — marketing blasts and plain transaction alerts are dropped.
+- The same data feeds the **planner** and the **what-next agent** via [`src/ai/billsContext.ts`](../src/ai/billsContext.ts): `buildBillsContext()` (RAG context for the Routine Builder) and the `getUpcomingBills` agent tool, so a bill due soon can become a routine block or the recommended next action.
+- [`recurringSummary.ts`](../src/finance/recurringSummary.ts) holds the pure audit math: split subs/bills, normalised monthly subscription total, relative due labels ("Due in 2 days").
+
 ## Key files
 
 | File | Role |
 |------|------|
 | [`gmail/oauth.ts`](../src/finance/gmail/oauth.ts) | Google OAuth 2.0 with PKCE, token refresh |
-| [`gmail/fetcher.ts`](../src/finance/gmail/fetcher.ts) | Paginated Gmail search (`from:` bank senders) |
+| [`gmail/fetcher.ts`](../src/finance/gmail/fetcher.ts) | Paginated Gmail search. `BANK_QUERY` (`from:` bank senders) for transactions + `BILLS_SUBSCRIPTIONS_QUERY` (keyword/subject) for recurring commitments |
 | [`parsers/emailParsers.ts`](../src/finance/parsers/emailParsers.ts) | HDFC / ICICI / Axis regex → normalized transaction |
+| [`parsers/billParsers.ts`](../src/finance/parsers/billParsers.ts) | Subscription/bill regex → `{ kind, merchant, amount, dueDate?, cadence?, confidence }`. Pure; recurring-keyword gated |
 | [`categorizer.ts`](../src/finance/categorizer.ts) | Merchant → category. 4-tier pipeline: Dexie cache → rule map → local k-NN classifier → batched AI |
 | [`merchantClassifier.ts`](../src/finance/merchantClassifier.ts) | Distilled local classifier: char-3-gram TF-IDF + cosine k-NN over 167 anchor strings. Zero deps, ~1 ms inference, no API cost. Confidence floor 0.55 — below that, falls through to AI |
-| [`db/transactionDb.ts`](../src/finance/db/transactionDb.ts) | Dexie schema v2 + CRUD. `transactions` table + new `merchantCache` table (merchant_normalized → category, with `source: 'rule' \| 'ai' \| 'user'` — user corrections are never overwritten) |
+| [`db/transactionDb.ts`](../src/finance/db/transactionDb.ts) | Dexie schema **v3** + CRUD. `transactions` + `merchantCache` (merchant_normalized → category, `source: 'rule' \| 'ai' \| 'user'` — user corrections never overwritten) + `recurringItems` (subscriptions/bills; dedupe by email id, `dismissed` flag survives re-sync) |
+| [`recurringSummary.ts`](../src/finance/recurringSummary.ts) | Pure audit math for subscriptions/bills (monthly-cost normalisation, due-date labels) |
+| [`analytics.ts`](../src/finance/analytics.ts) | Pure rollups + `samePeriodMonthWindows()` (like-for-like month-to-date comparison window) |
 | [`insights.ts`](../src/finance/insights.ts) | Behavioural insight detectors (spikes, new merchants, category drift) |
 | [`store/useTransactionStore.ts`](../src/finance/store/useTransactionStore.ts) | Zustand: transactions, sync state, OAuth token |
+| [`store/useRecurringStore.ts`](../src/finance/store/useRecurringStore.ts) | Zustand: subscriptions/bills, scan state (`sync`/`dismiss`/`clear`) |
+| [`../src/ai/billsContext.ts`](../src/ai/billsContext.ts) | Feeds upcoming bills into the planner (`buildBillsContext`) + what-next agent (`getUpcomingBills`) |
 
 ## Gotchas
 
@@ -50,3 +75,4 @@ UI: app/(tabs)/finance.tsx  + goal engine (SQLite)
 - **Benchmark:** [`evals/benchmarks/merchantBenchmark.test.ts`](../evals/benchmarks/merchantBenchmark.test.ts) compares rule / classifier / LLM / stacked pipeline. Tracks accuracy + coverage + projected $/1k. Report at `evals/reports/benchmark-merchant.md`.
 - Native (iOS/Android) doesn't use Dexie — currently this pipeline is web-only. Keep that in mind when touching `finance.tsx`.
 - Finance **goals/milestones** are different from **transactions** — goals are AI-generated plans in SQLite; transactions are ingested from Gmail into Dexie. They only meet on the Finance screen.
+- **Month-over-month spend is like-for-like.** `samePeriodMonthWindows(now)` ([`analytics.ts`](../src/finance/analytics.ts)) compares month-to-date against the **same elapsed day-range** last month (Jun 1–4 vs May 1–4, `prevEnd` capped to the previous month's last day), not the full previous month — otherwise an in-progress month always reads as a spend collapse. Used by both the Overview spend card (`finance.tsx`) and the Monthly Money Review (`moneyReview.ts` → `momDeltaPct`).
