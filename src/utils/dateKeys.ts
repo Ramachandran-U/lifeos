@@ -3,9 +3,14 @@
  * the same logic isn't re-implemented in each. Pure.
  */
 
+/** A Date's LOCAL calendar date as YYYY-MM-DD (no UTC shift). */
+export function localYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Local calendar date as YYYY-MM-DD (how transaction/calendar dates are keyed). */
 export function todayKey(now: Date = new Date()): string {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return localYmd(now);
 }
 
 /**

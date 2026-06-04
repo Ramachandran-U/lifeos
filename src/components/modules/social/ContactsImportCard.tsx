@@ -13,6 +13,9 @@ import { createContact, RELATIONSHIP_TIERS, RELATIONSHIP_META, type Relationship
 
 type Phase = 'idle' | 'loading' | 'review' | 'error';
 
+/** Cap rows mounted at once — a large address book would jank a plain ScrollView. */
+const MAX_VISIBLE_CONTACTS = 150;
+
 const webTextInputOutline = Platform.select({ web: { outlineStyle: 'none' as const } as object, default: {} });
 
 /**
@@ -186,13 +189,18 @@ function ReviewModal({
 }) {
   const styles = makeStyles(c);
   const q = query.trim().toLowerCase();
-  const shown = useMemo(
+  const matches = useMemo(
     () =>
       fetched
         .map((g, i) => ({ g, i }))
         .filter(({ g }) => q === '' || g.name.toLowerCase().includes(q)),
     [fetched, q],
   );
+  // Cap rendered rows — a large address book would jank a plain ScrollView.
+  // Selection is by original index, so pre-selected rows beyond the cap still
+  // import; search narrows to find anyone not shown.
+  const shown = matches.slice(0, MAX_VISIBLE_CONTACTS);
+  const hidden = matches.length - shown.length;
   const count = selected.size;
 
   return (
@@ -244,6 +252,9 @@ function ReviewModal({
               );
             })}
           </ScrollView>
+          {hidden > 0 && (
+            <Caption style={{ color: c.textMuted }}>+{hidden} more — search to narrow the list.</Caption>
+          )}
 
           <View style={styles.actions}>
             <Pressable onPress={onCancel} style={styles.cancelBtn}>

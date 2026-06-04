@@ -58,6 +58,17 @@ describe('selectUpcomingRecurring', () => {
     const out = selectUpcomingRecurring([item({ id: 'd20', dueDate: '2026-06-25' })], TODAY, 30);
     expect(out.map((i) => i.id)).toEqual(['d20']);
   });
+
+  it('ages out items overdue beyond the grace window', () => {
+    const out = selectUpcomingRecurring(
+      [
+        item({ id: 'stale', dueDate: '2026-05-01' }), // ~40 days overdue → dropped
+        item({ id: 'recent', dueDate: '2026-06-08' }), // 2 days overdue → kept
+      ],
+      TODAY,
+    );
+    expect(out.map((i) => i.id)).toEqual(['recent']);
+  });
 });
 
 describe('recurringToRagItems', () => {

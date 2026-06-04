@@ -54,10 +54,22 @@ describe('cadenceDays', () => {
 });
 
 describe('samePeriodMonthWindows', () => {
-  // Day-span between two YYYY-MM-DD strings is timezone-invariant (both
-  // endpoints shift by the same offset), so these assertions don't depend on
-  // the machine TZ even though the strings themselves use toISOString.
+  // Day-span between two YYYY-MM-DD strings is timezone-invariant, and the
+  // boundaries are now formatted as LOCAL dates (localYmd), so the exact-string
+  // assertions below also hold in any timezone — they'd fail under the old
+  // toISOString formatting in a positive-offset TZ (the bug this guards).
   const days = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86_400_000;
+
+  it('formats boundaries as the user\'s local dates (no UTC shift)', () => {
+    const w = samePeriodMonthWindows(new Date(2026, 5, 4)); // local June 4
+    expect(w).toMatchObject({
+      thisStart: '2026-06-01',
+      thisEnd: '2026-06-04', // == today, so an inclusive <= filter never drops today's txns
+      prevStart: '2026-05-01',
+      prevEnd: '2026-05-04',
+      dayOfMonth: 4,
+    });
+  });
 
   it('compares equal-length windows for a mid-month date', () => {
     const w = samePeriodMonthWindows(new Date(2026, 5, 4)); // June 4
