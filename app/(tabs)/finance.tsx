@@ -28,6 +28,7 @@ import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { FinanceGoalCard } from '@/components/modules/finance/FinanceGoalCard';
 import { MilestoneTracker } from '@/components/modules/finance/MilestoneTracker';
 import { WeeklyInsightCard } from '@/components/modules/finance/WeeklyInsightCard';
+import { SubscriptionsBillsCard } from '@/components/modules/finance/SubscriptionsBillsCard';
 import { useAI } from '@/hooks/useAI';
 import { generateFinancialPlan, getWeeklyFinanceInsight } from '@/ai/functions';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -534,6 +535,7 @@ export default function FinanceScreen() {
             syncError={syncError}
             ingestedCount={ingestedCount}
             skippedCount={skippedCount}
+            clientId={clientId}
             onConnect={handleConnect}
             onSync={handleSync}
             onDismissInsight={handleDismissInsight}
@@ -598,6 +600,7 @@ function OverviewTab({
   syncError,
   ingestedCount,
   skippedCount,
+  clientId,
   onConnect,
   onSync,
   onDismissInsight,
@@ -613,6 +616,7 @@ function OverviewTab({
   syncError: string | null;
   ingestedCount: number;
   skippedCount: number;
+  clientId?: string;
   onConnect: () => void;
   onSync: () => void;
   onDismissInsight: (id: string) => void;
@@ -836,6 +840,9 @@ function OverviewTab({
           </Card>
         </Animated.View>
       )}
+
+      {/* Subscriptions & bills audit (Gmail) */}
+      <SubscriptionsBillsCard clientId={clientId} />
 
       {/* Monthly Money Review entry */}
       {transactions.length > 0 && (
