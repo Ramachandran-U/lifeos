@@ -3,6 +3,8 @@ import type {
   CrossDisciplineLinkInput,
   InterestSuggestions,
   InterestSuggestionsInput,
+  YouTubeImport,
+  YouTubeImportInput,
 } from '../types';
 
 // Per-category mock pool — chosen so the suggestions feel "adjacent" rather
@@ -92,6 +94,19 @@ export function buildMockInterestSuggestions(input: InterestSuggestionsInput): I
       };
     }),
   };
+}
+
+export function buildMockYouTubeImport(input: YouTubeImportInput): YouTubeImport {
+  const existing = new Set(input.existingInterests.map((n) => n.toLowerCase()));
+  const candidates: YouTubeImport['interests'] = [
+    { name: 'Home cooking', category: 'other', weeklyMinutesTarget: 90, why: 'From your cooking + baking channels' },
+    { name: 'Music production', category: 'music', weeklyMinutesTarget: 60, why: 'From the producers you follow' },
+    { name: 'Astrophysics', category: 'science', weeklyMinutesTarget: 45, why: 'From your space/science channels' },
+    { name: 'Indie game dev', category: 'tech', weeklyMinutesTarget: 60, why: 'From the dev channels you follow' },
+  ];
+  // Honour the input shape (drop anything the user already tracks) so the mock
+  // exercises the same dedup contract as the live call.
+  return { interests: candidates.filter((c) => !existing.has(c.name.toLowerCase())).slice(0, 6) };
 }
 
 export function buildMockCrossDisciplineLink(input: CrossDisciplineLinkInput): CrossDisciplineLink {

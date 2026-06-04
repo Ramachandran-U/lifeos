@@ -12,7 +12,9 @@
 
 import { createRoutineBlock as dbCreateRoutineBlock } from '@/db/queries/routine';
 import { updateRoutineBlockStatus as dbUpdateRoutineBlockStatus } from '@/db/queries/routine';
+import { getRoutineBlockById as dbGetRoutineBlockById } from '@/db/queries/routine';
 import { updateGoalStatus as dbUpdateGoalStatus } from '@/db/queries/goals';
+import { getGoalById as dbGetGoalById } from '@/db/queries/goals';
 
 export type GoalStatus = 'active' | 'completed' | 'paused' | 'abandoned';
 
@@ -72,6 +74,10 @@ export interface CommitDeps {
   createRoutineBlock: (data: CreateRoutineBlockData) => void;
   updateRoutineBlockStatus: (id: string, status: string) => void;
   updateGoalStatus: (id: string, status: string) => void;
+  /** Does this routine block still exist? Re-checked at commit time. */
+  routineBlockExists: (id: string) => boolean;
+  /** Does this goal still exist? Re-checked at commit time. */
+  goalExists: (id: string) => boolean;
 }
 
 const defaultDeps: CommitDeps = {
@@ -84,11 +90,24 @@ const defaultDeps: CommitDeps = {
   updateGoalStatus: (id, status) => {
     dbUpdateGoalStatus(id, status);
   },
+  routineBlockExists: (id) => dbGetRoutineBlockById(id) != null,
+  goalExists: (id) => dbGetGoalById(id) != null,
 };
+
+/** User-facing reason a confirmed action couldn't be applied to a stale ref. */
+export const STALE_REF_ERROR =
+  "That item no longer exists — it may have changed since this was suggested.";
 
 /**
  * Commit confirmed actions. Each action is independent: one failing (e.g. a
- * stale block ref) does not abort the rest — it's reported in its own result.
+ * stale ref) does not abort the rest — it's reported in its own result.
+ *
+ * A proposal's `ref` (block/goal id) is captured when the agent runs, but the
+ * user may confirm minutes later — after that row was edited or deleted on this
+ * or another device. So ref-carrying actions are RE-VALIDATED against current
+ * state here, immediately before mutating: a vanished ref fails loudly (the
+ * card shows STALE_REF_ERROR) instead of silently no-op'ing an UPDATE that
+ * matches zero rows and reporting success.
  */
 export async function commitActions(
   actions: ProposedAction[],
@@ -102,12 +121,15 @@ export async function commitActions(
           deps.createRoutineBlock(action.payload);
           break;
         case 'completeBlock':
+          if (!deps.routineBlockExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
           deps.updateRoutineBlockStatus(action.payload.ref, 'completed');
           break;
         case 'skipBlock':
+          if (!deps.routineBlockExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
           deps.updateRoutineBlockStatus(action.payload.ref, 'skipped');
           break;
         case 'adjustGoalStatus':
+          if (!deps.goalExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
           deps.updateGoalStatus(action.payload.ref, action.payload.status);
           break;
       }

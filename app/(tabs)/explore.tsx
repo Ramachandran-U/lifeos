@@ -18,6 +18,7 @@ import { LogExplorationSheet } from '@/components/modules/polymath/LogExploratio
 import { DiscoverGrid, type DiscoverArea } from '@/components/modules/polymath/DiscoverGrid';
 import { CrossDisciplineCard } from '@/components/modules/polymath/CrossDisciplineCard';
 import { DepthSheet } from '@/components/modules/polymath/DepthSheet';
+import { YouTubeImportCard } from '@/components/modules/polymath/YouTubeImportCard';
 import { suggestedAreaToDiscoverArea } from '@/components/modules/polymath/discoverArea';
 import {
   usePolymathStore,
@@ -31,7 +32,7 @@ import { suggestInterestAreas, suggestCrossDisciplineLink } from '@/ai/functions
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import { XP_VALUES } from '@/utils/gamification';
 import type { Interest } from '@/db/queries/interests';
-import type { ExplorationDepth } from '@/ai/types';
+import type { ExplorationDepth, YouTubeImportedInterest } from '@/ai/types';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { useRouter } from 'expo-router';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
@@ -79,6 +80,7 @@ export default function ExploreScreen() {
     log,
     load,
     addInterest,
+    addInterests,
     editInterest,
     removeInterest,
     addExploration,
@@ -279,6 +281,20 @@ export default function ExploreScreen() {
     if (!userId) return;
     addInterest({ ...data, userId });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleYouTubeImport = (items: YouTubeImportedInterest[]) => {
+    if (!userId || items.length === 0) return;
+    addInterests(
+      items.map((it) => ({
+        userId,
+        name: it.name,
+        category: it.category,
+        weeklyMinutesTarget: it.weeklyMinutesTarget,
+        discoveredBy: 'youtube',
+      })),
+    );
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const handleLog = (data: { minutesSpent: number; notes?: string; date: string }) => {
@@ -528,6 +544,13 @@ export default function ExploreScreen() {
               ) : null}
               <DiscoverGrid onPick={handlePickArea} areas={discoverAreas} />
             </>
+          )}
+
+          {userId && (
+            <YouTubeImportCard
+              existingInterestNames={interests.map((i) => i.name)}
+              onImport={handleYouTubeImport}
+            />
           )}
 
           <View style={styles.listHeader}>

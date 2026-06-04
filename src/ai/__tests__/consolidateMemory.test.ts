@@ -40,6 +40,17 @@ describe('runConsolidation', () => {
     expect(res.written).toBe(0);
     expect(upserted).toHaveLength(0);
   });
+
+  it('skips facts the user has suppressed, so "forget" sticks', async () => {
+    const { upserted, deps } = harness({
+      // Pretend the streak milestone was deleted previously → tombstoned.
+      shouldSuppress: async (f) => f.kind === 'milestone',
+    });
+    const res = await runConsolidation(deps);
+    expect(res.written).toBe(1);
+    expect(res.facts.map((f) => f.kind)).toEqual(['pattern']);
+    expect(upserted.map((f) => f.kind)).toEqual(['pattern']);
+  });
 });
 
 describe('ConsolidatedFactsSchema', () => {

@@ -8,12 +8,17 @@ jest.mock('@/db/queries/social', () => ({
   getContactsByUser: jest.fn(),
   computeOverdue: jest.fn(),
 }));
+jest.mock('@/ai/calendarContext', () => ({ fetchTodayCalendarEvents: jest.fn() }));
+jest.mock('@/ai/billsContext', () => ({ getUpcomingBillsForAgent: jest.fn(() => Promise.resolve([])) }));
 
 import { getGoalsByUser } from '@/db/queries/goals';
 import { getRoutineBlocksByDate } from '@/db/queries/routine';
 import { getLatestSleepHours } from '@/db/queries/health';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
+import { fetchTodayCalendarEvents } from '@/ai/calendarContext';
+import { getUpcomingBillsForAgent } from '@/ai/billsContext';
+import type { CalendarEvent } from '@/integrations/googleCalendar/client';
 
 const goalsMock = getGoalsByUser as jest.Mock;
 const routineMock = getRoutineBlocksByDate as jest.Mock;
@@ -21,6 +26,24 @@ const sleepMock = getLatestSleepHours as jest.Mock;
 const gamMock = getOrCreateGamification as jest.Mock;
 const contactsMock = getContactsByUser as jest.Mock;
 const overdueMock = computeOverdue as jest.Mock;
+const calMock = fetchTodayCalendarEvents as jest.MockedFunction<typeof fetchTodayCalendarEvents>;
+const billsMock = getUpcomingBillsForAgent as jest.MockedFunction<typeof getUpcomingBillsForAgent>;
+
+function calEvent(over: Partial<CalendarEvent>): CalendarEvent {
+  return {
+    id: 'e1',
+    title: 'Meeting',
+    date: '2026-05-30',
+    startTime: '09:00',
+    endTime: '10:00',
+    allDay: false,
+    startMs: 0,
+    endMs: 60_000,
+    responseStatus: 'accepted',
+    recurring: false,
+    ...over,
+  };
+}
 
 function toolByName(name: string) {
   const t = buildLifeOsTools({ userId: 'u1', today: '2026-05-30' }).find(
@@ -38,7 +61,15 @@ describe('buildLifeOsTools', () => {
   it('exposes the expected read-only tools', () => {
     const names = buildLifeOsTools({ userId: 'u1' }).map((t) => t.declaration.name).sort();
     expect(names).toEqual(
-      ['getGoals', 'getMomentum', 'getOverdueContacts', 'getRecentSleepHours', 'getTodayRoutine'].sort(),
+      [
+        'getGoals',
+        'getMomentum',
+        'getOverdueContacts',
+        'getRecentSleepHours',
+        'getTodayCalendar',
+        'getTodayRoutine',
+        'getUpcomingBills',
+      ].sort(),
     );
   });
 
@@ -99,5 +130,35 @@ describe('buildLifeOsTools', () => {
     );
     const out = await toolByName('getOverdueContacts').execute({});
     expect(out).toEqual([{ name: 'Alex', overdueByDays: 4 }]);
+  });
+
+  it('getTodayCalendar reports connected:false when the calendar is unavailable', async () => {
+    calMock.mockResolvedValue(null);
+    const out = await toolByName('getTodayCalendar').execute({});
+    expect(out).toEqual({ connected: false, events: [] });
+  });
+
+  it('getTodayCalendar maps events to a compact shape and marks all-day events', async () => {
+    calMock.mockResolvedValue([
+      calEvent({ title: 'Standup', startTime: '09:00', endTime: '09:30', recurring: true }),
+      calEvent({ title: 'Holiday', allDay: true, startTime: null, endTime: null }),
+    ]);
+    const out = (await toolByName('getTodayCalendar').execute({})) as {
+      connected: boolean;
+      events: Array<Record<string, unknown>>;
+    };
+    expect(out.connected).toBe(true);
+    expect(out.events).toEqual([
+      { startTime: '09:00', endTime: '09:30', title: 'Standup', recurring: true },
+      { startTime: 'all-day', endTime: 'all-day', title: 'Holiday', recurring: false },
+    ]);
+  });
+
+  it('getUpcomingBills returns the agent-view items from billsContext', async () => {
+    billsMock.mockResolvedValue([{ kind: 'bill', merchant: 'Airtel', amount: '₹999', due: 'Due in 2 days' }]);
+    const out = (await toolByName('getUpcomingBills').execute({})) as { items: unknown[] };
+    expect(out).toEqual({ items: [{ kind: 'bill', merchant: 'Airtel', amount: '₹999', due: 'Due in 2 days' }] });
+    // The tool passes the closure's `today` (the injected ctx date) through.
+    expect(billsMock).toHaveBeenCalledWith('2026-05-30');
   });
 });

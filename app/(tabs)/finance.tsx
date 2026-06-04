@@ -28,6 +28,7 @@ import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { FinanceGoalCard } from '@/components/modules/finance/FinanceGoalCard';
 import { MilestoneTracker } from '@/components/modules/finance/MilestoneTracker';
 import { WeeklyInsightCard } from '@/components/modules/finance/WeeklyInsightCard';
+import { SubscriptionsBillsCard } from '@/components/modules/finance/SubscriptionsBillsCard';
 import { useAI } from '@/hooks/useAI';
 import { generateFinancialPlan, getWeeklyFinanceInsight } from '@/ai/functions';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -52,6 +53,7 @@ import {
 } from '@/finance/categoryGroups';
 import { CATEGORY_COLORS, formatInr, prettyCategory } from '@/finance/display';
 import { runAllDetectors, type Insight } from '@/finance/insights';
+import { samePeriodMonthWindows } from '@/finance/analytics';
 import type { TxRecord } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -534,6 +536,7 @@ export default function FinanceScreen() {
             syncError={syncError}
             ingestedCount={ingestedCount}
             skippedCount={skippedCount}
+            clientId={clientId}
             onConnect={handleConnect}
             onSync={handleSync}
             onDismissInsight={handleDismissInsight}
@@ -598,6 +601,7 @@ function OverviewTab({
   syncError,
   ingestedCount,
   skippedCount,
+  clientId,
   onConnect,
   onSync,
   onDismissInsight,
@@ -613,6 +617,7 @@ function OverviewTab({
   syncError: string | null;
   ingestedCount: number;
   skippedCount: number;
+  clientId?: string;
   onConnect: () => void;
   onSync: () => void;
   onDismissInsight: (id: string) => void;
@@ -620,17 +625,18 @@ function OverviewTab({
 }) {
   const router = useRouter();
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+  // Like-for-like comparison: month-to-date vs the SAME elapsed day-range last
+  // month (not the full previous month) — otherwise an in-progress month always
+  // looks like a spend collapse. See samePeriodMonthWindows.
+  const { thisStart, thisEnd, prevStart, prevEnd } = samePeriodMonthWindows(now);
 
   const asMinimal = (t: TxRecord) => ({
     amount: t.amount,
     direction: t.direction,
     category: t.category as TransactionCategory,
   });
-  const thisMonthTx = transactions.filter((t) => t.date >= monthStart);
-  const lastMonthTx = transactions.filter((t) => t.date >= prevMonthStart && t.date <= prevMonthEnd);
+  const thisMonthTx = transactions.filter((t) => t.date >= thisStart && t.date <= thisEnd);
+  const lastMonthTx = transactions.filter((t) => t.date >= prevStart && t.date <= prevEnd);
 
   // "Spend" = consumption only (self-transfers, investments and loan/card
   // repayments are excluded so they don't inflate the headline).
@@ -729,7 +735,7 @@ function OverviewTab({
       {/* Spend summary */}
       <Animated.View entering={FadeInDown.delay(100).duration(400)}>
         <Card style={styles.spendCard}>
-          <Label color={c.finance}>THIS MONTH</Label>
+          <Label color={c.finance}>THIS MONTH SO FAR</Label>
           <Heading style={{ color: c.textPrimary, fontSize: fontSizes.xxxl }}>
             {formatInr(thisMonthSpend)}
           </Heading>
@@ -742,7 +748,7 @@ function OverviewTab({
               />
               <Caption style={{ color: delta >= 0 ? c.error : c.success }}>
                 {delta >= 0 ? '+' : ''}
-                {delta.toFixed(1)}% vs last month ({formatInr(lastMonthSpend)})
+                {delta.toFixed(1)}% vs same period last month ({formatInr(lastMonthSpend)})
               </Caption>
             </View>
           )}
@@ -836,6 +842,9 @@ function OverviewTab({
           </Card>
         </Animated.View>
       )}
+
+      {/* Subscriptions & bills audit (Gmail) */}
+      <SubscriptionsBillsCard clientId={clientId} />
 
       {/* Monthly Money Review entry */}
       {transactions.length > 0 && (

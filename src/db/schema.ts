@@ -322,9 +322,20 @@ export const memoryFacts = sqliteTable('memory_facts', {
   embedding: text('embedding'), // JSON number[] — for JS-cosine retrieval (no vector DB)
   salience: real('salience').notNull().default(1), // 0..1, decays over time; bumped on re-observation
   sourceWindow: text('source_window'), // e.g. "2026-05-16..2026-05-30"
+  pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false), // exempt from decay/expiry
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   lastSeenAt: text('last_seen_at').notNull().default(sql`(datetime('now'))`),
   expiresAt: text('expires_at'), // nullable; null = no expiry
+});
+
+// Tombstones for facts the user deleted — consolidation skips re-deriving
+// anything semantically matching one of these, so "forget" actually sticks.
+export const memorySuppressions = sqliteTable('memory_suppressions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  text: text('text').notNull(), // the deleted fact's text (for display/debug)
+  embedding: text('embedding'), // JSON number[] — matched by JS-cosine
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
 // --- Behaviour Events ---

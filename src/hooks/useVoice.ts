@@ -6,24 +6,19 @@ import {
 } from '@/ai/voiceClient';
 import { startMicCapture, type MicHandle } from '@/ai/micCapture';
 import { createPcmPlayer, type PcmPlayerHandle } from '@/ai/pcmPlayer';
+import {
+  reduceVoiceTurn,
+  initialVoiceTurnState,
+  type VoiceStatus,
+  type VoiceTurnInput,
+  type VoiceTurnState,
+} from '@/ai/voiceTurnMachine';
 
-/**
- * The lifecycle of a single voice exchange, surfaced to the UI so the user
- * always knows what's happening:
- *  - idle:       not connected
- *  - connecting: opening the session
- *  - listening:  mic is live, waiting for / hearing the user
- *  - thinking:   user finished, model is generating its reply
- *  - speaking:   model audio is playing back
- *  - error:      something failed
- */
-export type VoiceStatus =
-  | 'idle'
-  | 'connecting'
-  | 'listening'
-  | 'thinking'
-  | 'speaking'
-  | 'error';
+// The turn lifecycle, manual-VAD heuristic, and turn-completion decisions live in
+// the pure `voiceTurnMachine` so they're unit-testable without a session/mic/React.
+// This hook owns the I/O: the VoiceSession, mic, player, refs, and React state —
+// it mirrors the machine's returned state and carries out its effects.
+export type { VoiceStatus };
 
 export interface UseVoiceResult {
   status: VoiceStatus;
@@ -47,12 +42,6 @@ export interface UseVoiceResult {
   resumeAudio: () => void;
 }
 
-// Client-side voice-activity heuristic. The mic emits an RMS level continuously;
-// once the user has spoken and then falls quiet for SILENCE_MS, we assume their
-// turn ended and the model is now processing → show "thinking".
-const SPEECH_THRESHOLD = 0.08;
-const SILENCE_MS = 900;
-
 export function useVoice(
   options: Omit<VoiceSessionOptions, 'onEvent'> = {},
 ): UseVoiceResult {
@@ -68,82 +57,66 @@ export function useVoice(
   const [error, setError] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
 
-  // Refs mirror state for use inside event/level callbacks (avoid stale closures).
-  const statusRef = useRef<VoiceStatus>('idle');
-  const spokeThisTurnRef = useRef(false);
-  const lastVoiceAtRef = useRef(0);
-  const userSpeakingRef = useRef(false);
-  const turnCompleteRef = useRef(false);
-  // Manual VAD: whether we're inside a user utterance (between activityStart
-  // and activityEnd). Audio chunks are only streamed while this is true, which
-  // also keeps the model's own playback from echoing back as user speech.
-  const activityActiveRef = useRef(false);
+  // The decision state mirrored from the pure machine; read inside the
+  // event/level callbacks (avoids stale closures, the role the individual refs
+  // used to play).
+  const machineRef = useRef<VoiceTurnState>(initialVoiceTurnState());
 
+  // Direct status set (transitions not driven by the machine: connecting/open/
+  // sendText/error/close). Keeps the mirrored state and the UI in lockstep.
   const setStatus = useCallback((s: VoiceStatus) => {
-    statusRef.current = s;
+    machineRef.current = { ...machineRef.current, status: s };
     setStatusState(s);
   }, []);
 
-  // Model output (audio or text) has started arriving → the model is speaking.
-  const onModelOutput = useCallback(() => {
-    spokeThisTurnRef.current = false;
-    if (statusRef.current !== 'speaking') setStatus('speaking');
-  }, [setStatus]);
+  // Run the pure reducer, mirror its next state, then carry out its effects.
+  const dispatch = useCallback((input: VoiceTurnInput) => {
+    const { state, effects } = reduceVoiceTurn(machineRef.current, input);
+    machineRef.current = state;
+    for (const e of effects) {
+      switch (e.type) {
+        case 'setStatus':
+          setStatusState(e.status);
+          break;
+        case 'setUserSpeaking':
+          setUserSpeaking(e.value);
+          break;
+        case 'markActivityStart':
+          sessionRef.current?.markActivityStart();
+          break;
+        case 'markActivityEnd':
+          sessionRef.current?.markActivityEnd();
+          break;
+      }
+    }
+  }, []);
 
-  // Mic level tick — drives the user-speaking indicator and the listening→thinking
-  // transition. Ignored while the model is speaking.
+  // Mic level tick — drives the user-speaking indicator and the listening↔thinking
+  // transitions (ignored while the model is speaking; see the machine).
   const handleLevel = useCallback(
     (level: number) => {
       setAudioLevel(level);
-      if (statusRef.current === 'speaking') return;
-
-      const now = Date.now();
-      if (level > SPEECH_THRESHOLD) {
-        if (!userSpeakingRef.current) {
-          userSpeakingRef.current = true;
-          setUserSpeaking(true);
-        }
-        // Speech onset → open a manual-VAD activity window so audio is streamed
-        // and the model knows the user has started talking.
-        if (!activityActiveRef.current) {
-          activityActiveRef.current = true;
-          sessionRef.current?.markActivityStart();
-        }
-        spokeThisTurnRef.current = true;
-        lastVoiceAtRef.current = now;
-        if (statusRef.current === 'thinking') setStatus('listening');
-      } else {
-        if (userSpeakingRef.current) {
-          userSpeakingRef.current = false;
-          setUserSpeaking(false);
-        }
-        if (
-          spokeThisTurnRef.current &&
-          statusRef.current === 'listening' &&
-          now - lastVoiceAtRef.current > SILENCE_MS
-        ) {
-          setStatus('thinking');
-          // Speech ended → close the activity window. This is the signal that
-          // makes the model actually start generating (without it, the turn
-          // never completes and the UI hangs on "thinking").
-          if (activityActiveRef.current) {
-            activityActiveRef.current = false;
-            sessionRef.current?.markActivityEnd();
-          }
-        }
-      }
+      dispatch({ kind: 'level', level, now: Date.now() });
     },
-    [setStatus],
+    [dispatch],
   );
+
+  // Model output (audio or text) started arriving → the model is speaking.
+  const onModelOutput = useCallback(() => {
+    dispatch({ kind: 'modelOutput' });
+  }, [dispatch]);
 
   const connect = useCallback(() => {
     if (sessionRef.current?.isOpen()) return;
     setError(null);
     setTranscript('');
     setUserTranscript('');
-    spokeThisTurnRef.current = false;
-    turnCompleteRef.current = false;
-    activityActiveRef.current = false;
+    machineRef.current = {
+      ...machineRef.current,
+      spokeThisTurn: false,
+      turnComplete: false,
+      activityActive: false,
+    };
     setStatus('connecting');
 
     // Create the player up front (before the async session opens) so a user
@@ -151,12 +124,7 @@ export function useVoice(
     // the first chunk arrives. On web the AudioContext stays suspended until
     // resume() runs inside a gesture; this is what makes playback audible.
     playerRef.current = createPcmPlayer({
-      onDrain: () => {
-        if (turnCompleteRef.current) {
-          turnCompleteRef.current = false;
-          setStatus('listening');
-        }
-      },
+      onDrain: () => dispatch({ kind: 'drain' }),
       onError: (msg: string) => console.warn('[voice] playback:', msg),
     });
 
@@ -187,7 +155,7 @@ export function useVoice(
               // This brackets each turn for the model and prevents the model's
               // own playback from being captured and echoed back as input.
               onChunk: (pcm16Base64: string) => {
-                if (activityActiveRef.current) sessionRef.current?.sendAudioChunk(pcm16Base64);
+                if (machineRef.current.activityActive) sessionRef.current?.sendAudioChunk(pcm16Base64);
               },
               onLevel: handleLevel,
               onError: (msg: string) => console.warn('[voice] mic:', msg),
@@ -207,20 +175,18 @@ export function useVoice(
           case 'interrupted':
             // Barge-in: stop the model's audio and return to listening.
             playerRef.current?.stop();
-            turnCompleteRef.current = false;
-            setStatus('listening');
+            dispatch({ kind: 'interrupted' });
             break;
           case 'turnComplete':
-            turnCompleteRef.current = true;
-            // Native buffers the turn and starts playback here; web has already
-            // been streaming, so this is a no-op there.
+            // Mark the turn pending BEFORE endTurn() so a player that drains
+            // synchronously (empty queue) still sees turnComplete and resumes
+            // listening — matching the original ref-ordering. Native buffers the
+            // turn and starts playback in endTurn(); web has already streamed, so
+            // it's a no-op there. The machine then decides: no audio playing →
+            // straight to listening; else wait for the player to drain ('drain').
+            machineRef.current = { ...machineRef.current, turnComplete: true };
             playerRef.current?.endTurn();
-            // If no audio is playing (e.g. text-only / mock), go straight back
-            // to listening; otherwise wait for the player to drain.
-            if (!playerRef.current?.isPlaying()) {
-              turnCompleteRef.current = false;
-              setStatus('listening');
-            }
+            dispatch({ kind: 'turnComplete', isPlaying: playerRef.current?.isPlaying() ?? false });
             break;
           case 'error':
             setError(event.message);
@@ -232,16 +198,15 @@ export function useVoice(
             playerRef.current?.dispose();
             playerRef.current = null;
             setConnected(false);
+            machineRef.current = { ...machineRef.current, userSpeaking: false, activityActive: false };
             setUserSpeaking(false);
-            userSpeakingRef.current = false;
-            activityActiveRef.current = false;
             setAudioLevel(0);
-            if (statusRef.current !== 'error') setStatus('idle');
+            if (machineRef.current.status !== 'error') setStatus('idle');
             break;
         }
       },
     });
-  }, [options, handleLevel, onModelOutput, setStatus]);
+  }, [options, dispatch, handleLevel, onModelOutput, setStatus]);
 
   const disconnect = useCallback(() => {
     micRef.current?.stop();
@@ -251,9 +216,8 @@ export function useVoice(
     sessionRef.current?.close();
     sessionRef.current = null;
     setConnected(false);
+    machineRef.current = { ...machineRef.current, userSpeaking: false, activityActive: false };
     setUserSpeaking(false);
-    userSpeakingRef.current = false;
-    activityActiveRef.current = false;
     setAudioLevel(0);
     setStatus('idle');
   }, [setStatus]);

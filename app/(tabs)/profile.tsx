@@ -22,6 +22,7 @@ import {
   type GamificationVisibility,
 } from '@/store/usePreferencesStore';
 import { useGameStore } from '@/store/useGameStore';
+import { useFlagStore } from '@/store/useFlagStore';
 import { getUser } from '@/db/queries/users';
 import { getUsageStats, type UsageRange, type UsageStats } from '@/db/queries/behaviour';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -172,6 +173,9 @@ export default function ProfileScreen() {
   const { name, email } = useUserStore();
   const avatarUri = useUserStore((s) => s.avatarUri);
   const avatarGenEnabled = isEnabled('profileAvatarGen');
+  // The Activity/history screen reads the mutation log, so it's only useful when
+  // the log is on (default). Ties visibility to data availability — no new flag.
+  const activityEnabled = useFlagStore((s) => s.isEnabled('mutation_log_enabled'));
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false);
   const themeMode = usePreferencesStore((s) => s.theme);
   const toggleTheme = usePreferencesStore((s) => s.toggleTheme);
@@ -381,6 +385,14 @@ export default function ProfileScreen() {
             c={c}
             onPress={() => router.push('/what-lifeos-remembers')}
           />
+          {activityEnabled ? (
+            <Row
+              icon="time-outline"
+              label="Activity & history"
+              c={c}
+              onPress={() => router.push('/activity')}
+            />
+          ) : null}
         </Card>
 
         {/* Appearance — Aurora preferences (collapsed by default) */}

@@ -42,6 +42,12 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // proxy's Gemini function-calling passthrough. Logged to ai_suggestions
   // (task 'what_next') for outcome tracking.
   agent_what_next: false,
+  // Propose-and-confirm "coach": the what-next agent can also PROPOSE actions
+  // (add a block, mark complete/skipped, adjust a goal) that the user confirms
+  // per-item. Off by default; requires the same function-calling passthrough as
+  // agent_what_next. Supersedes the read-only WhatNextCard on Today when on.
+  // Nothing mutates without an explicit confirm — see actionQueue.commitActions.
+  ai_coach_actions: false,
 };
 
 interface FlagState {

@@ -49,6 +49,11 @@ describe('resolveGuardRedirect — onboarded allowlist', () => {
   it.each([
     'annual-review', 'monthly-insight', 'chat', 'settings', 'feedback',
     'contact', 'evening-reflect', 'how-it-works', 'notifications-settings',
+    // Both memory screens are reachable from Profile — neither may bounce to
+    // Today. 'what-lifeos-remembers' was missing from the allowlist (the guard
+    // sent it to /(tabs)); regression-guarded here for both.
+    'what-lifeos-knows', 'what-lifeos-remembers',
+    'activity',
   ])('allows post-onboarding route: %s', (seg0) => {
     expect(resolveGuardRedirect(state({ seg0 }))).toBeNull();
   });

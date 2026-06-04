@@ -59,4 +59,20 @@ describe('buildMoneyReviewInput', () => {
     const input = buildMoneyReviewInput([tx({ date: '2026-05-01' })], NOW);
     expect(input.momDeltaPct).toBeNull();
   });
+
+  it('compares against the SAME day-range last month, not the full month', () => {
+    // June 4: month-to-date is Jun 1–4. Last month must be measured Jun→May 1–4,
+    // NOT the whole of May — otherwise an in-progress month looks like a collapse.
+    const input = buildMoneyReviewInput(
+      [
+        tx({ date: '2026-06-02', amount: 35300, category: 'shopping' }), // MTD: ₹353
+        tx({ date: '2026-05-03', amount: 30000, category: 'shopping' }), // last month, within 1–4: ₹300
+        tx({ date: '2026-05-20', amount: 500000, category: 'shopping' }), // last month, AFTER the 4th → excluded
+      ],
+      new Date(2026, 5, 4),
+    );
+    expect(input.totalSpend).toBe(353);
+    // 353 vs 300 (same period) = +18%; the May 20 ₹5000 must NOT pull it to a fake drop.
+    expect(input.momDeltaPct).toBe(18);
+  });
 });

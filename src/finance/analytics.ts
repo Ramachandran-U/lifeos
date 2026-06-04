@@ -61,6 +61,48 @@ export function cadenceDays(dates: string[]): number | null {
   return gaps.length % 2 ? gaps[mid] : Math.round((gaps[mid - 1] + gaps[mid]) / 2);
 }
 
+export interface PeriodWindows {
+  /** First day of the current month (YYYY-MM-DD). */
+  thisStart: string;
+  /** Today — inclusive upper bound of the month-to-date window (YYYY-MM-DD). */
+  thisEnd: string;
+  /** First day of the previous month (YYYY-MM-DD). */
+  prevStart: string;
+  /**
+   * Same day-of-month as today in the previous month, capped to that month's
+   * last day (YYYY-MM-DD). Comparing the month-to-date window against
+   * `prevStart..prevEnd` measures the *same number of elapsed days* last month
+   * — so "spent ₹353 by the 4th" is judged against last month's 1st–4th, not
+   * against the whole month (which made an in-progress month look like a crash).
+   */
+  prevEnd: string;
+  /** Day-of-month covered so far (1-based) — useful for "1–N" range labels. */
+  dayOfMonth: number;
+}
+
+/**
+ * Month-to-date window and the equivalent same-length window of the previous
+ * month. Pure (inject `now`). Date strings use UTC (`toISOString`) to match how
+ * transaction `date`s are derived, so boundary comparisons stay consistent.
+ */
+export function samePeriodMonthWindows(now: Date): PeriodWindows {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const iso = (dt: Date) => dt.toISOString().slice(0, 10);
+
+  const prevMonthLastDay = new Date(y, m, 0).getDate(); // day 0 of this month = last day of prev
+  const prevEndDay = Math.min(d, prevMonthLastDay);
+
+  return {
+    thisStart: iso(new Date(y, m, 1)),
+    thisEnd: iso(new Date(y, m, d)),
+    prevStart: iso(new Date(y, m - 1, 1)),
+    prevEnd: iso(new Date(y, m - 1, prevEndDay)),
+    dayOfMonth: d,
+  };
+}
+
 export interface CategoryRollup {
   total: number; // paise (debits)
   count: number;

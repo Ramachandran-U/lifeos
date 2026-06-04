@@ -34,9 +34,34 @@ export interface MerchantCacheRecord {
   updatedAt: number;
 }
 
+export type RecurringKind = 'subscription' | 'bill';
+
+/**
+ * An upcoming recurring commitment detected from Gmail — a subscription
+ * renewal or a bill/invoice. Distinct from TxRecord (which is *past* spend):
+ * these power the subscription audit and bill-due reminders. Keyed by the
+ * source email id, so re-syncs dedupe and don't resurrect a dismissed item.
+ */
+export interface RecurringItemRecord {
+  id: string;
+  kind: RecurringKind;
+  merchant: string;
+  /** paise; 0 when no amount could be parsed. */
+  amount: number;
+  /** YYYY-MM-DD renewal/due date, or null. */
+  dueDate: string | null;
+  cadence: string | null;
+  rawEmailId: string;
+  confidence: number;
+  /** User removed it from the audit; never resurrected by a later sync. */
+  dismissed: boolean;
+  detectedAt: string;
+}
+
 class FinanceDb extends Dexie {
   transactions!: Table<TxRecord, string>;
   merchantCache!: Table<MerchantCacheRecord, string>;
+  recurringItems!: Table<RecurringItemRecord, string>;
 
   constructor() {
     super('lifeos_finance');
@@ -46,6 +71,13 @@ class FinanceDb extends Dexie {
     this.version(2).stores({
       transactions: 'id, date, direction, category, source, rawEmailId',
       merchantCache: 'merchantKey, category, source, updatedAt',
+    });
+    // v3 adds recurring items (subscriptions/bills). Additive — Dexie upgrades
+    // existing finance DBs in place; no data transform.
+    this.version(3).stores({
+      transactions: 'id, date, direction, category, source, rawEmailId',
+      merchantCache: 'merchantKey, category, source, updatedAt',
+      recurringItems: 'id, kind, merchant, dueDate, rawEmailId',
     });
   }
 }
@@ -147,4 +179,39 @@ export async function updateTransactionCategory(
 
 export async function clearAllTransactions(): Promise<void> {
   await financeDb.transactions.clear();
+}
+
+// ─── recurring items (subscriptions / bills) ─────────────────────────────────
+
+/**
+ * Insert newly-detected recurring items. Dedupes by `rawEmailId`: an email
+ * already stored is skipped entirely, so a user's `dismissed` flag is never
+ * overwritten by a later re-sync. Returns the count actually inserted.
+ */
+export async function upsertRecurringItems(records: RecurringItemRecord[]): Promise<number> {
+  if (records.length === 0) return 0;
+  const existing = await financeDb.recurringItems
+    .where('rawEmailId')
+    .anyOf(records.map((r) => r.rawEmailId))
+    .toArray();
+  const seen = new Set(existing.map((r) => r.rawEmailId));
+  const fresh = records.filter((r) => !seen.has(r.rawEmailId));
+  if (fresh.length > 0) await financeDb.recurringItems.bulkPut(fresh);
+  return fresh.length;
+}
+
+/** All non-dismissed items, soonest due date first (null dates last). */
+export async function getActiveRecurringItems(): Promise<RecurringItemRecord[]> {
+  const all = await financeDb.recurringItems.toArray();
+  return all
+    .filter((r) => !r.dismissed)
+    .sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'));
+}
+
+export async function dismissRecurringItem(id: string): Promise<void> {
+  await financeDb.recurringItems.update(id, { dismissed: true });
+}
+
+export async function clearRecurringItems(): Promise<void> {
+  await financeDb.recurringItems.clear();
 }

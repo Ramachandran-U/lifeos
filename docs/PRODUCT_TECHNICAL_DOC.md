@@ -143,7 +143,7 @@ Routing logic in `app/_layout.tsx`: no user → auth, stage < 100 → onboarding
 - **Daily Briefing** — AI-generated text from behavior analytics
 - **Weekly Insight** — computed from `behaviourEvents` (peak hours, completion rate)
 - **Routine Blocks** — time-sorted, tap to complete → logs event + awards XP + checks badges
-- **Google Calendar card** — `Connect Google Calendar` button triggers OAuth; once connected, `Sync N blocks` pushes today's routine to the primary calendar as events with a 10-minute popup reminder (no `expo-notifications` needed — Google delivers the native push). Event IDs persist on each routine block via `setRoutineBlockCalendarEventId()` so subsequent syncs update in place rather than duplicate.
+- **Google Calendar card** — `Connect Google Calendar` button triggers OAuth; once connected, `Sync N blocks` pushes today's routine to the primary calendar as events with a 10-minute popup reminder (no `expo-notifications` needed — Google delivers the native push). Event IDs persist on each routine block via `setRoutineBlockCalendarEventId()` so subsequent syncs update in place rather than duplicate. The connection is now **read + write**: the planner also *reads* the primary calendar (`listCalendarEvents()`, same `calendar.events` scope) so the Routine Builder and what-next agent schedule around real meetings instead of into a vacuum.
 
 ### 3.3 Goals (`app/(tabs)/goals.tsx`)
 
@@ -173,6 +173,8 @@ Routing logic in `app/_layout.tsx`: no user → auth, stage < 100 → onboarding
 - `src/ai/mocks/finance.ts` scales milestones off `input.targetAmount` (fractions 0.1/0.25/0.5/0.75/1.0) so values never overshoot the target — locked with 9 invariant tests in `src/ai/__tests__/financialPlan.test.ts`.
 - One-time migration in `loadExistingGoal()` detects stale `$`-prefixed titles or milestones > target and rebuilds via `deleteMilestonesByGoal()` + mock plan.
 - Gmail transaction ingestion: UPI merchants normalized via `normalizeUpiMerchant()` so `UPI/P2A/<refId>/NAME` collapses to `{merchant: 'NAME', channel: 'p2a'}`; p2a transactions route deterministically to the `transfers` category. Migration guarded by `lifeos_upi_migration_v1` localStorage flag.
+- **Subscriptions & bills audit** — beyond bank alerts, the same Gmail scope is mined for subscription renewals and bills/invoices (`BILLS_SUBSCRIPTIONS_QUERY` → `parseBillOrSubscription()` → `recurringItems` Dexie table → `useRecurringStore`). The Overview `SubscriptionsBillsCard` shows a "₹X/mo across N subscriptions" total + upcoming bill due-dates with a per-item dismiss; the same data feeds the planner / what-next agent via `src/ai/billsContext.ts`. Detection is regex-only (no AI).
+- **Spend comparison is like-for-like** — the "this month so far" delta and the Monthly Money Review (`momDeltaPct`) compare month-to-date against the **same elapsed day-range** last month via `samePeriodMonthWindows()`, not the full previous month (which made an in-progress month read as a spend collapse).
 - Track milestone completion, get weekly AI insights
 
 ### 3.6 Career (`app/(tabs)/career.tsx`)
@@ -265,7 +267,7 @@ export const getGoogleAuthAccessToken = client.getAccessToken;
 | Google Calendar (routine blocks) | `calendar.events` | `/calendar-callback` | `src/integrations/googleCalendar/` | `app/calendar-callback.tsx` |
 | Google Fit (health metrics) | `fitness.activity.read`, `fitness.heart_rate.read`, `fitness.sleep.read`, `fitness.body.read`, `fitness.location.read`, `fitness.oxygen_saturation.read`, `fitness.blood_pressure.read` | `/fit-callback` | `src/integrations/googleFit/` | `app/fit-callback.tsx` |
 
-**Google Calendar** — `syncBlocksToCalendar()` in `client.ts` creates new events for routine blocks missing a `calendarEventId`, updates the rest in place. 10-minute popup reminder is set via `reminders.overrides` so native push notifications come directly from Google's infra.
+**Google Calendar** — `syncBlocksToCalendar()` in `client.ts` creates new events for routine blocks missing a `calendarEventId`, updates the rest in place. 10-minute popup reminder is set via `reminders.overrides` so native push notifications come directly from Google's infra. `listCalendarEvents()` (same `calendar.events` scope) reads the primary calendar so the planner and what-next agent can work around real commitments — see `src/ai/calendarContext.ts` (`buildCalendarContext` + the `getTodayCalendar` agent tool).
 
 **Google Fit** — `syncFitDailyData(clientId, days=14)` pulls everything via two aggregate calls + one sessions call:
 - Core aggregate: steps, active minutes, heart points, calories, distance, HR (avg/max/min), weight, body fat %, SpO2, blood pressure
