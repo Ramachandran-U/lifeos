@@ -94,6 +94,51 @@ export function getGoalsByUser(userId: string) {
     .all();
 }
 
+/** Goal levels durable enough to steer the day planner (life/yearly). The
+ *  monthly/weekly/daily nodes are execution steps, not "what I'm steering toward". */
+const PLANNER_GOAL_LEVELS = new Set(['life', 'yearly']);
+/** Max goal titles fed to the planner — matches the vision.topGoals Zod cap. */
+export const PLANNER_GOAL_CAP = 5;
+
+/**
+ * The live goals that should drive the AI day planner: the user's active,
+ * durable (life/yearly) goals, highest priority first (lower `priority` = higher),
+ * recency as the tiebreak. The provided `fallbackTopGoals` (the frozen
+ * onboarding `profile.vision.topGoals`) tops up any remaining slots so nothing
+ * the user set at onboarding is silently dropped, and is the sole source for a
+ * brand-new user with no goals yet. Returns up to PLANNER_GOAL_CAP titles.
+ *
+ * This is the bridge that replaces reading the frozen `vision.topGoals` at plan
+ * time — see applyLivePlannerGoals in src/ai/routineFromProfile.ts. Read-only;
+ * works on web + native via getGoalsByUser.
+ */
+export function selectPlannerGoals(userId: string, fallbackTopGoals: string[] = []): string[] {
+  let live: string[] = [];
+  try {
+    live = getGoalsByUser(userId)
+      .filter((g) => g.status === 'active' && PLANNER_GOAL_LEVELS.has(g.level))
+      .slice()
+      .sort((a, b) =>
+        ((a.priority ?? 0) - (b.priority ?? 0)) || (a.createdAt < b.createdAt ? 1 : -1),
+      )
+      .map((g) => g.title);
+  } catch {
+    live = []; // DB not ready (fresh install) — fall back to onboarding goals
+  }
+  // Live goals claim the slots; top up with any onboarding goal not already
+  // represented (case-insensitive title match), so user intent is never lost.
+  const seen = new Set(live.map((t) => t.trim().toLowerCase()));
+  const merged = [...live];
+  for (const t of fallbackTopGoals) {
+    const key = t.trim().toLowerCase();
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      merged.push(t);
+    }
+  }
+  return merged.slice(0, PLANNER_GOAL_CAP);
+}
+
 export function getGoalById(id: string) {
   if (isWeb) return webGetGoalById(id);
   return db.select().from(goals).where(eq(goals.id, id)).get();

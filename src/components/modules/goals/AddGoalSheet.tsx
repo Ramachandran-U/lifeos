@@ -18,17 +18,20 @@ import { Input } from '@/components/ui/Input';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { useAI } from '@/hooks/useAI';
 import { decomposeGoal } from '@/ai/functions';
+import { track, EVENTS } from '@/utils/telemetry';
 import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { createGoal } from '@/db/queries/goals';
 import { persistHierarchy } from '@/utils/persistHierarchy';
-import { addGoalFocusBlocks } from '@/utils/goalRoutine';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
 import type { GoalHierarchy } from '@/ai/types';
 
 interface AddGoalSheetProps {
   visible: boolean;
   onClose: () => void;
+  /** Fired with the new goal's title after a successful save, so the parent can
+   *  offer to work it into today's plan (gated). */
+  onGoalCreated?: (title: string) => void;
 }
 
 // How many milestones the user can edit inline. The full plan (12) is still
@@ -49,7 +52,7 @@ const GOAL_PLACEHOLDERS = [
   'I want to get fit and sleep better',
 ];
 
-export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
+export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
   const getTypeColor = useGoalTypeColor();
@@ -66,7 +69,6 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const [draftMilestones, setDraftMilestones] = useState<string[]>([]);
   const [domainType, setDomainType] = useState<string>('personal');
   const [timeline, setTimeline] = useState<string | null>(null);
-  const [addToRoutine, setAddToRoutine] = useState(true);
 
   // BUG-012: a cold decompose call runs ~15-20s with no feedback. Show a
   // "still working" hint after 8s, and let the user abandon the wait.
@@ -99,7 +101,6 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
     setDraftYearly('');
     setDraftMilestones([]);
     setTimeline(null);
-    setAddToRoutine(true);
   };
 
   const handleDecompose = async () => {
@@ -108,19 +109,27 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
     abortRef.current = new AbortController();
     setSlowHint(false);
     setDecomposing(true);
+    const startedAt = Date.now();
+    track(EVENTS.goalDecomposeStarted, {}); // activation funnel — start
     slowTimer.current = setTimeout(() => setSlowHint(true), 8000);
     const result = await call(() => decomposeGoal({ visionStatement: goalText, name }, { signal: abortRef.current?.signal }));
     clearSlowTimer();
     setSlowHint(false);
     setDecomposing(false);
     // If the user tapped Cancel while we were waiting, drop the late result.
+    // (the abandon event is fired in handleCancelDecompose.)
     if (cancelledRef.current) return;
     if (result) {
+      track(EVENTS.goalDecomposeSucceeded, { duration_ms: Date.now() - startedAt });
       setHierarchy(result);
       setDraftTitle(result.primaryGoal.title);
       setDraftYearly(result.yearly.title);
       setDraftMilestones(result.monthly.slice(0, VISIBLE_MILESTONES).map((m) => m.title));
       setDomainType(result.primaryGoal.type);
+    } else {
+      // Null result with no cancel = the AI call failed (the ~20s wait that
+      // most hurts activation). Track it so the abandon/fail rate is visible.
+      track(EVENTS.goalDecomposeAbandoned, { reason: 'failed', duration_ms: Date.now() - startedAt });
     }
   };
 
@@ -140,25 +149,25 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
       ),
     };
 
-    const { lifeId } = persistHierarchy(userId, edited, createGoal, {
+    persistHierarchy(userId, edited, createGoal, {
       timeline: timeline ?? undefined,
       goalType: domainType,
     });
 
-    // Recurring focus habit (item 3) — best-effort; never block the save.
-    if (addToRoutine) {
-      try {
-        addGoalFocusBlocks({ goalId: lifeId, goalType: domainType, title: edited.primaryGoal.title });
-      } catch { /* routine seeding is non-critical */ }
-    }
-
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     loadGoals(userId);
+    const createdTitle = edited.primaryGoal.title;
     resetState();
+    // The goal already feeds future plans via the live-goal bridge; the parent
+    // may also offer to work it into the rest of today (gated, previewed, undoable).
+    onGoalCreated?.(createdTitle);
     onClose();
   };
 
   const handleCancelDecompose = () => {
+    // Only an in-flight decompose counts as an abandon (handleClose calls this
+    // unconditionally on close, even when nothing is running).
+    if (decomposing) track(EVENTS.goalDecomposeAbandoned, { reason: 'cancelled' });
     cancelledRef.current = true;
     abortRef.current?.abort(); // truly cancels the in-flight request (BUG-012)
     clearSlowTimer();
@@ -349,26 +358,6 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
                   </View>
                 </Animated.View>
 
-                {/* ADD TO ROUTINE — recurring focus habit (item 3) */}
-                <Animated.View entering={FadeInDown.delay(300).duration(280)}>
-                  <Pressable
-                    style={[styles.toggleRow, { borderColor: addToRoutine ? accent : c.border }]}
-                    onPress={() => { Haptics.selectionAsync().catch(() => {}); setAddToRoutine((v) => !v); }}
-                  >
-                    <Ionicons
-                      name={addToRoutine ? 'checkbox' : 'square-outline'}
-                      size={22}
-                      color={addToRoutine ? accent : c.textMuted}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>Add a daily focus block</Body>
-                      <Caption style={{ color: c.textSecondary }}>
-                        Reserves time on your routine and updates your Life Score as you complete it.
-                      </Caption>
-                    </View>
-                  </Pressable>
-                </Animated.View>
-
                 <Animated.View entering={FadeInDown.delay(360).duration(280)} style={styles.actions}>
                   <Button title="Save goal" onPress={handleSave} />
                   <Button title="Close" variant="ghost" onPress={handleClose} />
@@ -515,14 +504,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
   },
   actions: {
     gap: spacing.sm,

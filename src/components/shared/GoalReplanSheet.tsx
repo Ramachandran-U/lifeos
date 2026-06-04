@@ -16,7 +16,7 @@ interface Props {
   /** The goal title the change is about, shown in the prompt copy. */
   goalTitle: string;
   /** What the user just did to the goal — drives the copy. */
-  action: 'removed' | 'postponed';
+  action: 'removed' | 'postponed' | 'added';
   /** Plan returned by replanRemainingDay (preview phase only). */
   plan?: ReplanRemainingDay | null;
   /** Remaining blocks today, for matching dropped/edited ids in the preview. */
@@ -39,7 +39,7 @@ export function GoalReplanSheet({
   const c = useColors();
   const styles = makeStyles(c);
 
-  const verb = action === 'removed' ? 'removed' : 'postponed';
+  const verb = action === 'removed' ? 'removed' : action === 'added' ? 'added' : 'postponed';
   const handleNow = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onAdjustNow();
@@ -56,7 +56,9 @@ export function GoalReplanSheet({
             <>
               <Heading style={styles.title}>Goal {verb}</Heading>
               <Body style={styles.subtitle}>
-                You {verb} "{goalTitle}". Want me to rebalance the rest of today so its time goes elsewhere?
+                {action === 'added'
+                  ? `You added "${goalTitle}". Want me to work it into the rest of today?`
+                  : `You ${verb} "${goalTitle}". Want me to rebalance the rest of today so its time goes elsewhere?`}
               </Body>
               <View style={styles.actions}>
                 <Button title="Adjust my day now" variant="secondary" onPress={handleNow} />

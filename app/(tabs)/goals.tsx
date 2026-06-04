@@ -25,6 +25,7 @@ import { updateGoalStatus, getDeletedGoals, restoreGoal } from '@/db/queries/goa
 import { listGoalComments } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
+import { track, EVENTS } from '@/utils/telemetry';
 import { isEnabled } from '@/config/flags';
 import { getRoutineBlocksByDate, createRoutineBlocks } from '@/db/queries/routine';
 import { getUserProfile } from '@/db/queries/userProfile';
@@ -57,7 +58,7 @@ export default function GoalsScreen() {
   // Re-plan-after-goal-change flow (mirrors the priority-change adjust-now path).
   const [replan, setReplan] = useState<{
     visible: boolean; phase: GoalReplanPhase; goalTitle: string;
-    action: 'removed' | 'postponed'; plan: ReplanRemainingDay | null; existing: ExistingBlock[];
+    action: 'removed' | 'postponed' | 'added'; plan: ReplanRemainingDay | null; existing: ExistingBlock[];
   }>({ visible: false, phase: 'choice', goalTitle: '', action: 'removed', plan: null, existing: [] });
 
   useFocusEffect(
@@ -160,11 +161,19 @@ export default function GoalsScreen() {
     updateGoalStatus(id, 'completed');
     // Completing any goal node now moves its domain (and thus the Life Score).
     if (goal && userId) completeGoalNode(userId, goal.goalType, goal.level);
+    // The key retention signal — goal-completion rate / time-to-first-completion.
+    if (goal) track(EVENTS.goalCompleted, { goal_id: goal.id, goal_type: goal.goalType, level: goal.level });
     if (userId) loadGoals(userId);
+  };
+
+  const openGoalDetail = (goal: GoalLike) => {
+    track(EVENTS.goalDetailOpened, { goal_id: goal.id, goal_type: goal.goalType, level: goal.level });
+    setDetailGoalId(goal.id);
   };
 
   const handleRestore = (id: string) => {
     restoreGoal(id);
+    track(EVENTS.goalRestored, { goal_id: id });
     if (userId) {
       loadGoals(userId);
       setDeletedGoals(getDeletedGoals(userId));
@@ -184,7 +193,7 @@ export default function GoalsScreen() {
    * Only when the priorityAdjust flag is on AND there are still blocks left
    * today — otherwise there's nothing to adjust, so stay silent.
    */
-  const offerReplan = (goalTitle: string, action: 'removed' | 'postponed') => {
+  const offerReplan = (goalTitle: string, action: 'removed' | 'postponed' | 'added') => {
     if (!isEnabled('priorityAdjust')) return;
     const now = nowHHMM();
     const remaining = getRoutineBlocksByDate(todayStr()).filter((b) => b.startTime >= now);
@@ -192,10 +201,14 @@ export default function GoalsScreen() {
     setReplan({ visible: true, phase: 'choice', goalTitle, action, plan: null, existing: [] });
   };
 
+  /** After a goal is created, offer to work it into the rest of today (gated). */
+  const handleGoalCreated = (title: string) => offerReplan(title, 'added');
+
   const handleGoalRemove = () => {
     if (!detailGoal || !userId) return;
     const title = detailGoal.title;
     removeGoal(detailGoal.id, userId);
+    track(EVENTS.goalRemoved, { goal_id: detailGoal.id, level: detailGoal.level });
     setDeletedGoals(getDeletedGoals(userId));
     setDetailGoalId(null);
     offerReplan(title, 'removed');
@@ -205,6 +218,7 @@ export default function GoalsScreen() {
     if (!detailGoal || !userId) return;
     const title = detailGoal.title;
     snoozeGoal(detailGoal.id, untilDate, userId);
+    track(EVENTS.goalPostponed, { goal_id: detailGoal.id, level: detailGoal.level, until: untilDate });
     setDetailGoalId(null);
     offerReplan(title, 'postponed');
   };
@@ -212,6 +226,7 @@ export default function GoalsScreen() {
   const handleGoalResume = (id: string) => {
     if (!userId) return;
     resumeGoal(id, userId);
+    track(EVENTS.goalResumed, { goal_id: id });
     setDetailGoalId(null);
   };
 
@@ -241,7 +256,9 @@ export default function GoalsScreen() {
         skippedToday,
         primaryDomains,
         chronotype: profile?.chronotype ?? null,
-        droppedGoals: [replan.goalTitle],
+        ...(replan.action === 'added'
+          ? { addedGoals: [replan.goalTitle] }
+          : { droppedGoals: [replan.goalTitle] }),
       });
       setReplan((r) => ({ ...r, phase: 'preview', plan, existing }));
     } catch {
@@ -311,7 +328,7 @@ export default function GoalsScreen() {
               progress={progressFor(goal.id)}
               goalType={goal.goalType}
               commentCount={commentCounts[goal.id] ?? 0}
-              onPress={() => setDetailGoalId(goal.id)}
+              onPress={() => openGoalDetail(goal)}
               isPrimary={depth === 0 && goal.level === 'life'}
             />
           </View>
@@ -526,6 +543,7 @@ export default function GoalsScreen() {
           setShowAddSheet(false);
           if (userId) loadGoals(userId);
         }}
+        onGoalCreated={handleGoalCreated}
       />
 
       {detailGoal && userId && (
