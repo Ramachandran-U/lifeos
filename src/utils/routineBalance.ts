@@ -45,7 +45,7 @@ interface RoutineBlockLike {
   status: string;
 }
 
-function durationMin(b: RoutineBlockLike): number {
+function durationMin(b: { startTime: string; endTime: string }): number {
   // Both times are "HH:mm" — treat as same-day. Cross-midnight blocks are not
   // a current pattern; if they appear later we'll switch to full ISO parsing.
   const [sh, sm] = b.startTime.split(':').map((s) => parseInt(s, 10));
@@ -62,6 +62,25 @@ export function aggregateDomainMinutes(blocks: RoutineBlockLike[]): Record<Domai
   const out = emptyMinutes();
   for (const b of blocks) {
     if (b.status !== 'completed' && b.status !== 'in_progress') continue;
+    const domain = MODULE_TO_DOMAIN[b.module];
+    if (!domain) continue;
+    out[domain] += durationMin(b);
+  }
+  return out;
+}
+
+/**
+ * Aggregate *planned* minutes per life-domain across a set of blocks, ignoring
+ * status (the edit-routine preview holds blocks that aren't persisted yet, so
+ * they have no status). Non-life modules (rest/work/meal) aren't in
+ * MODULE_TO_DOMAIN and are intentionally dropped — this powers the
+ * life-domains-only "Today's balance" bar in the routine editor.
+ */
+export function aggregatePlannedDomainMinutes(
+  blocks: Array<{ startTime: string; endTime: string; module: string }>,
+): Record<DomainKey, number> {
+  const out = emptyMinutes();
+  for (const b of blocks) {
     const domain = MODULE_TO_DOMAIN[b.module];
     if (!domain) continue;
     out[domain] += durationMin(b);

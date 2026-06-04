@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,10 @@ import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { WheelTimePicker } from '@/components/ui/WheelTimePicker';
 import { LoadingDots } from '@/components/ui/LoadingDots';
+import { DraggableRoutineList } from '@/components/shared/DraggableRoutineList';
+import { DomainBalanceBar } from '@/components/shared/DomainBalanceBar';
+import { aggregatePlannedDomainMinutes } from '@/utils/routineBalance';
+import { reorderBlocksFixedSlots } from '@/utils/routineReorder';
 import { useAI } from '@/hooks/useAI';
 import { planRoutineWithContext } from '@/ai/routinePlanner';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
@@ -107,6 +111,14 @@ export default function Day1RoutineScreen() {
   const [workEnd, setWorkEnd] = useState('17:00');
   const [routine, setRoutine] = useState<GeneratedRoutine | null>(null);
   const [filterDebug, setFilterDebug] = useState<string | null>(null);
+  // Disable page scroll while a routine card is being dragged.
+  const [dragActive, setDragActive] = useState(false);
+
+  // Fixed-slot reorder: move the activity, keep the time windows pinned.
+  const handleReorder = useCallback((from: number, to: number) => {
+    setRoutine((prev) => (prev ? { ...prev, blocks: reorderBlocksFixedSlots(prev.blocks, from, to) } : prev));
+    Haptics.selectionAsync().catch(() => undefined);
+  }, []);
 
   // Seed pickers from the persisted user row so re-entering this screen (esp.
   // in edit mode) doesn't silently revert wake/sleep/work times to defaults
@@ -254,6 +266,7 @@ export default function Day1RoutineScreen() {
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scroll}
+        scrollEnabled={!dragActive}
       >
         {/* Back button (edit mode only — onboarding flow has no back) */}
         {isEditMode && (
@@ -328,25 +341,18 @@ export default function Day1RoutineScreen() {
               <Body style={styles.briefing}>{routine.briefing}</Body>
             </Card>
 
-            {routine.blocks.map((block, i) => {
-              const moduleColor = MODULE_COLORS[block.module] ?? c.textMuted;
-              return (
-                <Animated.View key={i} entering={FadeInDown.delay(150 + i * 70).duration(420)}>
-                  <Card moduleColor={moduleColor} style={styles.blockCard}>
-                    <View style={styles.blockRow}>
-                      <View style={styles.timeCol}>
-                        <Caption>{block.startTime}</Caption>
-                        <Caption>{block.endTime}</Caption>
-                      </View>
-                      <View style={styles.blockContent}>
-                        <Body style={styles.blockTitle}>{block.title}</Body>
-                        <Caption style={{ color: moduleColor }}>{block.module}</Caption>
-                      </View>
-                    </View>
-                  </Card>
-                </Animated.View>
-              );
-            })}
+            <DomainBalanceBar minutes={aggregatePlannedDomainMinutes(routine.blocks)} />
+
+            <Caption style={styles.dragHint}>
+              Hold and drag a card to choose what you do when — your times stay fixed.
+            </Caption>
+
+            <DraggableRoutineList
+              blocks={routine.blocks}
+              moduleColor={(m) => MODULE_COLORS[m] ?? c.textMuted}
+              onReorder={handleReorder}
+              onDragActiveChange={setDragActive}
+            />
 
             <Button
               title="Save my routine"
@@ -451,24 +457,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 22,
   },
-  blockCard: {
-    paddingVertical: spacing.sm,
-  },
-  blockRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  timeCol: {
-    width: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  blockContent: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  blockTitle: {
-    fontFamily: fonts.bodyMedium,
+  dragHint: {
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
   },
   saveButton: {
     marginTop: spacing.lg,
