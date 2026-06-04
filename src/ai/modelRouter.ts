@@ -43,6 +43,7 @@ export type AITask =
   | 'generateWeekRoutine'
   | 'generateConversationStarters'
   | 'suggestInterestAreas'
+  | 'importYouTubeInterests'
   | 'suggestCrossDisciplineLink'
   | 'frontier'
   | 'generateDailySpark'
@@ -71,6 +72,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   discoveryChatTurn: 'cheap',
   generateConversationStarters: 'cheap',
   suggestInterestAreas: 'planning',
+  importYouTubeInterests: 'planning', // cluster subscriptions into interests — structure matters
   suggestCrossDisciplineLink: 'planning',
   frontier: 'planning', // ranks the best unexplored edge across all interests — reasoning-ish
   generateDailySpark: 'cheap', // one short call per day — keep it cheap

@@ -296,6 +296,28 @@ export interface InterestSuggestionsInput {
   existingInterests: Array<{ name: string; category: string }>;
 }
 
+// --- YouTube interest import ---
+
+export const YouTubeInterestSchema = z.object({
+  name: z.string().min(1).max(60),
+  category: InterestCategoryEnum,
+  weeklyMinutesTarget: z.number().int().min(15).max(600),
+  why: z.string().min(1).max(160),
+});
+export type YouTubeImportedInterest = z.infer<typeof YouTubeInterestSchema>;
+
+export const YouTubeImportSchema = z.object({
+  interests: z.array(YouTubeInterestSchema).max(8),
+});
+export type YouTubeImport = z.infer<typeof YouTubeImportSchema>;
+
+export interface YouTubeImportInput {
+  /** Subscribed channels (title + short description). */
+  channels: Array<{ title: string; description?: string }>;
+  /** Existing interest names — don't propose duplicates. */
+  existingInterests: string[];
+}
+
 export const CrossDisciplineLinkSchema = z.object({
   headline: z.string().min(1).max(80),
   description: z.string().min(1).max(400),

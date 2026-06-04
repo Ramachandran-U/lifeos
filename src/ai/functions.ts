@@ -92,6 +92,9 @@ import {
   InterestSuggestions,
   InterestSuggestionsSchema,
   InterestSuggestionsInput,
+  YouTubeImport,
+  YouTubeImportSchema,
+  YouTubeImportInput,
   CrossDisciplineLink,
   CrossDisciplineLinkSchema,
   CrossDisciplineLinkInput,
@@ -135,8 +138,8 @@ import { buildMockGoalHierarchy, buildMockGoalDescription } from './mocks/goals'
 import { buildMockSkillGap, buildMockCareerStrategy, buildMockMotivation } from './mocks/career';
 import { CONVERSATION_STARTERS_PROMPT } from './prompts/social';
 import { buildMockConversationStarters } from './mocks/social';
-import { INTEREST_SUGGESTIONS_PROMPT, CROSS_DISCIPLINE_LINK_PROMPT } from './prompts/polymath';
-import { buildMockInterestSuggestions, buildMockCrossDisciplineLink } from './mocks/polymath';
+import { INTEREST_SUGGESTIONS_PROMPT, CROSS_DISCIPLINE_LINK_PROMPT, YOUTUBE_INTERESTS_PROMPT } from './prompts/polymath';
+import { buildMockInterestSuggestions, buildMockCrossDisciplineLink, buildMockYouTubeImport } from './mocks/polymath';
 import { MONTHLY_INSIGHT_REPORT_PROMPT } from './prompts/behaviour';
 import { buildMockMonthlyInsightReport } from './mocks/behaviour';
 import { DAILY_BRIEFING_PROMPT } from './prompts/briefing';
@@ -767,6 +770,29 @@ export async function suggestInterestAreas(input: InterestSuggestionsInput): Pro
     return InterestSuggestionsSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('suggestInterestAreas', 'InterestSuggestions', response, err);
+  }
+}
+
+/**
+ * Cluster a user's YouTube subscriptions into durable Explore interests. The
+ * subscriptions themselves come from the YouTube Data API (web-only); this only
+ * does the AI clustering, so it's testable in mock mode and reusable on native.
+ */
+export async function extractInterestsFromYouTube(input: YouTubeImportInput): Promise<YouTubeImport> {
+  if (isMock) return buildMockYouTubeImport(input);
+
+  const response = await callAI({
+    system: YOUTUBE_INTERESTS_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('importYouTubeInterests'),
+    cacheSystem: true,
+    task: 'importYouTubeInterests',
+  });
+
+  try {
+    return YouTubeImportSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('extractInterestsFromYouTube', 'YouTubeImport', response, err);
   }
 }
 
