@@ -53,6 +53,7 @@ import {
 } from '@/finance/categoryGroups';
 import { CATEGORY_COLORS, formatInr, prettyCategory } from '@/finance/display';
 import { runAllDetectors, type Insight } from '@/finance/insights';
+import { samePeriodMonthWindows } from '@/finance/analytics';
 import type { TxRecord } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -624,17 +625,18 @@ function OverviewTab({
 }) {
   const router = useRouter();
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+  // Like-for-like comparison: month-to-date vs the SAME elapsed day-range last
+  // month (not the full previous month) — otherwise an in-progress month always
+  // looks like a spend collapse. See samePeriodMonthWindows.
+  const { thisStart, thisEnd, prevStart, prevEnd } = samePeriodMonthWindows(now);
 
   const asMinimal = (t: TxRecord) => ({
     amount: t.amount,
     direction: t.direction,
     category: t.category as TransactionCategory,
   });
-  const thisMonthTx = transactions.filter((t) => t.date >= monthStart);
-  const lastMonthTx = transactions.filter((t) => t.date >= prevMonthStart && t.date <= prevMonthEnd);
+  const thisMonthTx = transactions.filter((t) => t.date >= thisStart && t.date <= thisEnd);
+  const lastMonthTx = transactions.filter((t) => t.date >= prevStart && t.date <= prevEnd);
 
   // "Spend" = consumption only (self-transfers, investments and loan/card
   // repayments are excluded so they don't inflate the headline).
@@ -733,7 +735,7 @@ function OverviewTab({
       {/* Spend summary */}
       <Animated.View entering={FadeInDown.delay(100).duration(400)}>
         <Card style={styles.spendCard}>
-          <Label color={c.finance}>THIS MONTH</Label>
+          <Label color={c.finance}>THIS MONTH SO FAR</Label>
           <Heading style={{ color: c.textPrimary, fontSize: fontSizes.xxxl }}>
             {formatInr(thisMonthSpend)}
           </Heading>
@@ -746,7 +748,7 @@ function OverviewTab({
               />
               <Caption style={{ color: delta >= 0 ? c.error : c.success }}>
                 {delta >= 0 ? '+' : ''}
-                {delta.toFixed(1)}% vs last month ({formatInr(lastMonthSpend)})
+                {delta.toFixed(1)}% vs same period last month ({formatInr(lastMonthSpend)})
               </Caption>
             </View>
           )}

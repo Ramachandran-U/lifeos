@@ -1,4 +1,10 @@
-import { merchantRollups, cadenceDays, categoryRollup, type AnalyticsTx } from '../analytics';
+import {
+  merchantRollups,
+  cadenceDays,
+  categoryRollup,
+  samePeriodMonthWindows,
+  type AnalyticsTx,
+} from '../analytics';
 
 const tx = (over: Partial<AnalyticsTx>): AnalyticsTx => ({
   date: '2026-05-01',
@@ -44,6 +50,34 @@ describe('cadenceDays', () => {
   });
   it('handles consecutive days (cadence = 1)', () => {
     expect(cadenceDays(['2026-05-01', '2026-05-02', '2026-05-03'])).toBe(1);
+  });
+});
+
+describe('samePeriodMonthWindows', () => {
+  // Day-span between two YYYY-MM-DD strings is timezone-invariant (both
+  // endpoints shift by the same offset), so these assertions don't depend on
+  // the machine TZ even though the strings themselves use toISOString.
+  const days = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86_400_000;
+
+  it('compares equal-length windows for a mid-month date', () => {
+    const w = samePeriodMonthWindows(new Date(2026, 5, 4)); // June 4
+    expect(w.dayOfMonth).toBe(4);
+    expect(days(w.thisStart, w.thisEnd)).toBe(3); // day 1 → day 4
+    expect(days(w.prevStart, w.prevEnd)).toBe(3); // same elapsed span last month
+  });
+
+  it('caps the previous-month window at its last day (no 31st in February)', () => {
+    const w = samePeriodMonthWindows(new Date(2026, 2, 31)); // March 31; Feb 2026 = 28 days
+    expect(w.dayOfMonth).toBe(31);
+    expect(days(w.thisStart, w.thisEnd)).toBe(30); // Mar 1 → Mar 31
+    expect(days(w.prevStart, w.prevEnd)).toBe(27); // Feb 1 → Feb 28 (capped)
+  });
+
+  it('rolls over to the previous December in January', () => {
+    const w = samePeriodMonthWindows(new Date(2026, 0, 10)); // Jan 10 2026
+    expect(days(w.thisStart, w.thisEnd)).toBe(9);
+    expect(days(w.prevStart, w.prevEnd)).toBe(9); // Dec 1 → Dec 10 2025
+    expect(w.prevStart < w.thisStart).toBe(true);
   });
 });
 
