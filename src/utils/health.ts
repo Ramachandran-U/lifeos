@@ -157,6 +157,18 @@ export type HealthGoalType =
   | 'reduce_stress'
   | 'maintain';
 
+// Selectable health goals (label + value). Shared by the day-3 onboarding and
+// the vitals editor so both offer the same set. Only some shift the calorie
+// target (see GOAL_TUNING); the rest are calorie-neutral (1.0×).
+export const GOAL_OPTIONS: { value: HealthGoalType; label: string }[] = [
+  { value: 'build_strength', label: 'Build strength' },
+  { value: 'lose_weight', label: 'Lose weight' },
+  { value: 'gain_endurance', label: 'Gain endurance' },
+  { value: 'improve_sleep', label: 'Improve sleep' },
+  { value: 'reduce_stress', label: 'Reduce stress' },
+  { value: 'maintain', label: 'Maintain' },
+];
+
 // How a goal shifts TDEE and how much protein (g per kg bodyweight) it wants.
 const GOAL_TUNING: Record<HealthGoalType, { calorieFactor: number; proteinPerKg: number }> = {
   lose_weight:    { calorieFactor: 0.82, proteinPerKg: 1.8 }, // ~18% deficit, protein-sparing
