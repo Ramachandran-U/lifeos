@@ -116,6 +116,17 @@
 
 ---
 
+## 9. Calorie / nutrition v2
+
+> 🅿️ The calorie target now personalises from age (PR #125) and has a goal selector (PR #131); the voice agent has a nutrition tool (PR #133). Two follow-ons are scoped but gated:
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 9.1 ☐ | **ED-safety items before promoting the calorie surface** — range (not single number) presentation, a crisis off-ramp link, no-shaming audit, no accuracy-gamification, human/clinical copy review. Code guardrails (estimate framing, "not medical advice", safe floors) already shipped. | Promoting a calorie surface (notifications, onboarding feature, gamification) without these is an ED-safety risk. | Before any *promotion* of the calorie/nutrition surface. Full checklist: [`docs/CALORIE_ED_SAFETY_CHECKLIST.md`](CALORIE_ED_SAFETY_CHECKLIST.md). |
+| 9.2 🅿️ | **Adaptive TDEE** — learn true expenditure from logged intake vs. weight trend (MacroFactor-style); ~3× more accurate than a static formula after 2–4 weeks. ~1.5–2 day build, behind a flag, formula as fallback. | Needs an adherence gate (else partial logging → under-eating advice) and the 9.1 safety items first (a "your real TDEE is X" number is more authoritative). | After 9.1 sign-off. Design + open decisions: [`docs/ADAPTIVE_TDEE_DESIGN.md`](ADAPTIVE_TDEE_DESIGN.md). |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
