@@ -79,12 +79,23 @@ describe('write-path integration (web)', () => {
   });
 
   afterEach(async () => {
-    // Drain any in-flight mutations so they don't spill into the next test.
+    // Drain any in-flight mutations, then fully reset the process-wide singletons
+    // and the fake global so nothing can leak into a sibling test file. This
+    // matters under CI's single-process `--coverage --runInBand` gate, where one
+    // Node process runs every suite back-to-back and a stray in-flight write or a
+    // leftover `globalThis.localStorage` could perturb a later suite.
     try {
-      const { _flushMutationLogForTests } = await import('../runtime');
+      const { _flushMutationLogForTests, _resetMutationLogForTests } = await import('../runtime');
       await _flushMutationLogForTests();
+      _resetMutationLogForTests();
     } catch { /* runtime may not be loaded yet */ }
+    try {
+      const { _resetLocalSinkForTests } = await import('../sink');
+      _resetLocalSinkForTests();
+    } catch { /* sink may not be loaded yet */ }
     storage.clear();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (globalThis as any).localStorage;
   });
 
   test('createGoal writes both the goal and a chained mutation', async () => {

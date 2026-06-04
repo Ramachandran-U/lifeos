@@ -28,9 +28,13 @@ module.exports = {
   // accounts for them. Enforced in CI via `npm test -- --coverage`.
   //
   // 0%-today areas are intentionally NOT collected yet (locking in 0% is a no-op
-  // gate that makes the aggregate look defended): src/components, src/hooks, and
+  // gate that makes the aggregate look defended): src/hooks and
   // src/integrations/{supabase,elevenlabs,googleFit-not... }. Bring them in per
   // phase once starter specs exist (see the test-coverage expansion plan).
+  // src/components IS now collected (A-P1 landed 160 component tests) — it is
+  // instrumented by the `components` project ONLY; the `node` project ignores it
+  // via coveragePathIgnorePatterns so the two instrumenters don't dilute each
+  // other (the same split that already keeps the logic dirs measured by `node`).
   collectCoverageFrom: [
     'src/sync/**/*.ts',
     'src/cognition/**/*.ts',
@@ -40,6 +44,7 @@ module.exports = {
     'src/finance/**/*.{ts,tsx}',
     'src/db/**/*.ts',
     'src/store/**/*.ts',
+    'src/components/**/*.{ts,tsx}',
     'src/integrations/google/**/*.ts',
     'src/integrations/googleCalendar/**/*.ts',
     'src/integrations/googleFit/**/*.ts',
@@ -69,10 +74,22 @@ module.exports = {
     // finance/db pulled the merged-tree aggregate down to ~80/74/69.
     './src/finance/db/': { lines: 78, branches: 70, functions: 66 },
     './src/finance/': { lines: 40, branches: 32, functions: 36 },
-    './src/db/queries/': { lines: 26, branches: 8, functions: 16 },
-    './src/db/webStorage/': { lines: 60, branches: 42, functions: 40 },
-    './src/db/': { lines: 32 },
-    './src/store/': { lines: 24, branches: 16, functions: 18 },
+    // db/queries is the user-data write path. Floors raised to sit just under the
+    // now-deterministic measured aggregate (tight buffers are safe because the CI
+    // gate runs --runInBand; see the CI workflow). Branch coverage here is still
+    // low in absolute terms — raising it further needs new query-layer tests,
+    // tracked as a follow-up.
+    './src/db/queries/': { lines: 31, branches: 12, functions: 23 },
+    './src/db/webStorage/': { lines: 90, branches: 72, functions: 88 },
+    './src/db/': { lines: 34 },
+    './src/store/': { lines: 40, branches: 28, functions: 40 },
+    // src/components — folded into the gate (A-P1/A-P2 added ~160 component tests).
+    // Single aggregate floor a few points under the measured aggregate; measured
+    // by the `components` project only (the node project ignores it — see
+    // coveragePathIgnorePatterns). A wider buffer than the logic dirs because this
+    // is the actively-refactored UI surface. Per-subdir floors can layer on later
+    // as most-specific keys once the 0%-today areas (profile, ambient) get specs.
+    './src/components/': { lines: 27, branches: 27, functions: 22 },
     './src/integrations/google/': { lines: 58, branches: 55, functions: 38 },
     // Raised 2026-06-04: the read path (listCalendarEvents) lifted this dir to
     // ~88/75/100 (lines/branches/functions); floor a few points under.
@@ -104,6 +121,12 @@ module.exports = {
       // node_modules stays ignored).
       transformIgnorePatterns: ['/node_modules/(?!@noble/)'],
       testPathIgnorePatterns: [...IGNORE, '/app/', '/src/components/'],
+      // src/components is measured by the `components` project ONLY. The node
+      // suite never executes component files (it stubs react-native), so without
+      // this it would emit 0%-coverage maps for them that dilute the merged
+      // per-directory numbers. Symmetric to the components project ignoring the
+      // logic dirs (see that project's coveragePathIgnorePatterns below).
+      coveragePathIgnorePatterns: [...IGNORE, '/app/', '/src/components/'],
     },
     {
       displayName: 'components',
