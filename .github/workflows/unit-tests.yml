@@ -39,5 +39,13 @@ jobs:
 
       - run: npm ci
 
-      - name: jest (node + components projects, with src/sync coverage gate)
-        run: npm test -- --coverage
+      - name: jest (node + components projects, with coverage gate)
+        # --runInBand runs every suite in ONE process so coverage is instrumented
+        # and merged deterministically. Under default multi-worker parallelism,
+        # which worker happens to run a cross-importing suite (e.g. src/ai/* which
+        # transitively imports src/finance/*) decides whether those lines land in
+        # that worker's coverage map; the merged result then swings run-to-run by
+        # up to ~11 pts on the finance/util/worker dirs. A single-process merge
+        # removes that nondeterminism so the ratchet floors can sit tight against
+        # the measured value instead of behind a wide noise buffer.
+        run: npm test -- --coverage --runInBand
