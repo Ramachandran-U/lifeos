@@ -1,6 +1,7 @@
 import {
   decayedSalience,
   isFactLive,
+  effectiveSalience,
   findDuplicate,
   isSuppressed,
   rankFactsBySimilarity,
@@ -54,6 +55,24 @@ describe('isFactLive', () => {
 
   it('is true for a fresh, salient fact', () => {
     expect(isFactLive(fact(), NOW)).toBe(true);
+  });
+
+  it('is true for a pinned fact even past expiry / fully decayed', () => {
+    const old = new Date(NOW - 10 * DEFAULT_HALF_LIFE_DAYS * 86_400_000).toISOString();
+    expect(
+      isFactLive(fact({ pinned: true, lastSeenAt: old, expiresAt: '2000-01-01T00:00:00.000Z' }), NOW),
+    ).toBe(true);
+  });
+});
+
+describe('effectiveSalience', () => {
+  it('is full strength (1) for a pinned fact regardless of age', () => {
+    const old = new Date(NOW - 5 * DEFAULT_HALF_LIFE_DAYS * 86_400_000).toISOString();
+    expect(effectiveSalience(fact({ pinned: true, lastSeenAt: old }), NOW)).toBe(1);
+  });
+  it('decays for an unpinned fact', () => {
+    const half = new Date(NOW - DEFAULT_HALF_LIFE_DAYS * 86_400_000).toISOString();
+    expect(effectiveSalience(fact({ pinned: false, lastSeenAt: half }), NOW)).toBeCloseTo(0.5, 5);
   });
 });
 

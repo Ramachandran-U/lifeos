@@ -322,6 +322,7 @@ export const memoryFacts = sqliteTable('memory_facts', {
   embedding: text('embedding'), // JSON number[] — for JS-cosine retrieval (no vector DB)
   salience: real('salience').notNull().default(1), // 0..1, decays over time; bumped on re-observation
   sourceWindow: text('source_window'), // e.g. "2026-05-16..2026-05-30"
+  pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false), // exempt from decay/expiry
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   lastSeenAt: text('last_seen_at').notNull().default(sql`(datetime('now'))`),
   expiresAt: text('expires_at'), // nullable; null = no expiry

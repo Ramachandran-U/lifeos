@@ -372,6 +372,7 @@ export async function initDatabase() {
       embedding TEXT,
       salience REAL NOT NULL DEFAULT 1,
       source_window TEXT,
+      pinned INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at TEXT
@@ -443,6 +444,7 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE users ADD COLUMN primary_domains TEXT`);
   await safeAlter(`ALTER TABLE users ADD COLUMN activated_modules TEXT`);
   await safeAlter(`ALTER TABLE interests ADD COLUMN time_protected INTEGER NOT NULL DEFAULT 0`);
+  await safeAlter(`ALTER TABLE memory_facts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
 
   // Drop zombie tables — never had queries, no UI, no roadmap commitment
   // (architect-review §P1-5). Idempotent: DROP IF EXISTS is a no-op when the

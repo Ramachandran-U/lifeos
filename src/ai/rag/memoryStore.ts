@@ -39,6 +39,8 @@ export interface MemoryFact {
   text: string;
   salience: number;
   sourceWindow: string | null;
+  /** Pinned facts are exempt from decay + expiry (never forgotten). */
+  pinned?: boolean;
   createdAt: string;
   lastSeenAt: string;
   expiresAt: string | null;
@@ -79,8 +81,15 @@ export function decayedSalience(
 
 /** Is a fact still "remembered" — not hard-expired and above the salience floor? Pure. */
 export function isFactLive(fact: MemoryFact, now: number, halfLifeDays = DEFAULT_HALF_LIFE_DAYS): boolean {
+  if (fact.pinned) return true; // pinned = never forgotten
   if (fact.expiresAt && Date.parse(fact.expiresAt) <= now) return false;
   return decayedSalience(fact.salience, fact.lastSeenAt, now, halfLifeDays) >= MIN_EFFECTIVE_SALIENCE;
+}
+
+/** Decayed salience, but pinned facts always read full strength. Pure. */
+export function effectiveSalience(fact: MemoryFact, now: number, halfLifeDays = DEFAULT_HALF_LIFE_DAYS): number {
+  if (fact.pinned) return 1;
+  return decayedSalience(fact.salience, fact.lastSeenAt, now, halfLifeDays);
 }
 
 /** The existing fact most similar to a new embedding, if above the dedup threshold. Pure. */
@@ -130,7 +139,7 @@ export function rankFactsBySimilarity(
     .filter((f) => f.embedding && isFactLive(f, now, halfLifeDays))
     .map((f) => {
       const sim = cosine(queryEmbedding, f.embedding!);
-      const sal = decayedSalience(f.salience, f.lastSeenAt, now, halfLifeDays);
+      const sal = effectiveSalience(f, now, halfLifeDays);
       // Similarity dominates; salience is a gentle tie-breaker / prior.
       return { fact: f, rank: sim * 0.8 + sal * 0.2 };
     })
@@ -196,6 +205,7 @@ function decodeRow(r: typeof memoryFacts.$inferSelect): MemoryFact {
     text: r.text,
     salience: r.salience,
     sourceWindow: r.sourceWindow,
+    pinned: r.pinned,
     createdAt: r.createdAt,
     lastSeenAt: r.lastSeenAt,
     expiresAt: r.expiresAt,
@@ -220,6 +230,7 @@ function decodeWebRow(r: WebMemoryFact): MemoryFact {
     text: r.text,
     salience: r.salience,
     sourceWindow: r.sourceWindow,
+    pinned: r.pinned,
     createdAt: r.createdAt,
     lastSeenAt: r.lastSeenAt,
     expiresAt: r.expiresAt,
@@ -334,6 +345,15 @@ export function deleteAllFactsForUser(userId: string): void {
     return;
   }
   db.delete(memoryFacts).where(eq(memoryFacts.userId, userId)).run();
+}
+
+/** Pin or unpin a fact. Pinned facts never decay or expire (see isFactLive). */
+export function setFactPinned(id: string, pinned: boolean): void {
+  if (isWeb) {
+    webUpdateFact(id, { pinned });
+    return;
+  }
+  db.update(memoryFacts).set({ pinned }).where(eq(memoryFacts.id, id)).run();
 }
 
 // --- suppression tombstones (so "forget" sticks across consolidations) ---

@@ -14,8 +14,9 @@ import { useUserStore } from '@/store/useUserStore';
 import {
   getFactsByUser,
   forgetFact,
+  setFactPinned,
   deleteAllFactsForUser,
-  decayedSalience,
+  effectiveSalience,
   isFactLive,
   formatSourceWindow,
   relativeSince,
@@ -53,7 +54,7 @@ export default function WhatLifeOSRemembersScreen() {
     const now = Date.now();
     const live = getFactsByUser(userId)
       .filter((f) => isFactLive(f, now))
-      .sort((a, b) => decayedSalience(b.salience, b.lastSeenAt, now) - decayedSalience(a.salience, a.lastSeenAt, now));
+      .sort((a, b) => effectiveSalience(b, now) - effectiveSalience(a, now));
     setFacts(live);
     setLoading(false);
   }, [userId]);
@@ -77,6 +78,12 @@ export default function WhatLifeOSRemembersScreen() {
   const handleForget = (fact: MemoryFact) => {
     // Deletes AND tombstones, so the next "Refresh" won't re-learn it.
     void forgetFact(fact);
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    load();
+  };
+
+  const handlePin = (fact: MemoryFact) => {
+    setFactPinned(fact.id, !fact.pinned);
     if (Platform.OS !== 'web') Haptics.selectionAsync();
     load();
   };
@@ -144,10 +151,16 @@ export default function WhatLifeOSRemembersScreen() {
                 </View>
                 <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                   {g.items.map((f) => {
-                    const strength = decayedSalience(f.salience, f.lastSeenAt, now);
+                    const strength = effectiveSalience(f, now);
                     const win = formatSourceWindow(f.sourceWindow);
                     const seen = relativeSince(f.lastSeenAt, now);
-                    const provenance = win ? `From ${win} · seen ${seen}` : `Seen ${seen}`;
+                    const provenance = f.pinned
+                      ? win
+                        ? `Pinned · from ${win}`
+                        : 'Pinned'
+                      : win
+                        ? `From ${win} · seen ${seen}`
+                        : `Seen ${seen}`;
                     return (
                       <View key={f.id} style={styles.factRow}>
                         <View style={{ flex: 1 }}>
@@ -156,18 +169,36 @@ export default function WhatLifeOSRemembersScreen() {
                             <View
                               style={[
                                 styles.strengthFill,
-                                { width: `${Math.round(strength * 100)}%`, backgroundColor: c.primary },
+                                {
+                                  width: `${Math.round(strength * 100)}%`,
+                                  backgroundColor: f.pinned ? c.success : c.primary,
+                                },
                               ]}
                             />
                           </View>
                           <View style={styles.provenanceRow}>
-                            <Ionicons name="time-outline" size={11} color={c.textMuted} />
-                            <Caption style={styles.provenance}>{provenance}</Caption>
+                            <Ionicons
+                              name={f.pinned ? 'pin' : 'time-outline'}
+                              size={11}
+                              color={f.pinned ? c.success : c.textMuted}
+                            />
+                            <Caption style={[styles.provenance, f.pinned && { color: c.success }]}>
+                              {provenance}
+                            </Caption>
                           </View>
                         </View>
-                        <Pressable onPress={() => handleForget(f)} hitSlop={10} style={styles.deleteBtn}>
-                          <Ionicons name="close" size={16} color={c.textMuted} />
-                        </Pressable>
+                        <View style={styles.factActions}>
+                          <Pressable onPress={() => handlePin(f)} hitSlop={8} style={styles.iconBtn}>
+                            <Ionicons
+                              name={f.pinned ? 'pin' : 'pin-outline'}
+                              size={15}
+                              color={f.pinned ? c.success : c.textMuted}
+                            />
+                          </Pressable>
+                          <Pressable onPress={() => handleForget(f)} hitSlop={8} style={styles.iconBtn}>
+                            <Ionicons name="close" size={16} color={c.textMuted} />
+                          </Pressable>
+                        </View>
                       </View>
                     );
                   })}
@@ -229,7 +260,8 @@ const makeStyles = (c: AppColors) =>
     strengthFill: { height: '100%' },
     provenanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
     provenance: { color: c.textMuted, fontSize: fontSizes.xs },
-    deleteBtn: {
+    factActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    iconBtn: {
       width: 28,
       height: 28,
       borderRadius: 14,

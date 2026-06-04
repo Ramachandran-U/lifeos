@@ -15,6 +15,7 @@ export interface WebMemoryFact {
   embedding: string | null; // JSON number[]
   salience: number;
   sourceWindow: string | null;
+  pinned?: boolean; // optional for rows written before pinning shipped
   createdAt: string;
   lastSeenAt: string;
   expiresAt: string | null;
