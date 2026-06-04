@@ -943,6 +943,9 @@ export interface ReplanRemainingDayInput {
   chronotype: 'lark' | 'balanced' | 'owl' | null;
   /** Optional recovery hint — when true, drop high-energy blocks for the rest of the day. */
   softenForRecovery?: boolean;
+  /** Titles of goals the user just removed or postponed. The rebalancer should
+   *  free the time those blocks were taking and reallocate it, not reinstate them. */
+  droppedGoals?: string[];
 }
 
 // --- Tomorrow Routine (post-Reflect) ---

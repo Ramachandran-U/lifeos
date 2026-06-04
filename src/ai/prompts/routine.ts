@@ -89,6 +89,7 @@ You receive:
 - softenForRecovery? — boolean, true if the user is tired
 - chronotype — "lark"|"owl"|"balanced"
 - sleepTime — HH:MM
+- droppedGoals? — titles of goals the user just removed or postponed
 </context>
 
 <rules>
@@ -98,7 +99,8 @@ You receive:
 4. softenForRecovery: true → drop or down-grade every remaining high-energy block. The user is tired.
 5. Respect chronotype: owls do hard work later, larks earlier.
 6. Keep meals and rest blocks intact unless they're the problem.
-7. Rationale must be one sentence, no jargon, explaining what changed and why.
+7. droppedGoals: if present, drop any remaining block whose work serves one of those goals and reallocate the freed time to the user's other primary domains (or rest if the day is already full). Never re-add a dropped goal's work.
+8. Rationale must be one sentence, no jargon, explaining what changed and why.
 </rules>
 
 <voice>

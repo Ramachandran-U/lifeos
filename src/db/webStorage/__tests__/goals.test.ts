@@ -21,6 +21,7 @@ import {
   webGetChildGoals,
   webUpdateGoalStatus,
   webUpdateGoalDescription,
+  webUpdateGoalFields,
   webUpsertGoalById,
   webSoftDeleteGoal,
   webGetDeletedGoals,
@@ -73,6 +74,21 @@ describe('webGetChildGoals', () => {
     webInsertGoal(goal({ id: 'c2', parentId: 'p1', deletedAt: '2026-02-01T00:00:00.000Z' }));
     webInsertGoal(goal({ id: 'c3', parentId: 'other' }));
     expect(webGetChildGoals('p1').map((g) => g.id)).toEqual(['c1']);
+  });
+});
+
+describe('webUpdateGoalFields', () => {
+  it('patches multiple fields at once and bumps updatedAt; no-ops for unknown id', () => {
+    webInsertGoal(goal({ id: 'g1', status: 'active' }));
+    webUpdateGoalFields('g1', { status: 'paused', metadata: JSON.stringify({ snoozeUntil: '2026-09-01' }) });
+    const row = webGetGoalById('g1');
+    expect(row?.status).toBe('paused');
+    expect(JSON.parse(row?.metadata ?? '{}').snoozeUntil).toBe('2026-09-01');
+    expect(row?.updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+
+    // Unknown id is a silent no-op (no throw, no insert).
+    webUpdateGoalFields('missing', { status: 'paused' });
+    expect(webGetGoalById('missing')).toBeUndefined();
   });
 });
 

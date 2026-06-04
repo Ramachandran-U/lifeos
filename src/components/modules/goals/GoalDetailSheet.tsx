@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { format, addWeeks, addMonths } from 'date-fns';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption, Label } from '@/components/ui/Typography';
+import { Button } from '@/components/ui/Button';
 import { useGoalTypeColor } from '@/utils/goalTypeColor';
 import { addGoalComment, listGoalComments, deleteGoalComment, type GoalComment } from '@/db/queries/goalComments';
 import { updateGoalDescription } from '@/db/queries/goals';
@@ -19,13 +21,32 @@ interface Props {
   goalLevel?: string;
   initialDescription?: string;
   userId: string;
+  /** Goal status — drives which lifecycle actions show (active → Postpone/Remove, paused → Resume). */
+  goalStatus?: string;
+  /** YYYY-MM-DD the goal is snoozed until (when paused via Postpone). */
+  snoozeUntil?: string | null;
   onCommentChange?: () => void;
   onDescriptionChange?: () => void;
+  /** Soft-delete this goal (recoverable). Parent closes the sheet + offers a re-plan. */
+  onRemove?: () => void;
+  /** Postpone this goal until `untilDate` (YYYY-MM-DD). */
+  onPostpone?: (untilDate: string) => void;
+  /** Resume a postponed goal now. */
+  onResume?: () => void;
 }
+
+const SNOOZE_PRESETS: { label: string; until: () => string }[] = [
+  { label: '1 week', until: () => format(addWeeks(new Date(), 1), 'yyyy-MM-dd') },
+  { label: '1 month', until: () => format(addMonths(new Date(), 1), 'yyyy-MM-dd') },
+  { label: '3 months', until: () => format(addMonths(new Date(), 3), 'yyyy-MM-dd') },
+];
+
+type LifecycleMode = 'view' | 'postpone' | 'confirmRemove';
 
 export function GoalDetailSheet({
   visible, onClose, goalId, goalTitle, goalType, goalLevel,
-  initialDescription, userId, onCommentChange, onDescriptionChange,
+  initialDescription, userId, goalStatus, snoozeUntil,
+  onCommentChange, onDescriptionChange, onRemove, onPostpone, onResume,
 }: Props) {
   const c = useColors();
   const typeColor = useGoalTypeColor()(goalType);
@@ -34,12 +55,14 @@ export function GoalDetailSheet({
   const [description, setDescription] = useState<string>(initialDescription ?? '');
   const [descLoading, setDescLoading] = useState(false);
   const [descError, setDescError] = useState<string | null>(null);
+  const [mode, setMode] = useState<LifecycleMode>('view');
 
   useEffect(() => {
     if (visible && goalId) {
       setComments(listGoalComments(goalId));
       setDescription(initialDescription ?? '');
       setDescError(null);
+      setMode('view');
     }
   }, [visible, goalId, initialDescription]);
 
@@ -155,6 +178,66 @@ export function GoalDetailSheet({
             </Pressable>
           </View>
 
+          {(onRemove || onPostpone || onResume) && (
+            <>
+              <View style={[styles.divider, { backgroundColor: c.border }]} />
+              {goalStatus === 'paused' ? (
+                <View style={styles.lifecycleSection}>
+                  <Caption style={{ color: c.textSecondary }}>
+                    {snoozeUntil ? `Postponed until ${snoozeUntil}` : 'Postponed'}
+                  </Caption>
+                  <View style={styles.lifecycleRow}>
+                    {onResume && (
+                      <Button title="Resume now" variant="secondary" onPress={() => onResume()} style={styles.lifecycleBtn} />
+                    )}
+                    {onRemove && (
+                      <Button title="Remove" variant="secondary" onPress={() => setMode('confirmRemove')} style={styles.lifecycleBtn} />
+                    )}
+                  </View>
+                </View>
+              ) : mode === 'postpone' ? (
+                <View style={styles.lifecycleSection}>
+                  <Caption style={{ color: c.textSecondary }}>Postpone until…</Caption>
+                  <View style={styles.chipRow}>
+                    {SNOOZE_PRESETS.map((p) => (
+                      <Pressable
+                        key={p.label}
+                        style={[styles.chip, { borderColor: typeColor.color }]}
+                        onPress={() => onPostpone?.(p.until())}
+                      >
+                        <Caption style={{ color: typeColor.color, fontFamily: fonts.heading }}>{p.label}</Caption>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Pressable style={styles.linkBtn} onPress={() => setMode('view')} hitSlop={6}>
+                    <Caption style={{ color: c.textMuted }}>Cancel</Caption>
+                  </Pressable>
+                </View>
+              ) : mode === 'confirmRemove' ? (
+                <View style={styles.lifecycleSection}>
+                  <Caption style={{ color: c.textSecondary }}>
+                    Remove this goal? You can restore it later from "Recently deleted".
+                  </Caption>
+                  <View style={styles.lifecycleRow}>
+                    {onRemove && (
+                      <Button title="Remove" onPress={() => onRemove()} style={StyleSheet.flatten([styles.lifecycleBtn, { backgroundColor: c.error }])} />
+                    )}
+                    <Button title="Cancel" variant="secondary" onPress={() => setMode('view')} style={styles.lifecycleBtn} />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.lifecycleRow}>
+                  {(goalStatus === 'active' || !goalStatus) && onPostpone && (
+                    <Button title="Postpone" variant="secondary" onPress={() => setMode('postpone')} style={styles.lifecycleBtn} />
+                  )}
+                  {onRemove && (
+                    <Button title="Remove" variant="secondary" onPress={() => setMode('confirmRemove')} style={styles.lifecycleBtn} />
+                  )}
+                </View>
+              )}
+            </>
+          )}
+
           <Pressable style={styles.closeBtn} onPress={onClose}>
             <Caption style={{ color: c.textSecondary }}>Close</Caption>
           </Pressable>
@@ -182,6 +265,15 @@ const styles = StyleSheet.create({
   sendBtn: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   closeBtn: { alignSelf: 'center', paddingVertical: spacing.xs },
   divider: { height: 1, borderRadius: 1 },
+  lifecycleSection: { gap: spacing.sm },
+  lifecycleRow: { flexDirection: 'row', gap: spacing.sm },
+  lifecycleBtn: { flex: 1 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    borderRadius: 999, borderWidth: 1,
+  },
+  linkBtn: { alignSelf: 'flex-start', paddingVertical: spacing.xs },
   descHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   descBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
