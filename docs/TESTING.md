@@ -5,7 +5,7 @@ Jest is a two-project setup: a **`node`** project (ts-jest, pure-logic suite —
 ## Run
 
 ```bash
-npm test             # node project — pure-logic suite (~15s, ~688 tests / 87 suites)
+npm test             # node project — pure-logic suite (~1,170 tests / 124 suites)
 npm run test:watch   # watch mode
 npm run evals        # AI eval harness (mock mode, free, ~2s)
 npm run evals:live   # same but hits real LLMs (sets EVAL_REAL=true)
@@ -24,7 +24,7 @@ npm run verify
 
 This runs `tsc --noEmit && jest && npm run smoke` in order. Each gate must be green:
 - `tsc` — 0 errors (strict mode)
-- `jest` — node suite (~688 tests across 87 suites; planner agent, trajectory, gamification incl. completeBlock, finance parsers, explore guards, domain-icon resolution, etc.)
+- `jest` — node suite (~1,170 tests across 124 suites; planner agent, trajectory, gamification incl. completeBlock, finance parsers, explore guards, domain-icon resolution, calendar/bills planning context, etc.)
 - `smoke` — Playwright against `https://lifeos-6r5-eqa.pages.dev` (a data-driven route + nav walk; ~45s)
 
 The smoke runs against the deployed canonical URL, not the local build — so it catches CORS misconfigs, missing env vars, and bundle-vs-runtime drift that `npm run web` would mask.
@@ -44,10 +44,39 @@ Config: [`jest.config.js`](../jest.config.js). Paths:
 - `app/` and `src/components/` are ignored — RN JSX needs jest-expo.
 - `moduleNameMapper` for `react-native`, `expo-constants`, `@react-native-async-storage/async-storage` → tiny stubs under [`jest.mocks/`](../jest.mocks/) so consumer modules that import RN at the top level can be exercised in pure Node.
 
-## Coverage today
+## Coverage gate
 
-- **gamification.ts** — XP curve, streak grace logic, badge awards, domain score weighting
-- **emailParsers.ts** — HDFC/ICICI/Axis regex + dispatcher
+The **live source of truth is `coverageThreshold` in [`jest.config.js`](../jest.config.js)** — per-directory floors enforced by `.github/workflows/unit-tests.yml` (`npm test -- --coverage --runInBand`). It's a **one-way ratchet**: a PR may RAISE a floor (when it adds coverage), never lower one without explicit justification. Floors sit a few points under the measured directory aggregate, so run-to-run noise can't red CI.
+
+Measured node-project rollups for the actively-developed dirs (as of 2026-06-04, `--runInBand` — a lower bound, since the two-project CI run can only add covered lines via the union):
+
+| Dir | lines | branches | functions | floor (lines/br/fn) |
+|---|---|---|---|---|
+| `src/ai/` | 57% | 42% | 52% | 50 / 34 / 45 |
+| `src/ai/agent/` | 93% | 79% | 83% | 86 / 70 / 76 |
+| `src/finance/` | 54% | 51% | 50% | 48 / 44 / 43 |
+| `src/finance/parsers/` | 98% | 80% | 100% | (rolls into finance) |
+| `src/integrations/googleCalendar/` | 88% | 75% | 100% | 82 / 68 / 92 |
+
+### Well-covered (incl. the calendar-read + Gmail-bills work, PR #114)
+- **AI planning context** — `calendarContext.ts` (100%), `billsContext.ts` (95%), `agent/tools.ts` (100%, incl. `getTodayCalendar` / `getUpcomingBills`).
+- **Finance ingestion logic** — `parsers/billParsers.ts` (99%), `recurringSummary.ts` (100%), `gmail/fetcher.ts` (89%), `parsers/emailParsers.ts` (98%).
+- **Calendar client** — `googleCalendar/client.ts` (99%, read + write).
+- Plus the prior suites: gamification, agent runtime / write-tools, RAG/memory, cognition detectors, explore, finance analytics/categorizer.
+
+### Coverage plan — deliberately uncovered, next up
+
+These follow the repo convention (pure logic is unit-tested; **Dexie / Zustand / RN-render / Platform-gated code is device-tested, not in the node gate**). Listed by priority for when the RN harness is reliable:
+
+| Target | Now | Why uncovered | Next spec |
+|---|---|---|---|
+| `SubscriptionsBillsCard.tsx` | 0% (not collected by node) | RN render — needs the `components` (jest-expo) project | **P1.** Render test: empty/connected states, "Scan inbox" calls `sync`, dismiss row, ₹/mo total. Run from a full checkout (jest-expo doesn't resolve in a worktree). |
+| `finance/db/transactionDb.ts` recurringItems CRUD | 27% dir | Dexie (web-only); whole file is device-tested like the rest | **P2.** `fake-indexeddb` suite for `upsert`/`getActive`/`dismiss` dedupe + dismissal-survives-resync. Would also lift the long-standing `transactions` CRUD gap. |
+| `finance/store/useRecurringStore.ts` | 0% | Zustand + Dexie + Platform-gated, like `useTransactionStore` (also 0%) | **P3.** Extract any remaining pure mapping; store/Dexie integration belongs in an e2e or fake-indexeddb suite. |
+| `ai/routinePlanner.ts` | 0% | Orchestration glue (awaits history/calendar/bills context) — not unit-tested | **P2.** Test merge order + that a throwing context source is non-fatal (mock the three context builders). |
+| `app/(tabs)/finance.tsx` wiring | n/a (`app/` excluded) | Screen layer; `app/**` is outside `collectCoverageFrom` **and** the CI path filter | e2e (Playwright) once the auth suite is green. |
+
+Standing gate gaps (see the `ci-coverage-gate-state` note): no `global` floor (new collected dirs are silently ungated at 0% until given a key), `app/**` bypasses the unit-test CI trigger, and `src/hooks` is excluded from collection.
 
 ## AI eval harness ([`evals/`](../evals/))
 

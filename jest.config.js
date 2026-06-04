@@ -59,15 +59,20 @@ module.exports = {
     './src/explore/': { lines: 76, branches: 62, functions: 78 },
     './src/ai/agent/': { lines: 86, branches: 70, functions: 76 },
     './src/ai/prompts/': { lines: 90 }, // string constants — no branches/functions
-    './src/ai/': { lines: 40, branches: 22, functions: 30 },
+    // Raised 2026-06-04 after the calendar-read + Gmail-bills work (PR #114) —
+    // measured node-only --runInBand rollups were ai 57/42/52, finance 54/51/50
+    // (lines/branches/functions); floors sit a few points under. See docs/TESTING.md.
+    './src/ai/': { lines: 50, branches: 34, functions: 45 },
     './src/utils/': { lines: 46, branches: 36, functions: 34 },
-    './src/finance/': { lines: 38, branches: 30, functions: 32 },
+    './src/finance/': { lines: 48, branches: 44, functions: 43 },
     './src/db/queries/': { lines: 26, branches: 8, functions: 16 },
     './src/db/webStorage/': { lines: 60, branches: 42, functions: 40 },
     './src/db/': { lines: 32 },
     './src/store/': { lines: 24, branches: 16, functions: 18 },
     './src/integrations/google/': { lines: 58, branches: 55, functions: 38 },
-    './src/integrations/googleCalendar/': { lines: 70, branches: 58, functions: 80 },
+    // Raised 2026-06-04: the read path (listCalendarEvents) lifted this dir to
+    // ~88/75/100 (lines/branches/functions); floor a few points under.
+    './src/integrations/googleCalendar/': { lines: 82, branches: 68, functions: 92 },
     './src/integrations/googleFit/': { lines: 78, branches: 44, functions: 78 },
     './src/integrations/googleAuth/': { lines: 44 },
     './workers/ai-proxy/src/': { lines: 9, branches: 6, functions: 12 },
