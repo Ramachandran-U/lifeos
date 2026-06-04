@@ -80,7 +80,7 @@ lifeos/
 │   │   ├── schema.ts           # SQLite schema (Drizzle ORM)
 │   │   ├── migrations/         # Drizzle migrations + meta
 │   │   ├── queries/            # One file per entity
-│   │   ├── webStorage/         # Dexie-backed storage shim for web
+│   │   ├── webStorage/         # Synchronous localStorage shim for web (per-entity stores; finance uses Dexie)
 │   │   └── index.ts
 │   ├── store/                  # Zustand stores (useGameStore, useFlagStore,
 │   │   │                       #   useUserStore, usePreferencesStore, ... — see dir)
@@ -205,17 +205,18 @@ Tokens live in `src/theme/colors.ts`, alongside `elevation.ts`, `motion.ts`, `de
 
 ---
 
-## Database — SQLite (mobile) / Dexie (web), with Drizzle ORM
+## Database — SQLite (mobile) / localStorage + Dexie (web), with Drizzle ORM
 
 ### Storage layers
 | Data type | Where | Why |
 |-----------|-------|-----|
-| Health logs, blood reports, contacts | Local (SQLite on native, Dexie on web) | Sensitive — stays on device |
+| Health logs, blood reports, contacts | Local (SQLite on native, **synchronous localStorage** on web) | Sensitive — stays on device |
 | Goals, tasks, routine blocks, habits | Local + optional Supabase sync via the mutation log | Cross-device, recoverable |
 | Gamification state | Local | Fast reads for home screen |
 | User preferences | Local | |
+| Finance transactions | Local (SQLite on native, **Dexie/IndexedDB** on web) | Larger volume; outgrows localStorage's ~5 MB quota |
 
-> Web builds use the Dexie-backed shim in `src/db/webStorage/`; native uses `expo-sqlite`. Drizzle sits over both. State changes flow through the event-sourced mutation log in `src/sync/` (hash-chained), which is the substrate for Supabase sync, version history, and memory.
+> **Web storage is two different backends — don't conflate them.** The **per-entity stores** (users, health, goals, gamification, contacts, …) use a **synchronous `localStorage`** shim in `src/db/webStorage/` (`_io.ts` = `JSON.parse(localStorage.getItem(…))`), so web reads like `getUser()` return a value, **not a Promise** — the query layer (and the render/voice paths) rely on this synchrony. Only the **finance** transaction store (`src/finance/db/transactionDb.ts`) is **Dexie/IndexedDB (async)**. Native uses `expo-sqlite`; Drizzle sits over the native path. **Migrating a per-entity store to Dexie would break the synchronous read contract** — `src/db/queries/__tests__/syncReadContract.test.ts` guards it (a Promise-returning read fails CI). State changes flow through the event-sourced mutation log in `src/sync/` (hash-chained), the substrate for Supabase sync, version history, and memory.
 
 ### Schema principles
 - `text('id')` with `nanoid()` for all primary keys — never auto-increment integers
