@@ -64,6 +64,8 @@ export default defineConfig({
         // it belongs only to the `authenticated` project (would throw under
         // chromium with no session).
         '**/engine-authed.spec.ts',
+        // Cross-device sync — two contexts off the authenticated storageState.
+        '**/sync-cross-device.spec.ts',
       ],
       // routine-block-complete uses a press-and-hold gesture that can race on
       // slow CI runners; one retry absorbs the flake without masking real breaks.
@@ -105,6 +107,7 @@ export default defineConfig({
         '**/auth-routing.spec.ts',
         '**/onboarding-fresh.spec.ts',
         '**/engine-authed.spec.ts',
+        '**/sync-cross-device.spec.ts',
       ],
       dependencies: ['setup'],
       use: {

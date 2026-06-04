@@ -123,6 +123,15 @@ jobs:
         env:
           SMOKE_BASE_URL: http://localhost:8081
 
+      # Reap any ephemeral test users a crashed run leaked (the sweeper job that
+      # e2e/ephemeralUser.ts anticipated). always() so it runs even when a spec
+      # above failed; non-blocking. Only touches e2e-*@lifeos.test accounts older
+      # than the cutoff — never the persistent test user.
+      - name: Sweep leaked ephemeral E2E users
+        if: always() && env.SUPABASE_SERVICE_ROLE_KEY != ''
+        continue-on-error: true
+        run: node e2e/sweep-ephemeral.mjs
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
