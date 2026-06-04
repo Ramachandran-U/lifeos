@@ -108,6 +108,29 @@ export function samePeriodMonthWindows(now: Date): PeriodWindows {
   };
 }
 
+export interface PeriodSplit<T> {
+  thisMonth: T[];
+  lastPeriod: T[];
+  windows: PeriodWindows;
+}
+
+/**
+ * Split transactions into the month-to-date window and the equivalent same-length
+ * window of last month, using {@link samePeriodMonthWindows}. The single tested
+ * home for the `date >= start && date <= end` filter that both the Finance
+ * overview and the money review apply — so the TZ-boundary handling lives (and is
+ * tested) in one place instead of being copy-pasted at each call site.
+ */
+export function splitTxByPeriod<T extends { date: string }>(txns: T[], now: Date): PeriodSplit<T> {
+  const windows = samePeriodMonthWindows(now);
+  const { thisStart, thisEnd, prevStart, prevEnd } = windows;
+  return {
+    thisMonth: txns.filter((t) => t.date >= thisStart && t.date <= thisEnd),
+    lastPeriod: txns.filter((t) => t.date >= prevStart && t.date <= prevEnd),
+    windows,
+  };
+}
+
 export interface CategoryRollup {
   total: number; // paise (debits)
   count: number;
