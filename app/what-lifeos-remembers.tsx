@@ -17,6 +17,8 @@ import {
   deleteAllFactsForUser,
   decayedSalience,
   isFactLive,
+  formatSourceWindow,
+  relativeSince,
   type MemoryFact,
   type MemoryFactKind,
 } from '@/ai/rag/memoryStore';
@@ -142,6 +144,9 @@ export default function WhatLifeOSRemembersScreen() {
                 <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                   {g.items.map((f) => {
                     const strength = decayedSalience(f.salience, f.lastSeenAt, now);
+                    const win = formatSourceWindow(f.sourceWindow);
+                    const seen = relativeSince(f.lastSeenAt, now);
+                    const provenance = win ? `From ${win} · seen ${seen}` : `Seen ${seen}`;
                     return (
                       <View key={f.id} style={styles.factRow}>
                         <View style={{ flex: 1 }}>
@@ -153,6 +158,10 @@ export default function WhatLifeOSRemembersScreen() {
                                 { width: `${Math.round(strength * 100)}%`, backgroundColor: c.primary },
                               ]}
                             />
+                          </View>
+                          <View style={styles.provenanceRow}>
+                            <Ionicons name="time-outline" size={11} color={c.textMuted} />
+                            <Caption style={styles.provenance}>{provenance}</Caption>
                           </View>
                         </View>
                         <Pressable onPress={() => handleDelete(f.id)} hitSlop={10} style={styles.deleteBtn}>
@@ -217,6 +226,8 @@ const makeStyles = (c: AppColors) =>
       marginTop: 6,
     },
     strengthFill: { height: '100%' },
+    provenanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
+    provenance: { color: c.textMuted, fontSize: fontSizes.xs },
     deleteBtn: {
       width: 28,
       height: 28,

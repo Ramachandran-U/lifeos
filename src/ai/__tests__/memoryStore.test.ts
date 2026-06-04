@@ -3,6 +3,8 @@ import {
   isFactLive,
   findDuplicate,
   rankFactsBySimilarity,
+  formatSourceWindow,
+  relativeSince,
   DEFAULT_HALF_LIFE_DAYS,
   MIN_EFFECTIVE_SALIENCE,
   type MemoryFact,
@@ -89,5 +91,33 @@ describe('rankFactsBySimilarity', () => {
       fact({ id: 'c', embedding: [0.6, 0.4] }),
     ];
     expect(rankFactsBySimilarity([1, 0], facts, 2, NOW)).toHaveLength(2);
+  });
+});
+
+describe('formatSourceWindow', () => {
+  it('renders a same-month window compactly', () => {
+    expect(formatSourceWindow('2026-05-01..2026-05-31')).toBe('1–31 May 2026');
+  });
+  it('renders a cross-month window', () => {
+    expect(formatSourceWindow('2026-04-28..2026-05-30')).toBe('28 Apr – 30 May 2026');
+  });
+  it('renders a cross-year window', () => {
+    expect(formatSourceWindow('2025-12-20..2026-01-10')).toBe('20 Dec 2025 – 10 Jan 2026');
+  });
+  it('returns null for no window or a malformed one', () => {
+    expect(formatSourceWindow(null)).toBeNull();
+    expect(formatSourceWindow('last month')).toBeNull();
+  });
+});
+
+describe('relativeSince', () => {
+  it('labels recent times', () => {
+    expect(relativeSince(new Date(NOW).toISOString(), NOW)).toBe('today');
+    expect(relativeSince(new Date(NOW - 86_400_000).toISOString(), NOW)).toBe('yesterday');
+    expect(relativeSince(new Date(NOW - 3 * 86_400_000).toISOString(), NOW)).toBe('3 days ago');
+  });
+  it('labels weeks and months', () => {
+    expect(relativeSince(new Date(NOW - 20 * 86_400_000).toISOString(), NOW)).toBe('2 weeks ago');
+    expect(relativeSince(new Date(NOW - 60 * 86_400_000).toISOString(), NOW)).toBe('2 months ago');
   });
 });

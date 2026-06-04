@@ -116,7 +116,45 @@ export function rankFactsBySimilarity(
     .map((x) => x.fact);
 }
 
-// --- DB-bound (native-only persistence) ---
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/**
+ * Human label for a consolidation `sourceWindow` ("2026-05-01..2026-05-31" →
+ * "1–31 May 2026"), or null when there's no window (e.g. user-added facts).
+ * Pure — provenance for the "why do you remember this?" line.
+ */
+export function formatSourceWindow(sourceWindow: string | null): string | null {
+  if (!sourceWindow) return null;
+  const m = sourceWindow.match(/^(\d{4})-(\d{2})-(\d{2})\.\.(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y1 = m[1], mo1 = Number(m[2]), d1 = Number(m[3]);
+  const y2 = m[4], mo2 = Number(m[5]), d2 = Number(m[6]);
+  const mon1 = MONTH_SHORT[mo1 - 1];
+  const mon2 = MONTH_SHORT[mo2 - 1];
+  if (!mon1 || !mon2) return null;
+  if (y1 === y2 && mo1 === mo2) return `${d1}–${d2} ${mon1} ${y1}`;
+  if (y1 === y2) return `${d1} ${mon1} – ${d2} ${mon2} ${y1}`;
+  return `${d1} ${mon1} ${y1} – ${d2} ${mon2} ${y2}`;
+}
+
+/** Coarse relative-time ("today", "3 days ago", "2 months ago"). Pure. */
+export function relativeSince(iso: string, now: number): string {
+  const ms = now - Date.parse(iso);
+  if (!Number.isFinite(ms)) return '';
+  const days = Math.floor(ms / 86_400_000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return 'last week';
+  if (days < 31) return `${Math.floor(days / 7)} weeks ago`;
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  return 'over a year ago';
+}
+
+// --- storage-bound (native SQLite / web localStorage) ---
 
 function decodeRow(r: typeof memoryFacts.$inferSelect): MemoryFact {
   let embedding: number[] | null = null;
