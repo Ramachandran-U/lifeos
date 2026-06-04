@@ -103,9 +103,12 @@ export async function generateAndSaveTomorrow(opts: {
   try {
     lastWeekDomainMinutes = computeLastWeekDomainMinutes();
   } catch { /* DB might not be ready on first launch — non-fatal */ }
+  // Swap the frozen onboarding goals for the user's live goals at plan time.
+  const { applyLivePlannerGoals } = await import('./routineFromProfile');
+  const profile = await applyLivePlannerGoals(opts.profile);
   const routine = await generateTomorrowRoutine({
     tomorrowDate: tomorrow,
-    profile: opts.profile,
+    profile,
     todayReview: opts.todayReview,
     softenForRecovery: opts.softenForRecovery,
     lastWeekDomainMinutes,
@@ -185,9 +188,13 @@ export async function generateAndSaveWeek(opts: {
     lastWeekMinutes = computeLastWeekDomainMinutes();
   } catch { /* non-fatal */ }
 
+  // Swap the frozen onboarding goals for the user's live goals at plan time.
+  const { applyLivePlannerGoals } = await import('./routineFromProfile');
+  const profile = await applyLivePlannerGoals(opts.profile);
+
   const week = await generateWeekRoutine({
     startDate: opts.startDate,
-    profile: opts.profile,
+    profile,
     primaryDomains: opts.primaryDomains,
     protectedInterests,
     lastWeekDomainMinutes: lastWeekMinutes,

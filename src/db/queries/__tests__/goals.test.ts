@@ -48,6 +48,7 @@ import {
   snoozeGoal,
   resumeGoal,
   reactivateDueGoals,
+  selectPlannerGoals,
 } from '../goals';
 import { webUpsertGoalById, type WebGoal } from '../../webStorage';
 import { recordMutation } from '@/sync/runtime';
@@ -363,5 +364,47 @@ describe('reactivateDueGoals (web)', () => {
 
     expect(reactivateDueGoals(USER, '2026-06-04')).toEqual([]);
     expect(recordMutationMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('selectPlannerGoals (web)', () => {
+  it('returns active life/yearly goals by priority (then recency) as titles', () => {
+    const a = createGoal({ userId: USER, title: 'A-life', goalType: 'g', level: 'life' });
+    const b = createGoal({ userId: USER, title: 'B-yearly', goalType: 'g', level: 'yearly' });
+    const c = createGoal({ userId: USER, title: 'C-life', goalType: 'g', level: 'life' });
+    setGoalPriorities([{ id: c, priority: 1 }, { id: a, priority: 2 }, { id: b, priority: 3 }]);
+    expect(selectPlannerGoals(USER)).toEqual(['C-life', 'A-life', 'B-yearly']);
+  });
+
+  it('excludes non-active goals and execution-level (monthly/weekly/daily) nodes', () => {
+    createGoal({ userId: USER, title: 'Keep', goalType: 'g', level: 'yearly' });
+    createGoal({ userId: USER, title: 'Monthly', goalType: 'g', level: 'monthly' });
+    const done = createGoal({ userId: USER, title: 'Done', goalType: 'g', level: 'life' });
+    updateGoalStatus(done, 'completed');
+    const paused = createGoal({ userId: USER, title: 'Paused', goalType: 'g', level: 'life' });
+    updateGoalStatus(paused, 'paused');
+    expect(selectPlannerGoals(USER)).toEqual(['Keep']);
+  });
+
+  it('tops up empty slots with orphaned onboarding goals (case-insensitive dedupe)', () => {
+    createGoal({ userId: USER, title: 'Run a marathon', goalType: 'g', level: 'life' });
+    expect(selectPlannerGoals(USER, ['run a marathon', 'Save 6 months', 'Learn cello']))
+      .toEqual(['Run a marathon', 'Save 6 months', 'Learn cello']);
+  });
+
+  it('caps the merged list at 5', () => {
+    for (let i = 0; i < 4; i++) createGoal({ userId: USER, title: `L${i}`, goalType: 'g', level: 'yearly' });
+    expect(selectPlannerGoals(USER, ['F1', 'F2', 'F3'])).toHaveLength(5);
+  });
+
+  it('falls back to onboarding goals when there are no live planner-level goals', () => {
+    createGoal({ userId: USER, title: 'Daily thing', goalType: 'g', level: 'daily' });
+    expect(selectPlannerGoals(USER, ['Vision goal'])).toEqual(['Vision goal']);
+  });
+
+  it('only includes the requested user’s goals', () => {
+    createGoal({ userId: USER, title: 'Mine', goalType: 'g', level: 'life' });
+    createGoal({ userId: 'other-user', title: 'Theirs', goalType: 'g', level: 'life' });
+    expect(selectPlannerGoals(USER)).toEqual(['Mine']);
   });
 });
