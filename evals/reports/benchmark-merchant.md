@@ -8,15 +8,15 @@
 
 | System | Accuracy | Coverage | Avg latency (ms) | Projected $/1k calls |
 |---|---|---|---|---|
-| **Rule-based** | 96.7% | 100.0% | 0.07 | $0.0000 (offline) |
-| **Local classifier (k-NN char-3-gram)** | 96.7% | 96.7% | 0.73 | $0.0000 (offline) |
-| **LLM (claude-haiku-4-5-20251001)** | 0.0% | 100.0% | 0.00 | $0.1300 |
+| **Rule-based** | 96.7% | 100.0% | 0.37 | $0.0000 (offline) |
+| **Local classifier (k-NN char-3-gram)** | 96.7% | 96.7% | 15.60 | $0.0000 (offline) |
+| **LLM (gemini-2.5-flash)** | 0.0% | 100.0% | 0.40 | $0.0590 |
 
 ## Stacked pipeline (cache → rule → classifier → AI)
 
 - Stack accuracy: **96.7%**
 - AI hit rate (% of inputs that escalated to LLM): **0.0%**
-- Projected stack cost per 1k inputs: **$0.0000** (vs $0.1300 for LLM-only)
+- Projected stack cost per 1k inputs: **$0.0000** (vs $0.0590 for LLM-only)
 
 ## Methodology
 

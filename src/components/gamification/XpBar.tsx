@@ -1,36 +1,85 @@
-import { View, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
-import { useEffect } from 'react';
-import { useColors } from '@/theme/colors';
+// ─── XPBar ───────────────────────────────────────────────────────────────────
+// Eased fill progress bar with optional label row. Spring-in on mount.
 
-interface Props {
-  pct: number;
+import { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { useColors } from '@/theme/colors';
+import { fonts } from '@/theme/typography';
+
+interface XPBarProps {
+  pct: number;          // 0..1
   color: string;
   height?: number;
+  bg?: string;
+  label?: string;
 }
 
-export function XpBar({ pct, color, height = 8 }: Props) {
+export function XPBar({ pct, color, height = 8, bg, label }: XPBarProps) {
   const c = useColors();
-  const w = useSharedValue(0);
+  const clamped = Math.min(1, Math.max(0, pct));
 
+  const width = useSharedValue(0);
   useEffect(() => {
-    w.value = withTiming(Math.max(0, Math.min(1, pct)), {
+    width.value = withTiming(clamped, {
       duration: 1000,
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
     });
-  }, [pct, w]);
+  }, [clamped, width]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    width: `${w.value * 100}%`,
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${width.value * 100}%`,
   }));
 
   return (
-    <View style={[styles.track, { backgroundColor: c.border, height, borderRadius: height / 2 }]}>
-      <Animated.View style={[{ height, borderRadius: height / 2, backgroundColor: color }, animStyle]} />
+    <View>
+      {label && (
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, { color: c.textMuted }]}>{label}</Text>
+          <Text style={[styles.pct, { color }]}>{Math.round(clamped * 100)}%</Text>
+        </View>
+      )}
+      <View
+        style={{
+          backgroundColor: bg ?? c.border,
+          borderRadius: 999,
+          height,
+          overflow: 'hidden',
+        }}
+      >
+        <Animated.View
+          style={[
+            fillStyle,
+            {
+              height: '100%',
+              borderRadius: 999,
+              backgroundColor: color,
+            },
+          ]}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  track: { overflow: 'hidden', width: '100%' },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  label: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+  },
+  pct: {
+    fontFamily: fonts.bodyMedium,
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
