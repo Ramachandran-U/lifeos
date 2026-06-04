@@ -19,6 +19,9 @@ import { todayKey, isoToUtcDays } from '@/utils/dateKeys';
 
 /** Bills due / subscriptions renewing within this many days count as "upcoming". */
 const DEFAULT_WINDOW_DAYS = 7;
+/** Stop surfacing an overdue item once it's more than this many days past due —
+ *  a weeks-old un-dismissed bill shouldn't nag as a next-action forever. */
+const OVERDUE_GRACE_DAYS = 14;
 
 /**
  * Read the active (non-dismissed) recurring items. Returns null when the store
@@ -50,7 +53,9 @@ export function selectUpcomingRecurring(
     .filter((i) => {
       if (!i.dueDate) return false;
       const d = isoToUtcDays(i.dueDate);
-      return d != null && d - today <= withinDays; // overdue (negative) through +withinDays
+      if (d == null) return false;
+      const delta = d - today;
+      return delta <= withinDays && delta >= -OVERDUE_GRACE_DAYS; // recently overdue → +withinDays
     })
     .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
 }
