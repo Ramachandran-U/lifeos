@@ -1,4 +1,5 @@
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
+import type { AgentTool } from './agent/runtime';
 
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true';
@@ -25,6 +26,14 @@ export type VoiceEvent =
 export interface VoiceSessionOptions {
   systemInstruction?: string;
   voice?: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Aoede';
+  /**
+   * Read-only tools the model can call to ground its answers in the user's REAL
+   * data (today's routine, goals, spending, …). Wired into the Gemini Live
+   * session as functionDeclarations; tool calls are executed on-device here and
+   * the results streamed back. Without these the voice agent has no knowledge of
+   * the user's data — see `buildVoiceTools` in `agent/voiceTools.ts`.
+   */
+  tools?: AgentTool[];
   onEvent: (event: VoiceEvent) => void;
 }
 
@@ -44,6 +53,8 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
 
   let ws: WebSocket | null = null;
   let open = false;
+  // Name → tool, for dispatching the model's function calls on-device.
+  const toolMap = new Map((opts.tools ?? []).map((t) => [t.declaration.name, t]));
 
   (async () => {
     let token: string | null = null;
@@ -108,6 +119,16 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
                   // stuck at "thinking". Verified end-to-end against deployed
                   // Gemini: manual mode returns one clean, complete turn.
                   realtimeInputConfig: { automaticActivityDetection: { disabled: true } },
+                  // Function-calling: forward the read-only tool declarations so
+                  // the model can call them to ground its answers. Calls are
+                  // handled below and executed on-device — the proxy is a
+                  // passthrough. Function-calling mode defaults to AUTO; we don't
+                  // send a top-level toolConfig because the Live `setup` message
+                  // doesn't reliably accept one (an unknown field can get the
+                  // whole setup rejected), and AUTO is exactly what we want.
+                  ...(opts.tools && opts.tools.length > 0
+                    ? { tools: [{ functionDeclarations: opts.tools.map((t) => t.declaration) }] }
+                    : {}),
                   ...(opts.systemInstruction
                     ? { systemInstruction: { parts: [{ text: opts.systemInstruction }] } }
                     : {}),
@@ -127,6 +148,39 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
           opts.onEvent({ type: 'error', message: `Gemini closed: code=${msg.code} reason=${msg.reason}` });
           return;
         }
+
+        // Tool-use: the model asked to call one or more on-device tools. Run each
+        // against the user's local data and stream the results back as a
+        // toolResponse. The proxy executes nothing — tools run here, beside the
+        // data, exactly like the text agent's runtime (see agent/runtime.ts). A
+        // tool that throws (or an unknown name) returns an error to the model so
+        // it can recover rather than hang the turn.
+        if (msg.toolCall) {
+          const calls: Array<{ id?: string; name: string; args?: Record<string, unknown> }> =
+            msg.toolCall.functionCalls ?? [];
+          const functionResponses: Array<{
+            id?: string;
+            name: string;
+            response: Record<string, unknown>;
+          }> = [];
+          for (const call of calls) {
+            const tool = toolMap.get(call.name);
+            let response: Record<string, unknown>;
+            if (!tool) {
+              response = { error: `unknown tool: ${call.name}` };
+            } else {
+              try {
+                response = { result: await tool.execute(call.args ?? {}) };
+              } catch (err) {
+                response = { error: err instanceof Error ? err.message : String(err) };
+              }
+            }
+            functionResponses.push({ id: call.id, name: call.name, response });
+          }
+          ws?.send(JSON.stringify({ toolResponse: { functionResponses } }));
+          return;
+        }
+
         const sc = msg.serverContent;
         if (sc?.interrupted) opts.onEvent({ type: 'interrupted' });
         if (sc?.inputTranscription?.text) {
