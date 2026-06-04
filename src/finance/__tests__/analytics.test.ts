@@ -3,6 +3,7 @@ import {
   cadenceDays,
   categoryRollup,
   samePeriodMonthWindows,
+  splitTxByPeriod,
   type AnalyticsTx,
 } from '../analytics';
 
@@ -90,6 +91,26 @@ describe('samePeriodMonthWindows', () => {
     expect(days(w.thisStart, w.thisEnd)).toBe(9);
     expect(days(w.prevStart, w.prevEnd)).toBe(9); // Dec 1 → Dec 10 2025
     expect(w.prevStart < w.thisStart).toBe(true);
+  });
+});
+
+describe('splitTxByPeriod', () => {
+  const now = new Date(2026, 5, 4); // local June 4
+
+  it("counts today's transaction in thisMonth (TZ boundary guard)", () => {
+    const { thisMonth } = splitTxByPeriod(
+      [{ date: '2026-06-04' }, { date: '2026-06-01' }, { date: '2026-05-31' }],
+      now,
+    );
+    expect(thisMonth.map((t) => t.date)).toEqual(['2026-06-04', '2026-06-01']); // May 31 excluded
+  });
+
+  it('puts the same elapsed day-range last month in lastPeriod, not the whole month', () => {
+    const { lastPeriod } = splitTxByPeriod(
+      [{ date: '2026-05-03' }, { date: '2026-05-20' }], // 3rd within 1–4; 20th after → excluded
+      now,
+    );
+    expect(lastPeriod.map((t) => t.date)).toEqual(['2026-05-03']);
   });
 });
 
