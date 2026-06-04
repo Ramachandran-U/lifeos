@@ -31,20 +31,13 @@ interface ServerRow {
   record: Record<string, unknown>;
 }
 
-// FIXME (B-P1): the design below is complete, but it can't run green in the
-// current CI e2e build yet. Root cause confirmed from the first CI run: the
-// build sets no EXPO_PUBLIC_AI_PROXY_URL, so useFlagStore SHORT-CIRCUITS and
-// never fetches /v1/config — which means the mocked /v1/config below is never
-// hit, sync_engine_enabled stays false (its FALLBACK default), the engine
-// no-ops, and device A never pushes (serverLog stays empty). To enable: set a
-// non-empty EXPO_PUBLIC_AI_PROXY_URL in .github/workflows/e2e.yml's web:export
-// build (any value — the mocked /v1/config + /v1/sync routes intercept it) so
-// fetchFlags actually calls /v1/config; then verify the live session token and
-// the reload-driven drain timing on a real CI run. Kept as test.fixme so the
-// (locally-unrunnable — see the web SSR blocker) design is captured without
-// reding the suite. Flip to `test` once the build env lands.
+// Enabled now that e2e.yml sets a non-empty EXPO_PUBLIC_AI_PROXY_URL — without
+// it, useFlagStore short-circuits to FALLBACK_FLAGS (sync off) and never fetches
+// /v1/config, so the mocked route below was dead and device A never pushed. Runs
+// in the `authenticated` project (non-blocking in CI), so a flake can't red a
+// merge.
 test.describe('Cross-device sync [B-P1]', () => {
-  test.fixme('a goal completed on device A syncs to device B', async ({ browser }) => {
+  test('a goal completed on device A syncs to device B', async ({ browser }) => {
     // The shared mock "server": the mutation log the two devices push/pull through.
     const serverLog: ServerRow[] = [];
     let seq = 0;

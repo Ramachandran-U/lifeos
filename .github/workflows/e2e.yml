@@ -42,6 +42,17 @@ jobs:
       # in forks where the secret isn't available. The anon key is safe to
       # expose by design — it ships in the production web bundle.
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'ci-stub-anon-key' }}
+      # Point the AI proxy at the local dist server (NOT a real worker). This is
+      # non-empty on purpose: useFlagStore only fetches /v1/config when
+      # EXPO_PUBLIC_AI_PROXY_URL is set — otherwise it short-circuits to
+      # FALLBACK_FLAGS (sync_engine_enabled:false), which kept the cross-device
+      # sync spec's mocked /v1/config route from ever being hit. With this set,
+      # the spec's page.route can force the sync flags on. For every OTHER spec
+      # (no /v1/config route) the fetch returns the SPA's index.html → JSON parse
+      # fails → caught → flags stay on FALLBACK (sync off) with no console error,
+      # so blocking chromium/smoke are unaffected. AI itself stays mocked
+      # (EXPO_PUBLIC_USE_AI_MOCK), so this URL is only used for flag/sync routes.
+      EXPO_PUBLIC_AI_PROXY_URL: 'http://localhost:8081'
       # Forwarded to the authenticated project's auth.setup.ts. When missing
       # (forks, or repo without secrets), the authenticated step is skipped.
       PLAYWRIGHT_TEST_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_EMAIL }}
