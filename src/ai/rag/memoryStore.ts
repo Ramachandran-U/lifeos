@@ -356,6 +356,16 @@ export function setFactPinned(id: string, pinned: boolean): void {
   db.update(memoryFacts).set({ pinned }).where(eq(memoryFacts.id, id)).run();
 }
 
+/** Edit a fact's text + kind, re-embedding so dedup/retrieval stay accurate. */
+export async function updateFact(id: string, text: string, kind: MemoryFactKind): Promise<void> {
+  const embeddingJson = JSON.stringify(await embedText(text));
+  if (isWeb) {
+    webUpdateFact(id, { text, kind, embedding: embeddingJson });
+    return;
+  }
+  db.update(memoryFacts).set({ text, kind, embedding: embeddingJson }).where(eq(memoryFacts.id, id)).run();
+}
+
 // --- suppression tombstones (so "forget" sticks across consolidations) ---
 
 function decodeSuppression(r: {

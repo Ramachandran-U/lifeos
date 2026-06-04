@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Platform, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import {
   getFactsByUser,
   forgetFact,
   setFactPinned,
+  updateFact,
   deleteAllFactsForUser,
   effectiveSalience,
   isFactLive,
@@ -44,6 +45,7 @@ export default function WhatLifeOSRemembersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [editing, setEditing] = useState<MemoryFact | null>(null);
 
   const load = useCallback(() => {
     if (!userId) {
@@ -84,6 +86,14 @@ export default function WhatLifeOSRemembersScreen() {
 
   const handlePin = (fact: MemoryFact) => {
     setFactPinned(fact.id, !fact.pinned);
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    load();
+  };
+
+  const handleSaveEdit = async (text: string, kind: MemoryFactKind) => {
+    const trimmed = text.trim();
+    if (editing && trimmed) await updateFact(editing.id, trimmed, kind);
+    setEditing(null);
     if (Platform.OS !== 'web') Haptics.selectionAsync();
     load();
   };
@@ -195,6 +205,9 @@ export default function WhatLifeOSRemembersScreen() {
                               color={f.pinned ? c.success : c.textMuted}
                             />
                           </Pressable>
+                          <Pressable onPress={() => setEditing(f)} hitSlop={8} style={styles.iconBtn}>
+                            <Ionicons name="pencil-outline" size={14} color={c.textMuted} />
+                          </Pressable>
                           <Pressable onPress={() => handleForget(f)} hitSlop={8} style={styles.iconBtn}>
                             <Ionicons name="close" size={16} color={c.textMuted} />
                           </Pressable>
@@ -229,9 +242,128 @@ export default function WhatLifeOSRemembersScreen() {
           </>
         )}
       </ScrollView>
+
+      <FactEditorModal
+        fact={editing}
+        c={c}
+        onClose={() => setEditing(null)}
+        onSave={handleSaveEdit}
+      />
     </SafeAreaView>
   );
 }
+
+function FactEditorModal({
+  fact,
+  c,
+  onClose,
+  onSave,
+}: {
+  fact: MemoryFact | null;
+  c: AppColors;
+  onClose: () => void;
+  onSave: (text: string, kind: MemoryFactKind) => void;
+}) {
+  const [text, setText] = useState('');
+  const [kind, setKind] = useState<MemoryFactKind>('preference');
+
+  useEffect(() => {
+    if (fact) {
+      setText(fact.text);
+      setKind(fact.kind);
+    }
+  }, [fact]);
+
+  return (
+    <Modal visible={!!fact} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={[editorStyles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
+        <Pressable style={[editorStyles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Label color={c.primary}>EDIT MEMORY</Label>
+          <TextInput
+            style={[editorStyles.input, { color: c.textPrimary, borderColor: c.border, backgroundColor: c.card }]}
+            value={text}
+            onChangeText={setText}
+            placeholder="What should LifeOS remember?"
+            placeholderTextColor={c.textMuted}
+            multiline
+          />
+          <View style={editorStyles.kindRow}>
+            {KIND_ORDER.map((k) => {
+              const active = k === kind;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => setKind(k)}
+                  style={[
+                    editorStyles.kindChip,
+                    {
+                      borderColor: active ? c.primary : c.border,
+                      backgroundColor: active ? c.primary + '22' : 'transparent',
+                    },
+                  ]}
+                >
+                  <Ionicons name={KIND_META[k].icon} size={13} color={active ? c.primary : c.textSecondary} />
+                  <Caption style={{ color: active ? c.primary : c.textSecondary }}>{KIND_META[k].label}</Caption>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={editorStyles.actions}>
+            <Pressable onPress={onClose} style={editorStyles.cancelBtn}>
+              <Body style={{ color: c.textSecondary }}>Cancel</Body>
+            </Pressable>
+            <Pressable
+              onPress={() => onSave(text, kind)}
+              disabled={!text.trim()}
+              style={[editorStyles.saveBtn, { backgroundColor: c.primary, opacity: text.trim() ? 1 : 0.5 }]}
+            >
+              <Body style={{ color: '#FFFFFF', fontFamily: fonts.bodyMedium }}>Save</Body>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const editorStyles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    padding: spacing.lg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    gap: spacing.md,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: spacing.md,
+    minHeight: 72,
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    textAlignVertical: 'top',
+  },
+  kindRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  kindChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.xs },
+  cancelBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, justifyContent: 'center' },
+  saveBtn: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 const makeStyles = (c: AppColors) =>
   StyleSheet.create({
