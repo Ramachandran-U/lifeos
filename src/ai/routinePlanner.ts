@@ -16,6 +16,7 @@
 import type { GeneratedRoutine, RoutineInput } from './types';
 import { planRoutineAgent, type AgentResult } from './agent/planner';
 import { buildHistoryContext } from './historyContext';
+import { buildCalendarContext } from './calendarContext';
 
 export async function planRoutineWithContext(input: RoutineInput): Promise<GeneratedRoutine> {
   const result = await planRoutineWithContextDetailed(input);
@@ -31,6 +32,14 @@ export async function planRoutineWithContextDetailed(input: RoutineInput): Promi
     // Defensive: if the DB layer throws (e.g. on a fresh install where no
     // tables exist yet), we just plan without history.
     contextItems = [];
+  }
+
+  // Fold in today's real calendar commitments so the plan is built around
+  // actual meetings/busy windows. `buildCalendarContext` never throws and
+  // returns [] when the calendar isn't connected, so this is always safe.
+  const calendarItems = await buildCalendarContext();
+  if (calendarItems.length) {
+    contextItems = [...contextItems, ...calendarItems];
   }
 
   // Adaptive-rebalance signal — only inject when the caller didn't already
