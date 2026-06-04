@@ -103,7 +103,7 @@ module.exports = {
     // measured aggregate (youtube client branch 82%, contacts client branch 96%).
     './src/integrations/youtube/': { lines: 90, branches: 76, functions: 90 },
     './src/integrations/googleContacts/': { lines: 90, branches: 88, functions: 90 },
-    './workers/ai-proxy/src/': { lines: 24, branches: 16, functions: 32 },
+    './workers/ai-proxy/src/': { lines: 30, branches: 22, functions: 40 },
   },
   projects: [
     {
