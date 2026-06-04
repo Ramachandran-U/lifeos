@@ -37,6 +37,7 @@ import { DailySummarySheet } from '@/components/shared/DailySummarySheet';
 import { YesterdayLogSheet } from '@/components/shared/YesterdayLogSheet';
 import { AdaptationCard } from '@/components/shared/AdaptationCard';
 import { WhatNextCard } from '@/components/shared/WhatNextCard';
+import { CoachActionsCard } from '@/components/shared/CoachActionsCard';
 import { LifeScoreHero } from '@/components/shared/LifeScoreHero';
 import { useBehaviourSuggestionsStore } from '@/store/useBehaviourSuggestionsStore';
 import { getReflectionByDate } from '@/db/queries/reflections';
@@ -111,6 +112,9 @@ export default function TodayScreen() {
   // so we can show a skeleton instead of the empty-state on first paint.
   const [loaded, setLoaded] = useState(false);
   const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
+  // The acting coach supersedes the read-only "what next" card when enabled, so
+  // only one of the two shows.
+  const coachActionsEnabled = useFlagStore((s) => s.isEnabled('ai_coach_actions'));
   const [domainScores, setDomainScores] = useState({
     goals: 0, health: 0, finance: 0, career: 0, social: 0, polymath: 0,
   });
@@ -659,7 +663,7 @@ export default function TodayScreen() {
 
           {blocks.length > 0 && (
             <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-              <WhatNextCard />
+              {coachActionsEnabled ? <CoachActionsCard /> : <WhatNextCard />}
             </Animated.View>
           )}
 
