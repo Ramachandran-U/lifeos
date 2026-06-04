@@ -5,10 +5,10 @@ export const MONEY_REVIEW_PROMPT = `
 You receive one month of a user's categorised bank-transaction summary (amounts in their local currency, already net of self-transfers, investments and loan repayments):
 {
   "monthLabel": string,
-  "totalSpend": number,          // consumption spend this month
+  "totalSpend": number,          // consumption spend so far this month (month-to-date)
   "income": number,
   "net": number,                 // income - spend
-  "momDeltaPct": number | null,  // spend change vs last month
+  "momDeltaPct": number | null,  // spend change vs the SAME elapsed day-range last month (like-for-like, month-to-date)
   "byGroup": [{ "group": string, "amount": number, "pct": number }],
   "needsWantsSavings": { "needs": number, "wants": number, "savings": number },
   "topCategories": [{ "category": string, "amount": number }],
@@ -27,7 +27,7 @@ You receive one month of a user's categorised bank-transaction summary (amounts 
 
 <output>
 {
-  "headline": string,        // ONE honest sentence on the month (net positive/negative, spend up/down vs last month), referencing real figures
+  "headline": string,        // ONE honest sentence on the month so far (net positive/negative, spend up/down vs the same point last month), referencing real figures. Don't imply the month is over.
   "wins": string[],          // 1-3 genuinely good things grounded in the data; if little to celebrate, say so honestly with 1 item
   "leaks": string[],         // 1-3 specific places money quietly went — name the category/merchant and amount; no shaming, just facts
   "oneAdjustment": string    // the single highest-leverage change for next month, concrete and small

@@ -3,7 +3,16 @@
 // here, which take the token directly), so stub the module away.
 jest.mock('@/finance/gmail/oauth', () => ({ getAccessToken: jest.fn() }));
 
-import { searchEmails, fetchEmailBody, fetchManyEmailBodies } from '@/finance/gmail/fetcher';
+import {
+  searchEmails,
+  fetchEmailBody,
+  fetchManyEmailBodies,
+  syncRecentBillEmails,
+  BILLS_SUBSCRIPTIONS_QUERY,
+} from '@/finance/gmail/fetcher';
+import { getAccessToken } from '@/finance/gmail/oauth';
+
+const tokenMock = getAccessToken as jest.MockedFunction<typeof getAccessToken>;
 
 const b64url = (s: string) =>
   Buffer.from(s, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -105,5 +114,35 @@ describe('fetchManyEmailBodies', () => {
 
     const msgs = await fetchManyEmailBodies('tok', ['1', '2', '3']);
     expect(msgs.map((m) => m.subject)).toEqual(['one', 'three']);
+  });
+});
+
+describe('syncRecentBillEmails', () => {
+  beforeEach(() => tokenMock.mockReset());
+
+  it('searches with the bills/subscriptions query and returns parsed bodies', async () => {
+    tokenMock.mockResolvedValue('tok');
+    fetchMock
+      .mockResolvedValueOnce(mockResponse({ messages: [{ id: 'b1' }] })) // search
+      .mockResolvedValueOnce(
+        mockResponse({ payload: { headers: [{ name: 'Subject', value: 'Your bill is ready' }] } }),
+      ); // body
+
+    const msgs = await syncRecentBillEmails('client-123');
+
+    expect(tokenMock).toHaveBeenCalledWith('client-123');
+    const searchUrl = String(fetchMock.mock.calls[0][0]);
+    expect(searchUrl).toContain('subscription');
+    expect(searchUrl).toContain('membership');
+    expect(msgs.map((m) => m.subject)).toEqual(['Your bill is ready']);
+  });
+
+  it('throws when Gmail is not connected', async () => {
+    tokenMock.mockResolvedValue(null);
+    await expect(syncRecentBillEmails('client-123')).rejects.toThrow('Gmail is not connected');
+  });
+
+  it('exports a query scoped to a 60-day window', () => {
+    expect(BILLS_SUBSCRIPTIONS_QUERY).toContain('newer_than:60d');
   });
 });

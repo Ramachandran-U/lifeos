@@ -74,6 +74,8 @@ interface PolymathState {
 
   load: (userId: string) => void;
   addInterest: (data: CreateInterestInput) => string;
+  /** Create several interests, then reload once (avoids N reloads on bulk import). */
+  addInterests: (items: CreateInterestInput[]) => void;
   editInterest: (id: string, data: Partial<Interest>, userId: string) => void;
   removeInterest: (id: string, userId: string) => void;
   addExploration: (data: CreateExplorationInput, userId: string) => string;
@@ -100,6 +102,12 @@ export const usePolymathStore = create<PolymathState>((set, get) => ({
     const id = createInterest(data);
     get().load(data.userId);
     return id;
+  },
+
+  addInterests: (items) => {
+    if (items.length === 0) return;
+    for (const it of items) createInterest(it);
+    get().load(items[0]!.userId);
   },
 
   editInterest: (id, data, userId) => {

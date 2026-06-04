@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Platform, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,10 +13,15 @@ import { Card } from '@/components/ui/Card';
 import { useUserStore } from '@/store/useUserStore';
 import {
   getFactsByUser,
-  deleteFact,
+  forgetFact,
+  setFactPinned,
+  updateFact,
+  addUserFact,
   deleteAllFactsForUser,
-  decayedSalience,
+  effectiveSalience,
   isFactLive,
+  formatSourceWindow,
+  relativeSince,
   type MemoryFact,
   type MemoryFactKind,
 } from '@/ai/rag/memoryStore';
@@ -41,6 +46,17 @@ export default function WhatLifeOSRemembersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorInitial, setEditorInitial] = useState<MemoryFact | null>(null);
+
+  const openAdd = () => {
+    setEditorInitial(null);
+    setEditorOpen(true);
+  };
+  const openEdit = (fact: MemoryFact) => {
+    setEditorInitial(fact);
+    setEditorOpen(true);
+  };
 
   const load = useCallback(() => {
     if (!userId) {
@@ -51,7 +67,7 @@ export default function WhatLifeOSRemembersScreen() {
     const now = Date.now();
     const live = getFactsByUser(userId)
       .filter((f) => isFactLive(f, now))
-      .sort((a, b) => decayedSalience(b.salience, b.lastSeenAt, now) - decayedSalience(a.salience, a.lastSeenAt, now));
+      .sort((a, b) => effectiveSalience(b, now) - effectiveSalience(a, now));
     setFacts(live);
     setLoading(false);
   }, [userId]);
@@ -72,8 +88,26 @@ export default function WhatLifeOSRemembersScreen() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteFact(id);
+  const handleForget = (fact: MemoryFact) => {
+    // Deletes AND tombstones, so the next "Refresh" won't re-learn it.
+    void forgetFact(fact);
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    load();
+  };
+
+  const handlePin = (fact: MemoryFact) => {
+    setFactPinned(fact.id, !fact.pinned);
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    load();
+  };
+
+  const handleSaveFact = async (text: string, kind: MemoryFactKind) => {
+    const trimmed = text.trim();
+    if (trimmed) {
+      if (editorInitial) await updateFact(editorInitial.id, trimmed, kind);
+      else if (userId) await addUserFact(userId, trimmed, kind);
+    }
+    setEditorOpen(false);
     if (Platform.OS !== 'web') Haptics.selectionAsync();
     load();
   };
@@ -117,6 +151,11 @@ export default function WhatLifeOSRemembersScreen() {
           day-to-day fades. Delete anything that's wrong or you'd rather I forget.
         </Body>
 
+        <Pressable onPress={openAdd} style={styles.addBtn}>
+          <Ionicons name="add-circle-outline" size={18} color={c.primary} />
+          <Caption style={{ color: c.primary, fontFamily: fonts.bodyMedium }}>Add a memory</Caption>
+        </Pressable>
+
         {loading ? (
           <Caption style={styles.empty}>Loading…</Caption>
         ) : facts.length === 0 ? (
@@ -141,7 +180,17 @@ export default function WhatLifeOSRemembersScreen() {
                 </View>
                 <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                   {g.items.map((f) => {
-                    const strength = decayedSalience(f.salience, f.lastSeenAt, now);
+                    const strength = effectiveSalience(f, now);
+                    const win = formatSourceWindow(f.sourceWindow);
+                    const seen = relativeSince(f.lastSeenAt, now);
+                    const learned = win
+                      ? `From ${win} · seen ${seen}`
+                      : `Added ${relativeSince(f.createdAt, now)}`; // no window ⇒ user-authored
+                    const provenance = f.pinned
+                      ? win
+                        ? `Pinned · from ${win}`
+                        : 'Pinned'
+                      : learned;
                     return (
                       <View key={f.id} style={styles.factRow}>
                         <View style={{ flex: 1 }}>
@@ -150,14 +199,39 @@ export default function WhatLifeOSRemembersScreen() {
                             <View
                               style={[
                                 styles.strengthFill,
-                                { width: `${Math.round(strength * 100)}%`, backgroundColor: c.primary },
+                                {
+                                  width: `${Math.round(strength * 100)}%`,
+                                  backgroundColor: f.pinned ? c.success : c.primary,
+                                },
                               ]}
                             />
                           </View>
+                          <View style={styles.provenanceRow}>
+                            <Ionicons
+                              name={f.pinned ? 'pin' : 'time-outline'}
+                              size={11}
+                              color={f.pinned ? c.success : c.textMuted}
+                            />
+                            <Caption style={[styles.provenance, f.pinned && { color: c.success }]}>
+                              {provenance}
+                            </Caption>
+                          </View>
                         </View>
-                        <Pressable onPress={() => handleDelete(f.id)} hitSlop={10} style={styles.deleteBtn}>
-                          <Ionicons name="close" size={16} color={c.textMuted} />
-                        </Pressable>
+                        <View style={styles.factActions}>
+                          <Pressable onPress={() => handlePin(f)} hitSlop={8} style={styles.iconBtn}>
+                            <Ionicons
+                              name={f.pinned ? 'pin' : 'pin-outline'}
+                              size={15}
+                              color={f.pinned ? c.success : c.textMuted}
+                            />
+                          </Pressable>
+                          <Pressable onPress={() => openEdit(f)} hitSlop={8} style={styles.iconBtn}>
+                            <Ionicons name="pencil-outline" size={14} color={c.textMuted} />
+                          </Pressable>
+                          <Pressable onPress={() => handleForget(f)} hitSlop={8} style={styles.iconBtn}>
+                            <Ionicons name="close" size={16} color={c.textMuted} />
+                          </Pressable>
+                        </View>
                       </View>
                     );
                   })}
@@ -188,9 +262,130 @@ export default function WhatLifeOSRemembersScreen() {
           </>
         )}
       </ScrollView>
+
+      <FactEditorModal
+        open={editorOpen}
+        initial={editorInitial}
+        c={c}
+        onClose={() => setEditorOpen(false)}
+        onSave={handleSaveFact}
+      />
     </SafeAreaView>
   );
 }
+
+function FactEditorModal({
+  open,
+  initial,
+  c,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  initial: MemoryFact | null; // null = add a new memory
+  c: AppColors;
+  onClose: () => void;
+  onSave: (text: string, kind: MemoryFactKind) => void;
+}) {
+  const [text, setText] = useState('');
+  const [kind, setKind] = useState<MemoryFactKind>('preference');
+
+  useEffect(() => {
+    if (!open) return;
+    setText(initial?.text ?? '');
+    setKind(initial?.kind ?? 'preference');
+  }, [open, initial]);
+
+  return (
+    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={[editorStyles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
+        <Pressable style={[editorStyles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Label color={c.primary}>{initial ? 'EDIT MEMORY' : 'ADD A MEMORY'}</Label>
+          <TextInput
+            style={[editorStyles.input, { color: c.textPrimary, borderColor: c.border, backgroundColor: c.card }]}
+            value={text}
+            onChangeText={setText}
+            placeholder="What should LifeOS remember?"
+            placeholderTextColor={c.textMuted}
+            multiline
+          />
+          <View style={editorStyles.kindRow}>
+            {KIND_ORDER.map((k) => {
+              const active = k === kind;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => setKind(k)}
+                  style={[
+                    editorStyles.kindChip,
+                    {
+                      borderColor: active ? c.primary : c.border,
+                      backgroundColor: active ? c.primary + '22' : 'transparent',
+                    },
+                  ]}
+                >
+                  <Ionicons name={KIND_META[k].icon} size={13} color={active ? c.primary : c.textSecondary} />
+                  <Caption style={{ color: active ? c.primary : c.textSecondary }}>{KIND_META[k].label}</Caption>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={editorStyles.actions}>
+            <Pressable onPress={onClose} style={editorStyles.cancelBtn}>
+              <Body style={{ color: c.textSecondary }}>Cancel</Body>
+            </Pressable>
+            <Pressable
+              onPress={() => onSave(text, kind)}
+              disabled={!text.trim()}
+              style={[editorStyles.saveBtn, { backgroundColor: c.primary, opacity: text.trim() ? 1 : 0.5 }]}
+            >
+              <Body style={{ color: '#FFFFFF', fontFamily: fonts.bodyMedium }}>Save</Body>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const editorStyles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
+  sheet: {
+    padding: spacing.lg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    gap: spacing.md,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: spacing.md,
+    minHeight: 72,
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    textAlignVertical: 'top',
+  },
+  kindRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  kindChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.xs },
+  cancelBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, justifyContent: 'center' },
+  saveBtn: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 const makeStyles = (c: AppColors) =>
   StyleSheet.create({
@@ -204,7 +399,15 @@ const makeStyles = (c: AppColors) =>
     },
     scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
     title: { color: c.textPrimary, marginTop: spacing.sm },
-    subtitle: { color: c.textSecondary, marginTop: spacing.xs, marginBottom: spacing.md },
+    subtitle: { color: c.textSecondary, marginTop: spacing.xs, marginBottom: spacing.sm },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      alignSelf: 'flex-start',
+      paddingVertical: spacing.xs,
+      marginBottom: spacing.sm,
+    },
     section: { gap: spacing.xs },
     sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     sectionTitle: { fontFamily: fonts.heading, fontSize: fontSizes.md, color: c.textPrimary },
@@ -217,7 +420,10 @@ const makeStyles = (c: AppColors) =>
       marginTop: 6,
     },
     strengthFill: { height: '100%' },
-    deleteBtn: {
+    provenanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
+    provenance: { color: c.textMuted, fontSize: fontSizes.xs },
+    factActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    iconBtn: {
       width: 28,
       height: 28,
       borderRadius: 14,

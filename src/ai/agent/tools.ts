@@ -4,6 +4,8 @@ import { getRoutineBlocksByDate } from '@/db/queries/routine';
 import { getLatestSleepHours } from '@/db/queries/health';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
+import { fetchTodayCalendarEvents } from '@/ai/calendarContext';
+import { getUpcomingBillsForAgent } from '@/ai/billsContext';
 import type { AgentTool } from './runtime';
 
 export interface ToolContext {
@@ -25,10 +27,11 @@ function safeParse<T>(json: string | null | undefined, fallback: T): T {
 
 /**
  * Builds the read-only tool set the "what should I do next?" agent can call,
- * bound to a specific user. Every tool reads local SQLite and returns a compact,
- * JSON-serialisable summary — not raw rows, to keep token cost down. Goals and
- * routine blocks include an opaque `ref` (their id) so the write tools
- * (see writeTools.ts) can target a specific row when proposing an action.
+ * bound to a specific user. Tools read local SQLite (and, for getTodayCalendar,
+ * the connected Google Calendar) and return a compact, JSON-serialisable
+ * summary — not raw rows, to keep token cost down. Goals and routine blocks
+ * include an opaque `ref` (their id) so the write tools (see writeTools.ts) can
+ * target a specific row when proposing an action.
  *
  * All tools here are READ-ONLY by design. The agent observes; it does not
  * mutate. Mutation only happens via propose-then-confirm — see writeTools.ts.
@@ -72,6 +75,43 @@ export function buildLifeOsTools(ctx: ToolContext): AgentTool[] {
           module: b.module,
           status: b.status,
         })),
+    },
+    {
+      declaration: {
+        name: 'getTodayCalendar',
+        description:
+          "Today's real fixed commitments from the user's connected Google Calendar " +
+          '(meetings/events) with start and end times. Use this to avoid recommending an ' +
+          'action that collides with a commitment, and to judge whether the user is free ' +
+          'right now. Returns { connected, events }: events is empty when the day is clear; ' +
+          'connected is false when no calendar is linked — in that case ignore it.',
+        parameters: EMPTY_PARAMS,
+      },
+      execute: async () => {
+        const events = await fetchTodayCalendarEvents();
+        if (events === null) return { connected: false, events: [] };
+        return {
+          connected: true,
+          events: events.map((e) => ({
+            startTime: e.allDay ? 'all-day' : e.startTime,
+            endTime: e.allDay ? 'all-day' : e.endTime,
+            title: e.title,
+            recurring: e.recurring,
+          })),
+        };
+      },
+    },
+    {
+      declaration: {
+        name: 'getUpcomingBills',
+        description:
+          'Upcoming bills and subscription renewals detected from the user\'s email — ' +
+          'anything due in the next week or already overdue, with amount and a relative ' +
+          'due label. Use to surface a time-sensitive payment as the next action. Returns ' +
+          '{ items }: empty when nothing is due or the data is unavailable (e.g. on native).',
+        parameters: EMPTY_PARAMS,
+      },
+      execute: async () => ({ items: await getUpcomingBillsForAgent(today) }),
     },
     {
       declaration: {
