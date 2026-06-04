@@ -3,7 +3,8 @@
  *
  * Two cases the route guard in src/utils/routeGuard.ts decides between:
  *   - onboardingStage >= 100  → /(tabs) (Today)
- *   - onboardingStage <  100  → /(onboarding)/day1-vision
+ *   - onboardingStage === 0   → /welcome-intent (fast-path onboarding entry)
+ *     (a stage 1–99 user instead lands on the legacy /(onboarding)/day1-vision)
  *
  * The "onboarded" case is implicitly proved by auth.setup.ts. We strengthen
  * it here with an explicit URL assertion, and add the "fresh user" case
@@ -28,16 +29,20 @@ test.describe('Post sign-in routing', () => {
     });
     // URL stays at root (or rewrites to /(tabs) — we just assert no
     // onboarding path leaked through).
-    expect(page.url()).not.toMatch(/day1-vision|onboarding/);
+    expect(page.url()).not.toMatch(/day1-vision|onboarding|welcome-intent/);
   });
 
-  test('fresh user is routed to day1-vision after sign-in', async ({ browser }) => {
+  test('fresh user is routed to welcome-intent after sign-in', async ({ browser }) => {
     let user: EphemeralUser | null = null;
     try {
       user = await createEphemeralUser();
 
       // Fresh browser context — no stored auth, no seeded localStorage.
-      const ctx = await browser.newContext();
+      // Pass an explicitly empty storageState so this context can't pick up the
+      // authenticated project's saved session (.auth/user.json); without it the
+      // app boots already signed-in as the persistent test user and the welcome
+      // "Sign in" link never renders.
+      const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
       const page = await ctx.newPage();
       const baseURL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
 
@@ -51,10 +56,10 @@ test.describe('Post sign-in routing', () => {
       await page.getByText('Sign in', { exact: true }).last().click();
 
       // A user with no local SQLite row defaults to onboardingStage=0
-      // (see app/(auth)/sign-in.tsx line 60). The route guard then sends
-      // them to /(onboarding)/day1-vision.
-      await page.waitForURL(/day1-vision/, { timeout: 15_000 });
-      expect(page.url()).toMatch(/day1-vision/);
+      // (see app/(auth)/sign-in.tsx). The route guard then sends them to
+      // /welcome-intent — the current fast-path onboarding entry.
+      await page.waitForURL(/welcome-intent/, { timeout: 15_000 });
+      expect(page.url()).toMatch(/welcome-intent/);
 
       await ctx.close();
     } finally {
