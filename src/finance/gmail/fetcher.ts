@@ -12,6 +12,20 @@ const BANK_QUERY =
   'newer_than:30d ' +
   '(debited OR credited OR "transaction alert")';
 
+/**
+ * Recurring-commitment emails: subscription renewals + bills/invoices. Sender-
+ * agnostic (unlike BANK_QUERY) — matched on subject/body keywords and pre-
+ * filtered further by the parser (billParsers.ts), which requires a recurring
+ * keyword plus an amount or due date. 60 days catches at least one monthly
+ * cycle and recent renewals.
+ */
+export const BILLS_SUBSCRIPTIONS_QUERY =
+  'newer_than:60d ' +
+  '(subject:(invoice OR receipt OR "your bill" OR "bill is" OR "payment due" OR ' +
+  'renew OR renewal OR subscription OR membership OR statement) OR ' +
+  '"auto-renew" OR "will renew" OR "renews on" OR "amount due" OR ' +
+  '"amount payable" OR "payment due" OR "due date")';
+
 export interface GmailMessage {
   id: string;
   subject: string;
@@ -133,5 +147,17 @@ export async function syncRecentEmails(clientId: string): Promise<GmailMessage[]
   const token = await getAccessToken(clientId);
   if (!token) throw new Error('Gmail is not connected');
   const ids = await searchEmails(token);
+  return fetchManyEmailBodies(token, ids);
+}
+
+/**
+ * Same shape as syncRecentEmails but for subscription/bill emails — refreshes
+ * the token, searches with BILLS_SUBSCRIPTIONS_QUERY, fetches bodies.
+ * Throws if not connected.
+ */
+export async function syncRecentBillEmails(clientId: string): Promise<GmailMessage[]> {
+  const token = await getAccessToken(clientId);
+  if (!token) throw new Error('Gmail is not connected');
+  const ids = await searchEmails(token, BILLS_SUBSCRIPTIONS_QUERY);
   return fetchManyEmailBodies(token, ids);
 }
