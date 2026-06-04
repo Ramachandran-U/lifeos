@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { View, StyleSheet, Modal, Pressable, ScrollView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -23,7 +24,6 @@ import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { createGoal } from '@/db/queries/goals';
 import { persistHierarchy } from '@/utils/persistHierarchy';
-import { addGoalFocusBlocks } from '@/utils/goalRoutine';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
 import type { GoalHierarchy } from '@/ai/types';
 
@@ -53,6 +53,7 @@ const GOAL_PLACEHOLDERS = [
 export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
+  const router = useRouter();
   const getTypeColor = useGoalTypeColor();
   const { call, error } = useAI();
   const { userId, name } = useUserStore();
@@ -67,7 +68,9 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const [draftMilestones, setDraftMilestones] = useState<string[]>([]);
   const [domainType, setDomainType] = useState<string>('personal');
   const [timeline, setTimeline] = useState<string | null>(null);
-  const [addToRoutine, setAddToRoutine] = useState(true);
+  // Opt-in (default off): open the routine editor after save so the user can
+  // fold this goal into their day. Replaces the old silent 7am focus-block.
+  const [updatePlan, setUpdatePlan] = useState(false);
 
   // BUG-012: a cold decompose call runs ~15-20s with no feedback. Show a
   // "still working" hint after 8s, and let the user abandon the wait.
@@ -100,7 +103,7 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
     setDraftYearly('');
     setDraftMilestones([]);
     setTimeline(null);
-    setAddToRoutine(true);
+    setUpdatePlan(false);
   };
 
   const handleDecompose = async () => {
@@ -149,22 +152,20 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
       ),
     };
 
-    const { lifeId } = persistHierarchy(userId, edited, createGoal, {
+    persistHierarchy(userId, edited, createGoal, {
       timeline: timeline ?? undefined,
       goalType: domainType,
     });
 
-    // Recurring focus habit (item 3) — best-effort; never block the save.
-    if (addToRoutine) {
-      try {
-        addGoalFocusBlocks({ goalId: lifeId, goalType: domainType, title: edited.primaryGoal.title });
-      } catch { /* routine seeding is non-critical */ }
-    }
-
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     loadGoals(userId);
+    const shouldUpdatePlan = updatePlan;
     resetState();
     onClose();
+    // Honest, explicit opt-in: open the (now goal-aware) routine editor so the
+    // user can fold this goal into their day — instead of a silent 7am block.
+    // The goal already feeds future plans automatically via the live-goal bridge.
+    if (shouldUpdatePlan) router.push('/(onboarding)/day1-routine?mode=edit');
   };
 
   const handleCancelDecompose = () => {
@@ -361,21 +362,21 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
                   </View>
                 </Animated.View>
 
-                {/* ADD TO ROUTINE — recurring focus habit (item 3) */}
+                {/* UPDATE PLAN — explicit opt-in to fold the goal into the day now. */}
                 <Animated.View entering={FadeInDown.delay(300).duration(280)}>
                   <Pressable
-                    style={[styles.toggleRow, { borderColor: addToRoutine ? accent : c.border }]}
-                    onPress={() => { Haptics.selectionAsync().catch(() => {}); setAddToRoutine((v) => !v); }}
+                    style={[styles.toggleRow, { borderColor: updatePlan ? accent : c.border }]}
+                    onPress={() => { Haptics.selectionAsync().catch(() => {}); setUpdatePlan((v) => !v); }}
                   >
                     <Ionicons
-                      name={addToRoutine ? 'checkbox' : 'square-outline'}
+                      name={updatePlan ? 'checkbox' : 'square-outline'}
                       size={22}
-                      color={addToRoutine ? accent : c.textMuted}
+                      color={updatePlan ? accent : c.textMuted}
                     />
                     <View style={{ flex: 1 }}>
-                      <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>Add a daily focus block</Body>
+                      <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>Update my routine now</Body>
                       <Caption style={{ color: c.textSecondary }}>
-                        Reserves time on your routine and updates your Life Score as you complete it.
+                        Opens your routine so you can work this goal into today. It already shapes your upcoming plans.
                       </Caption>
                     </View>
                   </Pressable>

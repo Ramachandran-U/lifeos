@@ -22,6 +22,7 @@ import { aggregatePlannedDomainMinutes } from '@/utils/routineBalance';
 import { reorderBlocksFixedSlots } from '@/utils/routineReorder';
 import { useAI } from '@/hooks/useAI';
 import { planRoutineWithContext } from '@/ai/routinePlanner';
+import { selectPlannerGoals } from '@/db/queries/goals';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { track, EVENTS } from '@/utils/telemetry';
@@ -168,12 +169,17 @@ export default function Day1RoutineScreen() {
           .map((i) => ({ name: i.name, weeklyMinutes: i.weeklyMinutesTarget }))
       : [];
 
+    // Feed the user's live goals into the plan (P1 bridge) — so re-generating
+    // from the routine editor reflects the goals they've set, not nothing.
+    const plannerGoals = userId ? selectPlannerGoals(userId, []) : [];
+
     const raw = await call(() =>
       planRoutineWithContext({
         wakeTime,
         sleepTime,
         workStartTime: workStart,
         workEndTime: workEnd,
+        goals: plannerGoals,
         protectedInterests: protectedInterests.length > 0 ? protectedInterests : undefined,
       })
     );
