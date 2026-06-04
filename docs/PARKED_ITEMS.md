@@ -116,6 +116,21 @@
 
 ---
 
+## 9. Goals page revamp
+
+> A four-lens review (UX / engineer / layman / growth-PM) of the current Goals page produced a revamp brief; the **goals↔planner slice shipped** (PR #126 — see below), the rest is parked. The page's core problem (per the review): it leads with *judgment* (a trajectory scoreboard) instead of *action*, and the loop was unmeasurable.
+
+✅ **Shipped this session (context):** goal remove/postpone/restore (#122); live goals drive the planner + lifecycle instrumentation + relaxed confidence gate + in-place "add to today" preview (#126). The items below are the **remaining** brief.
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 9.1 🅿️ | **Action-first Goals page**: a pinned "Your next move" hero card (one prioritised task → opens its routine block), section the page into **Now / Build / Archive**, plain-language pass (kill "Trajectory/Recalibrate" jargon), gate the trajectory chart until there's real data, honest progress (**"3 of 7 steps"**, never a fake 0% on leaf goals), and a **completion celebration + Undo** (reuse `AchievementToast`). | The high-leverage backend slice (goals→planner) shipped first; this is a larger **UX/design** effort and warrants a Figma pass, not a quick wire-up. | When prioritising Goals-page UX. The 4-lens brief is the spec; start with the "next move" card + completion celebration (the two that move D1/D7 retention). |
+| 9.2 🅿️ | **Editable goals + activate the dead goal-intelligence.** No way to edit a goal's title/type/timeline after creation (only description/comments/lifecycle). And `rebalanceGoals` + `detectDomainDivergence` (`src/ai/goalRebalance.ts`) are fully built, prompted, and unit-tested but **called by nothing**. | Edit needs a small `updateGoalFields` mirror + UI; the rebalance intelligence needs a dismissible propose→confirm banner (reuse the `GoalReplanSheet` pattern). | Both are S–M; pick up with 9.1. |
+| 9.3 🧱 | **Goals-page render perf.** `commentCounts` runs `listGoalComments` per goal on every render, and `countDescendants`/`progressFor` walk the subtree per node per render — O(n²)-ish, and the web Dexie shim has no index (full-array scans). | Fine at ~20 goals; visibly janky at a few hundred. | **Before** shipping any feature that grows the tree (filters, templates). Cheap fix: one `listAllGoalComments(userId)` pass + memoised descendant counts. |
+| 9.4 🧱 | **`priorityAdjust` gates the goal-change re-plans.** The remove/postpone *and* the new "add to today" previews only fire when `priorityAdjust` is enabled (default OFF). | Intentional — the same flag guards the whole adjust-today AI-write path. | Flip the flag (per-cohort via Worker `/v1/config`) once the diff+undo flow is dogfooded. |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)

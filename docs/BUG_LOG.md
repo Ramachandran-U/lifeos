@@ -92,3 +92,14 @@ Last updated: 2026-05-31
 | XT-sync | No live cross-tab UI sync | ⬜ By design | Local-first; no data loss, reload reconciles |
 | EXPLORE-vis | "Explore revamp not visible" | ⬜ By design | Chasing/frontier/agentic-thread ship behind flags (`exploreChasing`/`exploreFrontier`/`exploreAgenticThread`), default OFF |
 | AVATAR-vis | "Profile picture upload not wired" | ⬜ By design | `profileAvatarGen` flag default OFF (paid image-gen) |
+
+---
+
+## Batch 6 — goals lifecycle + goals↔routine + onboarding (PRs #122 / #124 / #126, 2026-06-04)
+
+| ID | Issue | Status | Notes |
+|---|---|---|---|
+| GOAL-rm | No way to remove or postpone a goal | ✅ Fixed (#122) | Soft-delete (recoverable via "Recently deleted") + **postpone = snooze-until-date** with auto-resume, wired into `GoalDetailSheet`; new "Postponed" section. `snoozeUntil` rides existing `metadata` JSON (no migration); all paths `recordMutation` |
+| RT-slots | Can't choose what to do in which routine time-slot | ✅ Fixed (#122) | **Drag-to-reorder with fixed time slots** in the routine editor (`DraggableRoutineList`, reanimated + gesture-handler) — activities move, time windows stay pinned. Plus a live **"Today's balance"** life-domain bar (`DomainBalanceBar`) |
+| ONB-deadend | Discovery "Tell me a bit more first" dead-ends — red error, no back button | ✅ Fixed (#124) | Low-confidence `discovery-confirm` now routes **back to the chat** (resumes from the saved profile) instead of erroring; `commitProfile` hardened so a failed/gated generate can't mark onboarding complete; CTA is goals-aware with a `ProfileNotReadyError` safety net (never dead-ends) |
+| GOAL-plan | Creating / completing goals never changed the daily plan | ✅ Fixed (#126) | Planner read the **frozen** `profile.vision.topGoals`; now **live goals drive it** (`selectPlannerGoals` overlay at the today/tomorrow/week seam). Confidence gate **relaxed when concrete goals exist** (`canPlanFromProfile`); goal lifecycle instrumented (`goal_completed`, decompose funnel, `routine_block_completed.goal_linked`); retired the silent 07:00/14-day focus-block; in-place "add to today" preview (`addedGoals`, behind `priorityAdjust`) |
