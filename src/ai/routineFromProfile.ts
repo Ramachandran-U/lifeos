@@ -18,6 +18,19 @@ export class ProfileNotReadyError extends Error {
   }
 }
 
+/**
+ * Can we generate a plan for this profile? Yes when EITHER the confidence meter
+ * has cleared the gate (we understand the user well enough), OR the user has
+ * concrete goals — a directly-plannable signal that relaxes the gate. You don't
+ * need to know someone's chronotype to plan a day around "run a marathon", so a
+ * goal-having but sparsely-profiled user shouldn't be walled out (this is also
+ * the root cause behind the discovery-confirm dead-end for goal-havers).
+ * Pure + exported for unit testing.
+ */
+export function canPlanFromProfile(confidenceOverall: number, hasConcreteGoals: boolean): boolean {
+  return hasConcreteGoals || confidenceOverall >= ROUTINE_CONFIDENCE_THRESHOLD;
+}
+
 const DEFAULT_WAKE = '07:00';
 const DEFAULT_SLEEP = '23:00';
 const DEFAULT_WORK_START = '09:30';
@@ -90,7 +103,11 @@ export function profileToRoutineInput(
  * Gated on profile.confidence.overall >= ROUTINE_CONFIDENCE_THRESHOLD.
  */
 export async function generateRoutineFromProfile(profile: UserProfile): Promise<GeneratedRoutine> {
-  if (profile.confidence.overall < ROUTINE_CONFIDENCE_THRESHOLD) {
+  // Overlay the user's live goals first — they both drive the plan AND relax the
+  // confidence gate below (a concrete goal is a plannable signal on its own).
+  const planProfile = await applyLivePlannerGoals(profile);
+  const hasConcreteGoals = planProfile.vision.topGoals.length > 0;
+  if (!canPlanFromProfile(profile.confidence.overall, hasConcreteGoals)) {
     throw new ProfileNotReadyError(profile.confidence.overall);
   }
   // Read the users table as a schedule fallback — the profile's schedule fields
@@ -101,8 +118,6 @@ export async function generateRoutineFromProfile(profile: UserProfile): Promise<
     const user = getUser();
     if (user) userFb = user;
   } catch { /* non-fatal */ }
-  // Swap the frozen onboarding goals for the user's live goals at plan time.
-  const planProfile = await applyLivePlannerGoals(profile);
   const input = profileToRoutineInput(planProfile, userFb);
 
   // Variant choice (#3-act): default 'agent' (planRoutineWithContext), unless the

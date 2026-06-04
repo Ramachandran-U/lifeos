@@ -12,8 +12,8 @@ jest.mock('../routinePlanner', () => ({
   planRoutineWithContext: jest.fn(),
 }));
 
-import { profileToRoutineInput, type UserScheduleFallback } from '../routineFromProfile';
-import { emptyUserProfile } from '../types';
+import { profileToRoutineInput, canPlanFromProfile, type UserScheduleFallback } from '../routineFromProfile';
+import { emptyUserProfile, ROUTINE_CONFIDENCE_THRESHOLD } from '../types';
 
 const profile = emptyUserProfile('form');
 
@@ -47,5 +47,25 @@ describe('profileToRoutineInput — schedule fallback chain', () => {
     const userFb: UserScheduleFallback = { wakeTime: '10:00' };
     const input = profileToRoutineInput(p, userFb);
     expect(input.wakeTime).toBe('06:00');
+  });
+});
+
+describe('canPlanFromProfile — confidence gate relaxed by concrete goals', () => {
+  it('plans when confidence clears the gate, with or without goals', () => {
+    expect(canPlanFromProfile(0.8, false)).toBe(true);
+    expect(canPlanFromProfile(0.8, true)).toBe(true);
+  });
+
+  it('plans below the threshold WHEN concrete goals exist (the unblock)', () => {
+    expect(canPlanFromProfile(0.26, true)).toBe(true);
+  });
+
+  it('blocks only when below threshold AND there are no goals', () => {
+    expect(canPlanFromProfile(0.26, false)).toBe(false);
+  });
+
+  it('respects the 0.7 threshold boundary for the no-goals case', () => {
+    expect(canPlanFromProfile(ROUTINE_CONFIDENCE_THRESHOLD, false)).toBe(true);
+    expect(canPlanFromProfile(ROUTINE_CONFIDENCE_THRESHOLD - 0.01, false)).toBe(false);
   });
 });
