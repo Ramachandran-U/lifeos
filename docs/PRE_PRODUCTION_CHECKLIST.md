@@ -2,7 +2,7 @@
 
 Tech-debt and shortcuts taken during development that **must be resolved before public release** (App Store / Play Store / production Worker deploy). Grouped by severity. Update as items are closed.
 
-Last updated: 2026-04-28
+Last updated: 2026-06-04 (closed #14 mock-mode; refreshed #15 E2E status)
 
 ---
 
@@ -71,14 +71,13 @@ Last updated: 2026-04-28
 - Phase 4b — Eval runner + publish gate: shipped via **design C** — CI writes pass rates to `eval_reports` via `POST /v1/evals/report` (token-auth) and the admin's new Evals tab surfaces them per (branch, mode).
 - Phase 5 — Feedback inbox + push broadcast: shipped. Gmail-pull cron deferred; in-app `POST /v1/feedback` covers the day-to-day case.
 
-### 14. Mock mode (`USE_AI_MOCK`) not wired into all AI paths — **still open**
-- **What**: `extractDiscoveryProfile` checks the flag; chatbot and other functions don't.
-- **Fix**: Audit `src/ai/functions.ts` — every `callAI` call should have a mock branch.
+### 14. ~~Mock mode (`USE_AI_MOCK`) not wired into all AI paths~~ ✅ Resolved
+- **Original issue (2026-04-28)**: `extractDiscoveryProfile` checked the flag; chatbot and other functions didn't.
+- **Resolution**: `src/ai/functions.ts` now gates every single-shot path on `isMock` (`EXPO_PUBLIC_USE_AI_MOCK`/`USE_AI_MOCK`) — each of the ~27 `callAI` sites returns a mock before the network call (mocks in `src/ai/mocks/`). Verified: `if (isMock) return …` branches across the file. CI e2e (`EXPO_PUBLIC_USE_AI_MOCK=true`) and the eval harness rely on this.
 
-### 15. No automated E2E tests — **still open**
-- **What**: All onboarding / chat / admin flows verified manually.
-- **Fix**: Add Playwright suite for admin portal, Maestro for mobile happy-paths.
-- **Partial progress**: Jest eval harness at `evals/` covers AI surfaces (7 suites, 28+ graders, runs in CI on every PR touching `src/ai/**`). Not a substitute for E2E but closes a meaningful regression window.
+### 15. Automated E2E tests — **largely shipped (consumer web); admin/mobile still open**
+- **Done**: a Playwright suite (`e2e/`, runs in CI via `.github/workflows/e2e.yml`) now covers the consumer web app — route-walking smoke (desktop + mobile viewport), per-engine interaction specs (goals/health/finance/career/explore/social/routine), real-Supabase-session `authenticated` specs (auth routing, sign-out, fresh onboarding, engine surfaces), and a **cross-device sync** proof (two contexts, mocked transport). Plus a Jest **component** project (jest-expo + RTL) and **worker** route tests, on top of the `evals/` AI harness. Unit/integration suite is ~1.4k tests with a per-directory coverage ratchet.
+- **Still open**: (a) the **authenticated** Playwright lane is non-blocking (`continue-on-error`) — promote to required once stable; (b) **admin-portal** Playwright; (c) **Maestro** (or similar) for native mobile happy-paths.
 
 ---
 
