@@ -5,6 +5,7 @@ import { getLatestSleepHours } from '@/db/queries/health';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import { fetchTodayCalendarEvents } from '@/ai/calendarContext';
+import { getUpcomingBillsForAgent } from '@/ai/billsContext';
 import type { AgentTool } from './runtime';
 
 export interface ToolContext {
@@ -99,6 +100,18 @@ export function buildLifeOsTools(ctx: ToolContext): AgentTool[] {
           })),
         };
       },
+    },
+    {
+      declaration: {
+        name: 'getUpcomingBills',
+        description:
+          'Upcoming bills and subscription renewals detected from the user\'s email — ' +
+          'anything due in the next week or already overdue, with amount and a relative ' +
+          'due label. Use to surface a time-sensitive payment as the next action. Returns ' +
+          '{ items }: empty when nothing is due or the data is unavailable (e.g. on native).',
+        parameters: EMPTY_PARAMS,
+      },
+      execute: async () => ({ items: await getUpcomingBillsForAgent(today) }),
     },
     {
       declaration: {

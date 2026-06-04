@@ -9,6 +9,7 @@ jest.mock('@/db/queries/social', () => ({
   computeOverdue: jest.fn(),
 }));
 jest.mock('@/ai/calendarContext', () => ({ fetchTodayCalendarEvents: jest.fn() }));
+jest.mock('@/ai/billsContext', () => ({ getUpcomingBillsForAgent: jest.fn(() => Promise.resolve([])) }));
 
 import { getGoalsByUser } from '@/db/queries/goals';
 import { getRoutineBlocksByDate } from '@/db/queries/routine';
@@ -16,6 +17,7 @@ import { getLatestSleepHours } from '@/db/queries/health';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import { fetchTodayCalendarEvents } from '@/ai/calendarContext';
+import { getUpcomingBillsForAgent } from '@/ai/billsContext';
 import type { CalendarEvent } from '@/integrations/googleCalendar/client';
 
 const goalsMock = getGoalsByUser as jest.Mock;
@@ -25,6 +27,7 @@ const gamMock = getOrCreateGamification as jest.Mock;
 const contactsMock = getContactsByUser as jest.Mock;
 const overdueMock = computeOverdue as jest.Mock;
 const calMock = fetchTodayCalendarEvents as jest.MockedFunction<typeof fetchTodayCalendarEvents>;
+const billsMock = getUpcomingBillsForAgent as jest.MockedFunction<typeof getUpcomingBillsForAgent>;
 
 function calEvent(over: Partial<CalendarEvent>): CalendarEvent {
   return {
@@ -65,6 +68,7 @@ describe('buildLifeOsTools', () => {
         'getRecentSleepHours',
         'getTodayCalendar',
         'getTodayRoutine',
+        'getUpcomingBills',
       ].sort(),
     );
   });
@@ -148,5 +152,13 @@ describe('buildLifeOsTools', () => {
       { startTime: '09:00', endTime: '09:30', title: 'Standup', recurring: true },
       { startTime: 'all-day', endTime: 'all-day', title: 'Holiday', recurring: false },
     ]);
+  });
+
+  it('getUpcomingBills returns the agent-view items from billsContext', async () => {
+    billsMock.mockResolvedValue([{ kind: 'bill', merchant: 'Airtel', amount: '₹999', due: 'Due in 2 days' }]);
+    const out = (await toolByName('getUpcomingBills').execute({})) as { items: unknown[] };
+    expect(out).toEqual({ items: [{ kind: 'bill', merchant: 'Airtel', amount: '₹999', due: 'Due in 2 days' }] });
+    // The tool passes the closure's `today` (the injected ctx date) through.
+    expect(billsMock).toHaveBeenCalledWith('2026-05-30');
   });
 });
