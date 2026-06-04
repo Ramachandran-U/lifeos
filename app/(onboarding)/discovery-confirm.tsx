@@ -61,6 +61,17 @@ export default function DiscoveryConfirmScreen() {
 
   const handleConfirm = async () => {
     if (!userId || !source || seeding) return;
+
+    // Low-confidence profile: the CTA reads "Tell me a bit more first". Send the
+    // user back to the chat to keep building it instead of attempting to commit —
+    // committing would just hit the confidence gate and dead-end with a red error
+    // pointing at a "back" control this screen doesn't have. The chat resumes
+    // from the saved profile (getOrInitUserProfile), so progress isn't lost.
+    if (source.kind === 'profile' && source.profile.confidence.overall < ROUTINE_CONFIDENCE_THRESHOLD) {
+      router.replace('/(onboarding)/discovery-chat');
+      return;
+    }
+
     setSeeding(true);
     setSeedError(null);
     try {
@@ -85,6 +96,11 @@ export default function DiscoveryConfirmScreen() {
 
   async function commitProfile(profile: UserProfile) {
     if (!userId) return;
+    // Generate FIRST — this is the confidence gate (throws ProfileNotReadyError
+    // below threshold). Only persist completion AFTER the routine actually
+    // exists, so a failed generate can never leave the user marked
+    // onboarding-complete with no routine (the previous order did exactly that).
+    const routine = await generateAndSaveRoutineForToday(profile);
     // Persist top-level fields to users row so legacy screens keep working.
     updateUser(userId, {
       wakeTime: profile.schedule.wakeTime ?? undefined,
@@ -97,8 +113,6 @@ export default function DiscoveryConfirmScreen() {
     });
     setPrimaryDomains(profile.primaryDomains);
     setOnboardingStage(ONBOARDING_COMPLETE);
-    // Generate + save today's routine — gated by ProfileNotReadyError on low confidence.
-    const routine = await generateAndSaveRoutineForToday(profile);
     track(EVENTS.routineGenerated, {
       source: 'discovery_confirm_v2',
       block_count: routine.blocks.length,
@@ -106,6 +120,11 @@ export default function DiscoveryConfirmScreen() {
       primary_domains: profile.primaryDomains.length,
     });
   }
+
+  // Profile confidence is below the routine-generation threshold → the CTA
+  // sends the user back to the chat rather than generating.
+  const needsMore =
+    source?.kind === 'profile' && source.profile.confidence.overall < ROUTINE_CONFIDENCE_THRESHOLD;
 
   if (loading) {
     return (
@@ -149,9 +168,11 @@ export default function DiscoveryConfirmScreen() {
             <Caption style={[styles.ctaHint, { color: c.error }]}>{seedError}</Caption>
           ) : (
             <Caption style={styles.ctaHint}>
-              {source?.kind === 'profile'
-                ? "I'll generate your first routine and take you to Today. You can edit any block."
-                : 'Adds your top goals and active interests to LifeOS. You can edit or delete any of them later.'}
+              {needsMore
+                ? "I only know a little so far — we'll head back to the chat to fill in the rest, then build your day."
+                : source?.kind === 'profile'
+                  ? "I'll generate your first routine and take you to Today. You can edit any block."
+                  : 'Adds your top goals and active interests to LifeOS. You can edit or delete any of them later.'}
             </Caption>
           )}
         </View>
