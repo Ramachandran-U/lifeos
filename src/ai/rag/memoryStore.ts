@@ -356,6 +356,14 @@ export function setFactPinned(id: string, pinned: boolean): void {
   db.update(memoryFacts).set({ pinned }).where(eq(memoryFacts.id, id)).run();
 }
 
+/**
+ * Add a fact the user authored directly (no consolidation window). Goes through
+ * upsertFact, so it embeds + dedups against existing facts like any other.
+ */
+export async function addUserFact(userId: string, text: string, kind: MemoryFactKind): Promise<string> {
+  return upsertFact({ userId, kind, text });
+}
+
 /** Edit a fact's text + kind, re-embedding so dedup/retrieval stay accurate. */
 export async function updateFact(id: string, text: string, kind: MemoryFactKind): Promise<void> {
   const embeddingJson = JSON.stringify(await embedText(text));

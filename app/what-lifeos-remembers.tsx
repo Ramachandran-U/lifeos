@@ -16,6 +16,7 @@ import {
   forgetFact,
   setFactPinned,
   updateFact,
+  addUserFact,
   deleteAllFactsForUser,
   effectiveSalience,
   isFactLive,
@@ -45,7 +46,17 @@ export default function WhatLifeOSRemembersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [editing, setEditing] = useState<MemoryFact | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorInitial, setEditorInitial] = useState<MemoryFact | null>(null);
+
+  const openAdd = () => {
+    setEditorInitial(null);
+    setEditorOpen(true);
+  };
+  const openEdit = (fact: MemoryFact) => {
+    setEditorInitial(fact);
+    setEditorOpen(true);
+  };
 
   const load = useCallback(() => {
     if (!userId) {
@@ -90,10 +101,13 @@ export default function WhatLifeOSRemembersScreen() {
     load();
   };
 
-  const handleSaveEdit = async (text: string, kind: MemoryFactKind) => {
+  const handleSaveFact = async (text: string, kind: MemoryFactKind) => {
     const trimmed = text.trim();
-    if (editing && trimmed) await updateFact(editing.id, trimmed, kind);
-    setEditing(null);
+    if (trimmed) {
+      if (editorInitial) await updateFact(editorInitial.id, trimmed, kind);
+      else if (userId) await addUserFact(userId, trimmed, kind);
+    }
+    setEditorOpen(false);
     if (Platform.OS !== 'web') Haptics.selectionAsync();
     load();
   };
@@ -137,6 +151,11 @@ export default function WhatLifeOSRemembersScreen() {
           day-to-day fades. Delete anything that's wrong or you'd rather I forget.
         </Body>
 
+        <Pressable onPress={openAdd} style={styles.addBtn}>
+          <Ionicons name="add-circle-outline" size={18} color={c.primary} />
+          <Caption style={{ color: c.primary, fontFamily: fonts.bodyMedium }}>Add a memory</Caption>
+        </Pressable>
+
         {loading ? (
           <Caption style={styles.empty}>Loading…</Caption>
         ) : facts.length === 0 ? (
@@ -164,13 +183,14 @@ export default function WhatLifeOSRemembersScreen() {
                     const strength = effectiveSalience(f, now);
                     const win = formatSourceWindow(f.sourceWindow);
                     const seen = relativeSince(f.lastSeenAt, now);
+                    const learned = win
+                      ? `From ${win} · seen ${seen}`
+                      : `Added ${relativeSince(f.createdAt, now)}`; // no window ⇒ user-authored
                     const provenance = f.pinned
                       ? win
                         ? `Pinned · from ${win}`
                         : 'Pinned'
-                      : win
-                        ? `From ${win} · seen ${seen}`
-                        : `Seen ${seen}`;
+                      : learned;
                     return (
                       <View key={f.id} style={styles.factRow}>
                         <View style={{ flex: 1 }}>
@@ -205,7 +225,7 @@ export default function WhatLifeOSRemembersScreen() {
                               color={f.pinned ? c.success : c.textMuted}
                             />
                           </Pressable>
-                          <Pressable onPress={() => setEditing(f)} hitSlop={8} style={styles.iconBtn}>
+                          <Pressable onPress={() => openEdit(f)} hitSlop={8} style={styles.iconBtn}>
                             <Ionicons name="pencil-outline" size={14} color={c.textMuted} />
                           </Pressable>
                           <Pressable onPress={() => handleForget(f)} hitSlop={8} style={styles.iconBtn}>
@@ -244,22 +264,25 @@ export default function WhatLifeOSRemembersScreen() {
       </ScrollView>
 
       <FactEditorModal
-        fact={editing}
+        open={editorOpen}
+        initial={editorInitial}
         c={c}
-        onClose={() => setEditing(null)}
-        onSave={handleSaveEdit}
+        onClose={() => setEditorOpen(false)}
+        onSave={handleSaveFact}
       />
     </SafeAreaView>
   );
 }
 
 function FactEditorModal({
-  fact,
+  open,
+  initial,
   c,
   onClose,
   onSave,
 }: {
-  fact: MemoryFact | null;
+  open: boolean;
+  initial: MemoryFact | null; // null = add a new memory
   c: AppColors;
   onClose: () => void;
   onSave: (text: string, kind: MemoryFactKind) => void;
@@ -268,17 +291,16 @@ function FactEditorModal({
   const [kind, setKind] = useState<MemoryFactKind>('preference');
 
   useEffect(() => {
-    if (fact) {
-      setText(fact.text);
-      setKind(fact.kind);
-    }
-  }, [fact]);
+    if (!open) return;
+    setText(initial?.text ?? '');
+    setKind(initial?.kind ?? 'preference');
+  }, [open, initial]);
 
   return (
-    <Modal visible={!!fact} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={[editorStyles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
         <Pressable style={[editorStyles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Label color={c.primary}>EDIT MEMORY</Label>
+          <Label color={c.primary}>{initial ? 'EDIT MEMORY' : 'ADD A MEMORY'}</Label>
           <TextInput
             style={[editorStyles.input, { color: c.textPrimary, borderColor: c.border, backgroundColor: c.card }]}
             value={text}
@@ -377,7 +399,15 @@ const makeStyles = (c: AppColors) =>
     },
     scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
     title: { color: c.textPrimary, marginTop: spacing.sm },
-    subtitle: { color: c.textSecondary, marginTop: spacing.xs, marginBottom: spacing.md },
+    subtitle: { color: c.textSecondary, marginTop: spacing.xs, marginBottom: spacing.sm },
+    addBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      alignSelf: 'flex-start',
+      paddingVertical: spacing.xs,
+      marginBottom: spacing.sm,
+    },
     section: { gap: spacing.xs },
     sectionHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     sectionTitle: { fontFamily: fonts.heading, fontSize: fontSizes.md, color: c.textPrimary },
