@@ -29,6 +29,7 @@ import { SocialScoreCard } from '@/components/modules/social/SocialScoreCard';
 import { ContactRow } from '@/components/modules/social/ContactRow';
 import { AddContactSheet } from '@/components/modules/social/AddContactSheet';
 import { ContactsImportCard } from '@/components/modules/social/ContactsImportCard';
+import { UpcomingBirthdaysCard } from '@/components/modules/social/UpcomingBirthdaysCard';
 import { refreshSocialOverdueBody } from '@/hooks/useNotifications';
 
 export default function SocialScreen() {
@@ -104,6 +105,11 @@ export default function SocialScreen() {
             score={score}
             totalContacts={contacts.length}
             overdueCount={overdue.length}
+          />
+
+          <UpcomingBirthdaysCard
+            contacts={contacts}
+            onPress={(ct) => router.push({ pathname: '/contact/[id]', params: { id: ct.id } })}
           />
 
           {userId && (
