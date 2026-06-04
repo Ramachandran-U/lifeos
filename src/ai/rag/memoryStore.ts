@@ -1,19 +1,27 @@
 /**
  * Durable memory store — persistent, long-horizon facts about the user.
  *
- * Storage: SQLite `memory_facts`, embeddings as a JSON number[], ranked with JS
- * cosine (no vector DB — fact counts are small, a linear scan is fine). Mirrors
- * the aiSuggestions precedent: persistence is a NATIVE concern; on web (dev /
- * preview) the writes are no-ops and reads return empty.
+ * Storage: SQLite `memory_facts` on native, the localStorage web shim
+ * (`src/db/webStorage/memory.ts`) on web — so "What LifeOS remembers" works on
+ * the web/PWA build too. Embeddings are a JSON number[], ranked with JS cosine
+ * (no vector DB — fact counts are small, a linear scan is fine).
  *
  * The pure helpers (decay, dedup, ranking) are exported and unit-tested without
- * a DB; the DB-bound functions compose them.
+ * storage; the storage-bound functions compose them and branch on platform.
  */
 import { Platform } from 'react-native';
 import { eq } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '@/db';
 import { memoryFacts } from '@/db/schema';
+import {
+  webGetFactsByUser,
+  webInsertFact,
+  webUpdateFact,
+  webDeleteFact,
+  webDeleteAllFactsForUser,
+  type WebMemoryFact,
+} from '@/db/webStorage/memory';
 import { embedText } from './embed';
 import { cosine } from './retrieve';
 
@@ -134,8 +142,32 @@ function decodeRow(r: typeof memoryFacts.$inferSelect): MemoryFact {
   };
 }
 
+function decodeWebRow(r: WebMemoryFact): MemoryFact {
+  let embedding: number[] | null = null;
+  if (r.embedding) {
+    try {
+      const parsed = JSON.parse(r.embedding);
+      if (Array.isArray(parsed)) embedding = parsed as number[];
+    } catch {
+      embedding = null;
+    }
+  }
+  return {
+    id: r.id,
+    userId: r.userId,
+    kind: r.kind as MemoryFactKind,
+    text: r.text,
+    salience: r.salience,
+    sourceWindow: r.sourceWindow,
+    createdAt: r.createdAt,
+    lastSeenAt: r.lastSeenAt,
+    expiresAt: r.expiresAt,
+    embedding,
+  };
+}
+
 export function getFactsByUser(userId: string): MemoryFact[] {
-  if (isWeb) return [];
+  if (isWeb) return webGetFactsByUser(userId).map(decodeWebRow);
   return db
     .select()
     .from(memoryFacts)
@@ -159,38 +191,57 @@ export interface UpsertFactInput {
  */
 export async function upsertFact(input: UpsertFactInput, nowMs?: number): Promise<string> {
   const embedding = await embedText(input.text);
-  if (isWeb) return nanoid();
-
-  const existing = getFactsByUser(input.userId);
-  const dup = findDuplicate(embedding, existing);
   const now = nowMs ?? Date.now();
   const nowIso = new Date(now).toISOString();
 
+  const existing = getFactsByUser(input.userId);
+  const dup = findDuplicate(embedding, existing);
+
   if (dup) {
     const bumped = Math.min(1, dup.salience + SALIENCE_BUMP);
-    db.update(memoryFacts)
-      .set({ salience: bumped, lastSeenAt: nowIso })
-      .where(eq(memoryFacts.id, dup.id))
-      .run();
+    if (isWeb) {
+      webUpdateFact(dup.id, { salience: bumped, lastSeenAt: nowIso });
+    } else {
+      db.update(memoryFacts)
+        .set({ salience: bumped, lastSeenAt: nowIso })
+        .where(eq(memoryFacts.id, dup.id))
+        .run();
+    }
     return dup.id;
   }
 
   const id = nanoid();
   const expiresAt = input.ttlDays ? new Date(now + input.ttlDays * 86_400_000).toISOString() : null;
-  db.insert(memoryFacts)
-    .values({
+  const embeddingJson = JSON.stringify(embedding);
+  if (isWeb) {
+    webInsertFact({
       id,
       userId: input.userId,
       kind: input.kind,
       text: input.text,
-      embedding: JSON.stringify(embedding),
+      embedding: embeddingJson,
       salience: 1,
       sourceWindow: input.sourceWindow ?? null,
       createdAt: nowIso,
       lastSeenAt: nowIso,
       expiresAt,
-    })
-    .run();
+    });
+  } else {
+    db.insert(memoryFacts)
+      .values({
+        id,
+        userId: input.userId,
+        kind: input.kind,
+        text: input.text,
+        embedding: embeddingJson,
+        salience: 1,
+        sourceWindow: input.sourceWindow ?? null,
+        createdAt: nowIso,
+        lastSeenAt: nowIso,
+        expiresAt,
+      })
+      .run();
+  }
   return id;
 }
 
@@ -209,11 +260,17 @@ export async function searchFacts(
 }
 
 export function deleteFact(id: string): void {
-  if (isWeb) return;
+  if (isWeb) {
+    webDeleteFact(id);
+    return;
+  }
   db.delete(memoryFacts).where(eq(memoryFacts.id, id)).run();
 }
 
 export function deleteAllFactsForUser(userId: string): void {
-  if (isWeb) return;
+  if (isWeb) {
+    webDeleteAllFactsForUser(userId);
+    return;
+  }
   db.delete(memoryFacts).where(eq(memoryFacts.userId, userId)).run();
 }
