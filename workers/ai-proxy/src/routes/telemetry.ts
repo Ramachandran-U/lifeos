@@ -30,6 +30,17 @@ const ALLOWED_EVENTS = new Set([
   'slot_filled',
   // Core feature usage
   'goal_created',
+  // Goals lifecycle — the loop the Goals page owns (completion is the key
+  // retention signal; decompose funnel is activation; churn = postpone/remove).
+  'goal_completed',
+  'goal_detail_opened',
+  'goal_postponed',
+  'goal_removed',
+  'goal_restored',
+  'goal_resumed',
+  'goal_decompose_started',
+  'goal_decompose_succeeded',
+  'goal_decompose_abandoned',
   'routine_generated',
   'routine_edited',
   'routine_replanned',

@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/Input';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { useAI } from '@/hooks/useAI';
 import { decomposeGoal } from '@/ai/functions';
+import { track, EVENTS } from '@/utils/telemetry';
 import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { createGoal } from '@/db/queries/goals';
@@ -108,19 +109,27 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
     abortRef.current = new AbortController();
     setSlowHint(false);
     setDecomposing(true);
+    const startedAt = Date.now();
+    track(EVENTS.goalDecomposeStarted, {}); // activation funnel — start
     slowTimer.current = setTimeout(() => setSlowHint(true), 8000);
     const result = await call(() => decomposeGoal({ visionStatement: goalText, name }, { signal: abortRef.current?.signal }));
     clearSlowTimer();
     setSlowHint(false);
     setDecomposing(false);
     // If the user tapped Cancel while we were waiting, drop the late result.
+    // (the abandon event is fired in handleCancelDecompose.)
     if (cancelledRef.current) return;
     if (result) {
+      track(EVENTS.goalDecomposeSucceeded, { duration_ms: Date.now() - startedAt });
       setHierarchy(result);
       setDraftTitle(result.primaryGoal.title);
       setDraftYearly(result.yearly.title);
       setDraftMilestones(result.monthly.slice(0, VISIBLE_MILESTONES).map((m) => m.title));
       setDomainType(result.primaryGoal.type);
+    } else {
+      // Null result with no cancel = the AI call failed (the ~20s wait that
+      // most hurts activation). Track it so the abandon/fail rate is visible.
+      track(EVENTS.goalDecomposeAbandoned, { reason: 'failed', duration_ms: Date.now() - startedAt });
     }
   };
 
@@ -159,6 +168,9 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   };
 
   const handleCancelDecompose = () => {
+    // Only an in-flight decompose counts as an abandon (handleClose calls this
+    // unconditionally on close, even when nothing is running).
+    if (decomposing) track(EVENTS.goalDecomposeAbandoned, { reason: 'cancelled' });
     cancelledRef.current = true;
     abortRef.current?.abort(); // truly cancels the in-flight request (BUG-012)
     clearSlowTimer();

@@ -261,7 +261,13 @@ export default function TodayScreen() {
     const block = blocks.find(b => b.id === blockId);
     updateRoutineBlockStatus(blockId, 'completed');
     logBehaviourEvent('block_completed', block?.module ?? 'goal');
-    track(EVENTS.routineBlockCompleted, { module: block?.module ?? 'goal' });
+    // Tag the goal link so completing a goal-linked block is measurable — this
+    // is the join key for the north-star "weekly loop-closers" metric.
+    track(EVENTS.routineBlockCompleted, {
+      module: block?.module ?? 'goal',
+      goal_linked: !!block?.linkedEntityId,
+      linked_entity_id: block?.linkedEntityId ?? undefined,
+    });
     useAmbientEventStore.getState().fireSweep(block?.module === 'health' ? '#00C896' : block?.module === 'finance' ? '#F0B429' : block?.module === 'career' ? '#5B4FE8' : block?.module === 'social' ? '#FF4D8B' : block?.module === 'polymath' ? '#00B4D8' : '#FF6B35');
     // First-block-ever telemetry (v2 funnel). Stamps the profile so it fires once.
     if (onboardingV2 && userId) {
