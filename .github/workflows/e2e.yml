@@ -130,7 +130,7 @@ jobs:
       - name: Sweep leaked ephemeral E2E users
         if: always() && env.SUPABASE_SERVICE_ROLE_KEY != ''
         continue-on-error: true
-        run: npx ts-node e2e/sweep-ephemeral.ts
+        run: node e2e/sweep-ephemeral.mjs
 
       - name: Upload Playwright report
         if: always()
