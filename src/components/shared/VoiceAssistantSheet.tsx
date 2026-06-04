@@ -18,6 +18,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { useVoice, type VoiceStatus } from '@/hooks/useVoice';
 import { SPRING, useStaggerDelay } from '@/theme/motion';
+import type { AgentTool } from '@/ai/agent/runtime';
 
 // ─── Status presentation ──────────────────────────────────────────────────────
 function statusColor(c: AppColors, status: VoiceStatus, hasError: boolean): string {
@@ -77,16 +78,19 @@ interface VoiceAssistantSheetProps {
   visible: boolean;
   onClose: () => void;
   systemInstruction?: string;
+  /** Read-only tools the assistant can call to ground answers in real data. */
+  tools?: AgentTool[];
 }
 
 export function VoiceAssistantSheet({
   visible,
   onClose,
   systemInstruction,
+  tools,
 }: VoiceAssistantSheetProps) {
   const c = useColors();
   const [input, setInput] = useState('');
-  const voice = useVoice({ systemInstruction });
+  const voice = useVoice({ systemInstruction, tools });
   // 50 ms step matches MOTION scene-06 chart for inner stagger.
   const stagger = useStaggerDelay();
 
