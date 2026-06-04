@@ -60,6 +60,19 @@ describe('buildMoneyReviewInput', () => {
     expect(input.momDeltaPct).toBeNull();
   });
 
+  it("includes today's transaction in the month-to-date window (TZ regression guard)", () => {
+    // samePeriodMonthWindows now formats thisEnd as the LOCAL date, so it equals
+    // today and a txn dated today is counted. Under the old toISOString boundary,
+    // in a positive-UTC-offset TZ thisEnd resolved to yesterday and today's spend
+    // was silently dropped — this guards that regression.
+    const input = buildMoneyReviewInput(
+      [tx({ date: '2026-06-04', amount: 50000, category: 'shopping' })],
+      new Date(2026, 5, 4), // local June 4 == the transaction's date
+    );
+    expect(input.transactionCount).toBe(1);
+    expect(input.totalSpend).toBe(500);
+  });
+
   it('compares against the SAME day-range last month, not the full month', () => {
     // June 4: month-to-date is Jun 1–4. Last month must be measured Jun→May 1–4,
     // NOT the whole of May — otherwise an in-progress month looks like a collapse.
