@@ -28,6 +28,7 @@ import {
 import { SocialScoreCard } from '@/components/modules/social/SocialScoreCard';
 import { ContactRow } from '@/components/modules/social/ContactRow';
 import { AddContactSheet } from '@/components/modules/social/AddContactSheet';
+import { ContactsImportCard } from '@/components/modules/social/ContactsImportCard';
 import { refreshSocialOverdueBody } from '@/hooks/useNotifications';
 
 export default function SocialScreen() {
@@ -104,6 +105,14 @@ export default function SocialScreen() {
             totalContacts={contacts.length}
             overdueCount={overdue.length}
           />
+
+          {userId && (
+            <ContactsImportCard
+              userId={userId}
+              existingNames={contacts.map((ct) => ct.name)}
+              onImported={handleCreated}
+            />
+          )}
 
           {overdue.length > 0 ? (
             <View style={styles.section}>
