@@ -16,6 +16,7 @@ import { AddGoalSheet } from '@/components/modules/goals/AddGoalSheet';
 import { TrajectoryCard } from '@/components/modules/goals/TrajectoryCard';
 import { GoalDetailSheet } from '@/components/modules/goals/GoalDetailSheet';
 import { MotivationBanner } from '@/components/shared/MotivationBanner';
+import { format } from 'date-fns';
 import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -24,6 +25,15 @@ import { updateGoalStatus, getDeletedGoals, restoreGoal } from '@/db/queries/goa
 import { listGoalComments } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
+import { isEnabled } from '@/config/flags';
+import { getRoutineBlocksByDate, createRoutineBlocks } from '@/db/queries/routine';
+import { getUserProfile } from '@/db/queries/userProfile';
+import { replanRemainingDay } from '@/ai/functions';
+import { applyReplan } from '@/ai/replanApply';
+import { stashReplan, readStash, clearStash, browserStashStorage } from '@/cognition/replanStash';
+import { GoalReplanSheet, type GoalReplanPhase } from '@/components/shared/GoalReplanSheet';
+import type { ReplanRemainingDay } from '@/ai/types';
+import type { ExistingBlock } from '@/components/shared/RoutineDiffPreview';
 
 type GoalLike = ReturnType<typeof import('@/db/queries/goals').getGoalsByUser>[number];
 
@@ -31,8 +41,8 @@ export default function GoalsScreen() {
   const c = useColors();
   useScreenTracking('goals');
   const getTypeColor = useGoalTypeColor();
-  const { userId } = useUserStore();
-  const { goals, loadGoals } = useGoalStore();
+  const { userId, primaryDomains } = useUserStore();
+  const { goals, loadGoals, removeGoal, snoozeGoal, resumeGoal, reactivateDue } = useGoalStore();
   const completeGoalNode = useGameStore((s) => s.completeGoalNode);
   // Re-read when the sync engine applies a remote pull (P1 Increment 3), so a
   // goal synced from another device repaints without a manual reload.
@@ -43,31 +53,58 @@ export default function GoalsScreen() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deletedGoals, setDeletedGoals] = useState<GoalLike[]>([]);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showPostponed, setShowPostponed] = useState(false);
+  // Re-plan-after-goal-change flow (mirrors the priority-change adjust-now path).
+  const [replan, setReplan] = useState<{
+    visible: boolean; phase: GoalReplanPhase; goalTitle: string;
+    action: 'removed' | 'postponed'; plan: ReplanRemainingDay | null; existing: ExistingBlock[];
+  }>({ visible: false, phase: 'choice', goalTitle: '', action: 'removed', plan: null, existing: [] });
 
   useFocusEffect(
     useCallback(() => {
       if (userId) {
+        // Auto-resume any goals whose postpone date has passed, then load.
+        reactivateDue(userId, format(new Date(), 'yyyy-MM-dd'));
         loadGoals(userId);
         setDeletedGoals(getDeletedGoals(userId));
       }
-    }, [userId, loadGoals, syncTick])
+    }, [userId, loadGoals, reactivateDue, syncTick])
   );
 
+  // Postponed (paused) goals are hidden from the active tree and surfaced in
+  // their own collapsible section with a Resume action.
   const mainGoals = useMemo(
-    () => goals.filter((g) => !g.parentId && g.level !== 'daily'),
+    () => goals.filter((g) => !g.parentId && g.level !== 'daily' && g.status !== 'paused'),
     [goals],
   );
 
   const childrenByParent = useMemo(() => {
     const map: Record<string, GoalLike[]> = {};
     for (const g of goals) {
-      if (!g.parentId) continue;
+      if (!g.parentId || g.status === 'paused') continue;
       (map[g.parentId] = map[g.parentId] ?? []).push(g);
     }
     return map;
   }, [goals]);
 
   const dailyTasks = goals.filter((g) => g.level === 'daily' && g.status === 'active');
+
+  const postponedGoals = useMemo(
+    () => goals.filter((g) => g.status === 'paused'),
+    [goals],
+  );
+
+  /** Read the YYYY-MM-DD a paused goal is snoozed until from its metadata JSON. */
+  const snoozeUntilOf = (g: GoalLike): string | null => {
+    if (typeof g.metadata !== 'string' || !g.metadata) return null;
+    try {
+      const m: unknown = JSON.parse(g.metadata);
+      const until = (m as { snoozeUntil?: unknown })?.snoozeUntil;
+      return typeof until === 'string' ? until : null;
+    } catch {
+      return null;
+    }
+  };
 
   // #5: a flat "Achievements" log of everything completed, newest first, so
   // there's a place to see what's been accomplished (the tree mixes done +
@@ -135,6 +172,125 @@ export default function GoalsScreen() {
   };
 
   const detailGoal = detailGoalId ? goals.find((g) => g.id === detailGoalId) : null;
+
+  const todayStr = () => format(new Date(), 'yyyy-MM-dd');
+  const nowHHMM = () => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  /**
+   * After a goal is removed/postponed, offer to rebalance the rest of today.
+   * Only when the priorityAdjust flag is on AND there are still blocks left
+   * today — otherwise there's nothing to adjust, so stay silent.
+   */
+  const offerReplan = (goalTitle: string, action: 'removed' | 'postponed') => {
+    if (!isEnabled('priorityAdjust')) return;
+    const now = nowHHMM();
+    const remaining = getRoutineBlocksByDate(todayStr()).filter((b) => b.startTime >= now);
+    if (remaining.length === 0) return;
+    setReplan({ visible: true, phase: 'choice', goalTitle, action, plan: null, existing: [] });
+  };
+
+  const handleGoalRemove = () => {
+    if (!detailGoal || !userId) return;
+    const title = detailGoal.title;
+    removeGoal(detailGoal.id, userId);
+    setDeletedGoals(getDeletedGoals(userId));
+    setDetailGoalId(null);
+    offerReplan(title, 'removed');
+  };
+
+  const handleGoalPostpone = (untilDate: string) => {
+    if (!detailGoal || !userId) return;
+    const title = detailGoal.title;
+    snoozeGoal(detailGoal.id, untilDate, userId);
+    setDetailGoalId(null);
+    offerReplan(title, 'postponed');
+  };
+
+  const handleGoalResume = (id: string) => {
+    if (!userId) return;
+    resumeGoal(id, userId);
+    setDetailGoalId(null);
+  };
+
+  const handleAdjustNow = async () => {
+    if (!userId) return;
+    setReplan((r) => ({ ...r, phase: 'loading' }));
+    try {
+      const profile = await getUserProfile(userId);
+      const now = nowHHMM();
+      const today = todayStr();
+      const allBlocks = getRoutineBlocksByDate(today);
+      const remaining = allBlocks
+        .filter((b) => b.startTime >= now)
+        .map((b) => ({
+          id: b.id, startTime: b.startTime, endTime: b.endTime, title: b.title, module: b.module,
+          status: b.status as 'upcoming' | 'in_progress' | 'completed' | 'skipped',
+        }));
+      const skippedToday = allBlocks
+        .filter((b) => b.status === 'skipped')
+        .map((b) => ({ id: b.id, title: b.title, module: b.module }));
+      const existing: ExistingBlock[] = remaining.map((b) => ({
+        id: b.id, startTime: b.startTime, endTime: b.endTime, title: b.title, module: b.module,
+      }));
+      const plan = await replanRemainingDay({
+        nowHHMM: now,
+        remainingBlocks: remaining,
+        skippedToday,
+        primaryDomains,
+        chronotype: profile?.chronotype ?? null,
+        droppedGoals: [replan.goalTitle],
+      });
+      setReplan((r) => ({ ...r, phase: 'preview', plan, existing }));
+    } catch {
+      setReplan((r) => ({ ...r, phase: 'error' }));
+    }
+  };
+
+  const handleConfirmPreview = () => {
+    if (!replan.plan || !userId) return;
+    const today = todayStr();
+    const plan = replan.plan;
+    const allBlocks = getRoutineBlocksByDate(today);
+    const droppedBlocks = allBlocks
+      .filter((b) => plan.drop.includes(b.id))
+      .map((b) => ({
+        id: b.id, date: b.date, startTime: b.startTime, endTime: b.endTime,
+        title: b.title, module: b.module, status: b.status,
+        linkedEntityId: b.linkedEntityId ?? null, energyRequired: b.energyRequired ?? null,
+      }));
+    const beforeIds = new Set(allBlocks.map((b) => b.id));
+    applyReplan(plan, today);
+    const insertedBlockIds = getRoutineBlocksByDate(today).map((b) => b.id).filter((id) => !beforeIds.has(id));
+    stashReplan(browserStashStorage(), userId, today, {
+      droppedBlocks, insertedBlockIds, priorPriorities: primaryDomains,
+    });
+    setReplan((r) => ({ ...r, phase: 'applied' }));
+  };
+
+  const handleReplanUndo = () => {
+    if (!userId) { setReplan((r) => ({ ...r, visible: false })); return; }
+    const storage = browserStashStorage();
+    const today = todayStr();
+    const entry = readStash(storage, userId, today);
+    if (!entry) { setReplan((r) => ({ ...r, visible: false })); return; }
+    const allBlocks = getRoutineBlocksByDate(today);
+    const insertedSet = new Set(entry.insertedBlockIds);
+    const toDelete = allBlocks.filter((b) => insertedSet.has(b.id)).map((b) => b.id);
+    applyReplan({ drop: toDelete, edits: [], add: [], rationale: 'undo' }, today);
+    if (entry.droppedBlocks.length > 0) {
+      createRoutineBlocks(entry.droppedBlocks.map((b) => ({
+        date: b.date, startTime: b.startTime, endTime: b.endTime,
+        title: b.title, module: b.module, energyRequired: b.energyRequired ?? undefined,
+      })));
+    }
+    clearStash(storage, userId, today);
+    setReplan((r) => ({ ...r, visible: false }));
+  };
+
+  const closeReplan = () => setReplan((r) => ({ ...r, visible: false }));
 
   const styles = makeStyles(c);
 
@@ -276,6 +432,48 @@ export default function GoalsScreen() {
           </View>
         )}
 
+        {postponedGoals.length > 0 && (
+          <View style={styles.section}>
+            <Pressable
+              style={styles.achievementsHeader}
+              onPress={() => setShowPostponed((s) => !s)}
+            >
+              <Ionicons name="moon-outline" size={18} color={c.textMuted} />
+              <Body style={[styles.sectionTitle, { flex: 1, marginBottom: 0 }]}>
+                Postponed · {postponedGoals.length}
+              </Body>
+              <Ionicons name={showPostponed ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
+            </Pressable>
+            {showPostponed && (
+              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+                {postponedGoals.map((g) => {
+                  const tc = getTypeColor(g.goalType);
+                  const until = snoozeUntilOf(g);
+                  return (
+                    <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                      <View style={{ flex: 1 }}>
+                        <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
+                        <Caption style={{ color: c.textMuted }}>
+                          {g.level.charAt(0).toUpperCase() + g.level.slice(1)}
+                          {until ? ` · until ${until}` : ''}
+                        </Caption>
+                      </View>
+                      <Pressable
+                        onPress={() => handleGoalResume(g.id)}
+                        style={[styles.restoreBtn, { borderColor: c.goal }]}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="play" size={16} color={c.goal} />
+                        <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>Resume</Caption>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
         {deletedGoals.length > 0 && (
           <View style={styles.section}>
             <Pressable
@@ -340,13 +538,34 @@ export default function GoalsScreen() {
           goalLevel={detailGoal.level}
           initialDescription={detailGoal.description ?? ''}
           userId={userId}
+          goalStatus={detailGoal.status}
+          snoozeUntil={snoozeUntilOf(detailGoal)}
           onCommentChange={() => setVersion((v) => v + 1)}
           onDescriptionChange={() => {
             if (userId) loadGoals(userId);
             setVersion((v) => v + 1);
           }}
+          onRemove={handleGoalRemove}
+          onPostpone={handleGoalPostpone}
+          onResume={() => handleGoalResume(detailGoal.id)}
         />
       )}
+
+      <GoalReplanSheet
+        visible={replan.visible}
+        phase={replan.phase}
+        goalTitle={replan.goalTitle}
+        action={replan.action}
+        plan={replan.plan}
+        existing={replan.existing}
+        onAdjustNow={handleAdjustNow}
+        onSkip={closeReplan}
+        onConfirmPreview={handleConfirmPreview}
+        onCancelPreview={() => setReplan((r) => ({ ...r, phase: 'choice', plan: null }))}
+        onUndo={handleReplanUndo}
+        onClose={closeReplan}
+        onRetry={handleAdjustNow}
+      />
       </SafeAreaView>
     </View>
   );

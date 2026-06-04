@@ -54,6 +54,19 @@ export function webUpdateGoalDescription(id: string, description: string): void 
   save(GOALS_KEY, all);
 }
 
+/** Patch arbitrary mutable fields on a goal (e.g. status + metadata together,
+ *  used by snooze/resume). Stamps updatedAt; never touches id/createdAt. */
+export function webUpdateGoalFields(
+  id: string,
+  fields: Partial<Omit<WebGoal, 'id' | 'createdAt'>>,
+): void {
+  const all = load<WebGoal>(GOALS_KEY);
+  const idx = all.findIndex((g) => g.id === id);
+  if (idx === -1) return;
+  all[idx] = { ...all[idx], ...fields, updatedAt: new Date().toISOString() };
+  save(GOALS_KEY, all);
+}
+
 /** Upsert a full goal row by id. Used by the sync reducer to apply remote
  *  state — it must NOT touch updatedAt or record a mutation (echo-safe). */
 export function webUpsertGoalById(goal: WebGoal): void {

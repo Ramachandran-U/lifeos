@@ -10,6 +10,7 @@ import {
   webGetChildGoals,
   webUpdateGoalStatus,
   webUpdateGoalDescription,
+  webUpdateGoalFields,
   webSoftDeleteGoal,
   webSetGoalPriorities,
   webGetDeletedGoals,
@@ -117,6 +118,72 @@ export function updateGoalStatus(id: string, status: string) {
       .run();
   }
   recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), status, updatedAt: now } });
+}
+
+/** Parse a goal's JSON `metadata` column into an object. Tolerant: a null,
+ *  empty, or malformed value yields {} so callers can merge safely. */
+function parseGoalMetadata(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== 'string' || raw.length === 0) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Postpone a goal until `untilDate` (YYYY-MM-DD): set status to 'paused' and
+ * stash `snoozeUntil` in the metadata JSON. A paused goal drops out of the
+ * active tree, the planner, and the what-next agent until it resumes — either
+ * manually (resumeGoal) or automatically once the date passes (reactivateDueGoals).
+ */
+export function snoozeGoal(id: string, untilDate: string) {
+  const before = readGoalSnapshot(id);
+  const now = new Date().toISOString();
+  const metadata = JSON.stringify({ ...parseGoalMetadata(before?.metadata), snoozeUntil: untilDate });
+  if (isWeb) {
+    webUpdateGoalFields(id, { status: 'paused', metadata });
+  } else {
+    db.update(goals)
+      .set({ status: 'paused', metadata, updatedAt: now })
+      .where(eq(goals.id, id))
+      .run();
+  }
+  recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), status: 'paused', metadata, updatedAt: now } });
+}
+
+/** Resume a postponed goal: status back to 'active' and clear any snoozeUntil. */
+export function resumeGoal(id: string) {
+  const before = readGoalSnapshot(id);
+  const now = new Date().toISOString();
+  const meta = parseGoalMetadata(before?.metadata);
+  delete meta.snoozeUntil;
+  const metadata = JSON.stringify(meta);
+  if (isWeb) {
+    webUpdateGoalFields(id, { status: 'active', metadata });
+  } else {
+    db.update(goals)
+      .set({ status: 'active', metadata, updatedAt: now })
+      .where(eq(goals.id, id))
+      .run();
+  }
+  recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), status: 'active', metadata, updatedAt: now } });
+}
+
+/**
+ * Auto-resume any of the user's paused goals whose `snoozeUntil` is on or
+ * before `today` (YYYY-MM-DD). Idempotent — call it on app/goals-screen open.
+ * Returns the goals that were reactivated so the UI can surface a "X is back" note.
+ */
+export function reactivateDueGoals(userId: string, today: string): { id: string; title: string }[] {
+  const due = getGoalsByUser(userId).filter((g) => {
+    if (g.status !== 'paused') return false;
+    const until = parseGoalMetadata(g.metadata).snoozeUntil;
+    return typeof until === 'string' && until <= today;
+  });
+  for (const g of due) resumeGoal(g.id);
+  return due.map((g) => ({ id: g.id, title: g.title }));
 }
 
 export function updateGoalDescription(id: string, description: string) {

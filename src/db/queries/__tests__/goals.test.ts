@@ -45,6 +45,9 @@ import {
   softDeleteGoal,
   getDeletedGoals,
   restoreGoal,
+  snoozeGoal,
+  resumeGoal,
+  reactivateDueGoals,
 } from '../goals';
 import { webUpsertGoalById, type WebGoal } from '../../webStorage';
 import { recordMutation } from '@/sync/runtime';
@@ -287,5 +290,78 @@ describe('echo-safety: webUpsertGoalById (sync reducer path)', () => {
     expect(recordMutationMock).not.toHaveBeenCalled();
     // But it must still land in storage.
     expect(getGoalById('remote-goal-1')?.title).toBe('Synced from another device');
+  });
+});
+
+describe('snoozeGoal (web)', () => {
+  it('pauses the goal, stamps snoozeUntil in metadata, and logs before/after', () => {
+    const id = createGoal({ userId: USER, title: 'Learn cello', goalType: 'g', level: 'milestone' });
+    recordMutationMock.mockClear();
+
+    snoozeGoal(id, '2026-09-01');
+
+    const row = getGoalById(id);
+    expect(row?.status).toBe('paused');
+    expect(JSON.parse(row?.metadata ?? '{}').snoozeUntil).toBe('2026-09-01');
+    // Paused goals drop out of the active list the planner/tree read from.
+    expect(getGoalsByUser(USER).find((g) => g.id === id)?.status).toBe('paused');
+
+    const call = recordMutationMock.mock.calls[0][0];
+    expect(call.op).toBe('update');
+    expect((call.before as Record<string, unknown>).status).toBe('active');
+    expect((call.after as Record<string, unknown>).status).toBe('paused');
+  });
+
+  it('preserves existing metadata keys when adding snoozeUntil', () => {
+    const id = createGoal({
+      userId: USER, title: 'X', goalType: 'g', level: 'milestone',
+      metadata: JSON.stringify({ source: 'discovery' }),
+    });
+    snoozeGoal(id, '2026-09-01');
+    const meta = JSON.parse(getGoalById(id)?.metadata ?? '{}');
+    expect(meta).toEqual({ source: 'discovery', snoozeUntil: '2026-09-01' });
+  });
+});
+
+describe('resumeGoal (web)', () => {
+  it('reactivates a paused goal and clears snoozeUntil', () => {
+    const id = createGoal({ userId: USER, title: 'X', goalType: 'g', level: 'milestone' });
+    snoozeGoal(id, '2026-09-01');
+    recordMutationMock.mockClear();
+
+    resumeGoal(id);
+
+    const row = getGoalById(id);
+    expect(row?.status).toBe('active');
+    expect(JSON.parse(row?.metadata ?? '{}').snoozeUntil).toBeUndefined();
+    const call = recordMutationMock.mock.calls[0][0];
+    expect((call.after as Record<string, unknown>).status).toBe('active');
+  });
+});
+
+describe('reactivateDueGoals (web)', () => {
+  it('resumes only goals whose snoozeUntil is on/before today, returns them', () => {
+    const due = createGoal({ userId: USER, title: 'Due', goalType: 'g', level: 'milestone' });
+    const onToday = createGoal({ userId: USER, title: 'Today', goalType: 'g', level: 'milestone' });
+    const future = createGoal({ userId: USER, title: 'Future', goalType: 'g', level: 'milestone' });
+    snoozeGoal(due, '2026-05-01');
+    snoozeGoal(onToday, '2026-06-04');
+    snoozeGoal(future, '2026-12-31');
+
+    const reactivated = reactivateDueGoals(USER, '2026-06-04');
+
+    expect(reactivated.map((g) => g.id).sort()).toEqual([due, onToday].sort());
+    expect(getGoalById(due)?.status).toBe('active');
+    expect(getGoalById(onToday)?.status).toBe('active');
+    expect(getGoalById(future)?.status).toBe('paused');
+  });
+
+  it('returns [] and records nothing when no goal is due', () => {
+    const future = createGoal({ userId: USER, title: 'Future', goalType: 'g', level: 'milestone' });
+    snoozeGoal(future, '2026-12-31');
+    recordMutationMock.mockClear();
+
+    expect(reactivateDueGoals(USER, '2026-06-04')).toEqual([]);
+    expect(recordMutationMock).not.toHaveBeenCalled();
   });
 });
