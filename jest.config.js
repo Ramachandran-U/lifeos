@@ -49,6 +49,8 @@ module.exports = {
     'src/integrations/googleCalendar/**/*.ts',
     'src/integrations/googleFit/**/*.ts',
     'src/integrations/googleAuth/**/*.ts',
+    'src/integrations/youtube/**/*.ts',
+    'src/integrations/googleContacts/**/*.ts',
     'workers/ai-proxy/src/**/*.ts',
     '!**/__tests__/**',
     '!src/**/*.d.ts',
@@ -96,6 +98,11 @@ module.exports = {
     './src/integrations/googleCalendar/': { lines: 82, branches: 68, functions: 92 },
     './src/integrations/googleFit/': { lines: 78, branches: 44, functions: 78 },
     './src/integrations/googleAuth/': { lines: 44 },
+    // Folded into the gate 2026-06-05: client (paginate/parse) + oauth-binding
+    // tests put both dirs at ~100% lines/funcs; floors sit a few points under the
+    // measured aggregate (youtube client branch 82%, contacts client branch 96%).
+    './src/integrations/youtube/': { lines: 90, branches: 76, functions: 90 },
+    './src/integrations/googleContacts/': { lines: 90, branches: 88, functions: 90 },
     './workers/ai-proxy/src/': { lines: 24, branches: 16, functions: 32 },
   },
   projects: [
