@@ -61,6 +61,19 @@ export default function DiscoveryConfirmScreen() {
 
   const handleConfirm = async () => {
     if (!userId || !source || seeding) return;
+
+    // Can't plan yet (low confidence AND no concrete goals): the CTA reads "Tell
+    // me a bit more first". Send the user back to the chat to keep building the
+    // profile instead of attempting a commit the gate would reject and dead-end
+    // on. The chat resumes from the saved profile (getOrInitUserProfile), so
+    // progress isn't lost. (A goal-having user is allowed through — the planner
+    // gate is relaxed for concrete goals; see the safety net below for the
+    // window before that relaxation ships.)
+    if (source.kind === 'profile' && !canPlanProfile(source.profile)) {
+      router.replace('/(onboarding)/discovery-chat');
+      return;
+    }
+
     setSeeding(true);
     setSeedError(null);
     try {
@@ -78,6 +91,14 @@ export default function DiscoveryConfirmScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.replace('/(tabs)');
     } catch (err) {
+      // Safety net: the planner's confidence gate can still reject (e.g. a
+      // goal-having user before the gate relaxation ships). Never dead-end on
+      // it — route back to the chat, same as the pre-check above.
+      if (err instanceof ProfileNotReadyError) {
+        setSeeding(false);
+        router.replace('/(onboarding)/discovery-chat');
+        return;
+      }
       setSeedError(friendlyError(err));
       setSeeding(false);
     }
@@ -85,6 +106,11 @@ export default function DiscoveryConfirmScreen() {
 
   async function commitProfile(profile: UserProfile) {
     if (!userId) return;
+    // Generate FIRST — this is the confidence gate (throws ProfileNotReadyError
+    // below threshold). Only persist completion AFTER the routine actually
+    // exists, so a failed generate can never leave the user marked
+    // onboarding-complete with no routine (the previous order did exactly that).
+    const routine = await generateAndSaveRoutineForToday(profile);
     // Persist top-level fields to users row so legacy screens keep working.
     updateUser(userId, {
       wakeTime: profile.schedule.wakeTime ?? undefined,
@@ -97,8 +123,6 @@ export default function DiscoveryConfirmScreen() {
     });
     setPrimaryDomains(profile.primaryDomains);
     setOnboardingStage(ONBOARDING_COMPLETE);
-    // Generate + save today's routine — gated by ProfileNotReadyError on low confidence.
-    const routine = await generateAndSaveRoutineForToday(profile);
     track(EVENTS.routineGenerated, {
       source: 'discovery_confirm_v2',
       block_count: routine.blocks.length,
@@ -106,6 +130,10 @@ export default function DiscoveryConfirmScreen() {
       primary_domains: profile.primaryDomains.length,
     });
   }
+
+  // Can't plan yet (low confidence AND no concrete goals) → the CTA sends the
+  // user back to the chat rather than generating.
+  const needsMore = source?.kind === 'profile' && !canPlanProfile(source.profile);
 
   if (loading) {
     return (
@@ -149,9 +177,11 @@ export default function DiscoveryConfirmScreen() {
             <Caption style={[styles.ctaHint, { color: c.error }]}>{seedError}</Caption>
           ) : (
             <Caption style={styles.ctaHint}>
-              {source?.kind === 'profile'
-                ? "I'll generate your first routine and take you to Today. You can edit any block."
-                : 'Adds your top goals and active interests to LifeOS. You can edit or delete any of them later.'}
+              {needsMore
+                ? "I only know a little so far — we'll head back to the chat to fill in the rest, then build your day."
+                : source?.kind === 'profile'
+                  ? "I'll generate your first routine and take you to Today. You can edit any block."
+                  : 'Adds your top goals and active interests to LifeOS. You can edit or delete any of them later.'}
             </Caption>
           )}
         </View>
@@ -160,12 +190,22 @@ export default function DiscoveryConfirmScreen() {
   );
 }
 
+/**
+ * Mirrors the planner's confidence gate, kept local so this onboarding fix stays
+ * independent of the goals-planner change: we can plan when confidence clears the
+ * threshold OR the user has stated concrete goals (you don't need to know
+ * someone's chronotype to plan a day around "run a marathon"). The planner's gate
+ * is being relaxed for goal-havers too; until that ships, handleConfirm's catch
+ * routes any gate rejection back to the chat rather than dead-ending.
+ */
+function canPlanProfile(profile: UserProfile): boolean {
+  return profile.confidence.overall >= ROUTINE_CONFIDENCE_THRESHOLD || profile.vision.topGoals.length > 0;
+}
+
 function ctaTitle(source: ConfirmSource | null): string {
   if (!source) return 'Continue';
   if (source.kind === 'profile') {
-    return source.profile.confidence.overall >= ROUTINE_CONFIDENCE_THRESHOLD
-      ? 'Generate my routine'
-      : 'Tell me a bit more first';
+    return canPlanProfile(source.profile) ? 'Generate my routine' : 'Tell me a bit more first';
   }
   return 'Use this to set up LifeOS';
 }
