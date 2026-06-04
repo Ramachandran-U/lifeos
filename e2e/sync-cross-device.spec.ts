@@ -118,8 +118,12 @@ test.describe('Cross-device sync [B-P1]', () => {
       const errB = captureErrors(pageB);
       await pageB.goto('/', { waitUntil: 'domcontentloaded' });
       await pageB.waitForTimeout(1500);
-      await seedFixtureForSession(pageB, 'fullyLoaded'); // starts the task 'active'
-      await pageB.reload({ waitUntil: 'domcontentloaded' }); // boot drain → pull → reducer applies
+      // No seeding on B: its boot drain pulls A's mutation and the reducer
+      // UPSERTS the goal (status 'completed') from the synced snapshot. Re-seeding
+      // would overwrite it back to 'active' — B's pull cursor has already advanced
+      // past A's mutation, so a later drain wouldn't re-apply it. The reload
+      // guarantees a second drain in case the first raced boot.
+      await pageB.reload({ waitUntil: 'domcontentloaded' });
       await pageB.waitForTimeout(2000);
 
       // B's local goal now reflects the completion synced from A.
