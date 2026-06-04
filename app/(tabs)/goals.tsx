@@ -58,7 +58,7 @@ export default function GoalsScreen() {
   // Re-plan-after-goal-change flow (mirrors the priority-change adjust-now path).
   const [replan, setReplan] = useState<{
     visible: boolean; phase: GoalReplanPhase; goalTitle: string;
-    action: 'removed' | 'postponed'; plan: ReplanRemainingDay | null; existing: ExistingBlock[];
+    action: 'removed' | 'postponed' | 'added'; plan: ReplanRemainingDay | null; existing: ExistingBlock[];
   }>({ visible: false, phase: 'choice', goalTitle: '', action: 'removed', plan: null, existing: [] });
 
   useFocusEffect(
@@ -193,13 +193,16 @@ export default function GoalsScreen() {
    * Only when the priorityAdjust flag is on AND there are still blocks left
    * today — otherwise there's nothing to adjust, so stay silent.
    */
-  const offerReplan = (goalTitle: string, action: 'removed' | 'postponed') => {
+  const offerReplan = (goalTitle: string, action: 'removed' | 'postponed' | 'added') => {
     if (!isEnabled('priorityAdjust')) return;
     const now = nowHHMM();
     const remaining = getRoutineBlocksByDate(todayStr()).filter((b) => b.startTime >= now);
     if (remaining.length === 0) return;
     setReplan({ visible: true, phase: 'choice', goalTitle, action, plan: null, existing: [] });
   };
+
+  /** After a goal is created, offer to work it into the rest of today (gated). */
+  const handleGoalCreated = (title: string) => offerReplan(title, 'added');
 
   const handleGoalRemove = () => {
     if (!detailGoal || !userId) return;
@@ -253,7 +256,9 @@ export default function GoalsScreen() {
         skippedToday,
         primaryDomains,
         chronotype: profile?.chronotype ?? null,
-        droppedGoals: [replan.goalTitle],
+        ...(replan.action === 'added'
+          ? { addedGoals: [replan.goalTitle] }
+          : { droppedGoals: [replan.goalTitle] }),
       });
       setReplan((r) => ({ ...r, phase: 'preview', plan, existing }));
     } catch {
@@ -538,6 +543,7 @@ export default function GoalsScreen() {
           setShowAddSheet(false);
           if (userId) loadGoals(userId);
         }}
+        onGoalCreated={handleGoalCreated}
       />
 
       {detailGoal && userId && (

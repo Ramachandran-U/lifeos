@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'expo-router';
 import { View, StyleSheet, Modal, Pressable, ScrollView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -30,6 +29,9 @@ import type { GoalHierarchy } from '@/ai/types';
 interface AddGoalSheetProps {
   visible: boolean;
   onClose: () => void;
+  /** Fired with the new goal's title after a successful save, so the parent can
+   *  offer to work it into today's plan (gated). */
+  onGoalCreated?: (title: string) => void;
 }
 
 // How many milestones the user can edit inline. The full plan (12) is still
@@ -50,10 +52,9 @@ const GOAL_PLACEHOLDERS = [
   'I want to get fit and sleep better',
 ];
 
-export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
+export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
-  const router = useRouter();
   const getTypeColor = useGoalTypeColor();
   const { call, error } = useAI();
   const { userId, name } = useUserStore();
@@ -68,9 +69,6 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const [draftMilestones, setDraftMilestones] = useState<string[]>([]);
   const [domainType, setDomainType] = useState<string>('personal');
   const [timeline, setTimeline] = useState<string | null>(null);
-  // Opt-in (default off): open the routine editor after save so the user can
-  // fold this goal into their day. Replaces the old silent 7am focus-block.
-  const [updatePlan, setUpdatePlan] = useState(false);
 
   // BUG-012: a cold decompose call runs ~15-20s with no feedback. Show a
   // "still working" hint after 8s, and let the user abandon the wait.
@@ -103,7 +101,6 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
     setDraftYearly('');
     setDraftMilestones([]);
     setTimeline(null);
-    setUpdatePlan(false);
   };
 
   const handleDecompose = async () => {
@@ -159,13 +156,12 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     loadGoals(userId);
-    const shouldUpdatePlan = updatePlan;
+    const createdTitle = edited.primaryGoal.title;
     resetState();
+    // The goal already feeds future plans via the live-goal bridge; the parent
+    // may also offer to work it into the rest of today (gated, previewed, undoable).
+    onGoalCreated?.(createdTitle);
     onClose();
-    // Honest, explicit opt-in: open the (now goal-aware) routine editor so the
-    // user can fold this goal into their day — instead of a silent 7am block.
-    // The goal already feeds future plans automatically via the live-goal bridge.
-    if (shouldUpdatePlan) router.push('/(onboarding)/day1-routine?mode=edit');
   };
 
   const handleCancelDecompose = () => {
@@ -362,26 +358,6 @@ export function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
                   </View>
                 </Animated.View>
 
-                {/* UPDATE PLAN — explicit opt-in to fold the goal into the day now. */}
-                <Animated.View entering={FadeInDown.delay(300).duration(280)}>
-                  <Pressable
-                    style={[styles.toggleRow, { borderColor: updatePlan ? accent : c.border }]}
-                    onPress={() => { Haptics.selectionAsync().catch(() => {}); setUpdatePlan((v) => !v); }}
-                  >
-                    <Ionicons
-                      name={updatePlan ? 'checkbox' : 'square-outline'}
-                      size={22}
-                      color={updatePlan ? accent : c.textMuted}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>Update my routine now</Body>
-                      <Caption style={{ color: c.textSecondary }}>
-                        Opens your routine so you can work this goal into today. It already shapes your upcoming plans.
-                      </Caption>
-                    </View>
-                  </Pressable>
-                </Animated.View>
-
                 <Animated.View entering={FadeInDown.delay(360).duration(280)} style={styles.actions}>
                   <Button title="Save goal" onPress={handleSave} />
                   <Button title="Close" variant="ghost" onPress={handleClose} />
@@ -528,14 +504,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
   },
   actions: {
     gap: spacing.sm,

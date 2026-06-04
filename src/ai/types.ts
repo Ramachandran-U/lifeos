@@ -946,6 +946,9 @@ export interface ReplanRemainingDayInput {
   /** Titles of goals the user just removed or postponed. The rebalancer should
    *  free the time those blocks were taking and reallocate it, not reinstate them. */
   droppedGoals?: string[];
+  /** Titles of goals the user just added. The rebalancer should work a focused
+   *  block toward each into the remaining day (without overloading it). */
+  addedGoals?: string[];
 }
 
 // --- Tomorrow Routine (post-Reflect) ---
