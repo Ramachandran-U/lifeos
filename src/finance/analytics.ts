@@ -4,6 +4,8 @@
  * or React here so it's fully unit-testable.
  */
 
+import { localYmd } from '@/utils/dateKeys';
+
 export interface AnalyticsTx {
   date: string; // YYYY-MM-DD
   amount: number; // paise
@@ -82,23 +84,26 @@ export interface PeriodWindows {
 
 /**
  * Month-to-date window and the equivalent same-length window of the previous
- * month. Pure (inject `now`). Date strings use UTC (`toISOString`) to match how
- * transaction `date`s are derived, so boundary comparisons stay consistent.
+ * month. Pure (inject `now`). Boundaries are formatted as LOCAL dates (`localYmd`,
+ * NOT `toISOString`): in a positive-UTC-offset timezone (e.g. IST), local midnight
+ * is the *previous* UTC day, so a UTC-shifted `thisEnd` would fall before a
+ * UTC-dated "today" transaction and the inclusive `<= thisEnd` filter would drop
+ * it. Local formatting keeps `thisEnd` = the user's wall-clock today, ≥ any of
+ * today's transaction dates.
  */
 export function samePeriodMonthWindows(now: Date): PeriodWindows {
   const y = now.getFullYear();
   const m = now.getMonth();
   const d = now.getDate();
-  const iso = (dt: Date) => dt.toISOString().slice(0, 10);
 
   const prevMonthLastDay = new Date(y, m, 0).getDate(); // day 0 of this month = last day of prev
   const prevEndDay = Math.min(d, prevMonthLastDay);
 
   return {
-    thisStart: iso(new Date(y, m, 1)),
-    thisEnd: iso(new Date(y, m, d)),
-    prevStart: iso(new Date(y, m - 1, 1)),
-    prevEnd: iso(new Date(y, m - 1, prevEndDay)),
+    thisStart: localYmd(new Date(y, m, 1)),
+    thisEnd: localYmd(new Date(y, m, d)),
+    prevStart: localYmd(new Date(y, m - 1, 1)),
+    prevEnd: localYmd(new Date(y, m - 1, prevEndDay)),
     dayOfMonth: d,
   };
 }

@@ -420,8 +420,14 @@ export function addSuppression(
  */
 export async function forgetFact(fact: MemoryFact): Promise<void> {
   deleteFact(fact.id);
-  const embedding = fact.embedding ?? (await embedText(fact.text));
-  addSuppression(fact.userId, fact.text, embedding);
+  try {
+    const embedding = fact.embedding ?? (await embedText(fact.text));
+    addSuppression(fact.userId, fact.text, embedding);
+  } catch {
+    // The tombstone is best-effort: if embedding (network, when the fact had no
+    // stored embedding) or the write fails, the delete still stands — we must
+    // not surface an unhandled rejection. Worst case the fact can be re-derived.
+  }
 }
 
 /** Is this embedding suppressed (matches a tombstone)? No I/O beyond the read. */
