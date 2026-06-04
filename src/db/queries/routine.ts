@@ -35,6 +35,16 @@ function readBlockSnapshot(id: string): Record<string, unknown> | null {
   return row ? (row as unknown as Record<string, unknown>) : null;
 }
 
+/**
+ * A single routine block by id, or null. Used to re-validate a proposed coach
+ * action's `ref` against current state before committing it (see
+ * actionQueue.commitActions) — a ref captured at agent-run time may be stale by
+ * the time the user confirms.
+ */
+export function getRoutineBlockById(id: string): Record<string, unknown> | null {
+  return readBlockSnapshot(id);
+}
+
 type RoutineBlockInsert = {
   date: string;
   startTime: string;
