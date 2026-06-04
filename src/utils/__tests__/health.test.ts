@@ -119,4 +119,32 @@ describe('calorieTargets', () => {
     const active = calorieTargets({ ...base, activityLevel: 'active' });
     expect(active.calories).toBeGreaterThan(sedentary.calories);
   });
+
+  // The "stuck at 2000 kcal" bug: age is required by Mifflin–St Jeor, so a
+  // missing/invalid age must keep returning the generic fallback even when every
+  // other vital is supplied.
+  it('returns the generic 2000 fallback when age is missing or invalid', () => {
+    const full = { weightKg: 75, heightCm: 178, sex: 'male', activityLevel: 'moderate' } as const;
+    expect(calorieTargets({ ...full, age: null }).estimated).toBe(false);
+    expect(calorieTargets({ ...full, age: null }).calories).toBe(2000);
+    expect(calorieTargets({ ...full, age: 0 }).calories).toBe(2000);
+    expect(calorieTargets({ ...full, age: -1 }).calories).toBe(2000);
+  });
+
+  it('moves off the generic 2000 once age is supplied, and lowers with age', () => {
+    const base = { weightKg: 75, heightCm: 178, sex: 'male', activityLevel: 'moderate', goalType: 'maintain' } as const;
+    const young = calorieTargets({ ...base, age: 25 });
+    const older = calorieTargets({ ...base, age: 55 });
+    expect(young.estimated).toBe(true);
+    expect(young.calories).not.toBe(2000);
+    // BMR loses 5 kcal per year of age → the older target is lower.
+    expect(older.calories).toBeLessThan(young.calories);
+  });
+
+  it('floors men at 1500 kcal and women at 1200', () => {
+    // Small/older/sedentary + a deficit would otherwise land below both floors.
+    const base = { weightKg: 50, heightCm: 160, age: 70, activityLevel: 'sedentary', goalType: 'lose_weight' } as const;
+    expect(calorieTargets({ ...base, sex: 'male' }).calories).toBe(1500);
+    expect(calorieTargets({ ...base, sex: 'female' }).calories).toBe(1200);
+  });
 });

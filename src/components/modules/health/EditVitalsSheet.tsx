@@ -12,21 +12,29 @@ interface Props {
   visible: boolean;
   initialWeightKg: number | null;
   initialHeightCm: number | null;
+  initialAge?: number | null;
   initialSex?: string | null;
   initialActivityLevel?: string | null;
   onClose: () => void;
   onSave: (data: {
     weightKg?: number;
     heightCm?: number;
+    age?: number;
     sex?: string;
     activityLevel?: string;
   }) => void;
 }
 
+// Age bounds for the calorie formula: below 13 the Mifflin–St Jeor adult
+// equation doesn't apply, and >100 is almost always a typo that would skew BMR.
+const MIN_AGE = 13;
+const MAX_AGE = 100;
+
 export function EditVitalsSheet({
   visible,
   initialWeightKg,
   initialHeightCm,
+  initialAge,
   initialSex,
   initialActivityLevel,
   onClose,
@@ -36,6 +44,7 @@ export function EditVitalsSheet({
   const styles = makeStyles(c);
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
+  const [age, setAge] = useState('');
   const [sex, setSex] = useState<string | null>(null);
   const [activity, setActivity] = useState<string | null>(null);
 
@@ -43,17 +52,22 @@ export function EditVitalsSheet({
     if (visible) {
       setWeight(initialWeightKg != null ? String(initialWeightKg) : '');
       setHeight(initialHeightCm != null ? String(initialHeightCm) : '');
+      setAge(initialAge != null ? String(initialAge) : '');
       setSex(initialSex ?? null);
       setActivity(initialActivityLevel ?? null);
     }
-  }, [visible, initialWeightKg, initialHeightCm, initialSex, initialActivityLevel]);
+  }, [visible, initialWeightKg, initialHeightCm, initialAge, initialSex, initialActivityLevel]);
 
   const handleSave = () => {
     const w = parseFloat(weight);
     const h = parseFloat(height);
-    const payload: { weightKg?: number; heightCm?: number; sex?: string; activityLevel?: string } = {};
+    const a = parseInt(age, 10);
+    const payload: { weightKg?: number; heightCm?: number; age?: number; sex?: string; activityLevel?: string } = {};
     if (Number.isFinite(w) && w > 0 && w !== initialWeightKg) payload.weightKg = w;
     if (Number.isFinite(h) && h > 0 && h !== initialHeightCm) payload.heightCm = h;
+    // Age is the gating input for a personalised target — Mifflin–St Jeor needs
+    // it, and without it the engine returns the generic 2000 kcal fallback.
+    if (Number.isFinite(a) && a >= MIN_AGE && a <= MAX_AGE && a !== initialAge) payload.age = a;
     if (sex && sex !== initialSex) payload.sex = sex;
     if (activity && activity !== initialActivityLevel) payload.activityLevel = activity;
     onSave(payload);
@@ -68,7 +82,7 @@ export function EditVitalsSheet({
             <View style={styles.handle} />
             <Heading style={styles.title}>Update vitals</Heading>
             <Body style={styles.subtitle}>
-              Weight is logged daily. Height, sex, and activity tune your calorie target.
+              Weight is logged daily. Age, height, sex, and activity tune your calorie target.
             </Body>
 
             <Input
@@ -84,6 +98,13 @@ export function EditVitalsSheet({
               value={height}
               onChangeText={setHeight}
               keyboardType="decimal-pad"
+            />
+            <Input
+              label="Age"
+              placeholder="30"
+              value={age}
+              onChangeText={setAge}
+              keyboardType="number-pad"
             />
 
             <Label style={styles.fieldLabel}>Sex (for calorie accuracy)</Label>

@@ -198,8 +198,10 @@ export function calorieTargets(input: {
   const tdee = bmr * activity;
 
   const tuning = GOAL_TUNING[(goalType as HealthGoalType) ?? 'maintain'] ?? GOAL_TUNING.maintain;
-  // Floor at 1200 kcal — never recommend a target below a safe minimum.
-  const calories = Math.max(1200, Math.round((tdee * tuning.calorieFactor) / 10) * 10);
+  // Sex-aware safe floor — never recommend below the standard minimum: ~1500
+  // kcal for men, ~1200 for women (and the sex-neutral case).
+  const floor = sex === 'male' ? 1500 : 1200;
+  const calories = Math.max(floor, Math.round((tdee * tuning.calorieFactor) / 10) * 10);
 
   const protein = Math.round(tuning.proteinPerKg * weightKg);
   const fat = Math.round((calories * 0.25) / 9); // 25% of energy from fat

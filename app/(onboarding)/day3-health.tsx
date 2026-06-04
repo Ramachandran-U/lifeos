@@ -50,6 +50,7 @@ export default function Day3HealthScreen() {
 
   const [weight, setWeight] = useState('');
   const [heightCm, setHeightCm] = useState('');
+  const [age, setAge] = useState('');
   const [sleepTargetHours, setSleepTargetHours] = useState(8);
   const [goalType, setGoalType] = useState<string>('build_strength');
   const [sex, setSex] = useState<string | null>(null);
@@ -57,6 +58,8 @@ export default function Day3HealthScreen() {
 
   const weightNum = parseFloat(weight) || 0;
   const heightNum = parseFloat(heightCm) || 0;
+  const ageNum = parseInt(age, 10);
+  const ageValid = Number.isFinite(ageNum) && ageNum >= 13 && ageNum <= 100;
   const canSave = weightNum > 0 || heightNum > 0; // either is enough to start
 
   const handleSave = () => {
@@ -66,6 +69,7 @@ export default function Day3HealthScreen() {
       // chosen health goal. These feed the Health Hub + routine/health prompts.
       updateUser(userId, {
         ...(heightNum > 0 ? { heightCm: heightNum } : {}),
+        ...(ageValid ? { age: ageNum } : {}),
         ...(sex ? { sex } : {}),
         ...(activityLevel ? { activityLevel } : {}),
         sleepTargetHours,
@@ -132,6 +136,17 @@ export default function Day3HealthScreen() {
                 />
               </View>
             </View>
+
+            <Input
+              label="Age"
+              value={age}
+              onChangeText={setAge}
+              keyboardType="number-pad"
+              placeholder="30"
+            />
+            <Caption style={{ color: c.textMuted }}>
+              Age is needed to personalise your calorie target — otherwise it stays a generic estimate.
+            </Caption>
 
             <Label style={styles.fieldLabel}>Sleep target</Label>
             <View style={styles.chipRow}>

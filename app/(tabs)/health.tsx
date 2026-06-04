@@ -280,14 +280,15 @@ export default function HealthScreen() {
     return groups;
   }, [foodEntries]);
 
-  const handleSaveVitals = (data: { weightKg?: number; heightCm?: number; sex?: string; activityLevel?: string }) => {
+  const handleSaveVitals = (data: { weightKg?: number; heightCm?: number; age?: number; sex?: string; activityLevel?: string }) => {
     if (data.weightKg != null) {
       createHealthLog({ date: today, weight: data.weightKg });
       logBehaviourEvent('weight_logged', 'health');
       if (userId) addXP(userId, 10);
     }
-    const profile: { heightCm?: number; sex?: string; activityLevel?: string } = {};
+    const profile: { heightCm?: number; age?: number; sex?: string; activityLevel?: string } = {};
     if (data.heightCm != null) profile.heightCm = data.heightCm;
+    if (data.age != null) profile.age = data.age;
     if (data.sex != null) profile.sex = data.sex;
     if (data.activityLevel != null) profile.activityLevel = data.activityLevel;
     if (userId && Object.keys(profile).length > 0) {
@@ -501,6 +502,12 @@ export default function HealthScreen() {
               fatTarget={targets.fat}
             />
 
+            <Caption style={{ color: c.textMuted }}>
+              {targets.estimated
+                ? 'Estimated from your vitals — a guide, not medical advice.'
+                : 'Generic estimate. Add your age + vitals to personalise — not medical advice.'}
+            </Caption>
+
             <View style={styles.mealsSection}>
               <Body style={styles.sectionTitle}>Today&apos;s Meals</Body>
               {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((meal) => (
@@ -596,6 +603,7 @@ export default function HealthScreen() {
         visible={showEditVitals}
         initialWeightKg={trend.latest}
         initialHeightCm={heightCm}
+        initialAge={userAge}
         initialSex={sex}
         initialActivityLevel={activityLevel}
         onClose={() => setShowEditVitals(false)}
