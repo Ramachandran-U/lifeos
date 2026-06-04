@@ -112,6 +112,9 @@ import {
   AnnualReviewInput,
   MonthlyMoneyReview,
   MonthlyMoneyReviewSchema,
+  ArchitectLetter,
+  ArchitectLetterSchema,
+  ArchitectLetterInput,
 } from './types';
 import type { MoneyReviewInput } from '@/finance/moneyReview';
 import { DISCOVERY_EXTRACTION_PROMPT } from './prompts/discovery';
@@ -145,6 +148,8 @@ import { TRAJECTORY_PROMPT } from './prompts/trajectory';
 import { buildMockTrajectoryAssessment } from './mocks/trajectory';
 import { ANNUAL_REVIEW_PROMPT } from './prompts/annualReview';
 import { buildMockAnnualReview } from './mocks/annualReview';
+import { ARCHITECT_LETTER_PROMPT } from './prompts/architectLetter';
+import { buildMockArchitectLetter } from './mocks/architectLetter';
 import { MONEY_REVIEW_PROMPT } from './prompts/moneyReview';
 import { buildMockMoneyReview } from './mocks/moneyReview';
 import { MOCK_ROUTINE, buildMockReplanRemainingDay, buildMockTomorrowRoutine, buildMockWeekRoutine } from './mocks/routine';
@@ -886,5 +891,34 @@ export async function generateAnnualReview(input: AnnualReviewInput): Promise<An
     return AnnualReviewSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateAnnualReview', 'AnnualReview', response, err);
+  }
+}
+
+/**
+ * The Architect's Letter — a periodic, honest cross-domain reflection.
+ *
+ * Reads a slice of intention (vision, stated priorities, values) against a slice
+ * of behaviour (time per domain, streaks, routine completion, cognition signals)
+ * and returns a short personal letter that names ONE cross-domain tension and ONE
+ * brave move. Reasoning-tier: this is the most synthesis-heavy call in the app.
+ */
+export async function generateArchitectLetter(
+  input: ArchitectLetterInput,
+): Promise<ArchitectLetter> {
+  if (isMock) return buildMockArchitectLetter(input);
+
+  const response = await callAI({
+    system: ARCHITECT_LETTER_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateArchitectLetter'),
+    cacheSystem: true,
+    task: 'generateArchitectLetter',
+    maxTokens: 1600,
+  });
+
+  try {
+    return ArchitectLetterSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateArchitectLetter', 'ArchitectLetter', response, err);
   }
 }

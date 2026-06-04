@@ -970,3 +970,68 @@ export interface GenerateWeekRoutineInput {
     goals: number; health: number; finance: number; career: number; social: number; polymath: number;
   }>;
 }
+
+// --- The Architect's Letter (cross-domain reflective synthesis) ---
+// A periodic letter that holds an honest mirror across ALL six engines at once.
+// Unlike per-domain insights, it contrasts what the user SAID matters (vision,
+// stated priorities, values) with what their LOGS show (time per domain, streaks,
+// routine completion), names exactly ONE cross-domain tension, and ends with
+// exactly ONE brave, specific move. It is the one prompt allowed to be honest
+// about the gap between intention and behaviour.
+//
+// Privacy: contact names NEVER reach this call — the social domain is represented
+// only as minutes + streak state, consistent with the social-types contract above.
+
+export const ArchitectLetterSchema = z.object({
+  // Opening line — e.g. "Dear Arjun," (first name only, or a warm generic).
+  greeting: z.string().min(1),
+  // 2-5 short paragraphs. The letter body, in the architect's voice.
+  body: z.array(z.string().min(1)).min(2).max(5),
+  // The single synthesis ACROSS domains — the heart of the letter. One sentence
+  // or two that names a tension no single engine could see on its own.
+  crossDomainInsight: z.string().min(1),
+  // Which domains the tension sits between (1-3).
+  domainsInTension: z.array(PrimaryDomainEnum).min(1).max(3),
+  // Exactly ONE brave, specific, doable move — never a to-do list.
+  oneBraveMove: z.object({
+    action: z.string().min(1),
+    domain: PrimaryDomainEnum,
+    why: z.string().min(1),
+  }),
+  // A warm, forward-looking closing line.
+  closing: z.string().min(1),
+  // Sign-off — defaults to "— Your Life Architect".
+  signature: z.string().min(1),
+  // The letter's own honesty about how much signal it had. Thin data => 'low'.
+  confidence: z.enum(['high', 'medium', 'low']),
+});
+export type ArchitectLetter = z.infer<typeof ArchitectLetterSchema>;
+
+/** One domain's intention-vs-behaviour signal for the window. */
+export interface ArchitectLetterDomainSignal {
+  domain: PrimaryDomain;
+  minutesThisWindow: number;
+  minutesPrevWindow: number;
+  /** Did the user choose this domain as something that matters to them? */
+  isStatedPriority: boolean;
+}
+
+export interface ArchitectLetterInput {
+  name: string | null;
+  period: 'week' | 'month';
+  windowDays: number;
+  // What the user SAID matters (intention) ----------------------------------
+  vision: string | null;
+  statedPriorities: string[];        // chosen focus domains / top goal titles
+  values: string[];                  // up to ~5
+  // What the LOGS show (behaviour) — the cross-domain mirror ----------------
+  domains: ArchitectLetterDomainSignal[];
+  routine: { completionRate: number; blocksCompleted: number; blocksPlanned: number };
+  streaks: Array<{ key: string; current: number; brokeThisWindow: boolean }>;
+  // Signals the cognition layer already detected — this letter gives them a voice.
+  stagnantDomains: string[];         // from the domain-stagnation detector (src/cognition)
+  overcommitted: boolean;            // from the overcommitment detector
+  // The user's own recent words, for grounding. Free text, no other PII.
+  recentReflectionSnippets: string[];
+  lifeScore: { current: number; delta: number };
+}

@@ -53,6 +53,7 @@ export type AITask =
   | 'generateDailyBriefing'
   | 'assessTrajectory'
   | 'generateAnnualReview'
+  | 'generateArchitectLetter'
   | 'generateMoneyReview'
   | 'consolidateMemory'
   | 'rebalanceGoals'
@@ -109,6 +110,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   'agent.exploreThread': 'planning',
 
   parseBloodReport: 'reasoning',
+  // The flagship synthesis call — cross-domain reasoning + a literate voice.
+  generateArchitectLetter: 'reasoning',
 };
 
 export function pickModel(task: AITask): string {
