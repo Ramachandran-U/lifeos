@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useUserStore, type DomainId } from '@/store/useUserStore';
 import { resolveGuardRedirect } from '@/utils/routeGuard';
 import { AchievementToast } from '@/components/shared/AchievementToast';
+import { AddToHomeScreenPrompt } from '@/components/shared/AddToHomeScreenPrompt';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
 import { RewardOrchestrator } from '@/components/gamification/RewardOrchestrator';
@@ -150,6 +151,9 @@ export default function RootLayout() {
         </ErrorBoundary>
         <RewardOrchestrator />
         <AchievementToast />
+        {/* Web-only install nudge; self-gates to iOS Safari / Android Chrome that
+            isn't already installed. Renders null on native + everywhere else. */}
+        <AddToHomeScreenPrompt />
         <LevelUpOverlay level={pendingLevelUp} userName={name ?? undefined} onClose={dismissLevelUp} />
       </QueryClientProvider>
     </GestureHandlerRootView>
