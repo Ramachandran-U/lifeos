@@ -240,3 +240,49 @@ export function computeSocialScore(contactsList: Contact[]): number | null {
   const inCadence = contactsList.filter((c) => !computeOverdue(c).isOverdue).length;
   return Math.round((inCadence / contactsList.length) * 100);
 }
+
+// ─── Birthdays ────────────────────────────────────────────────────────────────
+
+/** Parse a stored birthday ("YYYY-MM-DD" or year-less "MM-DD") → {month, day}, or null. */
+export function parseBirthday(birthday: string | null | undefined): { month: number; day: number } | null {
+  if (!birthday) return null;
+  const m = birthday.match(/^(?:\d{4}-)?(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { month, day };
+}
+
+/**
+ * Days until the NEXT occurrence of a birthday from `today` (0 = today,
+ * 1 = tomorrow). Year-agnostic — works for "MM-DD". null if unparseable.
+ */
+export function daysUntilBirthday(birthday: string | null | undefined, today: Date = new Date()): number | null {
+  const md = parseBirthday(birthday);
+  if (!md) return null;
+  const y = today.getFullYear();
+  let next = new Date(y, md.month - 1, md.day);
+  if (differenceInCalendarDays(next, today) < 0) {
+    // Already passed this year → next occurrence is next year.
+    next = new Date(y + 1, md.month - 1, md.day);
+  }
+  return differenceInCalendarDays(next, today);
+}
+
+export interface UpcomingBirthday {
+  contact: Contact;
+  daysUntil: number;
+}
+
+/** Contacts whose birthday falls within `withinDays`, soonest first. Pure. */
+export function upcomingBirthdays(
+  contactsList: Contact[],
+  today: Date = new Date(),
+  withinDays = 30,
+): UpcomingBirthday[] {
+  return contactsList
+    .map((contact) => ({ contact, daysUntil: daysUntilBirthday(contact.birthday, today) }))
+    .filter((x): x is UpcomingBirthday => x.daysUntil !== null && x.daysUntil <= withinDays)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+}
