@@ -327,6 +327,16 @@ export const memoryFacts = sqliteTable('memory_facts', {
   expiresAt: text('expires_at'), // nullable; null = no expiry
 });
 
+// Tombstones for facts the user deleted — consolidation skips re-deriving
+// anything semantically matching one of these, so "forget" actually sticks.
+export const memorySuppressions = sqliteTable('memory_suppressions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  text: text('text').notNull(), // the deleted fact's text (for display/debug)
+  embedding: text('embedding'), // JSON number[] — matched by JS-cosine
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Behaviour Events ---
 export const behaviourEvents = sqliteTable('behaviour_events', {
   id: text('id').primaryKey(),

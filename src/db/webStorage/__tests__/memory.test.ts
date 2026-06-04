@@ -18,7 +18,10 @@ import {
   webUpdateFact,
   webDeleteFact,
   webDeleteAllFactsForUser,
+  webGetSuppressionsByUser,
+  webInsertSuppression,
   type WebMemoryFact,
+  type WebMemorySuppression,
 } from '../memory';
 
 function row(over: Partial<WebMemoryFact>): WebMemoryFact {
@@ -72,4 +75,18 @@ it('deletes all facts for one user only', () => {
   webDeleteAllFactsForUser('u1');
   expect(webGetFactsByUser('u1')).toHaveLength(0);
   expect(webGetFactsByUser('u2').map((f) => f.id)).toEqual(['b']);
+});
+
+it('stores and reads suppression tombstones scoped to a user', () => {
+  const sup = (over: Partial<WebMemorySuppression>): WebMemorySuppression => ({
+    id: Math.random().toString(36).slice(2),
+    userId: 'u1',
+    text: 'forgotten fact',
+    embedding: JSON.stringify([1, 0]),
+    createdAt: '2026-06-04T00:00:00.000Z',
+    ...over,
+  });
+  webInsertSuppression(sup({ id: 's1', userId: 'u1' }));
+  webInsertSuppression(sup({ id: 's2', userId: 'u2' }));
+  expect(webGetSuppressionsByUser('u1').map((s) => s.id)).toEqual(['s1']);
 });

@@ -378,6 +378,15 @@ export async function initDatabase() {
     );
     CREATE INDEX IF NOT EXISTS memory_facts_user_idx ON memory_facts (user_id, last_seen_at);
 
+    CREATE TABLE IF NOT EXISTS memory_suppressions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      embedding TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS memory_suppressions_user_idx ON memory_suppressions (user_id);
+
     CREATE TABLE IF NOT EXISTS ai_suggestions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,

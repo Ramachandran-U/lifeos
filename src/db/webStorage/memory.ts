@@ -1,5 +1,5 @@
 import { load, save } from './_io';
-import { MEMORY_FACTS_KEY } from './_keys';
+import { MEMORY_FACTS_KEY, MEMORY_SUPPRESSIONS_KEY } from './_keys';
 
 /**
  * Web (localStorage) persistence for durable memory facts — the web counterpart
@@ -45,4 +45,23 @@ export function webDeleteFact(id: string): void {
 
 export function webDeleteAllFactsForUser(userId: string): void {
   save(MEMORY_FACTS_KEY, load<WebMemoryFact>(MEMORY_FACTS_KEY).filter((r) => r.userId !== userId));
+}
+
+/** Tombstone for a deleted fact (so consolidation won't re-derive it). */
+export interface WebMemorySuppression {
+  id: string;
+  userId: string;
+  text: string;
+  embedding: string | null; // JSON number[]
+  createdAt: string;
+}
+
+export function webGetSuppressionsByUser(userId: string): WebMemorySuppression[] {
+  return load<WebMemorySuppression>(MEMORY_SUPPRESSIONS_KEY).filter((r) => r.userId === userId);
+}
+
+export function webInsertSuppression(row: WebMemorySuppression): void {
+  const all = load<WebMemorySuppression>(MEMORY_SUPPRESSIONS_KEY);
+  all.push(row);
+  save(MEMORY_SUPPRESSIONS_KEY, all);
 }

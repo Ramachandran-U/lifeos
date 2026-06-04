@@ -13,7 +13,7 @@ import { Card } from '@/components/ui/Card';
 import { useUserStore } from '@/store/useUserStore';
 import {
   getFactsByUser,
-  deleteFact,
+  forgetFact,
   deleteAllFactsForUser,
   decayedSalience,
   isFactLive,
@@ -74,8 +74,9 @@ export default function WhatLifeOSRemembersScreen() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteFact(id);
+  const handleForget = (fact: MemoryFact) => {
+    // Deletes AND tombstones, so the next "Refresh" won't re-learn it.
+    void forgetFact(fact);
     if (Platform.OS !== 'web') Haptics.selectionAsync();
     load();
   };
@@ -164,7 +165,7 @@ export default function WhatLifeOSRemembersScreen() {
                             <Caption style={styles.provenance}>{provenance}</Caption>
                           </View>
                         </View>
-                        <Pressable onPress={() => handleDelete(f.id)} hitSlop={10} style={styles.deleteBtn}>
+                        <Pressable onPress={() => handleForget(f)} hitSlop={10} style={styles.deleteBtn}>
                           <Ionicons name="close" size={16} color={c.textMuted} />
                         </Pressable>
                       </View>

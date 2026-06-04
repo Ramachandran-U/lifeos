@@ -2,12 +2,14 @@ import {
   decayedSalience,
   isFactLive,
   findDuplicate,
+  isSuppressed,
   rankFactsBySimilarity,
   formatSourceWindow,
   relativeSince,
   DEFAULT_HALF_LIFE_DAYS,
   MIN_EFFECTIVE_SALIENCE,
   type MemoryFact,
+  type MemorySuppression,
 } from '../rag/memoryStore';
 
 const NOW = Date.parse('2026-05-30T00:00:00Z');
@@ -69,6 +71,28 @@ describe('findDuplicate', () => {
   it('ignores facts without an embedding', () => {
     const existing = [fact({ id: 'a', embedding: null })];
     expect(findDuplicate([1, 0], existing)).toBeNull();
+  });
+});
+
+describe('isSuppressed', () => {
+  const sup = (over: Partial<MemorySuppression> = {}): MemorySuppression => ({
+    id: 's1',
+    userId: 'u1',
+    text: 'forgotten',
+    embedding: [1, 0],
+    createdAt: '2026-05-30T00:00:00.000Z',
+    ...over,
+  });
+
+  it('is true when an embedding matches a tombstone above threshold', () => {
+    expect(isSuppressed([1, 0], [sup({ embedding: [1, 0] })])).toBe(true);
+  });
+  it('is false when nothing is similar enough', () => {
+    expect(isSuppressed([1, 0], [sup({ embedding: [0, 1] })])).toBe(false);
+  });
+  it('ignores tombstones without an embedding, and an empty list', () => {
+    expect(isSuppressed([1, 0], [sup({ embedding: null })])).toBe(false);
+    expect(isSuppressed([1, 0], [])).toBe(false);
   });
 });
 

@@ -13,14 +13,17 @@ import { Platform } from 'react-native';
 import { eq } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '@/db';
-import { memoryFacts } from '@/db/schema';
+import { memoryFacts, memorySuppressions } from '@/db/schema';
 import {
   webGetFactsByUser,
   webInsertFact,
   webUpdateFact,
   webDeleteFact,
   webDeleteAllFactsForUser,
+  webGetSuppressionsByUser,
+  webInsertSuppression,
   type WebMemoryFact,
+  type WebMemorySuppression,
 } from '@/db/webStorage/memory';
 import { embedText } from './embed';
 import { cosine } from './retrieve';
@@ -40,6 +43,14 @@ export interface MemoryFact {
   lastSeenAt: string;
   expiresAt: string | null;
   embedding: number[] | null;
+}
+
+export interface MemorySuppression {
+  id: string;
+  userId: string;
+  text: string;
+  embedding: number[] | null;
+  createdAt: string;
 }
 
 /** Cosine ≥ this between two facts means they're the same fact (merge, don't duplicate). */
@@ -89,6 +100,18 @@ export function findDuplicate(
     }
   }
   return best;
+}
+
+/** True if an embedding matches any suppression tombstone (≥ threshold). Pure. */
+export function isSuppressed(
+  embedding: number[],
+  suppressions: MemorySuppression[],
+  threshold = DEDUP_THRESHOLD,
+): boolean {
+  for (const s of suppressions) {
+    if (s.embedding && cosine(embedding, s.embedding) >= threshold) return true;
+  }
+  return false;
 }
 
 /**
@@ -311,4 +334,74 @@ export function deleteAllFactsForUser(userId: string): void {
     return;
   }
   db.delete(memoryFacts).where(eq(memoryFacts.userId, userId)).run();
+}
+
+// --- suppression tombstones (so "forget" sticks across consolidations) ---
+
+function decodeSuppression(r: {
+  id: string;
+  userId: string;
+  text: string;
+  embedding: string | null;
+  createdAt: string;
+}): MemorySuppression {
+  let embedding: number[] | null = null;
+  if (r.embedding) {
+    try {
+      const parsed = JSON.parse(r.embedding);
+      if (Array.isArray(parsed)) embedding = parsed as number[];
+    } catch {
+      embedding = null;
+    }
+  }
+  return { id: r.id, userId: r.userId, text: r.text, embedding, createdAt: r.createdAt };
+}
+
+export function getSuppressions(userId: string): MemorySuppression[] {
+  if (isWeb) return webGetSuppressionsByUser(userId).map(decodeSuppression);
+  return db
+    .select()
+    .from(memorySuppressions)
+    .where(eq(memorySuppressions.userId, userId))
+    .all()
+    .map(decodeSuppression);
+}
+
+export function addSuppression(
+  userId: string,
+  text: string,
+  embedding: number[] | null,
+  nowMs?: number,
+): void {
+  const row: WebMemorySuppression = {
+    id: nanoid(),
+    userId,
+    text,
+    embedding: embedding ? JSON.stringify(embedding) : null,
+    createdAt: new Date(nowMs ?? Date.now()).toISOString(),
+  };
+  if (isWeb) {
+    webInsertSuppression(row);
+    return;
+  }
+  db.insert(memorySuppressions).values(row).run();
+}
+
+/**
+ * Delete a fact AND tombstone it, so the next consolidation won't re-derive the
+ * same thing. The sync delete happens before any await, so a UI reload right
+ * after sees the fact gone immediately.
+ */
+export async function forgetFact(fact: MemoryFact): Promise<void> {
+  deleteFact(fact.id);
+  const embedding = fact.embedding ?? (await embedText(fact.text));
+  addSuppression(fact.userId, fact.text, embedding);
+}
+
+/** Has a fact with this text been suppressed by the user? Embeds + checks. */
+export async function isFactSuppressed(userId: string, text: string): Promise<boolean> {
+  const suppressions = getSuppressions(userId);
+  if (suppressions.length === 0) return false;
+  const embedding = await embedText(text);
+  return isSuppressed(embedding, suppressions);
 }

@@ -29,3 +29,4 @@ export const EXPEDITIONS_KEY = 'lifeos_expeditions';
 export const EXPEDITION_PROGRESS_KEY = 'lifeos_expedition_progress';
 export const SPARKS_KEY = 'lifeos_sparks';
 export const MEMORY_FACTS_KEY = 'lifeos_memory_facts';
+export const MEMORY_SUPPRESSIONS_KEY = 'lifeos_memory_suppressions';
