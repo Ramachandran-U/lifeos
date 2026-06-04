@@ -35,6 +35,7 @@ const POST_ONBOARDING_ROUTES = new Set([
   'contact',
   'data-residency',
   'what-lifeos-knows',
+  'activity',
   'settings',
   'terms-privacy',
   'edit-priorities',

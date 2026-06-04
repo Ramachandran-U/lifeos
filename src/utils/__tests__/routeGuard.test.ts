@@ -49,6 +49,7 @@ describe('resolveGuardRedirect — onboarded allowlist', () => {
   it.each([
     'annual-review', 'monthly-insight', 'chat', 'settings', 'feedback',
     'contact', 'evening-reflect', 'how-it-works', 'notifications-settings',
+    'activity',
   ])('allows post-onboarding route: %s', (seg0) => {
     expect(resolveGuardRedirect(state({ seg0 }))).toBeNull();
   });
