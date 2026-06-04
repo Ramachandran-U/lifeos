@@ -5,6 +5,7 @@
  */
 
 import type { RecurringItemRecord } from '@/finance/db/transactionDb';
+import { isoToUtcDays } from '@/utils/dateKeys';
 
 const MONTH_SHORT = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -46,12 +47,6 @@ export function summarizeRecurring(items: RecurringItemRecord[]): RecurringSumma
     0,
   );
   return { subscriptions, bills, monthlySubscriptionTotalPaise };
-}
-
-function isoToUtcDays(iso: string): number | null {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000;
 }
 
 /**

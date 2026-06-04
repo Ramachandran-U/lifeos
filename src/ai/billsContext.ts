@@ -15,6 +15,7 @@ import type { RecurringItemRecord, RecurringKind } from '@/finance/db/transactio
 import { getActiveRecurringItems } from '@/finance/db/transactionDb';
 import { formatDueLabel } from '@/finance/recurringSummary';
 import { formatInr } from '@/finance/display';
+import { todayKey, isoToUtcDays } from '@/utils/dateKeys';
 
 /** Bills due / subscriptions renewing within this many days count as "upcoming". */
 const DEFAULT_WINDOW_DAYS = 7;
@@ -33,16 +34,6 @@ export async function fetchActiveRecurring(): Promise<RecurringItemRecord[] | nu
   }
 }
 
-function isoDays(iso: string): number | null {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000;
-}
-
-function todayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 /**
  * Pure: items with a due date that is overdue or within `withinDays`, soonest
@@ -53,12 +44,12 @@ export function selectUpcomingRecurring(
   todayIso: string,
   withinDays = DEFAULT_WINDOW_DAYS,
 ): RecurringItemRecord[] {
-  const today = isoDays(todayIso);
+  const today = isoToUtcDays(todayIso);
   if (today == null) return [];
   return items
     .filter((i) => {
       if (!i.dueDate) return false;
-      const d = isoDays(i.dueDate);
+      const d = isoToUtcDays(i.dueDate);
       return d != null && d - today <= withinDays; // overdue (negative) through +withinDays
     })
     .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));

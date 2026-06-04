@@ -17,7 +17,8 @@ import { pickModel } from '../modelRouter';
 import { CONSOLIDATE_MEMORY_PROMPT } from '../prompts/memory';
 import { getEventsLastNDays } from '@/db/queries/behaviour';
 import { getRecentReflections } from '@/db/queries/reflections';
-import { upsertFact, isFactSuppressed, type MemoryFactKind } from '../rag/memoryStore';
+import { upsertFact, isEmbeddingSuppressed, type MemoryFactKind } from '../rag/memoryStore';
+import { embedText } from '../rag/embed';
 
 const isMock = () =>
   process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
@@ -135,12 +136,24 @@ export async function consolidateMemory(
   const today = opts.today ?? format(new Date(), 'yyyy-MM-dd');
   const sourceWindow = `${format(subDays(new Date(today), windowDays), 'yyyy-MM-dd')}..${today}`;
 
+  // Embed each proposed fact's text only once, shared between the suppression
+  // check and the upsert (both need the same embedding).
+  const embedCache = new Map<string, number[]>();
+  const embedOnce = async (text: string): Promise<number[]> => {
+    let e = embedCache.get(text);
+    if (!e) {
+      e = await embedText(text);
+      embedCache.set(text, e);
+    }
+    return e;
+  };
+
   return runConsolidation({
     gatherSignal: () => buildWindowSignal(windowDays),
     consolidate: consolidateViaAI,
-    shouldSuppress: (fact) => isFactSuppressed(userId, fact.text),
+    shouldSuppress: async (fact) => isEmbeddingSuppressed(userId, await embedOnce(fact.text)),
     upsert: async (fact) => {
-      await upsertFact({ userId, kind: fact.kind, text: fact.text, sourceWindow });
+      await upsertFact({ userId, kind: fact.kind, text: fact.text, sourceWindow }, undefined, await embedOnce(fact.text));
     },
   });
 }

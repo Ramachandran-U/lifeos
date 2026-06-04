@@ -18,6 +18,7 @@
 import type { RagItem } from './rag/retrieve';
 import { listCalendarEvents, type CalendarEvent } from '@/integrations/googleCalendar/client';
 import { isCalendarConnected } from '@/integrations/googleCalendar/oauth';
+import { todayKey } from '@/utils/dateKeys';
 
 /** A day with this many minutes of commitments is "heavy" — flag it to the planner. */
 const HEAVY_DAY_MINUTES = 240;
@@ -79,11 +80,6 @@ export function eventsToRagItems(events: CalendarEvent[], date: string): RagItem
   }
 
   return items;
-}
-
-function todayKey(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /**

@@ -80,6 +80,7 @@ export default function ExploreScreen() {
     log,
     load,
     addInterest,
+    addInterests,
     editInterest,
     removeInterest,
     addExploration,
@@ -284,14 +285,14 @@ export default function ExploreScreen() {
 
   const handleYouTubeImport = (items: YouTubeImportedInterest[]) => {
     if (!userId || items.length === 0) return;
-    items.forEach((it) =>
-      addInterest({
+    addInterests(
+      items.map((it) => ({
         userId,
         name: it.name,
         category: it.category,
         weeklyMinutesTarget: it.weeklyMinutesTarget,
         discoveredBy: 'youtube',
-      }),
+      })),
     );
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };

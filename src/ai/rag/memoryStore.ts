@@ -188,16 +188,18 @@ export function relativeSince(iso: string, now: number): string {
 
 // --- storage-bound (native SQLite / web localStorage) ---
 
-function decodeRow(r: typeof memoryFacts.$inferSelect): MemoryFact {
-  let embedding: number[] | null = null;
-  if (r.embedding) {
-    try {
-      const parsed = JSON.parse(r.embedding);
-      if (Array.isArray(parsed)) embedding = parsed as number[];
-    } catch {
-      embedding = null;
-    }
+/** Parse a JSON-encoded number[] embedding column; null on absence/parse error. */
+function parseEmbedding(raw: string | null): number[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as number[]) : null;
+  } catch {
+    return null;
   }
+}
+
+function decodeRow(r: typeof memoryFacts.$inferSelect): MemoryFact {
   return {
     id: r.id,
     userId: r.userId,
@@ -209,20 +211,11 @@ function decodeRow(r: typeof memoryFacts.$inferSelect): MemoryFact {
     createdAt: r.createdAt,
     lastSeenAt: r.lastSeenAt,
     expiresAt: r.expiresAt,
-    embedding,
+    embedding: parseEmbedding(r.embedding),
   };
 }
 
 function decodeWebRow(r: WebMemoryFact): MemoryFact {
-  let embedding: number[] | null = null;
-  if (r.embedding) {
-    try {
-      const parsed = JSON.parse(r.embedding);
-      if (Array.isArray(parsed)) embedding = parsed as number[];
-    } catch {
-      embedding = null;
-    }
-  }
   return {
     id: r.id,
     userId: r.userId,
@@ -234,7 +227,7 @@ function decodeWebRow(r: WebMemoryFact): MemoryFact {
     createdAt: r.createdAt,
     lastSeenAt: r.lastSeenAt,
     expiresAt: r.expiresAt,
-    embedding,
+    embedding: parseEmbedding(r.embedding),
   };
 }
 
@@ -261,8 +254,12 @@ export interface UpsertFactInput {
  * Insert a fact, or — if a near-identical one already exists — bump its salience
  * and lastSeenAt instead of duplicating. Returns the fact id (existing on merge).
  */
-export async function upsertFact(input: UpsertFactInput, nowMs?: number): Promise<string> {
-  const embedding = await embedText(input.text);
+export async function upsertFact(
+  input: UpsertFactInput,
+  nowMs?: number,
+  precomputedEmbedding?: number[],
+): Promise<string> {
+  const embedding = precomputedEmbedding ?? (await embedText(input.text));
   const now = nowMs ?? Date.now();
   const nowIso = new Date(now).toISOString();
 
@@ -383,16 +380,7 @@ function decodeSuppression(r: {
   embedding: string | null;
   createdAt: string;
 }): MemorySuppression {
-  let embedding: number[] | null = null;
-  if (r.embedding) {
-    try {
-      const parsed = JSON.parse(r.embedding);
-      if (Array.isArray(parsed)) embedding = parsed as number[];
-    } catch {
-      embedding = null;
-    }
-  }
-  return { id: r.id, userId: r.userId, text: r.text, embedding, createdAt: r.createdAt };
+  return { id: r.id, userId: r.userId, text: r.text, embedding: parseEmbedding(r.embedding), createdAt: r.createdAt };
 }
 
 export function getSuppressions(userId: string): MemorySuppression[] {
@@ -436,10 +424,13 @@ export async function forgetFact(fact: MemoryFact): Promise<void> {
   addSuppression(fact.userId, fact.text, embedding);
 }
 
+/** Is this embedding suppressed (matches a tombstone)? No I/O beyond the read. */
+export function isEmbeddingSuppressed(userId: string, embedding: number[]): boolean {
+  const suppressions = getSuppressions(userId);
+  return suppressions.length > 0 && isSuppressed(embedding, suppressions);
+}
+
 /** Has a fact with this text been suppressed by the user? Embeds + checks. */
 export async function isFactSuppressed(userId: string, text: string): Promise<boolean> {
-  const suppressions = getSuppressions(userId);
-  if (suppressions.length === 0) return false;
-  const embedding = await embedText(text);
-  return isSuppressed(embedding, suppressions);
+  return isEmbeddingSuppressed(userId, await embedText(text));
 }
