@@ -7,6 +7,7 @@ import m0002 from './0002_polymath.sql';
 import m0003 from './0003_health_onboarding.sql';
 import m0004 from './0004_ai_suggestions.sql';
 import m0005 from './0005_memory_facts.sql';
+import m0006 from './0006_rabbit_hole_trees.sql';
 
   export default {
     journal,
@@ -16,7 +17,8 @@ import m0005 from './0005_memory_facts.sql';
       m0002,
       m0003,
       m0004,
-      m0005
+      m0005,
+      m0006
     }
   }
   

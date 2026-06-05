@@ -151,9 +151,13 @@ module.exports = {
       testMatch: ['**/src/components/**/*.test.tsx'],
       // @/ alias merges with jest-expo's asset mocks. The node-suite RN stubs
       // are intentionally NOT here — the component suite uses the real
-      // react-native via jest-expo.
+      // react-native via jest-expo. AsyncStorage IS stubbed (mirroring the node
+      // project): component tests that reach the store/telemetry chain (e.g. the
+      // rabbit-hole map, which imports the AI client transitively) would
+      // otherwise hit the unlinked native module and fail to load.
       moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
+        '^@react-native-async-storage/async-storage$': '<rootDir>/jest.mocks/async-storage.ts',
       },
       testPathIgnorePatterns: IGNORE,
       // Coverage from this project is for src/components ONLY. Component tests

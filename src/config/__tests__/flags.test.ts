@@ -16,9 +16,10 @@ describe('feature flags', () => {
   });
 
   // Flags intentionally graduated to on-by-default (the explore "thinking
-  // partner" revamp shipped GA). Every OTHER flag must still default to false
+  // partner" revamp + the rabbit-hole tree-map redesign shipped GA — the latter
+  // browser-verified 2026-06-05). Every OTHER flag must still default to false
   // so unfinished subsystems stay dark on merge.
-  const GRADUATED_ON: FeatureFlag[] = ['exploreChasing', 'exploreAgenticThread', 'exploreFrontier'];
+  const GRADUATED_ON: FeatureFlag[] = ['exploreChasing', 'exploreAgenticThread', 'exploreFrontier', 'rabbitHoleTreeMap'];
 
   it('keeps every non-graduated flag off by default', () => {
     (Object.keys(DEFAULT_FLAGS) as FeatureFlag[]).forEach((k) => {

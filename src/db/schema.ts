@@ -372,3 +372,39 @@ export const suggestionOutcomes = sqliteTable('suggestion_outcomes', {
   domainScoreDelta: real('domain_score_delta'), // context only; NOT the kill/keep metric
   measuredAt: text('measured_at').notNull().default(sql`(datetime('now'))`),
 });
+
+// --- Rabbit-Hole Trees (Explore v3 — the navigable decision-tree map) ---
+// One row per rabbit-hole tree. The WHOLE tree is a single JSON blob so the web
+// render path reads it synchronously and the layout stays a pure function of one
+// object (see docs/rabbit-hole-tree-map-redesign.md). LOCAL ONLY for now —
+// rabbit-hole sync is parked to Phase 7, so writes are NOT routed through the
+// mutation log. `sparks.thread_id` is stamped with this row's id on creation.
+export const rabbitHoleTrees = sqliteTable('rabbit_hole_trees', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  sparkId: text('spark_id').notNull(),
+  anchorJson: text('anchor_json').notNull(), // JSON: RabbitHoleAnchor
+  treeJson: text('tree_json').notNull(), // JSON: { nodeMap, rootId, cursorId }
+  scoringJson: text('scoring_json').notNull(), // JSON: RabbitHoleScoring (idempotency ledger)
+  title: text('title'), // null until the user (optionally) names the map
+  xpAwarded: integer('xp_awarded').notNull().default(0), // running total banked so far
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+  deletedAt: text('deleted_at'), // soft delete; 90-day prune
+});
+
+// --- Constellation Edges (Explore v3 — local edge source for the star-map) ---
+// Rabbit-hole journeys emit led_to / synapse edges here on qualifying milestones;
+// projectConstellation() reads them as an EXTRA edge source. Local + rebuildable;
+// bypasses the sync mutation log (the sync union has no rabbit-hole type yet).
+export const constellationEdges = sqliteTable('constellation_edges', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  fromId: text('from_id').notNull(),
+  toId: text('to_id').notNull(),
+  relation: text('relation').notNull(), // within | synapse | led_to
+  weight: integer('weight').notNull().default(1),
+  sourceTreeId: text('source_tree_id'), // the rabbit-hole tree that produced it
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -21,6 +21,8 @@ import { isEnabled } from '@/config/flags';
 import { XP_VALUES } from '@/utils/gamification';
 import { track, EVENTS } from '@/utils/telemetry';
 import { format } from 'date-fns';
+import { RabbitHoleScreen as RabbitHoleTreeScreen } from '@/components/modules/polymath/RabbitHoleScreen';
+import type { RabbitHoleSeed } from '@/explore/rabbitHoleActions';
 
 interface ThreadNode extends GeneratedNode {
   /** How the user arrived at this node — null for the root. */
@@ -29,7 +31,56 @@ interface ThreadNode extends GeneratedNode {
 
 const MAX_DEPTH = 12; // soft cap — beyond this we nudge the user to wrap up
 
-export default function RabbitHoleScreen() {
+/**
+ * Rabbit-hole route. Behind `rabbitHoleTreeMap` (default off) it renders the new
+ * navigable decision-tree map; otherwise the legacy linear stack below (kept one
+ * sprint for A/B). The seed is the daily spark, or an inline "chasing now" /
+ * frontier thread passed via params.
+ */
+export default function RabbitHoleRoute() {
+  const router = useRouter();
+  const userId = useUserStore((s) => s.userId);
+  const { sparkId, seedTitle, seedBody, seedInterest, seedAdjacent } = useLocalSearchParams<{
+    sparkId?: string;
+    seedTitle?: string;
+    seedBody?: string;
+    seedInterest?: string;
+    seedAdjacent?: string;
+  }>();
+
+  const treeMap = isEnabled('rabbitHoleTreeMap');
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const seed = useMemo<RabbitHoleSeed | null>(() => {
+    if (!treeMap) return null;
+    if (seedTitle) {
+      return {
+        sparkId: sparkId ?? `inline-${seedTitle}`,
+        title: seedTitle,
+        body: seedBody ?? '',
+        threadStarter: seedTitle,
+        seedInterest: seedInterest ?? '',
+        adjacentField: seedAdjacent ?? '',
+      };
+    }
+    const spark = userId ? getSparkByDate(userId, today) : undefined;
+    return spark
+      ? {
+          sparkId: spark.id,
+          title: spark.title,
+          body: spark.body,
+          threadStarter: spark.threadStarter,
+          seedInterest: spark.seedInterest,
+          adjacentField: spark.adjacentField,
+        }
+      : null;
+  }, [treeMap, seedTitle, seedBody, seedInterest, seedAdjacent, sparkId, userId, today]);
+
+  if (!treeMap) return <LegacyRabbitHoleScreen />;
+  return <RabbitHoleTreeScreen seed={seed} onExit={() => router.back()} />;
+}
+
+function LegacyRabbitHoleScreen() {
   const c = useColors();
   const styles = makeStyles(c);
   const router = useRouter();

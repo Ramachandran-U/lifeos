@@ -47,6 +47,11 @@ export const BADGE_META: Record<BadgeId, { label: string; emoji: string; desc: s
   expedition_complete:{ label: 'Expeditioner',     emoji: '🧭', desc: 'Completed your first expedition' },
   synapse_formed:     { label: 'Synapse',          emoji: '⚡', desc: 'Formed a cross-discipline link in your constellation' },
   curiosity_streak_7: { label: 'Curious Week',     emoji: '🌟', desc: 'Engaged with a spark for 7 consecutive days' },
+  deep_diver:         { label: 'Deep Diver',       emoji: '🕳️', desc: 'Went five levels deep down a single rabbit hole' },
+  cartographer:       { label: 'Cartographer',     emoji: '🗺️', desc: 'Mapped three branches of one rabbit hole' },
+  road_not_taken:     { label: 'The Road Not Taken', emoji: '🛤️', desc: 'Returned to a fork and explored the other path' },
+  connector:          { label: 'Connector',        emoji: '🔗', desc: 'Linked two different fields in a rabbit hole' },
+  archivist:          { label: 'Archivist',        emoji: '📚', desc: 'Built a library of five rich rabbit-hole maps' },
 };
 
 // Badge rarity tiers — the real-life difficulty of earning it, NOT grind time
@@ -71,6 +76,11 @@ export const BADGE_TIER: Record<BadgeId, BadgeTier> = {
   life_balance:       'rare',
   inner_orbit:        'rare',
   synapse_formed:     'rare',
+  road_not_taken:     'milestone',
+  deep_diver:         'mastery',
+  cartographer:       'mastery',
+  connector:          'rare',
+  archivist:          'rare',
 };
 
 export const BADGE_TIER_META: Record<BadgeTier, { label: string }> = {

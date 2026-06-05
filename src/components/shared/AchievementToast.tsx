@@ -24,6 +24,11 @@ const BADGE_INFO: Record<BadgeId, { icon: string; name: string; subtitle: string
   expedition_complete: { icon: '🧭', name: 'Expeditioner', subtitle: 'You completed your first expedition' },
   synapse_formed: { icon: '⚡', name: 'Synapse', subtitle: 'You formed a cross-discipline link' },
   curiosity_streak_7: { icon: '🌟', name: 'Curious Week', subtitle: 'A full week of daily sparks' },
+  deep_diver: { icon: '🕳️', name: 'Deep Diver', subtitle: 'You went five levels deep down a rabbit hole' },
+  cartographer: { icon: '🗺️', name: 'Cartographer', subtitle: 'You mapped three branches of one rabbit hole' },
+  road_not_taken: { icon: '🛤️', name: 'The Road Not Taken', subtitle: 'You came back to a fork and took the other path' },
+  connector: { icon: '🔗', name: 'Connector', subtitle: 'You linked two different fields in a rabbit hole' },
+  archivist: { icon: '📚', name: 'Archivist', subtitle: 'You built a library of five rabbit-hole maps' },
 };
 
 export function AchievementToast() {

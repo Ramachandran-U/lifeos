@@ -20,3 +20,5 @@ export * from './webStorage/social';
 export * from './webStorage/cognitiveInsights';
 export * from './webStorage/expeditions';
 export * from './webStorage/sparks';
+export * from './webStorage/rabbitHoleTrees';
+export * from './webStorage/constellationEdges';

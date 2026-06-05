@@ -17,6 +17,7 @@ Context docs to help re-enter the project quickly. Start here, then open the spe
 | [`MANUAL_OPS_TODO.md`](MANUAL_OPS_TODO.md) | Operational steps the human still needs to run in dashboards / CLIs (Wrangler secrets, Supabase migrations, GitHub repo secrets) |
 | [`SECURITY.md`](SECURITY.md) | RLS design, admin onboarding, MFA debt, telemetry privacy contract |
 | [`TESTING.md`](TESTING.md) | Jest unit tests, AI eval harness (7 suites), benchmarks, Playwright e2e |
+| [`WORKTREES.md`](WORKTREES.md) | Creating/using/removing git worktrees safely (never junction `node_modules`); current worktree inventory |
 | [`claude-design-prompt-web.md`](claude-design-prompt-web.md) | Web design prompt (artifact-driven UI) |
 | [`claude-design-prompt-mobile.md`](claude-design-prompt-mobile.md) | Mobile design prompt |
 
