@@ -181,7 +181,7 @@ Every function is Zod-validated. Validation failures emit an `ai_schema_failure`
 
 - Health logs, blood reports, contacts, transactions — all stored in on-device SQLite (or localStorage/IndexedDB on web).
 - AI inference is proxied through a Cloudflare Worker so API keys never ship to the client; the Worker does not persist user content.
-- Supabase is used for optional Google sign-in only; LifeOS app data is not synced to Supabase in the current phase.
+- Supabase provides Google sign-in and **opt-in cross-device sync of non-sensitive data** (goals, routine, reflections, gamification, interests) via the hash-chained mutation log; **sensitive data — health, finance, contacts — stays on-device only** and never syncs unencrypted.
 - Soft deletes on all user data (`deletedAt` column) — deletion is always recoverable client-side before purge.
 
 ## 10. Roadmap / Phasing
@@ -190,7 +190,8 @@ Every function is Zod-validated. Validation failures emit an `ai_schema_failure`
 - **Phase 2 (shipped):** Finance Engine depth (full plan generator + weekly insights). Photo Food Recognition. Push notification depth (goal / streak / social nudges). Behaviour Intelligence v1 (observe + weekly insight).
 - **Phase 3 (shipped):** Social Life Intelligence Engine with on-device contacts and AI-personalised conversation starters that never see names. Curiosity & Polymath Engine with AI-driven Discover grid + cross-discipline link card + protected-time toggle. Routine Builder v2 with weekday/weekend differentiation, energy-required matching, adaptive rebalance signal + multi-day generation, and a "Plan my next 7 days" entry point. Behaviour Intelligence v2 (Adapt) with approve/dismiss adaptation cards and a 28-day monthly insight report. Day 3 / 7 / 14 progressive onboarding screens.
 - **Phase 4 (shipped):** Cross-Module Life Score with 30/90-day trend hero. Proactive Daily Briefing (AI morning banner, cached daily). Annual Life Review (cross-domain AI report, PDF/share export, cached yearly). Long-Term Trajectory Tracking ("on track for your 3-year vision?" with quarterly recalibration).
-- **Future:** Plaid integration for broader finance coverage; native HealthKit / Health Connect integration; optional cloud sync (Supabase) of app data.
+- **Phase 5 (shipped):** Opt-in cross-device sync with conflict resolution + a version-history "what changed" activity feed. Durable long-term memory — LifeOS remembers salient facts about you (with provenance) and forgets what you ask it to. Voice assistant upgraded with live on-device data access. Free-data enrichment across the engines — Google Calendar commitments, Gmail bills & subscriptions, YouTube interests, and contacts + birthdays — feeding the planner and the relevant engines.
+- **Future:** Plaid integration for broader finance coverage; native HealthKit / Health Connect integration; native iOS/Android app-store builds; E2E-encrypted cross-device sync for sensitive data (health / finance / contacts); a proactive action-taking AI coach (propose-and-confirm, currently behind a flag).
 
 ## 11. Metrics / Proof Points for Decks
 
