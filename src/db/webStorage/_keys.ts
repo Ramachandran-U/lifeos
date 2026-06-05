@@ -30,3 +30,5 @@ export const EXPEDITION_PROGRESS_KEY = 'lifeos_expedition_progress';
 export const SPARKS_KEY = 'lifeos_sparks';
 export const MEMORY_FACTS_KEY = 'lifeos_memory_facts';
 export const MEMORY_SUPPRESSIONS_KEY = 'lifeos_memory_suppressions';
+export const RABBIT_HOLE_TREES_KEY = 'lifeos_rabbit_hole_trees';
+export const CONSTELLATION_EDGES_KEY = 'lifeos_constellation_edges';

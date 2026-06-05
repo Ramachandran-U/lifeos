@@ -43,6 +43,13 @@
       "when": 1779408000000,
       "tag": "0005_memory_facts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1780658191464,
+      "tag": "0006_rabbit_hole_trees",
+      "breakpoints": true
     }
   ]
 }

@@ -412,6 +412,41 @@ export async function initDatabase() {
       domain_score_delta REAL,
       measured_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    -- Rabbit-hole decision-tree map (Explore v3). The whole tree is a JSON blob
+    -- in tree_json. LOCAL ONLY — sync parked to Phase 7. See
+    -- docs/rabbit-hole-tree-map-redesign.md.
+    CREATE TABLE IF NOT EXISTS rabbit_hole_trees (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      spark_id TEXT NOT NULL,
+      anchor_json TEXT NOT NULL,
+      tree_json TEXT NOT NULL,
+      scoring_json TEXT NOT NULL,
+      title TEXT,
+      xp_awarded INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS rabbit_hole_trees_user_idx ON rabbit_hole_trees (user_id, created_at);
+    CREATE INDEX IF NOT EXISTS rabbit_hole_trees_spark_idx ON rabbit_hole_trees (spark_id);
+
+    -- Local, rebuildable constellation edge source emitted by rabbit-hole
+    -- journeys (led_to / synapse). Read by projectConstellation as an extra
+    -- edge source; bypasses the sync mutation log.
+    CREATE TABLE IF NOT EXISTS constellation_edges (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      from_id TEXT NOT NULL,
+      to_id TEXT NOT NULL,
+      relation TEXT NOT NULL,
+      weight INTEGER NOT NULL DEFAULT 1,
+      source_tree_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS constellation_edges_user_idx ON constellation_edges (user_id);
   `);
 
   // Lightweight migrations for columns added after initial release.

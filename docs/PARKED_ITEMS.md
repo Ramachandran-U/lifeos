@@ -154,6 +154,23 @@
 
 ---
 
+## 12. Rabbit Hole → navigable decision-tree map (Explore v3)
+
+> The rabbit hole was rebuilt from a destructive linear stack into a persistent, branchable decision-tree MAP. Full design + resolved decisions: [`docs/rabbit-hole-tree-map-redesign.md`](rabbit-hole-tree-map-redesign.md). Engine + UI + route are built and **unit/render-tested**, all behind the `rabbitHoleTreeMap` flag (default OFF). Phases 1–6 shipped; the items below are the remaining tail.
+
+✅ **Shipped (context):** the pure tree model + helpers, schema (`rabbit_hole_trees` + `constellation_edges`, local-only) + queries/shim, the Zustand store + actions (advance / score / scoring ledger), the constellation feed + shared `isCrossCategory`, the 5 shape badges, the component layer (`RabbitHoleScreen`/`MapView`/`MapNode`/`ConnectorElbow`/`NodeCard`/`ForkButton`/`DepthBadge`/`Breadcrumb`/`ExitSummary` + pure `rabbitHoleLayout`), and the `app/rabbit-hole.tsx` flag fork. Frontier now passes `adjacentField` so frontier-seeded trees can earn synapses.
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 12.1 ✅/🅿️ | **GA done; delete the legacy linear JSX remains.** `rabbitHoleTreeMap` is now **default `true`** (`src/config/flags.ts`) + added to `GRADUATED_ON` in the flags test — **browser-verified 2026-06-05** (built flag-on + AI-mock, drove `/rabbit-hole`: the tree map rendered, GO DEEPER bloomed a connected child + incremented depth, Climb-to-parent kept the child = non-destructive back, zero console errors). The **remaining** work: delete `LegacyRabbitHoleScreen` in `app/rabbit-hole.tsx` after a sprint of A/B. NOTE: flags only enable via `DEFAULT_FLAGS` (or `setFlagOverride`) on web/native — the `EXPO_PUBLIC_FLAG_*` env path is **dead in the app bundle** (flags read env via dynamic `process.env[key]`, which Metro can't inline; only static `process.env.EXPO_PUBLIC_X` like `USE_AI_MOCK` inlines). | Delete legacy once the new map has soaked a sprint with no rollback needed (flip the flag back to `false` is the instant kill switch until then). |
+| 12.2 🅿️ | **"Your Maps" gallery** — a history of rehydratable saved trees (trivial: nothing is destroyed, rows persist), with silhouette cover art generated from the tree shape, lightweight image share, and an AI-suggested title. | The primary return hook, but a net-new surface beyond the core loop. | When building Explore retention features. `listRabbitHoleTrees(userId)` already returns the rows. |
+| 12.3 🅿️ | **Animation polish.** The Focus card uses a `FadeInDown` entrance, not the design's true **measured-origin grow-from-tile** overlay (the `tileLayouts` are already captured via `onLayout`, so the origin is wired); the cursor uses a static gold ring, not a `withRepeat` pulse. | Phase-5 functional-first; both are visual nicety, not behavior. | A polish pass once the feature is verified + enabled. |
+| 12.4 🅿️ | **Web drag-pan / pinch for the map.** Today it's nested `ScrollView`s (works, but no pan/zoom). | Deliberately avoided a canvas/pan-zoom dependency (design decision). At ~25–40 tiles, scroll is adequate. | If real trees routinely exceed the viewport on web. |
+| 12.5 🅿️ | **`react-native-skia` connectors if node count > 50.** Connectors are bordered `View`s today. | Fine at the depth-12 / sparse-fork ceiling (~25–40 Views). | Only if a perf measurement shows the View-per-connector layout janking on low-end devices. |
+| 12.6 🅿️ | **Rabbit-hole thread sync.** Trees are **local-only** (`rabbit_hole_trees` + `constellation_edges` bypass the mutation log). | The sync union has no rabbit-hole entity type yet, and constellation rebuilds from source. | When cross-device "Your Maps" is wanted — add thread metadata to the mutation log once constellation sync is scoped (see memory `sync-coverage-gap`). |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)

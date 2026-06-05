@@ -46,6 +46,10 @@ export interface FeatureFlags {
   exploreAgenticThread: boolean;
   /** Explore redesign: "The frontier" — model picks the most fertile UNEXPLORED edge between the user's interests (replaces the Discover grid). */
   exploreFrontier: boolean;
+  /** Explore redesign: the rabbit hole renders as a navigable decision-tree MAP (persistent, branchable) vs. the legacy destructive linear stack. */
+  rabbitHoleTreeMap: boolean;
+  /** Explore redesign: prefetch the OTHER (un-taken) fork's node so taking it later is instant. Off by default — keep off until cost-ledger data justifies the spend. */
+  exploreAgenticPrefetch: boolean;
   /** Profile: upload a photo → AI-generated gamified avatar (nano banana). Paid image-gen — off until billing is enabled. */
   profileAvatarGen: boolean;
 }
@@ -69,6 +73,8 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   exploreChasing: true,
   exploreAgenticThread: true,
   exploreFrontier: true,
+  rabbitHoleTreeMap: true,
+  exploreAgenticPrefetch: false,
   profileAvatarGen: false,
 });
 

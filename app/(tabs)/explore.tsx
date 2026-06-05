@@ -450,6 +450,7 @@ export default function ExploreScreen() {
         seedTitle: f.headline,
         seedBody: f.insight,
         seedInterest: f.interestA,
+        seedAdjacent: f.interestB,
       },
     });
   }, [userId, router, triggerStreak]);
