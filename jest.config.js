@@ -104,14 +104,13 @@ module.exports = {
     './src/integrations/youtube/': { lines: 90, branches: 76, functions: 90 },
     './src/integrations/googleContacts/': { lines: 90, branches: 88, functions: 90 },
     // Recursive aggregate over the Worker tree. Raised as Worker tests landed
-    // (flags/users in #138; overview + proxyClaude dispatch/failover; then the
-    // whole admin handler cluster — aiOps/evals/telemetry/feedback/prompts/push
-    // + the public push-register route): measured ~81/75/85 lines/branches/
-    // functions; floor sits a few points under. Remaining untested surfaces are
-    // the harder, different-harness ones: auth.ts (JWT verify), gemini.ts
-    // (WebSocket Live proxy), avatar.ts, the index.ts router, and the public
-    // routes/prompts.ts fetch.
-    './workers/ai-proxy/src/': { lines: 76, branches: 70, functions: 80 },
+    // (flags/users in #138; overview + proxyClaude dispatch/failover; the whole
+    // admin handler cluster; then auth.ts/gemini.ts/avatar.ts/routes/prompts.ts
+    // + the index.ts router dispatch): measured ~96/85/91 lines/branches/
+    // functions; floor sits a few points under. The only sub-100% files now are
+    // index.ts (some route catch→500 branches) and avatar/gemini listener
+    // closures — both well above the floor.
+    './workers/ai-proxy/src/': { lines: 90, branches: 78, functions: 86 },
   },
   projects: [
     {
