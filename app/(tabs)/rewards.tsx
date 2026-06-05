@@ -94,6 +94,32 @@ export default function RewardsScreen() {
         : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
     return `You ${joined}.`;
   }, [xpDailyGains, xpEntries, deltaFor, domainEntries, bestStreak]);
+  // Quiet Comeback — returning after a lapse (gap between today's XP snapshot and
+  // the previous one)? Welcome them WITHOUT guilt: nothing reset. No-shame by
+  // design; only fires for a real 3–90 day gap, never a streak-broken scolding.
+  const comebackDays = useMemo(() => {
+    if (xpEntries.length < 2) return null;
+    const gap = Math.round(
+      (Date.parse(xpEntries[xpEntries.length - 1].date) -
+        Date.parse(xpEntries[xpEntries.length - 2].date)) /
+        86_400_000,
+    );
+    return gap >= 3 && gap <= 90 ? gap : null;
+  }, [xpEntries]);
+  // "Almost there" — the unearned badges closest to unlocking, for forward pull.
+  // Only badges with real computable progress AND ED-safe (no body/restriction/
+  // intensity metric): a 30-day *consistency* streak and 6-domain balance.
+  const almostThere = useMemo(() => {
+    const items: { label: string; pct: number; remaining: string }[] = [];
+    if (!badges.includes('streak_30_any') && bestStreak > 0 && bestStreak < 30) {
+      items.push({ label: '30-Day Streak', pct: bestStreak / 30, remaining: `${30 - bestStreak} more days` });
+    }
+    const above60 = Object.values(domainScores).filter((s) => s > 60).length;
+    if (!badges.includes('life_balance') && above60 >= 3 && above60 < 6) {
+      items.push({ label: 'Life Balance', pct: above60 / 6, remaining: `${6 - above60} more domains above 60` });
+    }
+    return items.sort((a, b) => b.pct - a.pct).slice(0, 2);
+  }, [badges, bestStreak, domainScores]);
 
   const styles = makeStyles(c);
 
@@ -122,6 +148,16 @@ export default function RewardsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Quiet Comeback — warm, no guilt; nothing reset while you were away */}
+          {comebackDays && (
+            <GlassCard accent={c.primary} style={styles.sparkCard}>
+              <AuroraText variant="h3">Welcome back 👋</AuroraText>
+              <AuroraText variant="body" muted style={{ marginTop: 6 }}>
+                {`It's been ${comebackDays} days — and none of it reset. You're still Level ${prog.level} with ${totalXP.toLocaleString()} XP. Pick up right where you left off.`}
+              </AuroraText>
+            </GlassCard>
+          )}
 
           {/* "This week you…" — the proud recap, real data only, hidden when quiet */}
           {weekRecap && (
@@ -165,6 +201,22 @@ export default function RewardsScreen() {
               );
             })}
           </View>
+
+          {/* Almost there — closest unearned badges, forward pull (ED-safe ones only) */}
+          {almostThere.length > 0 && (
+            <>
+              <SectionLabel color={c.badge}>ALMOST THERE</SectionLabel>
+              {almostThere.map((it) => (
+                <GlassCard key={it.label} accent={c.badge} style={styles.sparkCard}>
+                  <AuroraText variant="body">{it.label}</AuroraText>
+                  <View style={{ marginTop: 8 }}>
+                    <XpBar pct={it.pct} color={c.badge} height={8} />
+                  </View>
+                  <AuroraText variant="micro" muted style={{ marginTop: 4 }}>{it.remaining}</AuroraText>
+                </GlassCard>
+              ))}
+            </>
+          )}
 
           {/* Badges */}
           <SectionLabel>{`BADGES · ${badges.length}/${allBadgeIds.length}`}</SectionLabel>
