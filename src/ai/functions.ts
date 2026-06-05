@@ -4,6 +4,7 @@ import { pickModel } from './modelRouter';
 import { track, EVENTS } from '@/utils/telemetry';
 import { useFlagStore } from '@/store/useFlagStore';
 import { decomposeGoalAgent } from './agent/goalDecomposer';
+import { anchorRoutineToWake } from './routineAnchor';
 import { logAiSuggestion } from '@/db/queries/aiSuggestions';
 import { useUserStore } from '@/store/useUserStore';
 
@@ -349,7 +350,33 @@ export async function generateRoutine(input: RoutineInput): Promise<GeneratedRou
 
   const response = await callAI({
     system: ROUTINE_GENERATION_PROMPT,
-    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    // Match ROUTINE_GENERATION_PROMPT's expected shape — it reads
+    // schedule.wakeTime / schedule.workStartTime, not the flat RoutineInput
+    // fields. Sending `input` verbatim hid the schedule from the model, which
+    // then defaulted to a generic ~noon start (the wake-time bug).
+    messages: [
+      {
+        role: 'user',
+        content: JSON.stringify({
+          schedule: {
+            wakeTime: input.wakeTime,
+            sleepTime: input.sleepTime,
+            workStartTime: input.workStartTime,
+            workEndTime: input.workEndTime,
+          },
+          goals: input.goals,
+          careerFocus: input.careerFocus,
+          chronotype: input.chronotype,
+          primaryDomains: input.primaryDomains,
+          fixedBlocks: input.fixedBlocks,
+          constraints: input.constraints,
+          struggles: input.struggles,
+          currentHabits: input.currentHabits,
+          inferredPreferences: input.inferredPreferences,
+          communicationTone: input.communicationTone,
+        }),
+      },
+    ],
     model: pickModel('generateRoutine'),
     cacheSystem: true,
     task: 'generateRoutine',
@@ -357,7 +384,9 @@ export async function generateRoutine(input: RoutineInput): Promise<GeneratedRou
   });
 
   try {
-    return GeneratedRoutineSchema.parse(extractJson(response));
+    const parsed = GeneratedRoutineSchema.parse(extractJson(response));
+    // Deterministic guarantee the day starts at wake (see routineAnchor).
+    return { ...parsed, blocks: anchorRoutineToWake(parsed.blocks, input.wakeTime) };
   } catch (err) {
     recordSchemaFailure('generateRoutine', 'GeneratedRoutine', response, err);
   }
