@@ -103,7 +103,12 @@ module.exports = {
     // measured aggregate (youtube client branch 82%, contacts client branch 96%).
     './src/integrations/youtube/': { lines: 90, branches: 76, functions: 90 },
     './src/integrations/googleContacts/': { lines: 90, branches: 88, functions: 90 },
-    './workers/ai-proxy/src/': { lines: 30, branches: 22, functions: 40 },
+    // Recursive aggregate over the Worker tree. Raised as admin-handler tests
+    // landed (flags/users in #138, overview here): measured ~49/42/52
+    // lines/branches/functions; floor sits a few points under. The biggest
+    // remaining untested surfaces are claude.ts (provider transforms) and the
+    // other admin handlers (aiOps/evals/feedback/push/telemetry/users-detail).
+    './workers/ai-proxy/src/': { lines: 44, branches: 36, functions: 48 },
   },
   projects: [
     {
