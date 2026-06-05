@@ -88,6 +88,12 @@ interface ClientRequest {
   tools?: FunctionDeclaration[];
   /** Optional passthrough for Gemini's toolConfig (defaults to AUTO mode). */
   toolConfig?: unknown;
+  /**
+   * Optional provider hint (e.g. `groq` for the cheap tier). Honoured only when
+   * that provider's key is configured; otherwise ignored. Tool-use overrides it
+   * (pinned to gemini). See proxyClaude.
+   */
+  provider?: string;
 }
 
 interface NormalisedResponse {
@@ -337,6 +343,14 @@ class ProviderError extends Error {
   }
 }
 
+/** Whether the given provider has an API key configured on this Worker. */
+function providerHasKey(provider: keyof typeof DEFAULTS, env: Env): boolean {
+  if (provider === 'gemini') return !!env.GEMINI_API_KEY;
+  if (provider === 'groq') return !!env.GROQ_API_KEY;
+  if (provider === 'openai') return !!env.OPENAI_API_KEY;
+  return !!env.ANTHROPIC_API_KEY;
+}
+
 export async function proxyClaude(
   req: Request,
   env: Env,
@@ -363,7 +377,19 @@ export async function proxyClaude(
     });
   }
 
-  const primary = (env.LLM_PROVIDER ?? 'anthropic').toLowerCase() as keyof typeof DEFAULTS;
+  let primary = (env.LLM_PROVIDER ?? 'anthropic').toLowerCase() as keyof typeof DEFAULTS;
+
+  // Per-request provider hint (e.g. cheap tier → groq for lower TTFT). Honoured
+  // only when the hinted provider is known AND its key is configured; otherwise
+  // ignored so the default chain still applies (safe to send an unconfigured
+  // hint). Tool-use overrides this below (pinned to gemini).
+  const hint = body.provider?.toLowerCase();
+  if (
+    (hint === 'gemini' || hint === 'groq' || hint === 'openai' || hint === 'anthropic') &&
+    providerHasKey(hint, env)
+  ) {
+    primary = hint;
+  }
   let chain = FALLBACK_CHAIN[primary] ?? [primary, 'groq', 'anthropic'];
 
   // Tool-use is Gemini-only: the other providers map `messages[].content` as a

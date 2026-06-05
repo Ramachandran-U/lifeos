@@ -120,6 +120,24 @@ export function pickModel(task: AITask): string {
 }
 
 /**
+ * Optional per-task PROVIDER hint sent to the Worker. OFF by default: returns a
+ * provider only for the **cheap** tier AND only when `EXPO_PUBLIC_CHEAP_PROVIDER`
+ * is set (e.g. `groq`). The cheap, high-frequency tasks (categorize, daily
+ * briefing, spark, rabbit-hole) get a far lower TTFT on Groq's LPU than on
+ * cross-region Gemini. The Worker honours the hint only if that provider's key
+ * is configured — otherwise it falls back to the default chain — so this is safe
+ * to ship inert (unset env / no Worker key = no behaviour change). Planning and
+ * reasoning stay on the default provider (quality-sensitive), and tool-use is
+ * pinned to Gemini worker-side regardless of this hint.
+ */
+export function pickProvider(task: string | undefined): string | undefined {
+  const cheapProvider = process.env.EXPO_PUBLIC_CHEAP_PROVIDER;
+  if (!cheapProvider) return undefined;
+  const tier = TASK_TIER[task as AITask] ?? 'planning';
+  return tier === 'cheap' ? cheapProvider : undefined;
+}
+
+/**
  * Per-task output-token DEFAULT, used only when a caller omits its own
  * `maxTokens` (most callers in functions.ts pass an explicit value, which wins
  * via `request.maxTokens ?? pickMaxTokens(...)`). The worker also hard-caps

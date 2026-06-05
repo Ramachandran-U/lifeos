@@ -2,7 +2,7 @@ import { AIRequest, AIToolResponse, AvatarGenInput, AvatarGenResult } from './ty
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import { recordUsage, computeCost } from './costLedger';
 import { startSpan, endSpan } from './tracing';
-import { pickMaxTokens } from './modelRouter';
+import { pickMaxTokens, pickProvider } from './modelRouter';
 import { track, EVENTS } from '@/utils/telemetry';
 
 const PROXY_URL =
@@ -34,6 +34,10 @@ async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
       throw new Error('Sign in required to use AI features.');
     }
 
+    // Optional per-task provider hint (e.g. cheap tier → groq). Undefined unless
+    // EXPO_PUBLIC_CHEAP_PROVIDER is set; the Worker ignores it if that provider
+    // has no key, so it's safe to send. See modelRouter.pickProvider.
+    const providerHint = pickProvider(request.task);
     const fetchStart = Date.now();
     const response = await fetch(`${PROXY_URL}/claude`, {
       method: 'POST',
@@ -51,6 +55,7 @@ async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
         model: request.model,
         cacheSystem: request.cacheSystem,
         task: request.task,
+        ...(providerHint ? { provider: providerHint } : {}),
         ...(request.tools && request.tools.length > 0 ? { tools: request.tools } : {}),
       }),
     });
