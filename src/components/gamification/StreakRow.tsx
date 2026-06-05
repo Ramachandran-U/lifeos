@@ -33,8 +33,10 @@ export function StreakRow({ streakKey, count, best, graceUsed }: Props) {
               {meta.label}
             </Text>
             {graceUsed && (
-              <View style={[styles.grace, { backgroundColor: c.warning + '22', borderColor: c.warning + '55' }]}>
-                <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 10, color: c.warning }}>GRACE</Text>
+              // A used grace day is resilience, not a near-miss. Frame it as a
+              // shield in the streak's own colour — never an amber "warning".
+              <View style={[styles.grace, { backgroundColor: color + '22', borderColor: color + '55' }]}>
+                <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 10, color }}>🛡️ SHIELD</Text>
               </View>
             )}
           </View>
