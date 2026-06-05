@@ -51,6 +51,7 @@ export default function RewardsScreen() {
   const deltaFor = useDomainHistoryStore((s) => s.deltaFor);
   const xpDailyGains = useXpHistoryStore((s) => s.dailyGains);
   const xpEntries = useXpHistoryStore((s) => s.entries);
+  const domainEntries = useDomainHistoryStore((s) => s.entries);
   const quests = useGameStore((s) => s.quests);
   const [section, setSection] = useState<Section>('overview');
   const [openQuest, setOpenQuest] = useState<Quest | null>(null);
@@ -83,6 +84,26 @@ export default function RewardsScreen() {
     if (bestStreak >= 3) return `You're on a ${bestStreak}-day streak — keep going.`;
     return 'Your story starts now.';
   }, [activeDays, bestStreak]);
+  // "This week you…" — warm verbs from real 7-day data. Returns null on a quiet
+  // week so the card hides rather than showing an empty boast.
+  const weekRecap = useMemo(() => {
+    const weekXp = xpDailyGains(7).reduce((a, b) => a + b, 0);
+    let topDomain: { label: string; delta: number } | null = null;
+    for (const dm of DOMAIN_META) {
+      const d = deltaFor(dm.key, 7);
+      if (d > (topDomain?.delta ?? 0)) topDomain = { label: dm.label, delta: d };
+    }
+    const parts: string[] = [];
+    if (weekXp > 0) parts.push(`earned ${weekXp} XP`);
+    if (topDomain) parts.push(`pushed ${topDomain.label} +${topDomain.delta}`);
+    if (bestStreak >= 3) parts.push(`kept a ${bestStreak}-day streak alive`);
+    if (parts.length === 0) return null;
+    const joined =
+      parts.length === 1
+        ? parts[0]
+        : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+    return `You ${joined}.`;
+  }, [xpDailyGains, xpEntries, deltaFor, domainEntries, bestStreak]);
 
   const styles = makeStyles(c);
 
@@ -111,6 +132,14 @@ export default function RewardsScreen() {
               </View>
             </View>
           </View>
+
+          {/* "This week you…" — the proud recap, real data only, hidden when quiet */}
+          {weekRecap && (
+            <GlassCard accent={c.xp} style={styles.sparkCard}>
+              <SectionLabel color={c.xp}>THIS WEEK</SectionLabel>
+              <AuroraText variant="bodyLg" style={{ marginTop: 6 }}>{weekRecap}</AuroraText>
+            </GlassCard>
+          )}
 
           {/* Sparkline card */}
           <GlassCard accent={c.xp} style={styles.sparkCard}>
