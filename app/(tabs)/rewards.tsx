@@ -13,6 +13,7 @@ import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
+import { useXpHistoryStore } from '@/store/useXpHistoryStore';
 import { xpProgressInLevel } from '@/utils/gamification';
 import { BADGE_META, DOMAIN_META, STREAK_META, type StreakKey, type Quest } from '@/constants/gamification';
 import { LevelRing } from '@/components/gamification/LevelRing';
@@ -36,8 +37,6 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: 'quests', label: 'Quests' },
 ];
 
-const MOCK_HISTORY = [180, 220, 95, 310, 270, 180, 340];
-
 export default function RewardsScreen() {
   useScreenTracking('rewards');
   const c = useColors();
@@ -50,6 +49,8 @@ export default function RewardsScreen() {
   const domainScores = useGameStore((s) => s.domainScores);
   const historyFor = useDomainHistoryStore((s) => s.historyFor);
   const deltaFor = useDomainHistoryStore((s) => s.deltaFor);
+  const xpDailyGains = useXpHistoryStore((s) => s.dailyGains);
+  const xpEntries = useXpHistoryStore((s) => s.entries);
   const quests = useGameStore((s) => s.quests);
   const [section, setSection] = useState<Section>('overview');
   const [openQuest, setOpenQuest] = useState<Quest | null>(null);
@@ -61,6 +62,13 @@ export default function RewardsScreen() {
   );
 
   const prog = useMemo(() => xpProgressInLevel(totalXP), [totalXP]);
+  // Real daily-XP series for the 7-day chart (replaces the old mock). Pad a
+  // short/empty series to >=2 points so a new user sees a flat baseline instead
+  // of a broken sparkline. `xpEntries` is a dep so it recomputes after a record.
+  const xpSpark = useMemo(() => {
+    const gains = xpDailyGains(7);
+    return gains.length >= 2 ? gains : [0, ...gains, 0];
+  }, [xpDailyGains, xpEntries]);
   const allBadgeIds = Object.keys(BADGE_META) as BadgeId[];
   const bestStreak = Math.max(0, ...Object.values(streaks).map((s) => s.count));
 
@@ -96,7 +104,7 @@ export default function RewardsScreen() {
           {/* Sparkline card */}
           <GlassCard accent={c.xp} style={styles.sparkCard}>
             <SectionLabel color={c.xp}>7-DAY XP</SectionLabel>
-            <Sparkline data={MOCK_HISTORY} color={c.xp} width={280} height={60} />
+            <Sparkline data={xpSpark} color={c.xp} width={280} height={60} />
           </GlassCard>
 
           {/* Ladder */}
