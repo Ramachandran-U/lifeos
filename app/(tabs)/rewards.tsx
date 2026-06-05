@@ -94,6 +94,18 @@ export default function RewardsScreen() {
         : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
     return `You ${joined}.`;
   }, [xpDailyGains, xpEntries, deltaFor, domainEntries, bestStreak]);
+  // Quiet Comeback — returning after a lapse (gap between today's XP snapshot and
+  // the previous one)? Welcome them WITHOUT guilt: nothing reset. No-shame by
+  // design; only fires for a real 3–90 day gap, never a streak-broken scolding.
+  const comebackDays = useMemo(() => {
+    if (xpEntries.length < 2) return null;
+    const gap = Math.round(
+      (Date.parse(xpEntries[xpEntries.length - 1].date) -
+        Date.parse(xpEntries[xpEntries.length - 2].date)) /
+        86_400_000,
+    );
+    return gap >= 3 && gap <= 90 ? gap : null;
+  }, [xpEntries]);
 
   const styles = makeStyles(c);
 
@@ -122,6 +134,16 @@ export default function RewardsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Quiet Comeback — warm, no guilt; nothing reset while you were away */}
+          {comebackDays && (
+            <GlassCard accent={c.primary} style={styles.sparkCard}>
+              <AuroraText variant="h3">Welcome back 👋</AuroraText>
+              <AuroraText variant="body" muted style={{ marginTop: 6 }}>
+                {`It's been ${comebackDays} days — and none of it reset. You're still Level ${prog.level} with ${totalXP.toLocaleString()} XP. Pick up right where you left off.`}
+              </AuroraText>
+            </GlassCard>
+          )}
 
           {/* "This week you…" — the proud recap, real data only, hidden when quiet */}
           {weekRecap && (
