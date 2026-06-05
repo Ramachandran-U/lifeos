@@ -2,10 +2,28 @@ import { AIRequest, AIToolResponse, AvatarGenInput, AvatarGenResult } from './ty
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import { recordUsage, computeCost } from './costLedger';
 import { startSpan, endSpan } from './tracing';
+import { pickMaxTokens, pickProvider } from './modelRouter';
 import { track, EVENTS } from '@/utils/telemetry';
 
 const PROXY_URL =
   process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
+
+/**
+ * Parse the Worker's `Server-Timing` header into span metadata, e.g.
+ * `provider;desc="gemini";dur=850, worker;dur=860` → { server_providerMs: 850,
+ * server_workerMs: 860 }. Lets us see where a slow call spent its time
+ * (provider vs Worker) alongside the client-measured ttfb/total. No-op when the
+ * header is absent (e.g. cross-origin without expose, or an old Worker).
+ */
+function parseServerTiming(header: string | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!header) return out;
+  for (const part of header.split(',')) {
+    const m = part.match(/^\s*(\w+)[^,]*?;\s*dur=([\d.]+)/);
+    if (m) out[`server_${m[1]}Ms`] = Math.round(Number(m[2]));
+  }
+  return out;
+}
 
 async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
   const span = startSpan('callAI', { task: request.task, model: request.model, cacheSystem: !!request.cacheSystem });
@@ -16,6 +34,11 @@ async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
       throw new Error('Sign in required to use AI features.');
     }
 
+    // Optional per-task provider hint (e.g. cheap tier → groq). Undefined unless
+    // EXPO_PUBLIC_CHEAP_PROVIDER is set; the Worker ignores it if that provider
+    // has no key, so it's safe to send. See modelRouter.pickProvider.
+    const providerHint = pickProvider(request.task);
+    const fetchStart = Date.now();
     const response = await fetch(`${PROXY_URL}/claude`, {
       method: 'POST',
       signal: request.signal,
@@ -26,13 +49,17 @@ async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
       body: JSON.stringify({
         system: request.system,
         messages: request.messages,
-        maxTokens: request.maxTokens,
+        // Default the output budget per task (generation time scales with it);
+        // an explicit request.maxTokens still wins. See modelRouter.pickMaxTokens.
+        maxTokens: request.maxTokens ?? pickMaxTokens(request.task),
         model: request.model,
         cacheSystem: request.cacheSystem,
         task: request.task,
+        ...(providerHint ? { provider: providerHint } : {}),
         ...(request.tools && request.tools.length > 0 ? { tools: request.tools } : {}),
       }),
     });
+    const ttfbMs = Date.now() - fetchStart;
 
     if (response.status === 429) {
       throw new Error("You've hit today's AI limit. Try again tomorrow.");
@@ -43,6 +70,14 @@ async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
     }
 
     const data = await response.json();
+    // Latency breakdown: client-measured ttfb (request→headers) + total
+    // (request→body parsed), plus the Worker's Server-Timing (provider/worker).
+    // Lands in span metadata so the trace shows WHERE a slow call spent its time.
+    const latency = {
+      ttfbMs,
+      totalMs: Date.now() - fetchStart,
+      ...parseServerTiming(response.headers.get('Server-Timing')),
+    };
     if (data.error) throw new Error(data.error);
 
     const model = data.model ?? request.model ?? 'unknown';
@@ -62,9 +97,10 @@ async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
         cacheReadTokens: data.usage.cache_read_input_tokens,
         cacheCreationTokens: data.usage.cache_creation_input_tokens,
         costUsd: computeCost(model, data.usage),
+        metadata: latency,
       });
     } else {
-      endSpan(span, { model });
+      endSpan(span, { model, metadata: latency });
     }
 
     return {

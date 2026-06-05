@@ -23,7 +23,7 @@ It does this through 6 specialised engines feeding into 1 master planner:
 
 The differentiating layer sits *above* the engines: a cognitive layer that notices when a chosen domain has gone quiet, replans the remaining day when priorities change (diff preview + undo), and records every state change to an event-sourced mutation log. Much of this is live behind feature flags today.
 
-Product spec: `PRD.md`. Task list: `TASKS.md`. Program sequencing: `roadmap/` and `implementation-plan/`. Deeper architecture lives in `docs/`.
+Product spec: `docs/PRODUCT_TECHNICAL_DOC.md` (marketing distillation in `docs/MASTER_BRIEF.md`). Active backlog & deferred work: `docs/PARKED_ITEMS.md`. Program sequencing: `roadmap/` and `implementation-plan/`. Deeper architecture lives in `docs/`.
 
 ---
 
@@ -212,6 +212,7 @@ Tokens live in `src/theme/colors.ts`, alongside `elevation.ts`, `motion.ts`, `de
 |-----------|-------|-----|
 | Health logs, blood reports, contacts | Local (SQLite on native, **synchronous localStorage** on web) | Sensitive — stays on device |
 | Goals, tasks, routine blocks, habits | Local + optional Supabase sync via the mutation log | Cross-device, recoverable |
+| Finance transactions | Local (SQLite on native, **Dexie/IndexedDB** on web) | Larger volume; outgrows localStorage's ~5 MB quota |
 | Gamification state | Local | Fast reads for home screen |
 | User preferences | Local | |
 | Finance transactions | Local (SQLite on native, **Dexie/IndexedDB** on web) | Larger volume; outgrows localStorage's ~5 MB quota |
@@ -358,7 +359,7 @@ Reference implementation: `src/integrations/googleAuth/oauth.ts` and `app/google
 ## Session Startup Checklist
 
 1. Read `CLAUDE.md` (this file)
-2. Read the current phase in `roadmap/01-program-roadmap.md` / `implementation-plan/` and `TASKS.md`
+2. Read the current phase in `roadmap/01-program-roadmap.md` / `implementation-plan/` and the backlog in `docs/PARKED_ITEMS.md`
 3. Check `src/` structure on disk — understand what already exists
 4. Never re-scaffold what already exists — always check first
 5. Run `npx expo start` (iOS / Android / web) and/or `npm run evals` to verify the build before making changes

@@ -1,6 +1,6 @@
 # Parked Items — Cross-Session Registry
 
-> A consolidated list of work and decisions that have been **deliberately deferred** across sessions — with *why* they're parked and *what would un-park them*. This is a backlog of intent, not a task tracker; pull items from here into `TASKS.md` / `roadmap/` when their trigger fires.
+> A consolidated list of work and decisions that have been **deliberately deferred** across sessions — with *why* they're parked and *what would un-park them*. This is a backlog of intent; pull items from here into `roadmap/` / `implementation-plan/` when their trigger fires.
 >
 > **Compiled:** 2026-06-01. Each entry is a point-in-time note — **verify file/line claims against current code before acting**; the codebase moves faster than this doc.
 >
@@ -127,10 +127,22 @@
 
 ---
 
+## 10. LLM latency & cost
+
+> From the ~2–3s-per-call latency review (2026-06-05). Quick wins shipped (#144); cheap-tier Groq routing shipped behind two opt-ins (#145). The bigger *perceived*-latency win (streaming) is deliberately gated on reading the new telemetry first (measure-first).
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 10.1 🅿️ | **Read the new latency telemetry before optimising further.** #144 added `Server-Timing` (provider-vs-Worker) to the `callAI` span, alongside the existing per-task `output_tokens`. | Measure-first: the 2–3s breakdown (provider TTFT vs generation vs the India→US Worker→Gemini hop) is now observable but unread. | After ~a day of prod traffic — the data shows *where* the time goes + real per-task output sizes (to tune 10.2/10.3). |
+| 10.2 🅿️ | **Activate + tune the cheap-tier Groq routing** (infra shipped #145; OFF by default). | Groq's LPU has far lower TTFT than cross-region Gemini for the cheap/high-frequency tasks (categorize / briefing / spark / rabbit-hole); inference-only → privacy-safe. | Two opt-ins (see [MANUAL_OPS_TODO](MANUAL_OPS_TODO.md)): `EXPO_PUBLIC_CHEAP_PROVIDER=groq` + `wrangler secret put GROQ_API_KEY`. Then tune: try `llama-3.1-8b-instant` for the cheapest tasks; retune `modelRouter.pickMaxTokens` from 10.1's data. Worker auto-falls-back to Gemini on a Groq 429. |
+| 10.3 🅿️ | **Stream the non-JSON surfaces** (chat / daily briefing / what-next narrative). | Biggest *perceived*-latency win (first token <1s vs waiting ~2.5s) with no change to total compute. Today the client `await`s the full body and the Worker calls Gemini `:generateContent` (non-streaming). | After 10.1. Structural: Worker SSE passthrough (`streamGenerateContent`) + client incremental rendering; keep the non-streaming path for the Zod-validated JSON calls. |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
 - [`docs/MANUAL_OPS_TODO.md`](MANUAL_OPS_TODO.md) — manual operational steps (parked-items human actions mirrored as checkboxes)
 - [`docs/PRE_PRODUCTION_CHECKLIST.md`](PRE_PRODUCTION_CHECKLIST.md) — pre-launch gate
 - [`docs/architecture/mcp-interop-decision.md`](architecture/mcp-interop-decision.md) — MCP decision record (items 4.1–4.3)
-- `TASKS.md` / `roadmap/` / `implementation-plan/` — active work & sequencing
+- `roadmap/` / `implementation-plan/` — active work & sequencing (note: the `TASKS.md`/`PRD.md` hub referenced by older docs no longer exists; product spec is `docs/PRODUCT_TECHNICAL_DOC.md`)

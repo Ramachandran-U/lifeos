@@ -173,6 +173,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     import('./useDomainHistoryStore').then(({ useDomainHistoryStore }) =>
       useDomainHistoryStore.getState().record(scores),
     ).catch(() => { /* non-fatal */ });
+
+    // Snapshot cumulative XP the same way so the Rewards "7-day XP" chart shows
+    // real earned-per-day instead of mock data. Idempotent within a UTC day.
+    import('./useXpHistoryStore').then(({ useXpHistoryStore }) =>
+      useXpHistoryStore.getState().record(game.totalXP),
+    ).catch(() => { /* non-fatal */ });
   },
 
   completeBlock: (userId, module, completedCount, totalCount) => {

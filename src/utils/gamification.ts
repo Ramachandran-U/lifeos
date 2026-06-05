@@ -200,6 +200,21 @@ export function xpProgressInLevel(xp: number): LevelProgress {
   return { level, current, needed, pct };
 }
 
+/**
+ * A warm, behavioural identity for the user's current level — a *description of
+ * their stage*, never a rank others climb past (per the game-design review).
+ * Surfaced on the Rewards hero as the "proud mirror".
+ */
+export function levelTitle(level: number): string {
+  if (level <= 1) return 'Getting Started';
+  if (level <= 2) return 'Finding Your Footing';
+  if (level <= 4) return 'Building Momentum';
+  if (level <= 6) return 'In the Groove';
+  if (level <= 8) return 'Consistency Pro';
+  if (level <= 10) return 'Life Architect';
+  return 'Master Builder';
+}
+
 // ─── Level perks (design mock — surface on Rewards ladder) ───────────────────
 export const LEVEL_PERKS: Record<number, string[]> = {
   8:  ['Finance Insights', 'Custom Avatar Frame', '+5% XP Boost'],

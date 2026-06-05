@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useColors } from '@/theme/colors';
-import { fonts, fontSizes } from '@/theme/typography';
+import { fonts } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -13,7 +13,8 @@ import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
-import { xpProgressInLevel } from '@/utils/gamification';
+import { useXpHistoryStore } from '@/store/useXpHistoryStore';
+import { xpProgressInLevel, levelTitle } from '@/utils/gamification';
 import { BADGE_META, DOMAIN_META, STREAK_META, type StreakKey, type Quest } from '@/constants/gamification';
 import { LevelRing } from '@/components/gamification/LevelRing';
 import { XpBar } from '@/components/gamification/XpBar';
@@ -27,17 +28,6 @@ import { DomainMiniCard } from '@/components/gamification/DomainMiniCard';
 import type { BadgeId } from '@/utils/gamification';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 
-type Section = 'overview' | 'badges' | 'streaks' | 'quests';
-
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'badges', label: 'Badges' },
-  { id: 'streaks', label: 'Streaks' },
-  { id: 'quests', label: 'Quests' },
-];
-
-const MOCK_HISTORY = [180, 220, 95, 310, 270, 180, 340];
-
 export default function RewardsScreen() {
   useScreenTracking('rewards');
   const c = useColors();
@@ -50,8 +40,10 @@ export default function RewardsScreen() {
   const domainScores = useGameStore((s) => s.domainScores);
   const historyFor = useDomainHistoryStore((s) => s.historyFor);
   const deltaFor = useDomainHistoryStore((s) => s.deltaFor);
+  const xpDailyGains = useXpHistoryStore((s) => s.dailyGains);
+  const xpEntries = useXpHistoryStore((s) => s.entries);
+  const domainEntries = useDomainHistoryStore((s) => s.entries);
   const quests = useGameStore((s) => s.quests);
-  const [section, setSection] = useState<Section>('overview');
   const [openQuest, setOpenQuest] = useState<Quest | null>(null);
 
   useFocusEffect(
@@ -61,8 +53,47 @@ export default function RewardsScreen() {
   );
 
   const prog = useMemo(() => xpProgressInLevel(totalXP), [totalXP]);
+  // Real daily-XP series for the 7-day chart (replaces the old mock). Pad a
+  // short/empty series to >=2 points so a new user sees a flat baseline instead
+  // of a broken sparkline. `xpEntries` is a dep so it recomputes after a record.
+  const xpSpark = useMemo(() => {
+    const gains = xpDailyGains(7);
+    return gains.length >= 2 ? gains : [0, ...gains, 0];
+  }, [xpDailyGains, xpEntries]);
   const allBadgeIds = Object.keys(BADGE_META) as BadgeId[];
   const bestStreak = Math.max(0, ...Object.values(streaks).map((s) => s.count));
+  // "Proud mirror" line — a warm sentence from real data, not a stat. Active
+  // days = days with a positive XP gain in the last 30 (builds over time, so a
+  // brand-new user falls through to the streak or the day-1 line).
+  const activeDays = useMemo(
+    () => xpDailyGains(30).filter((g) => g > 0).length,
+    [xpDailyGains, xpEntries],
+  );
+  const proudLine = useMemo(() => {
+    if (activeDays >= 2) return `You've shown up ${activeDays} of the last 30 days.`;
+    if (bestStreak >= 3) return `You're on a ${bestStreak}-day streak — keep going.`;
+    return 'Your story starts now.';
+  }, [activeDays, bestStreak]);
+  // "This week you…" — warm verbs from real 7-day data. Returns null on a quiet
+  // week so the card hides rather than showing an empty boast.
+  const weekRecap = useMemo(() => {
+    const weekXp = xpDailyGains(7).reduce((a, b) => a + b, 0);
+    let topDomain: { label: string; delta: number } | null = null;
+    for (const dm of DOMAIN_META) {
+      const d = deltaFor(dm.key, 7);
+      if (d > (topDomain?.delta ?? 0)) topDomain = { label: dm.label, delta: d };
+    }
+    const parts: string[] = [];
+    if (weekXp > 0) parts.push(`earned ${weekXp} XP`);
+    if (topDomain) parts.push(`pushed ${topDomain.label} +${topDomain.delta}`);
+    if (bestStreak >= 3) parts.push(`kept a ${bestStreak}-day streak alive`);
+    if (parts.length === 0) return null;
+    const joined =
+      parts.length === 1
+        ? parts[0]
+        : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+    return `You ${joined}.`;
+  }, [xpDailyGains, xpEntries, deltaFor, domainEntries, bestStreak]);
 
   const styles = makeStyles(c);
 
@@ -75,16 +106,15 @@ export default function RewardsScreen() {
           <View style={styles.hero}>
             <LevelRing xp={totalXP} size={160} />
             <View style={styles.heroStats}>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                <AuroraText variant="display" numeric>{totalXP.toLocaleString()}</AuroraText>
-                <AuroraText variant="caption" color={c.xp}>XP</AuroraText>
+              <AuroraText variant="caption" color={c.xp}>{`LEVEL ${prog.level}`}</AuroraText>
+              <AuroraText variant="h2">{levelTitle(prog.level)}</AuroraText>
+              <AuroraText variant="caption" muted style={{ marginTop: 4 }}>{proudLine}</AuroraText>
+              <View style={{ marginTop: 12 }}>
+                <XpBar pct={prog.pct} color={c.xp} height={6} />
               </View>
               <AuroraText variant="micro" muted style={{ marginTop: 4 }}>
-                {`LEVEL ${prog.level} · ${prog.current.toLocaleString()} / ${prog.needed.toLocaleString()} XP`}
+                {`${prog.current.toLocaleString()} / ${prog.needed.toLocaleString()} XP to Level ${prog.level + 1}`}
               </AuroraText>
-              <View style={{ marginTop: 12 }}>
-                <XpBar pct={prog.pct} color={c.xp} height={10} />
-              </View>
               <View style={styles.statsRow}>
                 <StatBox label="THIS WEEK" value={`+${weeklyXP}`} color={c.xp} />
                 <StatBox label="BADGES" value={`${badges.length}/${allBadgeIds.length}`} color={c.badge} />
@@ -93,10 +123,18 @@ export default function RewardsScreen() {
             </View>
           </View>
 
+          {/* "This week you…" — the proud recap, real data only, hidden when quiet */}
+          {weekRecap && (
+            <GlassCard accent={c.xp} style={styles.sparkCard}>
+              <SectionLabel color={c.xp}>THIS WEEK</SectionLabel>
+              <AuroraText variant="bodyLg" style={{ marginTop: 6 }}>{weekRecap}</AuroraText>
+            </GlassCard>
+          )}
+
           {/* Sparkline card */}
           <GlassCard accent={c.xp} style={styles.sparkCard}>
             <SectionLabel color={c.xp}>7-DAY XP</SectionLabel>
-            <Sparkline data={MOCK_HISTORY} color={c.xp} width={280} height={60} />
+            <Sparkline data={xpSpark} color={c.xp} width={280} height={60} />
           </GlassCard>
 
           {/* Ladder */}
@@ -105,98 +143,69 @@ export default function RewardsScreen() {
             <LevelLadder currentLevel={prog.level} />
           </GlassCard>
 
-          {/* Tabs */}
-          <View style={[styles.tabBar, { borderBottomColor: c.border }]}>
-            {SECTIONS.map((s) => {
-              const active = section === s.id;
+          {/* ── The Journey: one continuous scroll, no tabs ── */}
+
+          {/* Life balance — per-domain scores */}
+          <SectionLabel>LIFE BALANCE</SectionLabel>
+          <View style={styles.grid}>
+            {DOMAIN_META.map((dm) => {
+              const score = domainScores[dm.key] ?? 0;
+              const history = historyFor(dm.key);
+              // Empty/single-entry → a flat line at the current score (real, not mock).
+              const safeHistory = history.length >= 2 ? history : [score, score];
               return (
-                <Pressable key={s.id} onPress={() => setSection(s.id)} style={styles.tabBtn}>
-                  <Text
-                    style={{
-                      fontFamily: fonts.bodyMedium,
-                      fontSize: fontSizes.sm,
-                      color: active ? c.primary : c.textMuted,
-                    }}
-                  >
-                    {s.label}
-                  </Text>
-                  <View
-                    style={{
-                      height: 2,
-                      marginTop: 6,
-                      backgroundColor: active ? c.primary : 'transparent',
-                    }}
+                <View key={dm.key} style={styles.gridCell}>
+                  <DomainMiniCard
+                    domainKey={dm.key}
+                    score={score}
+                    delta={deltaFor(dm.key)}
+                    history={safeHistory}
                   />
-                </Pressable>
+                </View>
               );
             })}
           </View>
 
-          {section === 'overview' && (
-            <View style={styles.grid}>
-              {DOMAIN_META.map((dm) => {
-                const score = domainScores[dm.key] ?? 0;
-                const history = historyFor(dm.key);
-                // Empty/single-entry state — show a flat line at current score
-                // so the sparkline is real (not mock) but doesn't overpromise.
-                const safeHistory = history.length >= 2 ? history : [score, score];
-                return (
-                  <View key={dm.key} style={styles.gridCell}>
-                    <DomainMiniCard
-                      domainKey={dm.key}
-                      score={score}
-                      delta={deltaFor(dm.key)}
-                      history={safeHistory}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {section === 'badges' && (
-            <View style={styles.grid}>
-              {allBadgeIds.map((id) => (
-                <View key={id} style={styles.badgeCell}>
-                  <BadgeTile badgeId={id} earned={badges.includes(id)} />
-                </View>
-              ))}
-            </View>
-          )}
-
-          {section === 'streaks' && (
-            <View style={{ gap: 12 }}>
-              {(Object.keys(STREAK_META) as StreakKey[]).map((k) => {
-                const s = streaks[k];
-                return (
-                  <StreakRow
-                    key={k}
-                    streakKey={k}
-                    count={s?.count ?? 0}
-                    best={s?.count ?? 0}
-                    graceUsed={s?.graceUsed ?? false}
-                  />
-                );
-              })}
-            </View>
-          )}
-
-          {section === 'quests' && (
-            <View style={{ gap: 16 }}>
-              <SectionLabel>DAILY QUESTS</SectionLabel>
-              <View style={{ gap: 10 }}>
-                {quests.filter((q) => q.type === 'daily').map((q) => (
-                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
-                ))}
+          {/* Badges */}
+          <SectionLabel>{`BADGES · ${badges.length}/${allBadgeIds.length}`}</SectionLabel>
+          <View style={styles.grid}>
+            {allBadgeIds.map((id) => (
+              <View key={id} style={styles.badgeCell}>
+                <BadgeTile badgeId={id} earned={badges.includes(id)} />
               </View>
-              <SectionLabel>WEEKLY QUEST</SectionLabel>
-              <View style={{ gap: 10 }}>
-                {quests.filter((q) => q.type === 'weekly').map((q) => (
-                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
-                ))}
-              </View>
-            </View>
-          )}
+            ))}
+          </View>
+
+          {/* Streaks */}
+          <SectionLabel>STREAKS</SectionLabel>
+          <View style={{ gap: 12 }}>
+            {(Object.keys(STREAK_META) as StreakKey[]).map((k) => {
+              const s = streaks[k];
+              return (
+                <StreakRow
+                  key={k}
+                  streakKey={k}
+                  count={s?.count ?? 0}
+                  best={s?.count ?? 0}
+                  graceUsed={s?.graceUsed ?? false}
+                />
+              );
+            })}
+          </View>
+
+          {/* Quests */}
+          <SectionLabel>DAILY QUESTS</SectionLabel>
+          <View style={{ gap: 10 }}>
+            {quests.filter((q) => q.type === 'daily').map((q) => (
+              <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
+            ))}
+          </View>
+          <SectionLabel>WEEKLY QUEST</SectionLabel>
+          <View style={{ gap: 10 }}>
+            {quests.filter((q) => q.type === 'weekly').map((q) => (
+              <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
+            ))}
+          </View>
         </ScrollView>
       </SafeAreaView>
 
