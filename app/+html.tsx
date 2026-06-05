@@ -42,6 +42,15 @@ export default function Root({ children }: PropsWithChildren) {
           html, body, #root { background-color: #0D0D0D; height: 100%; }
           body { overscroll-behavior-y: none; }
         ` }} />
+
+        {/* Register the service worker (public/sw.js) — enables offline fallback
+            and lets Android Chrome fire beforeinstallprompt for one-tap install.
+            Best-effort; failure is silent and never blocks the app. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); }); }`,
+          }}
+        />
       </head>
       <body>{children}</body>
     </html>
