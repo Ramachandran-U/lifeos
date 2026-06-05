@@ -14,7 +14,7 @@ import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
 import { useXpHistoryStore } from '@/store/useXpHistoryStore';
-import { xpProgressInLevel } from '@/utils/gamification';
+import { xpProgressInLevel, levelTitle } from '@/utils/gamification';
 import { BADGE_META, DOMAIN_META, STREAK_META, type StreakKey, type Quest } from '@/constants/gamification';
 import { LevelRing } from '@/components/gamification/LevelRing';
 import { XpBar } from '@/components/gamification/XpBar';
@@ -71,6 +71,18 @@ export default function RewardsScreen() {
   }, [xpDailyGains, xpEntries]);
   const allBadgeIds = Object.keys(BADGE_META) as BadgeId[];
   const bestStreak = Math.max(0, ...Object.values(streaks).map((s) => s.count));
+  // "Proud mirror" line — a warm sentence from real data, not a stat. Active
+  // days = days with a positive XP gain in the last 30 (builds over time, so a
+  // brand-new user falls through to the streak or the day-1 line).
+  const activeDays = useMemo(
+    () => xpDailyGains(30).filter((g) => g > 0).length,
+    [xpDailyGains, xpEntries],
+  );
+  const proudLine = useMemo(() => {
+    if (activeDays >= 2) return `You've shown up ${activeDays} of the last 30 days.`;
+    if (bestStreak >= 3) return `You're on a ${bestStreak}-day streak — keep going.`;
+    return 'Your story starts now.';
+  }, [activeDays, bestStreak]);
 
   const styles = makeStyles(c);
 
@@ -83,16 +95,15 @@ export default function RewardsScreen() {
           <View style={styles.hero}>
             <LevelRing xp={totalXP} size={160} />
             <View style={styles.heroStats}>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                <AuroraText variant="display" numeric>{totalXP.toLocaleString()}</AuroraText>
-                <AuroraText variant="caption" color={c.xp}>XP</AuroraText>
+              <AuroraText variant="caption" color={c.xp}>{`LEVEL ${prog.level}`}</AuroraText>
+              <AuroraText variant="h2">{levelTitle(prog.level)}</AuroraText>
+              <AuroraText variant="caption" muted style={{ marginTop: 4 }}>{proudLine}</AuroraText>
+              <View style={{ marginTop: 12 }}>
+                <XpBar pct={prog.pct} color={c.xp} height={6} />
               </View>
               <AuroraText variant="micro" muted style={{ marginTop: 4 }}>
-                {`LEVEL ${prog.level} · ${prog.current.toLocaleString()} / ${prog.needed.toLocaleString()} XP`}
+                {`${prog.current.toLocaleString()} / ${prog.needed.toLocaleString()} XP to Level ${prog.level + 1}`}
               </AuroraText>
-              <View style={{ marginTop: 12 }}>
-                <XpBar pct={prog.pct} color={c.xp} height={10} />
-              </View>
               <View style={styles.statsRow}>
                 <StatBox label="THIS WEEK" value={`+${weeklyXP}`} color={c.xp} />
                 <StatBox label="BADGES" value={`${badges.length}/${allBadgeIds.length}`} color={c.badge} />
