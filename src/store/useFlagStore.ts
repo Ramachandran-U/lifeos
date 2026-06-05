@@ -44,10 +44,12 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   agent_what_next: false,
   // Propose-and-confirm "coach": the what-next agent can also PROPOSE actions
   // (add a block, mark complete/skipped, adjust a goal) that the user confirms
-  // per-item. Off by default; requires the same function-calling passthrough as
-  // agent_what_next. Supersedes the read-only WhatNextCard on Today when on.
-  // Nothing mutates without an explicit confirm — see actionQueue.commitActions.
-  ai_coach_actions: false,
+  // per-item. Default ON (2026-06-05) — supersedes the read-only WhatNextCard on
+  // Today. Requires the proxy's function-calling passthrough (deployed). Nothing
+  // mutates without an explicit confirm, and each ref is re-validated at commit
+  // time — see actionQueue.commitActions. The admin `flags` table remains the
+  // authoritative kill switch (a row here overrides this fallback default).
+  ai_coach_actions: true,
 };
 
 interface FlagState {
@@ -114,7 +116,9 @@ export const useFlagStore = create<FlagState>()(
       // we'd want clients to re-fetch rather than serve stale persisted state.
       // Bumped to v2 (2026-05-29): onboarding_v2 added as default-on so
       // existing persisted state from before the addition doesn't shadow it.
-      name: 'lifeos_flags_v2',
+      // Bumped to v3 (2026-06-05): ai_coach_actions flipped default-on; drop
+      // persisted `false` so existing installs pick up the acting coach.
+      name: 'lifeos_flags_v3',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },
