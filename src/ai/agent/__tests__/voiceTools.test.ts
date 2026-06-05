@@ -9,8 +9,23 @@ import 'fake-indexeddb/auto';
 // read set lets us exercise getRecentSpending in isolation.
 jest.mock('@/ai/agent/tools', () => ({ buildLifeOsTools: () => [] }));
 
+// getTodayNutrition reads the user row + weight logs + today's food entries.
+// Mock those so the nutrition tool is exercised hermetically — calorieTargets in
+// @/utils/health stays REAL (it's the engine under test).
+jest.mock('@/db/queries/users', () => ({ getUser: jest.fn() }));
+jest.mock('@/db/queries/health', () => ({
+  getRecentWeightLogs: jest.fn(() => []),
+  getFoodEntriesByDate: jest.fn(() => []),
+}));
+
 import { financeDb, upsertTransactions, type TxRecord } from '@/finance/db/transactionDb';
 import { buildVoiceTools } from '@/ai/agent/voiceTools';
+import { getUser } from '@/db/queries/users';
+import { getRecentWeightLogs, getFoodEntriesByDate } from '@/db/queries/health';
+
+const mockGetUser = getUser as jest.Mock;
+const mockWeights = getRecentWeightLogs as jest.Mock;
+const mockFood = getFoodEntriesByDate as jest.Mock;
 
 function makeTx(overrides: Partial<TxRecord> = {}): TxRecord {
   return {
@@ -95,5 +110,53 @@ describe('getRecentSpending', () => {
     expect(result.byCategory).toEqual([]);
     expect(result.topMerchants).toEqual([]);
     expect(result.note).toMatch(/sync/i);
+  });
+});
+
+function nutritionTool() {
+  const tool = buildVoiceTools({ userId: 'u1', today: TODAY }).find(
+    (t) => t.declaration.name === 'getTodayNutrition',
+  );
+  if (!tool) throw new Error('getTodayNutrition tool not found');
+  return tool;
+}
+
+describe('getTodayNutrition', () => {
+  it('computes consumed + remaining against a personalised target', async () => {
+    mockGetUser.mockReturnValue({ heightCm: 178, age: 30, sex: 'male', activityLevel: 'moderate', healthGoalType: 'maintain' });
+    mockWeights.mockReturnValue([{ weight: 75 }]);
+    mockFood.mockReturnValue([
+      { calories: 500, protein: 30, carbs: 50, fat: 15 },
+      { calories: 300, protein: 20, carbs: 40, fat: 8 },
+    ]);
+
+    const res = (await nutritionTool().execute({})) as {
+      goal: string; personalised: boolean; mealsLoggedToday: number;
+      target: { calories: number }; consumed: { calories: number; protein: number };
+      remaining: { calories: number };
+    };
+
+    expect(res.personalised).toBe(true);
+    expect(res.goal).toBe('maintain');
+    // 75kg/178cm/30/male/moderate/maintain → 2660 kcal (matches the health.test case)
+    expect(res.target.calories).toBe(2660);
+    expect(res.consumed.calories).toBe(800);
+    expect(res.consumed.protein).toBe(50);
+    expect(res.remaining.calories).toBe(2660 - 800);
+    expect(res.mealsLoggedToday).toBe(2);
+  });
+
+  it('returns the generic estimate flagged not-personalised when vitals are missing', async () => {
+    mockGetUser.mockReturnValue({ heightCm: null, age: null });
+    mockWeights.mockReturnValue([]);
+    mockFood.mockReturnValue([]);
+
+    const res = (await nutritionTool().execute({})) as {
+      personalised: boolean; target: { calories: number }; note?: string;
+    };
+
+    expect(res.personalised).toBe(false);
+    expect(res.target.calories).toBe(2000);
+    expect(res.note).toMatch(/personalise/i);
   });
 });

@@ -27,16 +27,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
 import { createHealthLog } from '@/db/queries/health';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
-import { SEX_OPTIONS, ACTIVITY_OPTIONS } from '@/utils/health';
-
-const GOAL_TYPES: Array<{ value: string; label: string }> = [
-  { value: 'build_strength',   label: 'Build strength'    },
-  { value: 'lose_weight',      label: 'Lose weight'       },
-  { value: 'gain_endurance',   label: 'Gain endurance'    },
-  { value: 'improve_sleep',    label: 'Improve sleep'     },
-  { value: 'reduce_stress',    label: 'Reduce stress'     },
-  { value: 'maintain',         label: 'Maintain'          },
-];
+import { SEX_OPTIONS, ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/utils/health';
 
 const SLEEP_OPTIONS = [6, 7, 8, 9];
 
@@ -173,7 +164,7 @@ export default function Day3HealthScreen() {
 
             <Label style={styles.fieldLabel}>Goal</Label>
             <View style={styles.chipGrid}>
-              {GOAL_TYPES.map((g, i) => {
+              {GOAL_OPTIONS.map((g, i) => {
                 const active = g.value === goalType;
                 return (
                   <Animated.View key={g.value} entering={FadeIn.delay(200 + stagger(i, 40)).duration(300)}>

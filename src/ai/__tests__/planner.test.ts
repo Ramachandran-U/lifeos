@@ -90,7 +90,12 @@ describe('planRoutineAgent — deterministic guards', () => {
       { issues: [], revisedBlocks: [] },
     );
     const { plan } = await planRoutineAgent(baseInput);
-    expect(plan.blocks.map((b) => b.endTime)).toEqual(['23:00']);
+    // The past-bedtime block is dropped; the in-window block survives. (A
+    // wake-anchor opening block may also be prepended because the only surviving
+    // block sits late — see routineAnchor; this test asserts only the sleep guard.)
+    const endTimes = plan.blocks.map((b) => b.endTime);
+    expect(endTimes).toContain('23:00');
+    expect(endTimes).not.toContain('00:30');
   });
 
   it('coerces hallucinated module names to valid enum values', async () => {

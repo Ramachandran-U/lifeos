@@ -49,6 +49,36 @@ export const BADGE_META: Record<BadgeId, { label: string; emoji: string; desc: s
   curiosity_streak_7: { label: 'Curious Week',     emoji: '🌟', desc: 'Engaged with a spark for 7 consecutive days' },
 };
 
+// Badge rarity tiers — the real-life difficulty of earning it, NOT grind time
+// (per the game-design review). Milestone = anyone consistent reaches it;
+// Mastery = sustained effort; Rare = genuinely hard, usually cross-domain or
+// sustained balance. The tier LABEL carries the meaning, so rarity stays
+// colour-blind safe (colour only reinforces it).
+export type BadgeTier = 'milestone' | 'mastery' | 'rare';
+
+export const BADGE_TIER: Record<BadgeId, BadgeTier> = {
+  first_blueprint:    'milestone',
+  first_blood_report: 'milestone',
+  goal_complete:      'milestone',
+  week_1:             'milestone',
+  food_photo:         'milestone',
+  first_connection:   'milestone',
+  polymath_starter:   'milestone',
+  skill_mastery:      'mastery',
+  streak_30_any:      'mastery',
+  expedition_complete:'mastery',
+  curiosity_streak_7: 'mastery',
+  life_balance:       'rare',
+  inner_orbit:        'rare',
+  synapse_formed:     'rare',
+};
+
+export const BADGE_TIER_META: Record<BadgeTier, { label: string }> = {
+  milestone: { label: 'Milestone' },
+  mastery:   { label: 'Mastery' },
+  rare:      { label: 'Rare' },
+};
+
 export type StreakKey = 'workout' | 'learning' | 'foodTracking' | 'journaling' | 'social';
 
 export const STREAK_META: Record<StreakKey, { label: string; emoji: string; colorKey: ColorKey }> = {

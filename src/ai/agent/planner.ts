@@ -10,6 +10,7 @@ import {
   type RoutineInput,
 } from '../types';
 import { MOCK_ROUTINE } from '../mocks/routine';
+import { anchorRoutineToWake } from '../routineAnchor';
 
 const isMock = () =>
   process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
@@ -142,7 +143,8 @@ async function planRoutineAgentInner(
       'and optional profile signals (chronotype, primary domains, fixed blocks, constraints, struggles, ' +
       'current habits, productive hours, dropped habits), propose 6–10 time-blocked routine blocks for today. ' +
       'HARD CONSTRAINTS (never violate, even if defaults would be more natural): the FIRST block must start ' +
-      'AT OR AFTER schedule.wakeTime. The LAST block must end AT OR BEFORE schedule.sleepTime. Block times ' +
+      'AT schedule.wakeTime — begin the day when the user wakes; NEVER leave the window between wakeTime and ' +
+      'the first block empty. The LAST block must end AT OR BEFORE schedule.sleepTime. Block times ' +
       'between schedule.workStartTime and schedule.workEndTime should use module="work" unless a fixedBlock ' +
       'overrides them. Do NOT default to 07:00 or any other common time — read the provided wakeTime ' +
       'literally and start the first block exactly there or later. ' +
@@ -256,15 +258,19 @@ async function planRoutineAgentInner(
     return s >= wakeMin && e <= sleepMin && s < e;
   };
   const preFilter = critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks;
-  const finalBlocks = preFilter.filter(inWindow);
-  if (preFilter.length !== finalBlocks.length) {
+  const windowed = preFilter.filter(inWindow);
+  if (preFilter.length !== windowed.length) {
     console.warn(
-      `[planner] guard dropped ${preFilter.length - finalBlocks.length} block(s) outside ` +
+      `[planner] guard dropped ${preFilter.length - windowed.length} block(s) outside ` +
       `wake=${input.wakeTime}..sleep=${input.sleepTime} window. ` +
       `Pre-filter starts: ${preFilter.map((b) => b.startTime).join(',')}. ` +
-      `Post-filter starts: ${finalBlocks.map((b) => b.startTime).join(',')}.`,
+      `Post-filter starts: ${windowed.map((b) => b.startTime).join(',')}.`,
     );
   }
+  // Guarantee the day starts at wake — the prompt's "at or after wakeTime" lets
+  // the model leave the morning empty (wake 10:00 → first block 12:00). If it
+  // did, prepend an opening block from wakeTime. Deterministic; see routineAnchor.
+  const finalBlocks = anchorRoutineToWake(windowed, input.wakeTime);
   const briefingRaw = await callAI({
     system:
       'Write a 2–3 sentence briefing for the user explaining the shape of their day and the ' +

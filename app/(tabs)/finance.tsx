@@ -53,7 +53,7 @@ import {
 } from '@/finance/categoryGroups';
 import { CATEGORY_COLORS, formatInr, prettyCategory } from '@/finance/display';
 import { runAllDetectors, type Insight } from '@/finance/insights';
-import { samePeriodMonthWindows } from '@/finance/analytics';
+import { splitTxByPeriod } from '@/finance/analytics';
 import type { TxRecord } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -627,16 +627,14 @@ function OverviewTab({
   const now = new Date();
   // Like-for-like comparison: month-to-date vs the SAME elapsed day-range last
   // month (not the full previous month) — otherwise an in-progress month always
-  // looks like a spend collapse. See samePeriodMonthWindows.
-  const { thisStart, thisEnd, prevStart, prevEnd } = samePeriodMonthWindows(now);
+  // looks like a spend collapse. The boundary/TZ handling lives in splitTxByPeriod.
+  const { thisMonth: thisMonthTx, lastPeriod: lastMonthTx } = splitTxByPeriod(transactions, now);
 
   const asMinimal = (t: TxRecord) => ({
     amount: t.amount,
     direction: t.direction,
     category: t.category as TransactionCategory,
   });
-  const thisMonthTx = transactions.filter((t) => t.date >= thisStart && t.date <= thisEnd);
-  const lastMonthTx = transactions.filter((t) => t.date >= prevStart && t.date <= prevEnd);
 
   // "Spend" = consumption only (self-transfers, investments and loan/card
   // repayments are excluded so they don't inflate the headline).

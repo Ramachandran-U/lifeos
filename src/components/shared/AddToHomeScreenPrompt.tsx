@@ -57,14 +57,14 @@ export function AddToHomeScreenPrompt() {
 
 const makeStyles = (c: AppColors) =>
   StyleSheet.create({
+    // In-flow (not absolute) so the banner occupies layout space at the top of
+    // the app and pushes screen content down, rather than overlapping each
+    // screen's own header (cf. Apple's Smart App Banner). Renders null when not
+    // applicable, so it takes no space for the vast majority of users.
     wrap: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
       paddingHorizontal: spacing.md,
       paddingTop: spacing.md,
-      zIndex: 50,
+      paddingBottom: spacing.xs,
     },
     card: {
       flexDirection: 'row',

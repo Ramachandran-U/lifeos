@@ -280,17 +280,18 @@ export default function HealthScreen() {
     return groups;
   }, [foodEntries]);
 
-  const handleSaveVitals = (data: { weightKg?: number; heightCm?: number; age?: number; sex?: string; activityLevel?: string }) => {
+  const handleSaveVitals = (data: { weightKg?: number; heightCm?: number; age?: number; sex?: string; activityLevel?: string; goalType?: string }) => {
     if (data.weightKg != null) {
       createHealthLog({ date: today, weight: data.weightKg });
       logBehaviourEvent('weight_logged', 'health');
       if (userId) addXP(userId, 10);
     }
-    const profile: { heightCm?: number; age?: number; sex?: string; activityLevel?: string } = {};
+    const profile: { heightCm?: number; age?: number; sex?: string; activityLevel?: string; healthGoalType?: string } = {};
     if (data.heightCm != null) profile.heightCm = data.heightCm;
     if (data.age != null) profile.age = data.age;
     if (data.sex != null) profile.sex = data.sex;
     if (data.activityLevel != null) profile.activityLevel = data.activityLevel;
+    if (data.goalType != null) profile.healthGoalType = data.goalType;
     if (userId && Object.keys(profile).length > 0) {
       updateUser(userId, profile);
     }
@@ -606,6 +607,7 @@ export default function HealthScreen() {
         initialAge={userAge}
         initialSex={sex}
         initialActivityLevel={activityLevel}
+        initialGoalType={goalType}
         onClose={() => setShowEditVitals(false)}
         onSave={handleSaveVitals}
       />

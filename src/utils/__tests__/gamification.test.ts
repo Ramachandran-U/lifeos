@@ -8,6 +8,7 @@ import {
   bumpDomainScore,
   polymathScore,
   XP_VALUES,
+  levelTitle,
 } from '../gamification';
 import { format, subDays } from 'date-fns';
 
@@ -340,5 +341,19 @@ describe('checkBadges — multiple awards in one pass', () => {
   });
   it('returns an empty array when context provides nothing', () => {
     expect(checkBadges([], {})).toEqual([]);
+  });
+});
+
+describe('levelTitle', () => {
+  it('returns a warm stage descriptor that escalates with level', () => {
+    expect(levelTitle(1)).toBe('Getting Started');
+    expect(levelTitle(3)).toBe('Building Momentum');
+    expect(levelTitle(7)).toBe('Consistency Pro');
+    expect(levelTitle(20)).toBe('Master Builder');
+  });
+  it('always returns a non-empty title for any level', () => {
+    for (let lvl = 1; lvl <= 30; lvl++) {
+      expect(levelTitle(lvl).length).toBeGreaterThan(0);
+    }
   });
 });

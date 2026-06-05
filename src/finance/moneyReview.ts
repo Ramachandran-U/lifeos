@@ -6,7 +6,7 @@
  */
 
 import { isConsumptionSpend, spendByGroup, spendByAxis, GROUP_META } from './categoryGroups';
-import { merchantRollups, samePeriodMonthWindows } from './analytics';
+import { merchantRollups, splitTxByPeriod } from './analytics';
 import type { TransactionCategory } from '@/ai/types';
 
 export interface MoneyReviewTx {
@@ -36,11 +36,8 @@ const toRupees = (paise: number) => Math.round(paise / 100);
 export function buildMoneyReviewInput(txns: MoneyReviewTx[], now: Date = new Date()): MoneyReviewInput {
   // Compare like-for-like: month-to-date vs the SAME day-range last month, so an
   // in-progress month isn't judged against a full previous month (which made
-  // "spent ₹353 by the 4th" read as a spend collapse). See samePeriodMonthWindows.
-  const { thisStart, thisEnd, prevStart, prevEnd } = samePeriodMonthWindows(now);
-
-  const thisMonth = txns.filter((t) => t.date >= thisStart && t.date <= thisEnd);
-  const lastMonth = txns.filter((t) => t.date >= prevStart && t.date <= prevEnd);
+  // "spent ₹353 by the 4th" read as a spend collapse). See splitTxByPeriod.
+  const { thisMonth, lastPeriod: lastMonth } = splitTxByPeriod(txns, now);
 
   const minimal = (t: MoneyReviewTx) => ({
     amount: t.amount,

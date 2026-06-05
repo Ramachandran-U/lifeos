@@ -6,7 +6,7 @@ import { fonts } from '@/theme/typography';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
-import { SEX_OPTIONS, ACTIVITY_OPTIONS, type ActivityLevel } from '@/utils/health';
+import { SEX_OPTIONS, ACTIVITY_OPTIONS, GOAL_OPTIONS, type ActivityLevel } from '@/utils/health';
 
 interface Props {
   visible: boolean;
@@ -15,6 +15,7 @@ interface Props {
   initialAge?: number | null;
   initialSex?: string | null;
   initialActivityLevel?: string | null;
+  initialGoalType?: string | null;
   onClose: () => void;
   onSave: (data: {
     weightKg?: number;
@@ -22,6 +23,7 @@ interface Props {
     age?: number;
     sex?: string;
     activityLevel?: string;
+    goalType?: string;
   }) => void;
 }
 
@@ -37,6 +39,7 @@ export function EditVitalsSheet({
   initialAge,
   initialSex,
   initialActivityLevel,
+  initialGoalType,
   onClose,
   onSave,
 }: Props) {
@@ -47,6 +50,7 @@ export function EditVitalsSheet({
   const [age, setAge] = useState('');
   const [sex, setSex] = useState<string | null>(null);
   const [activity, setActivity] = useState<string | null>(null);
+  const [goalType, setGoalType] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -55,14 +59,15 @@ export function EditVitalsSheet({
       setAge(initialAge != null ? String(initialAge) : '');
       setSex(initialSex ?? null);
       setActivity(initialActivityLevel ?? null);
+      setGoalType(initialGoalType ?? null);
     }
-  }, [visible, initialWeightKg, initialHeightCm, initialAge, initialSex, initialActivityLevel]);
+  }, [visible, initialWeightKg, initialHeightCm, initialAge, initialSex, initialActivityLevel, initialGoalType]);
 
   const handleSave = () => {
     const w = parseFloat(weight);
     const h = parseFloat(height);
     const a = parseInt(age, 10);
-    const payload: { weightKg?: number; heightCm?: number; age?: number; sex?: string; activityLevel?: string } = {};
+    const payload: { weightKg?: number; heightCm?: number; age?: number; sex?: string; activityLevel?: string; goalType?: string } = {};
     if (Number.isFinite(w) && w > 0 && w !== initialWeightKg) payload.weightKg = w;
     if (Number.isFinite(h) && h > 0 && h !== initialHeightCm) payload.heightCm = h;
     // Age is the gating input for a personalised target — Mifflin–St Jeor needs
@@ -70,6 +75,7 @@ export function EditVitalsSheet({
     if (Number.isFinite(a) && a >= MIN_AGE && a <= MAX_AGE && a !== initialAge) payload.age = a;
     if (sex && sex !== initialSex) payload.sex = sex;
     if (activity && activity !== initialActivityLevel) payload.activityLevel = activity;
+    if (goalType && goalType !== initialGoalType) payload.goalType = goalType;
     onSave(payload);
     onClose();
   };
@@ -129,6 +135,19 @@ export function EditVitalsSheet({
                   style={[styles.chip, activity === o.value && { backgroundColor: c.health, borderColor: c.health }]}
                 >
                   <Caption style={activity === o.value ? styles.chipTextActive : undefined}>{o.label}</Caption>
+                </Pressable>
+              ))}
+            </View>
+
+            <Label style={styles.fieldLabel}>Goal (shifts your calorie target)</Label>
+            <View style={styles.chipRow}>
+              {GOAL_OPTIONS.map((o) => (
+                <Pressable
+                  key={o.value}
+                  onPress={() => setGoalType(o.value)}
+                  style={[styles.chip, goalType === o.value && { backgroundColor: c.health, borderColor: c.health }]}
+                >
+                  <Caption style={goalType === o.value ? styles.chipTextActive : undefined}>{o.label}</Caption>
                 </Pressable>
               ))}
             </View>

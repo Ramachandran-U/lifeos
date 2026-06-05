@@ -4,7 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useAppFonts } from '@/theme/typography';
 import { initDatabase } from '@/db';
@@ -140,20 +140,25 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
-        <ErrorBoundary>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#0D0D0D' },
-              animation: 'fade',
-            }}
-          />
-        </ErrorBoundary>
+        {/* Web-only install nudge; self-gates to iOS Safari / Android Chrome that
+            isn't already installed. Sits ABOVE the navigator in the layout flow
+            (not as an overlay) so it pushes screens down rather than covering
+            their own headers. Renders null on native + everywhere else, taking
+            no space. */}
+        <AddToHomeScreenPrompt />
+        <View style={styles.stackHost}>
+          <ErrorBoundary>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#0D0D0D' },
+                animation: 'fade',
+              }}
+            />
+          </ErrorBoundary>
+        </View>
         <RewardOrchestrator />
         <AchievementToast />
-        {/* Web-only install nudge; self-gates to iOS Safari / Android Chrome that
-            isn't already installed. Renders null on native + everywhere else. */}
-        <AddToHomeScreenPrompt />
         <LevelUpOverlay level={pendingLevelUp} userName={name ?? undefined} onClose={dismissLevelUp} />
       </QueryClientProvider>
     </GestureHandlerRootView>
@@ -162,6 +167,11 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+  },
+  // Fills the space below the in-flow install banner so the navigator still
+  // takes the full remaining height (banner null → this is the whole screen).
+  stackHost: {
     flex: 1,
   },
 });

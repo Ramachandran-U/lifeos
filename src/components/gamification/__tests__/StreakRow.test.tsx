@@ -21,11 +21,11 @@ describe('StreakRow', () => {
     expect(screen.getByText('0 days to 30-day badge')).toBeTruthy();
   });
 
-  it('shows the GRACE pill only when grace was used', () => {
+  it('shows the SHIELD pill only when grace was used', () => {
     const { rerender } = render(<StreakRow streakKey="social" count={3} best={3} graceUsed={false} />);
-    expect(screen.queryByText('GRACE')).toBeNull();
+    expect(screen.queryByText(/SHIELD/)).toBeNull();
     rerender(<StreakRow streakKey="social" count={3} best={3} graceUsed />);
-    expect(screen.getByText('GRACE')).toBeTruthy();
+    expect(screen.getByText(/SHIELD/)).toBeTruthy();
   });
 
   it('renders across the small / medium / large flame size buckets', () => {
