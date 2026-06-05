@@ -23,7 +23,7 @@ It does this through 6 specialised engines feeding into 1 master planner:
 
 The differentiating layer sits *above* the engines: a cognitive layer that notices when a chosen domain has gone quiet, replans the remaining day when priorities change (diff preview + undo), and records every state change to an event-sourced mutation log. Much of this is live behind feature flags today.
 
-Product spec: `PRD.md`. Task list: `TASKS.md`. Program sequencing: `roadmap/` and `implementation-plan/`. Deeper architecture lives in `docs/`.
+Product spec: `docs/PRODUCT_TECHNICAL_DOC.md` (marketing distillation in `docs/MASTER_BRIEF.md`). Active backlog & deferred work: `docs/PARKED_ITEMS.md`. Program sequencing: `roadmap/` and `implementation-plan/`. Deeper architecture lives in `docs/`.
 
 ---
 
@@ -80,7 +80,7 @@ lifeos/
 │   │   ├── schema.ts           # SQLite schema (Drizzle ORM)
 │   │   ├── migrations/         # Drizzle migrations + meta
 │   │   ├── queries/            # One file per entity
-│   │   ├── webStorage/         # Dexie-backed storage shim for web
+│   │   ├── webStorage/         # Synchronous localStorage shim for web (finance uses Dexie)
 │   │   └── index.ts
 │   ├── store/                  # Zustand stores (useGameStore, useFlagStore,
 │   │   │                       #   useUserStore, usePreferencesStore, ... — see dir)
@@ -205,17 +205,18 @@ Tokens live in `src/theme/colors.ts`, alongside `elevation.ts`, `motion.ts`, `de
 
 ---
 
-## Database — SQLite (mobile) / Dexie (web), with Drizzle ORM
+## Database — SQLite (mobile) / localStorage + Dexie (web), with Drizzle ORM
 
 ### Storage layers
 | Data type | Where | Why |
 |-----------|-------|-----|
-| Health logs, blood reports, contacts | Local (SQLite on native, Dexie on web) | Sensitive — stays on device |
+| Health logs, blood reports, contacts | Local (SQLite on native, **synchronous localStorage** on web) | Sensitive — stays on device |
 | Goals, tasks, routine blocks, habits | Local + optional Supabase sync via the mutation log | Cross-device, recoverable |
+| Finance transactions | Local (SQLite on native, **Dexie/IndexedDB** on web) | Larger volume; outgrows localStorage's ~5 MB quota |
 | Gamification state | Local | Fast reads for home screen |
 | User preferences | Local | |
 
-> Web builds use the Dexie-backed shim in `src/db/webStorage/`; native uses `expo-sqlite`. Drizzle sits over both. State changes flow through the event-sourced mutation log in `src/sync/` (hash-chained), which is the substrate for Supabase sync, version history, and memory.
+> **Web storage is two different backends — don't conflate them.** The **per-entity stores** (users, health, goals, gamification, contacts, …) use a **synchronous `localStorage`** shim in `src/db/webStorage/` (`_io.ts` wraps `localStorage` get/set), so web reads like `getUser()` return a value, **not a Promise** — the query layer (and the render/voice paths) rely on this synchrony. Only the **finance** transaction store (`src/finance/db/transactionDb.ts`) is **Dexie/IndexedDB (async)**. Native uses `expo-sqlite`; Drizzle sits over the native path. State changes flow through the event-sourced mutation log in `src/sync/` (hash-chained), the substrate for Supabase sync, version history, and memory.
 
 ### Schema principles
 - `text('id')` with `nanoid()` for all primary keys — never auto-increment integers
@@ -357,7 +358,7 @@ Reference implementation: `src/integrations/googleAuth/oauth.ts` and `app/google
 ## Session Startup Checklist
 
 1. Read `CLAUDE.md` (this file)
-2. Read the current phase in `roadmap/01-program-roadmap.md` / `implementation-plan/` and `TASKS.md`
+2. Read the current phase in `roadmap/01-program-roadmap.md` / `implementation-plan/` and the backlog in `docs/PARKED_ITEMS.md`
 3. Check `src/` structure on disk — understand what already exists
 4. Never re-scaffold what already exists — always check first
 5. Run `npx expo start` (iOS / Android / web) and/or `npm run evals` to verify the build before making changes
