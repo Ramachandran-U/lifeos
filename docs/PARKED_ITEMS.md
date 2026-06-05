@@ -1,6 +1,6 @@
 # Parked Items — Cross-Session Registry
 
-> A consolidated list of work and decisions that have been **deliberately deferred** across sessions — with *why* they're parked and *what would un-park them*. This is a backlog of intent, not a task tracker; pull items from here into `TASKS.md` / `roadmap/` when their trigger fires.
+> A consolidated list of work and decisions that have been **deliberately deferred** across sessions — with *why* they're parked and *what would un-park them*. This is a backlog of intent; pull items from here into `roadmap/` / `implementation-plan/` when their trigger fires.
 >
 > **Compiled:** 2026-06-01. Each entry is a point-in-time note — **verify file/line claims against current code before acting**; the codebase moves faster than this doc.
 >
@@ -133,4 +133,4 @@
 - [`docs/MANUAL_OPS_TODO.md`](MANUAL_OPS_TODO.md) — manual operational steps (parked-items human actions mirrored as checkboxes)
 - [`docs/PRE_PRODUCTION_CHECKLIST.md`](PRE_PRODUCTION_CHECKLIST.md) — pre-launch gate
 - [`docs/architecture/mcp-interop-decision.md`](architecture/mcp-interop-decision.md) — MCP decision record (items 4.1–4.3)
-- `TASKS.md` / `roadmap/` / `implementation-plan/` — active work & sequencing
+- `roadmap/` / `implementation-plan/` — active work & sequencing (note: the `TASKS.md`/`PRD.md` hub referenced by older docs no longer exists; product spec is `docs/PRODUCT_TECHNICAL_DOC.md`)
