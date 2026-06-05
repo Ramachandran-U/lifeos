@@ -193,26 +193,24 @@ async function geminiGenerate(
   env: Env,
 ): Promise<{ res: Response; text: string }> {
   const url = `${GEMINI_BASE}/${model}:generateContent?key=${env.GEMINI_API_KEY}`;
-  // Retry on transient overload (5xx) and per-minute quota hits (429). Free
-  // tier returns 429 with "Please retry in Xs" — honour that hint, capped.
+  // LATENCY POLICY: on 429 (free-tier per-minute quota), do NOT sleep-retry the
+  // same overloaded provider — return immediately so proxyClaude fails over to
+  // the next provider in the chain (Groq has separate quota + very low TTFT).
+  // The previous code honoured Gemini's "retry in Xs" hint and slept up to 25s
+  // before the chain could even try Groq, which added seconds of tail latency.
+  // Only transient 5xx gets a single short same-provider retry (a blip, not a wait).
   let res!: Response;
   let text = '';
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: payload,
     });
     text = await res.text();
-    if (res.ok) break;
-    const retryable = res.status === 429 || (res.status >= 500 && res.status < 600);
-    if (!retryable) break;
-    let waitMs = 800 * (attempt + 1);
-    if (res.status === 429) {
-      const m = text.match(/retry in ([\d.]+)s/i);
-      if (m) waitMs = Math.min(Math.ceil(parseFloat(m[1]) * 1000) + 200, 25_000);
-    }
-    await new Promise((r) => setTimeout(r, waitMs));
+    if (res.ok || res.status === 429) break; // 429 → fail over to next provider now
+    if (!(res.status >= 500 && res.status < 600)) break; // non-transient → abort
+    await new Promise((r) => setTimeout(r, 400)); // one short 5xx retry
   }
   return { res, text };
 }
@@ -346,6 +344,7 @@ export async function proxyClaude(
   ctx?: ExecutionContext,
   userId?: string,
 ): Promise<Response> {
+  const workerStart = Date.now();
   let body: ClientRequest & { task?: string };
   try {
     body = await req.json();
@@ -392,11 +391,13 @@ export async function proxyClaude(
     if (provider === 'groq' && !env.GROQ_API_KEY) continue;
 
     try {
+      const provStart = Date.now();
       let result: NormalisedResponse;
       if (provider === 'gemini') result = await callGemini(body, env);
       else if (provider === 'openai') result = await callOpenAI(body, env);
       else if (provider === 'groq') result = await callGroq(body, env);
       else result = await callAnthropic(body, env);
+      const providerMs = Date.now() - provStart;
 
       // Fire-and-forget cost-event write. Skipped if ctx/userId or Supabase
       // creds aren't set so local-dev runs don't fail.
@@ -417,7 +418,15 @@ export async function proxyClaude(
       const clientPayload = { ...result, usage: toCanonicalUsage(provider, result.usage) };
       return new Response(JSON.stringify(clientPayload), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...cors },
+        headers: {
+          'Content-Type': 'application/json',
+          ...cors,
+          // Latency breakdown for the client span: time in the upstream provider
+          // call vs total Worker handler time. `Access-Control-Expose-Headers`
+          // lets the web client read it cross-origin (native fetch isn't gated).
+          'Server-Timing': `provider;desc="${provider}";dur=${providerMs}, worker;dur=${Date.now() - workerStart}`,
+          'Access-Control-Expose-Headers': 'Server-Timing',
+        },
       });
     } catch (e) {
       if (e instanceof ProviderError) {

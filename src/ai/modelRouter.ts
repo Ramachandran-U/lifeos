@@ -118,3 +118,43 @@ export function pickModel(task: AITask): string {
   if (override) return override;
   return MODELS[TASK_TIER[task] ?? 'planning'];
 }
+
+/**
+ * Per-task output-token DEFAULT, used only when a caller omits its own
+ * `maxTokens` (most callers in functions.ts pass an explicit value, which wins
+ * via `request.maxTokens ?? pickMaxTokens(...)`). The worker also hard-caps
+ * everything at MAX_TOKENS_CAP.
+ *
+ * NOTE: maxOutputTokens is a CEILING, not a target — a short structured response
+ * stops early regardless, so a tighter cap only cuts latency on a runaway/verbose
+ * generation. We therefore set conservative bounds (no truncation regression)
+ * rather than aggressive cuts; tune from the per-task `output_tokens` telemetry.
+ */
+const TIER_MAX_TOKENS: Record<Tier, number> = {
+  // 768 (down from the worker's blanket 1200) bounds the worst case while
+  // leaving comfortable margin for the cheap tier's normally-short outputs.
+  cheap: 768,
+  planning: 1200,
+  reasoning: 2048,
+};
+
+// Defensive overrides — consulted ONLY when a caller omits maxTokens. The
+// long-form tasks below need more than the tier default so an omitted budget
+// doesn't truncate a report/plan. Cheap tasks deliberately have NO override:
+// they inherit the 768 cap (their real outputs are well under it).
+const TASK_MAX_TOKENS: Partial<Record<AITask, number>> = {
+  generateRoutine: 2048,
+  generateExpedition: 2048,
+  generateFinancialPlan: 2048,
+  generateCareerStrategy: 2048,
+  generateMonthlyInsightReport: 2560,
+  generateWeekRoutine: 3072,
+  generateAnnualReview: 3072,
+};
+
+/** Default output-token budget for a task; callers may still pass their own `maxTokens`. */
+export function pickMaxTokens(task: string | undefined): number {
+  if (!task) return TIER_MAX_TOKENS.planning;
+  const t = task as AITask;
+  return TASK_MAX_TOKENS[t] ?? TIER_MAX_TOKENS[TASK_TIER[t] ?? 'planning'];
+}
