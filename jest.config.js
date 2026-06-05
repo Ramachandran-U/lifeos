@@ -103,7 +103,14 @@ module.exports = {
     // measured aggregate (youtube client branch 82%, contacts client branch 96%).
     './src/integrations/youtube/': { lines: 90, branches: 76, functions: 90 },
     './src/integrations/googleContacts/': { lines: 90, branches: 88, functions: 90 },
-    './workers/ai-proxy/src/': { lines: 30, branches: 22, functions: 40 },
+    // Recursive aggregate over the Worker tree. Raised as Worker tests landed
+    // (flags/users in #138; overview + proxyClaude dispatch/failover; the whole
+    // admin handler cluster; then auth.ts/gemini.ts/avatar.ts/routes/prompts.ts
+    // + the index.ts router dispatch): measured ~96/85/91 lines/branches/
+    // functions; floor sits a few points under. The only sub-100% files now are
+    // index.ts (some route catch→500 branches) and avatar/gemini listener
+    // closures — both well above the floor.
+    './workers/ai-proxy/src/': { lines: 90, branches: 78, functions: 86 },
   },
   projects: [
     {
