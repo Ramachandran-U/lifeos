@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useColors } from '@/theme/colors';
-import { fonts, fontSizes } from '@/theme/typography';
+import { fonts } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -28,15 +28,6 @@ import { DomainMiniCard } from '@/components/gamification/DomainMiniCard';
 import type { BadgeId } from '@/utils/gamification';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 
-type Section = 'overview' | 'badges' | 'streaks' | 'quests';
-
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'badges', label: 'Badges' },
-  { id: 'streaks', label: 'Streaks' },
-  { id: 'quests', label: 'Quests' },
-];
-
 export default function RewardsScreen() {
   useScreenTracking('rewards');
   const c = useColors();
@@ -53,7 +44,6 @@ export default function RewardsScreen() {
   const xpEntries = useXpHistoryStore((s) => s.entries);
   const domainEntries = useDomainHistoryStore((s) => s.entries);
   const quests = useGameStore((s) => s.quests);
-  const [section, setSection] = useState<Section>('overview');
   const [openQuest, setOpenQuest] = useState<Quest | null>(null);
 
   useFocusEffect(
@@ -153,98 +143,69 @@ export default function RewardsScreen() {
             <LevelLadder currentLevel={prog.level} />
           </GlassCard>
 
-          {/* Tabs */}
-          <View style={[styles.tabBar, { borderBottomColor: c.border }]}>
-            {SECTIONS.map((s) => {
-              const active = section === s.id;
+          {/* ── The Journey: one continuous scroll, no tabs ── */}
+
+          {/* Life balance — per-domain scores */}
+          <SectionLabel>LIFE BALANCE</SectionLabel>
+          <View style={styles.grid}>
+            {DOMAIN_META.map((dm) => {
+              const score = domainScores[dm.key] ?? 0;
+              const history = historyFor(dm.key);
+              // Empty/single-entry → a flat line at the current score (real, not mock).
+              const safeHistory = history.length >= 2 ? history : [score, score];
               return (
-                <Pressable key={s.id} onPress={() => setSection(s.id)} style={styles.tabBtn}>
-                  <Text
-                    style={{
-                      fontFamily: fonts.bodyMedium,
-                      fontSize: fontSizes.sm,
-                      color: active ? c.primary : c.textMuted,
-                    }}
-                  >
-                    {s.label}
-                  </Text>
-                  <View
-                    style={{
-                      height: 2,
-                      marginTop: 6,
-                      backgroundColor: active ? c.primary : 'transparent',
-                    }}
+                <View key={dm.key} style={styles.gridCell}>
+                  <DomainMiniCard
+                    domainKey={dm.key}
+                    score={score}
+                    delta={deltaFor(dm.key)}
+                    history={safeHistory}
                   />
-                </Pressable>
+                </View>
               );
             })}
           </View>
 
-          {section === 'overview' && (
-            <View style={styles.grid}>
-              {DOMAIN_META.map((dm) => {
-                const score = domainScores[dm.key] ?? 0;
-                const history = historyFor(dm.key);
-                // Empty/single-entry state — show a flat line at current score
-                // so the sparkline is real (not mock) but doesn't overpromise.
-                const safeHistory = history.length >= 2 ? history : [score, score];
-                return (
-                  <View key={dm.key} style={styles.gridCell}>
-                    <DomainMiniCard
-                      domainKey={dm.key}
-                      score={score}
-                      delta={deltaFor(dm.key)}
-                      history={safeHistory}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {section === 'badges' && (
-            <View style={styles.grid}>
-              {allBadgeIds.map((id) => (
-                <View key={id} style={styles.badgeCell}>
-                  <BadgeTile badgeId={id} earned={badges.includes(id)} />
-                </View>
-              ))}
-            </View>
-          )}
-
-          {section === 'streaks' && (
-            <View style={{ gap: 12 }}>
-              {(Object.keys(STREAK_META) as StreakKey[]).map((k) => {
-                const s = streaks[k];
-                return (
-                  <StreakRow
-                    key={k}
-                    streakKey={k}
-                    count={s?.count ?? 0}
-                    best={s?.count ?? 0}
-                    graceUsed={s?.graceUsed ?? false}
-                  />
-                );
-              })}
-            </View>
-          )}
-
-          {section === 'quests' && (
-            <View style={{ gap: 16 }}>
-              <SectionLabel>DAILY QUESTS</SectionLabel>
-              <View style={{ gap: 10 }}>
-                {quests.filter((q) => q.type === 'daily').map((q) => (
-                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
-                ))}
+          {/* Badges */}
+          <SectionLabel>{`BADGES · ${badges.length}/${allBadgeIds.length}`}</SectionLabel>
+          <View style={styles.grid}>
+            {allBadgeIds.map((id) => (
+              <View key={id} style={styles.badgeCell}>
+                <BadgeTile badgeId={id} earned={badges.includes(id)} />
               </View>
-              <SectionLabel>WEEKLY QUEST</SectionLabel>
-              <View style={{ gap: 10 }}>
-                {quests.filter((q) => q.type === 'weekly').map((q) => (
-                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
-                ))}
-              </View>
-            </View>
-          )}
+            ))}
+          </View>
+
+          {/* Streaks */}
+          <SectionLabel>STREAKS</SectionLabel>
+          <View style={{ gap: 12 }}>
+            {(Object.keys(STREAK_META) as StreakKey[]).map((k) => {
+              const s = streaks[k];
+              return (
+                <StreakRow
+                  key={k}
+                  streakKey={k}
+                  count={s?.count ?? 0}
+                  best={s?.count ?? 0}
+                  graceUsed={s?.graceUsed ?? false}
+                />
+              );
+            })}
+          </View>
+
+          {/* Quests */}
+          <SectionLabel>DAILY QUESTS</SectionLabel>
+          <View style={{ gap: 10 }}>
+            {quests.filter((q) => q.type === 'daily').map((q) => (
+              <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
+            ))}
+          </View>
+          <SectionLabel>WEEKLY QUEST</SectionLabel>
+          <View style={{ gap: 10 }}>
+            {quests.filter((q) => q.type === 'weekly').map((q) => (
+              <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
+            ))}
+          </View>
         </ScrollView>
       </SafeAreaView>
 
