@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
-import { BADGE_META } from '@/constants/gamification';
+import { BADGE_META, BADGE_TIER, BADGE_TIER_META } from '@/constants/gamification';
 import type { BadgeId } from '@/utils/gamification';
 
 interface Props {
@@ -13,6 +13,11 @@ interface Props {
 export function BadgeTile({ badgeId, earned, onPress }: Props) {
   const c = useColors();
   const meta = BADGE_META[badgeId];
+  const tier = BADGE_TIER[badgeId];
+  // Rarity accent from existing tokens — the tier label carries the meaning
+  // (colour-blind safe); colour only reinforces it. Rare = brand violet.
+  const tierColor = tier === 'rare' ? c.primary : tier === 'mastery' ? c.xp : c.badge;
+  const accent = earned ? tierColor : c.border;
 
   return (
     <Pressable
@@ -21,17 +26,20 @@ export function BadgeTile({ badgeId, earned, onPress }: Props) {
         styles.tile,
         {
           backgroundColor: c.card,
-          borderColor: earned ? c.badge + '55' : c.border,
+          borderColor: earned ? accent + '55' : c.border,
           opacity: earned ? (pressed ? 0.9 : 1) : 0.5,
         },
       ]}
     >
+      <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 9, letterSpacing: 0.8, color: earned ? accent : c.textMuted }}>
+        {BADGE_TIER_META[tier].label.toUpperCase()}
+      </Text>
       <View
         style={[
           styles.circle,
           {
-            backgroundColor: earned ? c.badge + '22' : c.border + '44',
-            borderColor: earned ? c.badge + '66' : c.border,
+            backgroundColor: earned ? accent + '22' : c.border + '44',
+            borderColor: earned ? accent + '66' : c.border,
           },
         ]}
       >
