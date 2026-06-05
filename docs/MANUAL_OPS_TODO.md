@@ -109,6 +109,8 @@ These map to the 🟠 High tier in [PRE_PRODUCTION_CHECKLIST.md](PRE_PRODUCTION_
 - [ ] **2.5 — Two-device native backup/compaction smoke test** *(gated: needs 2.4 fix + a native build first)*. Export on device A → restore on B → verify merge + compaction + wrong-passphrase abort. ([runbook §B step 3](PARKED_ITEMS_RUNBOOK.md#step-3--25-two-device-native-smoke-test--needs-a-native-build-from-12-first))
 - [ ] **1.3 — Flip `compaction_enabled` / `backup_enabled` per-cohort** *(gated: needs 2.4 + 2.5 + 2.6)*. Seed the flag rows + a `flag_overrides` row in Supabase SQL Editor (no admin API creates them). ([runbook §B step 4](PARKED_ITEMS_RUNBOOK.md#step-4--13-flip-the-flags-per-cohort-))
 - **2.1 — Sync monitoring** (ongoing, not a one-off): Settings sync pill + the `mutations`-table SQL queries + the kill switch. ([runbook §2.1](PARKED_ITEMS_RUNBOOK.md#21--monitor-the-now-globally-on-sync-engine-ongoing-))
+- [ ] **Register the YouTube + Contacts OAuth redirect URIs** (activates the shipped #114 / #128 Connect flows on prod). Google Cloud Console → Credentials → the OAuth client: add `https://lifeos-6r5-eqa.pages.dev/youtube-callback` and `https://lifeos-6r5-eqa.pages.dev/google-contacts-callback`; enable **YouTube Data API v3** + **People API**. Until added, those Connect buttons 400 with `redirect_uri_mismatch`.
+- [ ] **10.2 — Activate cheap-tier Groq routing** (optional latency win; infra shipped #145, OFF by default). `npx wrangler secret put GROQ_API_KEY` on the Worker **and** build the client with `EXPO_PUBLIC_CHEAP_PROVIDER=groq`. Inert until both are set; the Worker auto-falls-back to Gemini on a Groq 429. ([PARKED §10.2](PARKED_ITEMS.md))
 
 ---
 

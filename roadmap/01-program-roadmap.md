@@ -24,7 +24,8 @@ Shipped opportunistically 2026-06-01 → 06-05, advancing the six engines via fr
 - **Free Google data into the engines (web-only OAuth, keys server-side):** Calendar read → planner + what-next; Gmail subscriptions/bills → Finance audit + planner; YouTube subscriptions → Explore interests (all #114); Google Contacts + birthdays → Social (#128).
 - **Voice agent** with live on-device data tools (#117/#118/#133).
 - **Coverage/CI hardening** (coverage-gate folds + import-card render tests, #130/#136) and the [pre-production checklist](../docs/PRE_PRODUCTION_CHECKLIST.md) / [manual-ops list](../docs/MANUAL_OPS_TODO.md).
-- **Scoped, not started:** Google Maps Platform (PARKED §8), Adaptive TDEE / nutrition v2 (§9), O*NET + Adzuna career grounding (§5.2).
+- **LLM latency** (#144/#145): `Server-Timing` instrumentation + fast 429→Groq failover + per-task token defaults; cheap-tier Groq routing landed off-by-default. Follow-ups (read telemetry, activate/tune Groq, stream non-JSON surfaces) tracked in [PARKED §10](../docs/PARKED_ITEMS.md).
+- **Scoped, not started:** Google Maps Platform (PARKED §8), Adaptive TDEE / nutrition v2 (§9), O*NET + Adzuna career grounding (§5.2), streaming the non-JSON LLM surfaces (§10.3).
 
 Canonical backlog + un-park triggers for everything above: [docs/PARKED_ITEMS.md](../docs/PARKED_ITEMS.md).
 
