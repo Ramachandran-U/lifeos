@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors, type AppColors } from '@/theme/colors';
+import { useColors, DOMAIN_GRADIENTS, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
@@ -59,7 +59,7 @@ export function FinanceGoalCard({
         <Caption> / {formattedTarget}</Caption>
       </View>
 
-      <ProgressBar value={progress} color={c.finance} height={10} />
+      <ProgressBar value={progress} color={c.finance} gradientColors={DOMAIN_GRADIENTS.finance} height={10} />
 
       <View style={styles.footer}>
         <Caption>{Math.round(progress)}% complete</Caption>

@@ -1,7 +1,9 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { usePressScale } from '@/hooks/usePressScale';
 import { MODULE_META, type Quest } from '@/constants/gamification';
 import { XpChip } from './XpChip';
 import { XpBar } from './XpBar';
@@ -18,22 +20,23 @@ export function QuestCard({ quest, onPress, compact = false }: Props) {
   const color = c[meta.colorKey];
   const pct = quest.progress / quest.total;
   const done = pct >= 1;
+  const press = usePressScale(0.98);
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: c.card,
-          borderColor: color + '33',
-          borderLeftColor: color,
-          opacity: pressed ? 0.9 : 1,
-          padding: compact ? 14 : 16,
-        },
-      ]}
-    >
-      <View style={styles.row}>
+    <Pressable onPress={onPress} onPressIn={press.onPressIn} onPressOut={press.onPressOut}>
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            backgroundColor: c.card,
+            borderColor: color + '33',
+            borderLeftColor: color,
+            padding: compact ? 14 : 16,
+          },
+          press.animatedStyle,
+        ]}
+      >
+        <View style={styles.row}>
         <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
           <Text style={{ fontSize: 18 }}>{meta.emoji}</Text>
         </View>
@@ -65,6 +68,7 @@ export function QuestCard({ quest, onPress, compact = false }: Props) {
           {done && <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>✓</Text>}
         </View>
       </View>
+      </Animated.View>
     </Pressable>
   );
 }

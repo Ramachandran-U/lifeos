@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors, type AppColors } from '@/theme/colors';
+import { useColors, DOMAIN_GRADIENTS, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
@@ -40,7 +40,7 @@ export function LearningResourceCard({ title, type, estimatedHours, status, prog
             <Badge label={status.replace('_', ' ')} variant={status === 'completed' ? 'health' : 'career'} />
           </View>
           {status === 'in_progress' && (
-            <ProgressBar value={progress} color={c.career} height={4} />
+            <ProgressBar value={progress} color={c.career} gradientColors={DOMAIN_GRADIENTS.career} height={4} />
           )}
         </View>
       </View>

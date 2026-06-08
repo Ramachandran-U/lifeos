@@ -1,4 +1,7 @@
-# MOTION · 11 scenes mapped to existing components
+# MOTION · 12 scenes mapped to components
+
+> Scenes 01–11 map to existing components; scene 12 (Celebration burst) ships a new
+> `CelebrationBurst` component — added in DELTA Phase 10 (2026-06-09).
 
 Each scene from the motion-pass HTML has a target file and a Reanimated 4
 implementation pattern. The repo already has `react-native-reanimated@~4.1.1`
@@ -489,6 +492,48 @@ lockstep.
 **Status dot blink.** Render a 5 px dot that goes 1.0 → 0.4 → 1.0 on a 2.6 s
 cycle (100 ms on, 400 ms decay, hold dim, return). Place inside live-block
 header where "42m left" label sits.
+
+---
+
+## 12 · Celebration burst
+
+**Where.** `src/components/gamification/CelebrationBurst.tsx` (new), mounted by
+`RewardOrchestrator.tsx` on peak reward beats.
+
+**What.** A short radial particle burst behind the reward chip on celebration peaks —
+streak hits and large XP gains (≥ 50). 12 dots fly outward on an even angular spread,
+arc down under "gravity," shrink, and fade in ~700 ms. This is the one moment that
+*radiates* — resting badges/streaks stay flat (see DELTA Phase 5), so the burst reads
+as an event, not ambient noise. Honors guardrail 3: it fires on a single reward beat,
+not alongside a tab switch.
+
+**Pattern.** Fixed-count children so hook order is stable; the parent returns `null`
+under reduce-motion (no burst), and is keyed by the beat id upstream so a fresh mount
+re-fires.
+
+```tsx
+function Particle({ index, count, color, size, motionScale }) {
+  const tx = useSharedValue(0), ty = useSharedValue(0);
+  const opacity = useSharedValue(1), scale = useSharedValue(1);
+  useEffect(() => {
+    const dur = (ms) => ms / motionScale;
+    const angle = (index / count) * Math.PI * 2;
+    const dist = 54 + (index % 3) * 16;          // staggered radius
+    const ox = Math.cos(angle) * dist, oy = Math.sin(angle) * dist;
+    tx.value = withTiming(ox, { duration: dur(640), easing: EASING.out });
+    ty.value = withSequence(
+      withTiming(oy, { duration: dur(280), easing: EASING.out }),
+      withTiming(oy + 48, { duration: dur(420), easing: EASING.inOut }),  // gravity
+    );
+    scale.value = withTiming(0.35, { duration: dur(700), easing: EASING.out });
+    opacity.value = withDelay(dur(280), withTiming(0, { duration: dur(420) }));
+  }, []);
+  // …Animated.View dot positioned at the origin, transformed by tx/ty/scale…
+}
+```
+
+**Palette.** Streak beats burst in `[streak, warning, xp]`; XP beats in
+`[domainHue, xp, primaryLight]`.
 
 ---
 

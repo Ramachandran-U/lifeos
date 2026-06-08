@@ -9,12 +9,14 @@ import {
   Pressable,
   GestureResponderEvent,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useColors } from '@/theme/colors';
 import { useThemeStore } from '@/store/useThemeStore';
 import { radii } from '@/theme/radii';
 import { spacing } from '@/theme/spacing';
 import { useElevation, type Elevation } from '@/theme/elevation';
+import { usePressScale } from '@/hooks/usePressScale';
 
 interface GlassCardProps extends ViewProps {
   accent?: string;        // Domain hue — adds left border + top-left glow
@@ -45,6 +47,8 @@ export function GlassCard({
   const isWeb = Platform.OS === 'web';
   const padValue = typeof padding === 'number' ? padding : spacing[padding];
   const radiusValue = typeof radius === 'number' ? radius : radii[radius];
+  // Cards compress gently (0.98) vs. a control's 0.97 — proportional to size.
+  const press = usePressScale(0.98);
 
   const accentBorder: ViewStyle | undefined = accent
     ? {
@@ -102,17 +106,14 @@ export function GlassCard({
     return (
       <Pressable
         onPress={onPress}
-        // Aurora Refined v2: soft scale press feedback instead of opacity dip.
-        style={({ pressed }) => [
-          {
-            borderRadius: radiusValue,
-            transform: [{ scale: pressed ? 0.985 : 1 }],
-            opacity: pressed ? 0.96 : 1,
-          },
-        ]}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
         accessibilityRole="button"
       >
-        {inner}
+        {/* Aurora Refined v2: spring scale press feedback instead of opacity dip. */}
+        <Animated.View style={[{ borderRadius: radiusValue }, press.animatedStyle]}>
+          {inner}
+        </Animated.View>
       </Pressable>
     );
   }

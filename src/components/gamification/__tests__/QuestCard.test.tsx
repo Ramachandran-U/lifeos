@@ -18,7 +18,9 @@ describe('QuestCard', () => {
     render(<QuestCard quest={makeQuest()} />);
     expect(screen.getByText('Log 3 meals today')).toBeTruthy();
     expect(screen.getByText(MODULE_META.health.emoji)).toBeTruthy();
-    expect(screen.getByText('+30 XP')).toBeTruthy();
+    // XpChip splits its text into prefix/number/suffix nodes; assert via the
+    // composed accessibility label it exposes.
+    expect(screen.getByLabelText('+30 XP')).toBeTruthy();
     expect(screen.getByText('1/3')).toBeTruthy();
   });
 

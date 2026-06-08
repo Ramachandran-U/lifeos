@@ -15,6 +15,7 @@ import { radii } from '@/theme/radii';
 import { spacing } from '@/theme/spacing';
 import { Text as AuroraText } from '@/components/ui/Text';
 import { DomainGlyph } from '@/components/ui/DomainGlyph';
+import { CelebrationBurst } from '@/components/gamification/CelebrationBurst';
 import { useRewardQueueStore, type RewardBeat } from '@/store/useRewardQueueStore';
 import { useMotionScale } from '@/theme/motion';
 import { usePreferencesStore } from '@/store/usePreferencesStore';
@@ -66,19 +67,27 @@ function Beat({ beat }: { beat: RewardBeat }) {
     scale.value = withTiming(1, { duration: rise, easing: Easing.out(Easing.back(1.4)) });
 
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+      // Streak beats get a satisfying Heavy "thud"; XP beats stay Light.
+      const style = beat.type === 'streak'
+        ? Haptics.ImpactFeedbackStyle.Heavy
+        : Haptics.ImpactFeedbackStyle.Light;
+      Haptics.impactAsync(style).catch(() => undefined);
     }
-  }, [beat.id, motionScale, opacity, translateY, scale, complete]);
+  }, [beat.id, beat.type, motionScale, opacity, translateY, scale, complete]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
   }));
 
+  // Celebration burst fires on peak moments only: streak hits and big XP gains.
+  const showBurst = beat.type === 'streak' || (beat.type === 'xp' && beat.amount >= 50);
+
   if (beat.type === 'xp') {
     const hue = beat.domain ? (c as Record<string, string>)[beat.domain] : c.xp;
     return (
       <View pointerEvents="none" style={styles.wrap}>
+        {showBurst && <CelebrationBurst palette={[hue, c.xp, c.primaryLight]} />}
         <Animated.View
           style={[
             styles.chip,
@@ -101,6 +110,7 @@ function Beat({ beat }: { beat: RewardBeat }) {
   // Streak beat — small flame label. Renders subtly; complete drains.
   return (
     <View pointerEvents="none" style={styles.wrap}>
+      {showBurst && <CelebrationBurst palette={[c.streak, c.warning, c.xp]} />}
       <Animated.View
         style={[
           styles.chip,
