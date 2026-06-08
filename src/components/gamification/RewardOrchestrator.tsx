@@ -38,9 +38,10 @@ function Beat({ beat }: { beat: RewardBeat }) {
   const motionScale = useMotionScale();
   const complete = useRewardQueueStore((s) => s.complete);
 
-  const translateY = useSharedValue(0);
+  // Start above the rest position so the chip slides down into view on entry.
+  const translateY = useSharedValue(-52);
   const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.92);
+  const scale = useSharedValue(0.82);
 
   useEffect(() => {
     if (motionScale === 0) {
@@ -51,20 +52,27 @@ function Beat({ beat }: { beat: RewardBeat }) {
       );
       return;
     }
-    // Aurora XP beat: scale-in + rise, hold, fade up.
-    const rise = 300 / motionScale;
-    const hold = 600 / motionScale;
+    // Slide in from above with spring overshoot, hold, then exit upward.
+    const rise = 380 / motionScale;
+    const hold = 1100 / motionScale;
     const fade = 300 / motionScale;
+
+    // Fade in quickly, hold opaque, then fade out.
     opacity.value = withSequence(
-      withTiming(1, { duration: rise, easing: Easing.out(Easing.cubic) }),
-      withDelay(hold, withTiming(0, { duration: fade, easing: Easing.in(Easing.cubic) },
+      withTiming(1, { duration: rise * 0.45, easing: Easing.out(Easing.cubic) }),
+      withDelay(rise * 0.55 + hold, withTiming(0, { duration: fade, easing: Easing.in(Easing.cubic) },
         (finished) => { if (finished) runOnJS(complete)(); })),
     );
+    // Slide down from -52 to rest (0) with a spring-like overshoot, then float up on exit.
     translateY.value = withSequence(
-      withTiming(-12, { duration: rise, easing: Easing.out(Easing.cubic) }),
-      withDelay(hold, withTiming(-28, { duration: fade, easing: Easing.in(Easing.cubic) })),
+      withTiming(0, { duration: rise, easing: Easing.out(Easing.back(1.25)) }),
+      withDelay(hold, withTiming(-32, { duration: fade, easing: Easing.in(Easing.cubic) })),
     );
-    scale.value = withTiming(1, { duration: rise, easing: Easing.out(Easing.back(1.4)) });
+    // Pop in with bounce, gently shrink on exit.
+    scale.value = withSequence(
+      withTiming(1, { duration: rise, easing: Easing.out(Easing.back(1.55)) }),
+      withDelay(hold, withTiming(0.88, { duration: fade, easing: Easing.in(Easing.cubic) })),
+    );
 
     if (Platform.OS !== 'web') {
       // Streak beats get a satisfying Heavy "thud"; XP beats stay Light.
@@ -80,26 +88,36 @@ function Beat({ beat }: { beat: RewardBeat }) {
     transform: [{ translateY: translateY.value }, { scale: scale.value }],
   }));
 
-  // Celebration burst fires on peak moments only: streak hits and big XP gains.
-  const showBurst = beat.type === 'streak' || (beat.type === 'xp' && beat.amount >= 50);
-
   if (beat.type === 'xp') {
     const hue = beat.domain ? (c as Record<string, string>)[beat.domain] : c.xp;
+    // Regular completions get a tight 8-particle burst; milestone XP gets the full 14.
+    const burstCount = beat.amount >= 50 ? 14 : 8;
+    const burstSize  = beat.amount >= 50 ? 8  : 5;
     return (
       <View pointerEvents="none" style={styles.wrap}>
-        {showBurst && <CelebrationBurst palette={[hue, c.xp, c.primaryLight]} />}
+        <CelebrationBurst
+          palette={[hue, c.xp, c.primaryLight]}
+          count={burstCount}
+          size={burstSize}
+          originTop={100}
+        />
         <Animated.View
           style={[
             styles.chip,
             {
-              backgroundColor: c.xp + '22',
-              borderColor: c.xp + '55',
+              backgroundColor: hue + '1A',
+              borderColor: hue + '80',
+              shadowColor: hue,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.55,
+              shadowRadius: 16,
+              elevation: 6,
             },
             animatedStyle,
           ]}
         >
-          {beat.domain ? <DomainGlyph domain={beat.domain} size={13} color={hue} /> : null}
-          <AuroraText variant="bodyLg" numeric color={c.xp}>
+          {beat.domain ? <DomainGlyph domain={beat.domain} size={14} color={hue} /> : null}
+          <AuroraText variant="bodyLg" numeric color={hue}>
             {`+${beat.amount} XP`}
           </AuroraText>
         </Animated.View>
@@ -107,14 +125,22 @@ function Beat({ beat }: { beat: RewardBeat }) {
     );
   }
 
-  // Streak beat — small flame label. Renders subtly; complete drains.
+  // Streak beat — small flame label with burst.
   return (
     <View pointerEvents="none" style={styles.wrap}>
-      {showBurst && <CelebrationBurst palette={[c.streak, c.warning, c.xp]} />}
+      <CelebrationBurst palette={[c.streak, c.warning, c.xp]} count={10} size={6} originTop={100} />
       <Animated.View
         style={[
           styles.chip,
-          { backgroundColor: c.streak + '22', borderColor: c.streak + '55' },
+          {
+            backgroundColor: c.streak + '1A',
+            borderColor: c.streak + '80',
+            shadowColor: c.streak,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.5,
+            shadowRadius: 14,
+            elevation: 6,
+          },
           animatedStyle,
         ]}
       >
@@ -140,10 +166,10 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     borderRadius: radii.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
 });

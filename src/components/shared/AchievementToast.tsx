@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -66,8 +66,8 @@ export function AchievementToast() {
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(400)}
-      exiting={FadeOutDown.duration(300)}
+      entering={FadeInUp.springify().damping(16).stiffness(180)}
+      exiting={FadeOutDown.springify().damping(22).stiffness(220)}
       style={styles.container}
     >
       <Body style={styles.icon}>{info.icon}</Body>

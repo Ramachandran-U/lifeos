@@ -2,9 +2,11 @@ import { useMemo, useRef } from 'react';
 import { View, Pressable, StyleSheet, Platform } from 'react-native';
 import Animated, {
   FadeIn,
+  ZoomIn,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
@@ -119,9 +121,11 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     if (completedRef.current || isCompleted) return;
     completedRef.current = true;
     if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    scale.value = withSpring(0.97, SPRING.standard, () => {
-      scale.value = withSpring(1, SPRING.standard);
-    });
+    // Bump up briefly (feels satisfying) then settle — more rewarding than shrinking.
+    scale.value = withSequence(
+      withSpring(1.04, { damping: 5, stiffness: 380 }),
+      withSpring(1, SPRING.standard),
+    );
     opacity.value = withTiming(0.55, { duration: TIMING.normal });
     onComplete(id);
   };
@@ -219,12 +223,13 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
           accessibilityHint={isCompleted ? 'Completed' : 'Hold to complete'}
         >
           {isCompleted ? (
-            <View
+            <Animated.View
               testID={`routine-block-${id}-completed`}
+              entering={ZoomIn.springify().damping(9).stiffness(280)}
               style={[styles.checkCircle, { backgroundColor: c.success + '26', borderColor: c.success + '66' }]}
             >
               <Ionicons name="checkmark" size={16} color={c.success} />
-            </View>
+            </Animated.View>
           ) : (
             <View style={styles.statusInner}>
               {isActive ? (
