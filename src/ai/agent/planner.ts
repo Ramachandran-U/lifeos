@@ -197,44 +197,60 @@ async function planRoutineAgentInner(
     rationale: proposed.rationale.slice(0, 200),
   });
 
-  // Step 3 — critique
-  const critiqueRaw = await callAI({
-    system:
-      'You are a critical reviewer of routine plans. Given a proposed plan, list concrete issues ' +
-      '(e.g. overlapping blocks, high-energy work after dinner, no rest, ignored goals, ' +
-      'violations of fixed blocks, chronotype mismatch, reinstated dropped habits) and produce a ' +
-      'revised block list. ' +
-      'Output JSON: {"issues": string[], "revisedBlocks": [...same shape...]}. If no issues, return [] and the original blocks unchanged.',
-    model: pickModel('agent.critique'),
-    cacheSystem: true,
-    task: 'agent.critique',
-    // Critique echoes a full revised block list back, so it needs even more
-    // headroom than propose — otherwise the revisedBlocks array truncates.
-    maxTokens: 3500,
-    messages: [
-      {
-        role: 'user',
-        content: JSON.stringify({
-          schedule: {
-            wakeTime: input.wakeTime,
-            sleepTime: input.sleepTime,
-            workStartTime: input.workStartTime,
-            workEndTime: input.workEndTime,
-          },
-          goals: input.goals,
-          chronotype: input.chronotype,
-          fixedBlocks: input.fixedBlocks,
-          inferredPreferences: input.inferredPreferences,
-          proposedBlocks: proposed.blocks,
-        }),
-      },
-    ],
-  });
-  const critiqueRawJson = extractJson(critiqueRaw) as { issues?: unknown; revisedBlocks?: unknown };
-  const critique = CritiqueSchema.parse({
-    ...critiqueRawJson,
-    revisedBlocks: sanitizeBlocks(critiqueRawJson.revisedBlocks),
-  });
+  // Step 3 — critique. This step REFINES the proposed plan; it is not essential
+  // to producing one. A failure here (AI error, truncated JSON, schema mismatch)
+  // — or a degenerate response that drops every block — must NOT discard the
+  // already-valid proposed routine. On any such case we fall back to the
+  // proposed blocks unchanged rather than throwing the whole generation away.
+  let critique: z.infer<typeof CritiqueSchema>;
+  try {
+    const critiqueRaw = await callAI({
+      system:
+        'You are a critical reviewer of routine plans. Given a proposed plan, list concrete issues ' +
+        '(e.g. overlapping blocks, high-energy work after dinner, no rest, ignored goals, ' +
+        'violations of fixed blocks, chronotype mismatch, reinstated dropped habits) and produce a ' +
+        'revised block list. ' +
+        'Output JSON: {"issues": string[], "revisedBlocks": [...same shape...]}. If no issues, return [] and the original blocks unchanged.',
+      model: pickModel('agent.critique'),
+      cacheSystem: true,
+      task: 'agent.critique',
+      // Critique echoes a full revised block list back, so it needs even more
+      // headroom than propose — otherwise the revisedBlocks array truncates.
+      maxTokens: 3500,
+      messages: [
+        {
+          role: 'user',
+          content: JSON.stringify({
+            schedule: {
+              wakeTime: input.wakeTime,
+              sleepTime: input.sleepTime,
+              workStartTime: input.workStartTime,
+              workEndTime: input.workEndTime,
+            },
+            goals: input.goals,
+            chronotype: input.chronotype,
+            fixedBlocks: input.fixedBlocks,
+            inferredPreferences: input.inferredPreferences,
+            proposedBlocks: proposed.blocks,
+          }),
+        },
+      ],
+    });
+    const critiqueRawJson = extractJson(critiqueRaw) as { issues?: unknown; revisedBlocks?: unknown };
+    critique = CritiqueSchema.parse({
+      ...critiqueRawJson,
+      revisedBlocks: sanitizeBlocks(critiqueRawJson.revisedBlocks),
+    });
+    // Degenerate critique guard: if it flagged issues but echoed back no blocks
+    // (truncation / "here are the issues" with an empty list), keep the proposed
+    // plan instead of committing nothing.
+    if (critique.issues.length > 0 && critique.revisedBlocks.length === 0) {
+      critique = { issues: [], revisedBlocks: proposed.blocks };
+    }
+  } catch (err) {
+    console.warn('[planner] critique step failed — using proposed blocks unchanged:', err);
+    critique = { issues: [], revisedBlocks: proposed.blocks };
+  }
   trace.push({
     kind: 'critique',
     issues: critique.issues,
@@ -258,7 +274,7 @@ async function planRoutineAgentInner(
     return s >= wakeMin && e <= sleepMin && s < e;
   };
   const preFilter = critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks;
-  const windowed = preFilter.filter(inWindow);
+  let windowed = preFilter.filter(inWindow);
   if (preFilter.length !== windowed.length) {
     console.warn(
       `[planner] guard dropped ${preFilter.length - windowed.length} block(s) outside ` +
@@ -267,27 +283,50 @@ async function planRoutineAgentInner(
       `Post-filter starts: ${windowed.map((b) => b.startTime).join(',')}.`,
     );
   }
+  // If the window filter emptied a non-empty plan (the critique/model ignored the
+  // bounds entirely), fall back to the proposed blocks within the window before
+  // giving up — never discard a plan we successfully produced.
+  if (windowed.length === 0 && proposed.blocks.length > 0) {
+    windowed = proposed.blocks.filter(inWindow);
+  }
   // Guarantee the day starts at wake — the prompt's "at or after wakeTime" lets
   // the model leave the morning empty (wake 10:00 → first block 12:00). If it
   // did, prepend an opening block from wakeTime. Deterministic; see routineAnchor.
+  // NOTE: an empty `finalBlocks` is a deliberate, tested outcome — the planner
+  // returns an empty plan (it does NOT throw) when every block falls outside the
+  // wake–sleep window, and the screen surfaces that case. See planner.test.ts.
   const finalBlocks = anchorRoutineToWake(windowed, input.wakeTime);
-  const briefingRaw = await callAI({
-    system:
-      'Write a 2–3 sentence briefing for the user explaining the shape of their day and the ' +
-      'one thing that matters most. Output JSON: {"briefing": string}.',
-    model: pickModel('agent.brief'),
-    task: 'agent.brief',
-    messages: [
-      {
-        role: 'user',
-        content: JSON.stringify({ blocks: finalBlocks, goals: input.goals }),
-      },
-    ],
-    maxTokens: 250,
-  });
-  const briefing = z
-    .object({ briefing: z.string() })
-    .parse(extractJson(briefingRaw)).briefing;
+
+  // Step 4b — briefing. Cosmetic: a 2–3 sentence summary. A failure here (the
+  // token cap truncating the JSON, a parse error, an AI hiccup) must NOT throw
+  // away the routine we just built — fall back to a synthesized briefing.
+  let briefing: string;
+  try {
+    const briefingRaw = await callAI({
+      system:
+        'Write a 2–3 sentence briefing for the user explaining the shape of their day and the ' +
+        'one thing that matters most. Output JSON: {"briefing": string}.',
+      model: pickModel('agent.brief'),
+      task: 'agent.brief',
+      messages: [
+        {
+          role: 'user',
+          content: JSON.stringify({ blocks: finalBlocks, goals: input.goals }),
+        },
+      ],
+      // 250 was tight enough that a slightly verbose model truncated the JSON
+      // mid-string → extractJson threw → the whole generation failed. Give the
+      // 2–3 sentences comfortable room.
+      maxTokens: 400,
+    });
+    briefing = z.object({ briefing: z.string() }).parse(extractJson(briefingRaw)).briefing;
+  } catch (err) {
+    console.warn('[planner] briefing step failed — using a synthesized briefing:', err);
+    const first = finalBlocks[0];
+    briefing = first
+      ? `Your day is mapped into ${finalBlocks.length} blocks, starting at ${first.startTime} with ${first.title.toLowerCase()}. Lead with that first block to build momentum.`
+      : 'Your day is ready.';
+  }
 
   const plan: GeneratedRoutine = GeneratedRoutineSchema.parse({
     blocks: finalBlocks,
