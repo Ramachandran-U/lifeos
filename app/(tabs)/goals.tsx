@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, type ReactElement } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, type ReactElement } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -22,7 +22,7 @@ import { useGoalStore } from '@/store/useGoalStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useSyncStore } from '@/store/useSyncStore';
 import { updateGoalStatus, getDeletedGoals, restoreGoal } from '@/db/queries/goals';
-import { listGoalComments } from '@/db/queries/goalComments';
+import { getCommentCountsByUser } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { track, EVENTS } from '@/utils/telemetry';
@@ -33,6 +33,10 @@ import { replanRemainingDay } from '@/ai/functions';
 import { applyReplan } from '@/ai/replanApply';
 import { stashReplan, readStash, clearStash, browserStashStorage } from '@/cognition/replanStash';
 import { GoalReplanSheet, type GoalReplanPhase } from '@/components/shared/GoalReplanSheet';
+import { GoalRebalanceSheet, type GoalRebalancePhase, type RebalanceSuggestion } from '@/components/shared/GoalRebalanceSheet';
+import { rebalanceGoals, detectDomainDivergence } from '@/ai/goalRebalance';
+import { updateGoalMetadata } from '@/db/queries/goals';
+import { computeLastWeekDomainMinutes } from '@/utils/routineBalance';
 import type { ReplanRemainingDay } from '@/ai/types';
 import type { ExistingBlock } from '@/components/shared/RoutineDiffPreview';
 
@@ -53,13 +57,18 @@ export default function GoalsScreen() {
   const [version, setVersion] = useState(0);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [deletedGoals, setDeletedGoals] = useState<GoalLike[]>([]);
-  const [showDeleted, setShowDeleted] = useState(false);
-  const [showPostponed, setShowPostponed] = useState(false);
   // Re-plan-after-goal-change flow (mirrors the priority-change adjust-now path).
   const [replan, setReplan] = useState<{
     visible: boolean; phase: GoalReplanPhase; goalTitle: string;
     action: 'removed' | 'postponed' | 'added'; plan: ReplanRemainingDay | null; existing: ExistingBlock[];
   }>({ visible: false, phase: 'choice', goalTitle: '', action: 'removed', plan: null, existing: [] });
+
+  // Domain-divergence rebalance flow — one nudge per session at most.
+  const divergenceNudgedThisSession = useRef(false);
+  const [rebalance, setRebalance] = useState<{
+    visible: boolean; phase: GoalRebalancePhase;
+    starvedDomain: string; suggestions: RebalanceSuggestion[]; insight: string;
+  }>({ visible: false, phase: 'choice', starvedDomain: '', suggestions: [], insight: '' });
 
   useFocusEffect(
     useCallback(() => {
@@ -68,8 +77,22 @@ export default function GoalsScreen() {
         reactivateDue(userId, format(new Date(), 'yyyy-MM-dd'));
         loadGoals(userId);
         setDeletedGoals(getDeletedGoals(userId));
+
+        // Proactive domain-divergence check (once per session).
+        if (!divergenceNudgedThisSession.current) {
+          const weekMinutes = computeLastWeekDomainMinutes();
+          const candidate = detectDomainDivergence({
+            primaryDomains,
+            actualMinutesByDomain: weekMinutes,
+            cooldownOk: () => true,
+          });
+          if (candidate) {
+            divergenceNudgedThisSession.current = true;
+            setRebalance({ visible: true, phase: 'choice', starvedDomain: candidate.domain, suggestions: [], insight: '' });
+          }
+        }
       }
-    }, [userId, loadGoals, reactivateDue, syncTick])
+    }, [userId, loadGoals, reactivateDue, syncTick, primaryDomains])
   );
 
   // Postponed (paused) goals are hidden from the active tree and surfaced in
@@ -117,32 +140,61 @@ export default function GoalsScreen() {
         .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
     [goals],
   );
-  const [showAchievements, setShowAchievements] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+  const [completionToast, setCompletionToast] = useState<{ title: string; id: string } | null>(null);
+
+  useEffect(() => {
+    if (!completionToast) return;
+    const t = setTimeout(() => setCompletionToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [completionToast]);
+
+  // completedGoals kept for archive section
+
+  // Now = strategic horizon (life/yearly); Build = execution layer (monthly/weekly).
+  const nowGoals = useMemo(
+    () => mainGoals.filter((g) => g.level === 'life' || g.level === 'yearly'),
+    [mainGoals],
+  );
+  const buildGoals = useMemo(
+    () => mainGoals.filter((g) => g.level !== 'life' && g.level !== 'yearly'),
+    [mainGoals],
+  );
 
   // P4-04: the 3-year vision is the root `life` goal. Show its on-track
   // trajectory above the tree once it has at least one sub-goal.
   const lifeGoal = useMemo(() => goals.find((g) => g.level === 'life' && !g.parentId), [goals]);
 
-  const commentCounts = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const g of goals) map[g.id] = listGoalComments(g.id).length;
-    return map;
-  }, [goals, version]);
+  // One batch read instead of one per goal per render (§11.3).
+  const commentCounts = useMemo(
+    () => (userId ? getCommentCountsByUser(userId) : {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [userId, version],
+  );
 
-  const countDescendants = (id: string): { total: number; completed: number } => {
-    const queue = [...(childrenByParent[id] ?? [])];
-    let total = 0, completed = 0;
-    while (queue.length) {
-      const g = queue.shift()!;
-      total += 1;
-      if (g.status === 'completed') completed += 1;
-      queue.push(...(childrenByParent[g.id] ?? []));
-    }
-    return { total, completed };
-  };
+  // Memoised descendant counts — computed once per goals change, O(n) total
+  // instead of O(n²) from per-node subtree walks on every render (§11.3).
+  const descendantCounts = useMemo(() => {
+    const map: Record<string, { total: number; completed: number }> = {};
+    const compute = (id: string): { total: number; completed: number } => {
+      if (map[id]) return map[id];
+      const children = childrenByParent[id] ?? [];
+      let total = 0, completed = 0;
+      for (const child of children) {
+        total++;
+        if (child.status === 'completed') completed++;
+        const sub = compute(child.id);
+        total += sub.total;
+        completed += sub.completed;
+      }
+      return (map[id] = { total, completed });
+    };
+    for (const g of goals) compute(g.id);
+    return map;
+  }, [goals, childrenByParent]);
 
   const progressFor = (id: string): number => {
-    const { total, completed } = countDescendants(id);
+    const { total, completed } = descendantCounts[id] ?? { total: 0, completed: 0 };
     if (total === 0) return 0;
     return (completed / total) * 100;
   };
@@ -159,10 +211,15 @@ export default function GoalsScreen() {
     const goal = goals.find((g) => g.id === id);
     if (goal?.status === 'completed') return; // don't double-score a re-tap
     updateGoalStatus(id, 'completed');
-    // Completing any goal node now moves its domain (and thus the Life Score).
     if (goal && userId) completeGoalNode(userId, goal.goalType, goal.level);
-    // The key retention signal — goal-completion rate / time-to-first-completion.
     if (goal) track(EVENTS.goalCompleted, { goal_id: goal.id, goal_type: goal.goalType, level: goal.level });
+    if (goal) setCompletionToast({ title: goal.title, id: goal.id });
+    if (userId) loadGoals(userId);
+  };
+
+  const handleUndoComplete = (id: string) => {
+    updateGoalStatus(id, 'active');
+    setCompletionToast(null);
     if (userId) loadGoals(userId);
   };
 
@@ -187,6 +244,48 @@ export default function GoalsScreen() {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
+
+  const handleRebalanceCheckNow = async () => {
+    setRebalance((r) => ({ ...r, phase: 'loading' }));
+    try {
+      const active = goals.filter((g) => g.status === 'active' && g.level !== 'daily' && !g.parentId);
+      const totalHours = 40;
+      const defaultHours = active.length > 0
+        ? Math.round((totalHours / active.length) * 10) / 10
+        : 5;
+      const input = {
+        goals: active.map((g) => {
+          let weeklyHoursAllocated = defaultHours;
+          if (typeof g.metadata === 'string' && g.metadata) {
+            try {
+              const m = JSON.parse(g.metadata) as Record<string, unknown>;
+              if (typeof m.weeklyHoursTarget === 'number') weeklyHoursAllocated = m.weeklyHoursTarget;
+            } catch { /* keep default */ }
+          }
+          return { id: g.id, title: g.title, type: g.goalType, currentProgress: progressFor(g.id) / 100, weeklyHoursAllocated };
+        }),
+        totalAvailableHours: totalHours,
+      };
+      const proposal = await rebalanceGoals(input);
+      if (!proposal) { setRebalance((r) => ({ ...r, phase: 'error' })); return; }
+      const suggestions: RebalanceSuggestion[] = proposal.suggestions.map((s) => {
+        const g = goals.find((g) => g.id === s.goalId);
+        return { goalId: s.goalId, goalTitle: g?.title ?? s.goalId, weeklyHours: s.weeklyHours, reason: s.reason };
+      });
+      setRebalance((r) => ({ ...r, phase: 'preview', suggestions, insight: proposal.insight }));
+    } catch {
+      setRebalance((r) => ({ ...r, phase: 'error' }));
+    }
+  };
+
+  const handleConfirmRebalance = () => {
+    for (const s of rebalance.suggestions) {
+      updateGoalMetadata(s.goalId, { weeklyHoursTarget: s.weeklyHours });
+    }
+    setRebalance((r) => ({ ...r, phase: 'applied' }));
+  };
+
+  const closeRebalance = () => setRebalance((r) => ({ ...r, visible: false }));
 
   /**
    * After a goal is removed/postponed, offer to rebalance the rest of today.
@@ -330,6 +429,8 @@ export default function GoalsScreen() {
               commentCount={commentCounts[goal.id] ?? 0}
               onPress={() => openGoalDetail(goal)}
               isPrimary={depth === 0 && goal.level === 'life'}
+              stepCount={(descendantCounts[goal.id] ?? { total: 0, completed: 0 }).total}
+              stepsComplete={(descendantCounts[goal.id] ?? { total: 0, completed: 0 }).completed}
             />
           </View>
           {hasChildren && (
@@ -374,22 +475,56 @@ export default function GoalsScreen() {
               </View>
             );
           })}
+          <Pressable
+            onPress={() => setRebalance({ visible: true, phase: 'choice', starvedDomain: '', suggestions: [], insight: '' })}
+            style={[styles.rebalanceChip, { borderColor: c.goal }]}
+          >
+            <Ionicons name="git-branch-outline" size={12} color={c.goal} />
+            <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>Balance</Caption>
+          </Pressable>
         </View>
 
-        {lifeGoal && (
+        {/* Life vision — only show once there are sub-goals to track */}
+        {lifeGoal && (childrenByParent[lifeGoal.id] ?? []).length > 0 && (
           <TrajectoryCard lifeGoal={lifeGoal} goals={goals} />
         )}
 
-        {mainGoals.length === 0 ? (
-          <EmptyState
-            icon="flag-outline"
-            title="No goals yet"
-            caption="Tap + to add your first goal"
-            accent={c.goal}
-          />
-        ) : (
+        {/* YOUR NEXT MOVE — first active daily task */}
+        {dailyTasks.length > 0 && (
+          <View style={[styles.nextMoveCard, { backgroundColor: c.goal + '12', borderColor: c.goal + '33' }]}>
+            <View style={styles.nextMoveHeader}>
+              <Ionicons name="flash" size={14} color={c.goal} />
+              <Caption style={{ color: c.goal, fontFamily: fonts.heading, letterSpacing: 0.5 }}>YOUR NEXT MOVE</Caption>
+            </View>
+            <Body style={[styles.nextMoveTitle, { color: c.textPrimary }]} numberOfLines={2}>
+              {dailyTasks[0].title}
+            </Body>
+            {dailyTasks.length > 1 && (
+              <Caption style={{ color: c.textMuted }}>{`+${dailyTasks.length - 1} more task${dailyTasks.length > 2 ? 's' : ''} today`}</Caption>
+            )}
+            <View style={styles.nextMoveActions}>
+              <Pressable
+                onPress={() => handleCompleteTask(dailyTasks[0].id)}
+                style={[styles.nextMoveBtn, { backgroundColor: c.goal }]}
+              >
+                <Ionicons name="checkmark" size={14} color="#FFF" />
+                <Caption style={{ color: '#FFF', fontFamily: fonts.heading }}>Mark done</Caption>
+              </Pressable>
+              <Pressable
+                onPress={() => openGoalDetail(dailyTasks[0])}
+                style={[styles.nextMoveBtn, { backgroundColor: 'transparent', borderColor: c.goal, borderWidth: 1 }]}
+              >
+                <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>View</Caption>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* NOW — strategic horizon (life / yearly goals) */}
+        {nowGoals.length > 0 && (
           <View style={styles.section}>
-            {mainGoals.map((g, i) => (
+            <Body style={styles.sectionTitle}>Now</Body>
+            {nowGoals.map((g, i) => (
               <Animated.View key={g.id} entering={FadeInDown.delay(i * 60).duration(300)}>
                 {renderGoalNode(g, 0)}
               </Animated.View>
@@ -397,38 +532,38 @@ export default function GoalsScreen() {
           </View>
         )}
 
-        {dailyTasks.length > 0 && (
+        {/* BUILD — execution layer (monthly / weekly goals) */}
+        {buildGoals.length > 0 && (
           <View style={styles.section}>
-            <Body style={styles.sectionTitle}>Today's Tasks</Body>
-            {dailyTasks.map((task) => {
-              const tc = getTypeColor(task.goalType);
-              return (
-                <Pressable
-                  key={task.id}
-                  style={[styles.taskRow, { borderLeftColor: tc.color }]}
-                  onPress={() => handleCompleteTask(task.id)}
-                >
-                  <Ionicons name="ellipse-outline" size={20} color={tc.color} />
-                  <Body style={styles.taskText}>{task.title}</Body>
-                </Pressable>
-              );
-            })}
+            <Body style={styles.sectionTitle}>Build</Body>
+            {buildGoals.map((g, i) => (
+              <Animated.View key={g.id} entering={FadeInDown.delay(i * 60).duration(300)}>
+                {renderGoalNode(g, 0)}
+              </Animated.View>
+            ))}
           </View>
         )}
 
-        {completedGoals.length > 0 && (
+        {mainGoals.length === 0 && (
+          <EmptyState
+            icon="flag-outline"
+            title="No goals yet"
+            caption="Tap + to add your first goal"
+            accent={c.goal}
+          />
+        )}
+
+        {/* ARCHIVE — completed, postponed, deleted */}
+        {(completedGoals.length > 0 || postponedGoals.length > 0 || deletedGoals.length > 0) && (
           <View style={styles.section}>
-            <Pressable
-              style={styles.achievementsHeader}
-              onPress={() => setShowAchievements((s) => !s)}
-            >
-              <Ionicons name="trophy" size={18} color={c.goal} />
+            <Pressable style={styles.achievementsHeader} onPress={() => setShowArchive((s) => !s)}>
+              <Ionicons name="archive-outline" size={18} color={c.textMuted} />
               <Body style={[styles.sectionTitle, { flex: 1, marginBottom: 0 }]}>
-                Achievements · {completedGoals.length}
+                {`Archive · ${completedGoals.length + postponedGoals.length + deletedGoals.length}`}
               </Body>
-              <Ionicons name={showAchievements ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
+              <Ionicons name={showArchive ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
             </Pressable>
-            {showAchievements && (
+            {showArchive && (
               <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                 {completedGoals.map((g) => {
                   const tc = getTypeColor(g.goalType);
@@ -438,41 +573,22 @@ export default function GoalsScreen() {
                       <View style={{ flex: 1 }}>
                         <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
                         <Caption style={{ color: c.textMuted }}>
-                          {g.level.charAt(0).toUpperCase() + g.level.slice(1)} · {g.updatedAt.slice(0, 10)}
+                          {`${g.level.charAt(0).toUpperCase()}${g.level.slice(1)} · done ${g.updatedAt.slice(0, 10)}`}
                         </Caption>
                       </View>
                     </View>
                   );
                 })}
-              </View>
-            )}
-          </View>
-        )}
-
-        {postponedGoals.length > 0 && (
-          <View style={styles.section}>
-            <Pressable
-              style={styles.achievementsHeader}
-              onPress={() => setShowPostponed((s) => !s)}
-            >
-              <Ionicons name="moon-outline" size={18} color={c.textMuted} />
-              <Body style={[styles.sectionTitle, { flex: 1, marginBottom: 0 }]}>
-                Postponed · {postponedGoals.length}
-              </Body>
-              <Ionicons name={showPostponed ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
-            </Pressable>
-            {showPostponed && (
-              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                 {postponedGoals.map((g) => {
                   const tc = getTypeColor(g.goalType);
                   const until = snoozeUntilOf(g);
                   return (
                     <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                      <Ionicons name="moon-outline" size={18} color={c.textMuted} />
                       <View style={{ flex: 1 }}>
                         <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
                         <Caption style={{ color: c.textMuted }}>
-                          {g.level.charAt(0).toUpperCase() + g.level.slice(1)}
-                          {until ? ` · until ${until}` : ''}
+                          {`Paused${until ? ` until ${until}` : ''}`}
                         </Caption>
                       </View>
                       <Pressable
@@ -486,34 +602,15 @@ export default function GoalsScreen() {
                     </View>
                   );
                 })}
-              </View>
-            )}
-          </View>
-        )}
-
-        {deletedGoals.length > 0 && (
-          <View style={styles.section}>
-            <Pressable
-              style={styles.achievementsHeader}
-              onPress={() => setShowDeleted((s) => !s)}
-            >
-              <Ionicons name="trash-outline" size={18} color={c.textMuted} />
-              <Body style={[styles.sectionTitle, { flex: 1, marginBottom: 0 }]}>
-                Recently deleted · {deletedGoals.length}
-              </Body>
-              <Ionicons name={showDeleted ? 'chevron-up' : 'chevron-down'} size={18} color={c.textMuted} />
-            </Pressable>
-            {showDeleted && (
-              <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                 {deletedGoals.map((g) => {
                   const tc = getTypeColor(g.goalType);
                   return (
                     <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                      <Ionicons name="trash-outline" size={18} color={c.textMuted} />
                       <View style={{ flex: 1 }}>
                         <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
                         <Caption style={{ color: c.textMuted }}>
-                          {g.level.charAt(0).toUpperCase() + g.level.slice(1)}
-                          {g.deletedAt ? ` · deleted ${g.deletedAt.slice(0, 10)}` : ''}
+                          {`Deleted${g.deletedAt ? ` ${g.deletedAt.slice(0, 10)}` : ''}`}
                         </Caption>
                       </View>
                       <Pressable
@@ -532,6 +629,29 @@ export default function GoalsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Completion toast with Undo */}
+      {completionToast && (
+        <Animated.View
+          entering={FadeInDown.duration(300)}
+          style={[styles.completionToast, { backgroundColor: c.success + 'f0', borderColor: c.success }]}
+        >
+          <Ionicons name="checkmark-circle" size={20} color="#FFF" />
+          <Body style={{ color: '#FFF', flex: 1, fontFamily: fonts.heading }} numberOfLines={1}>
+            {completionToast.title}
+          </Body>
+          <Pressable
+            onPress={() => handleUndoComplete(completionToast.id)}
+            style={styles.undoBtn}
+            hitSlop={8}
+          >
+            <Caption style={{ color: '#FFF', fontFamily: fonts.heading }}>Undo</Caption>
+          </Pressable>
+          <Pressable onPress={() => setCompletionToast(null)} hitSlop={8}>
+            <Ionicons name="close" size={16} color="#FFF" />
+          </Pressable>
+        </Animated.View>
+      )}
 
       <Pressable style={styles.fab} onPress={() => setShowAddSheet(true)}>
         <Ionicons name="add" size={28} color="#FFF" />
@@ -558,8 +678,13 @@ export default function GoalsScreen() {
           userId={userId}
           goalStatus={detailGoal.status}
           snoozeUntil={snoozeUntilOf(detailGoal)}
+          goalUpdatedAt={detailGoal.updatedAt}
           onCommentChange={() => setVersion((v) => v + 1)}
           onDescriptionChange={() => {
+            if (userId) loadGoals(userId);
+            setVersion((v) => v + 1);
+          }}
+          onFieldsChanged={() => {
             if (userId) loadGoals(userId);
             setVersion((v) => v + 1);
           }}
@@ -584,6 +709,18 @@ export default function GoalsScreen() {
         onClose={closeReplan}
         onRetry={handleAdjustNow}
       />
+
+      <GoalRebalanceSheet
+        visible={rebalance.visible}
+        phase={rebalance.phase}
+        starvedDomain={rebalance.starvedDomain}
+        suggestions={rebalance.suggestions}
+        insight={rebalance.insight}
+        onCheckNow={handleRebalanceCheckNow}
+        onConfirm={handleConfirmRebalance}
+        onDismiss={closeRebalance}
+        onRetry={handleRebalanceCheckNow}
+      />
       </SafeAreaView>
     </View>
   );
@@ -601,6 +738,11 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     legendDot: { width: 10, height: 10, borderRadius: 5 },
+    rebalanceChip: {
+      flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+      paddingVertical: 3, paddingHorizontal: spacing.sm,
+      borderRadius: 999, borderWidth: 1, marginLeft: 'auto',
+    },
     section: { gap: spacing.sm },
     sectionTitle: {
       fontFamily: fonts.heading, fontSize: fontSizes.lg, marginTop: spacing.sm, color: c.textPrimary,
@@ -616,6 +758,28 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
       paddingVertical: spacing.xs, paddingHorizontal: spacing.sm,
       borderRadius: 10, borderWidth: 1,
+    },
+    nextMoveCard: {
+      borderRadius: 16, borderWidth: 1, padding: spacing.md, gap: spacing.xs,
+    },
+    nextMoveHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+    nextMoveTitle: { fontFamily: fonts.heading, fontSize: fontSizes.lg, lineHeight: fontSizes.lg * 1.3 },
+    nextMoveActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+    nextMoveBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
+      paddingVertical: spacing.xs, paddingHorizontal: spacing.md,
+      borderRadius: 10, minHeight: 36,
+    },
+    completionToast: {
+      position: 'absolute', bottom: 110, left: spacing.xl, right: spacing.xl,
+      flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+      borderRadius: 16, borderWidth: 1, padding: spacing.md,
+      elevation: 10, shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8,
+    },
+    undoBtn: {
+      paddingVertical: spacing.xs, paddingHorizontal: spacing.sm,
+      borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)',
     },
     nodeWrap: { gap: spacing.sm },
     nodeRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },

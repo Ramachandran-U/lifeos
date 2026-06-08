@@ -29,7 +29,7 @@ Product spec: `docs/PRODUCT_TECHNICAL_DOC.md` (marketing distillation in `docs/M
 
 ## Project Structure
 
-> Directory-level map — accurate as of May 2026. Sub-files change often; trust the tree on disk over any file list here. `__tests__/` folders are co-located throughout and omitted below.
+> Directory-level map — accurate as of June 2026. Sub-files change often; trust the tree on disk over any file list here. `__tests__/` folders are co-located throughout and omitted below.
 
 ```
 lifeos/
@@ -41,10 +41,12 @@ lifeos/
 │   │   └── discovery-intro / discovery-paste / discovery-chat / discovery-confirm
 │   ├── (tabs)/                 # index (Today), goals, health, finance, career,
 │   │   │                       #   social, explore, life, profile, rewards
-│   ├── *-callback.tsx          # google-auth / gmail / calendar / fit OAuth callbacks
+│   ├── *-callback.tsx          # google-auth / gmail / calendar / fit / contacts / youtube
 │   ├── chat / feedback / settings / annual-review / evening-reflect / rabbit-hole
-│   ├── finance-* / expedition-detail / monthly-insight / edit-priorities / ...
-│   └── _layout.tsx
+│   ├── finance-* / expedition-detail / monthly-insight / edit-priorities / activity
+│   ├── contact/[id] / notifications-settings / welcome-intent / what-lifeos-knows
+│   ├── what-lifeos-remembers / data-residency / how-it-works / terms-privacy
+│   └── _layout.tsx / +html.tsx
 ├── src/
 │   ├── ai/
 │   │   ├── client.ts           # The AI client — callAI / callAIRaw → proxy (see below)
@@ -53,12 +55,23 @@ lifeos/
 │   │   ├── agent/              # Tool-use agent loop
 │   │   │   ├── runtime.ts      #   runToolAgent — model↔tool loop, runs tools on-device
 │   │   │   ├── tools.ts        #   buildLifeOsTools — read-only tools over local data
+│   │   │   ├── writeTools.ts   #   buildLifeOsWriteTools — propose-only, never mutates
+│   │   │   ├── actionQueue.ts  #   ProposedAction queue + commitActions
 │   │   │   ├── whatNext.ts     #   "What should I do next?" agent
 │   │   │   ├── planner.ts / goalDecomposer.ts
+│   │   │   └── exploreThread.ts / exploreTools.ts / voiceTools.ts
+│   │   ├── planner/            # Named facade over the day-plan pipeline
+│   │   │   └── orchestrator.ts #   thin wrapper — change the underlying module, not this
+│   │   ├── memory/             # Profile-level memory consolidation
+│   │   │   └── consolidate.ts
+│   │   ├── outcomes/           # Production outcome measurement (kill/keep verdicts)
+│   │   │   └── measure.ts
 │   │   ├── rag/                # Retrieval for grounding AI calls
 │   │   ├── prompts/            # System prompts, one file per module/task
 │   │   ├── mocks/              # USE_AI_MOCK responses, one file per domain
 │   │   ├── costLedger.ts / tracing.ts / extractJson.ts
+│   │   ├── replanApply.ts / routinePlanner.ts / historyContext.ts
+│   │   ├── productionOutcomes.ts / variantPolicy.ts / profileLearning.ts
 │   │   ├── voiceClient.ts      # Gemini Live voice path (separate from callAI)
 │   │   └── types.ts
 │   ├── cognition/              # Domain-stagnation detect, priority-change handler,
@@ -66,14 +79,15 @@ lifeos/
 │   ├── sync/                   # Event-sourced spine: mutationLog, hashChain, lamport,
 │   │   │                       #   runtime, sink
 │   ├── explore/                # Curiosity engine: spark, expeditions, expeditionGen,
-│   │   │                       #   constellation
+│   │   │                       #   constellation, chasing, frontier, rabbitHoleActions
 │   ├── finance/                # Categorizer, merchantClassifier, moneyReview,
 │   │   │                       #   analytics + gmail/ + parsers/ + db/ + store/
-│   ├── config/                 # flags.ts — feature flag definitions
+│   ├── observability/          # App-level metrics (perf, error rates, usage signals)
+│   ├── config/                 # flags.ts — typed compile-time flags; runtime flags → useFlagStore
 │   ├── components/
 │   │   ├── ui/                 # Base design system (Button, Card, Input, ...)
 │   │   ├── gamification/       # XP / badge / streak components
-│   │   ├── modules/            # goals / health / finance / career / social / polymath
+│   │   ├── modules/            # goals / health / finance / career / social / polymath / profile
 │   │   └── shared/             # LifeBalanceDashboard, RoutineBlock, OAuthCallbackView,
 │   │       │                   #   DailyBriefing, ambient/ ...
 │   ├── db/
@@ -86,14 +100,16 @@ lifeos/
 │   │   │                       #   useUserStore, usePreferencesStore, ... — see dir)
 │   ├── integrations/
 │   │   ├── google/             # Shared PKCE OAuth driver
-│   │   ├── googleAuth / googleCalendar / googleFit
+│   │   ├── googleAuth / googleCalendar / googleFit / googleContacts / youtube
 │   │   ├── supabase/           # Auth + session + sync client
 │   │   └── elevenlabs/         # Dev-time onboarding-audio generation only
-│   ├── hooks/ · theme/ · utils/ · constants/ · data/ · types/
+│   ├── hooks/ · theme/ · utils/ · constants/ · data/
 ├── workers/ai-proxy/           # Cloudflare Worker — the only thing that holds AI keys
 ├── evals/                      # Eval harness + datasets + reports
 ├── e2e/                        # Playwright end-to-end + smoke tests
 ├── admin/                      # Admin portal
+├── scripts/                    # Node utility scripts (food DB build, audio gen, post-export web)
+├── supabase/                   # Supabase migrations (admin, telemetry, ai_cost_events, mutations)
 ├── docs/ · roadmap/ · implementation-plan/ · audit/
 ├── .env.example · app.json · babel.config.js · tsconfig.json · drizzle.config.ts
 ```

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import { View, ScrollView, StyleSheet, TextInput, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -12,7 +12,7 @@ import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { useUserStore } from '@/store/useUserStore';
 import { usePromptStore } from '@/store/usePromptStore';
-import { callAI } from '@/ai/client';
+import { callAIStream } from '@/ai/client';
 import { CHATBOT_SYSTEM_PROMPT } from '@/ai/prompts/chatbot';
 import {
   appendChatMessage,
@@ -41,6 +41,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [streamingText, setStreamingText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
 
@@ -55,8 +56,8 @@ export default function ChatScreen() {
   }, [userId]);
 
   useEffect(() => {
-    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
-  }, [messages, busy]);
+    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
+  }, [messages, streamingText]);
 
   const send = async () => {
     if (!userId || !input.trim() || busy) return;
@@ -101,15 +102,21 @@ export default function ChatScreen() {
       for (const m of [...messages, userMsg].slice(-12)) {
         history.push({ role: m.role, content: m.content });
       }
-      const reply = await callAI({
-        system,
-        messages: history,
-        maxTokens: 800,
-        task: 'chatbot',
-        cacheSystem: true,
-      });
-      const assistantMsg = appendChatMessage(userId, 'assistant', reply.trim());
-      setMessages((prev) => [...prev, assistantMsg]);
+      let streamed = '';
+      setStreamingText('');
+      try {
+        await callAIStream(
+          { system, messages: history, maxTokens: 800, task: 'chatbot', cacheSystem: true },
+          (chunk) => {
+            streamed += chunk;
+            setStreamingText(streamed);
+          },
+        );
+        const assistantMsg = appendChatMessage(userId, 'assistant', streamed.trim());
+        setMessages((prev) => [...prev, assistantMsg]);
+      } finally {
+        setStreamingText(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
@@ -169,10 +176,9 @@ export default function ChatScreen() {
             </View>
           ))}
 
-          {busy ? (
-            <View style={[styles.bubble, styles.bubbleAssistant, { flexDirection: 'row', alignItems: 'center' }]}>
-              <ActivityIndicator size="small" color={c.textSecondary} />
-              <Body style={{ color: c.textSecondary, marginLeft: spacing.sm }}>Thinking…</Body>
+          {streamingText !== null ? (
+            <View style={[styles.bubble, styles.bubbleAssistant]}>
+              <Body style={{ color: c.textPrimary }}>{streamingText || '…'}</Body>
             </View>
           ) : null}
 

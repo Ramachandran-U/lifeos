@@ -130,6 +130,10 @@ export function webListGoalComments(goalId: string): WebGoalComment[] {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
+export function webListAllGoalComments(): WebGoalComment[] {
+  return load<WebGoalComment>(GOAL_COMMENTS_KEY);
+}
+
 export function webDeleteGoalComment(id: string): void {
   const all = load<WebGoalComment>(GOAL_COMMENTS_KEY);
   save(

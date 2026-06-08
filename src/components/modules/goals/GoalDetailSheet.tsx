@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, Modal, Pressable, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, TextInput, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format, addWeeks, addMonths } from 'date-fns';
+import { format, addWeeks, addMonths, differenceInDays, parseISO } from 'date-fns';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
@@ -9,8 +9,10 @@ import { Body, Caption, Label } from '@/components/ui/Typography';
 import { Button } from '@/components/ui/Button';
 import { useGoalTypeColor } from '@/utils/goalTypeColor';
 import { addGoalComment, listGoalComments, deleteGoalComment, type GoalComment } from '@/db/queries/goalComments';
-import { updateGoalDescription } from '@/db/queries/goals';
+import { updateGoalDescription, updateGoalFields, getChildGoals } from '@/db/queries/goals';
+import { GOAL_TYPE_LEGEND } from '@/utils/goalTypeColor';
 import { describeGoal } from '@/ai/functions';
+import { recoverGoal, type GoalSlipRecovery } from '@/ai/goalRebalance';
 
 interface Props {
   visible: boolean;
@@ -27,12 +29,16 @@ interface Props {
   snoozeUntil?: string | null;
   onCommentChange?: () => void;
   onDescriptionChange?: () => void;
+  /** Called after title/type/timeline are saved so the parent can reload the goal list. */
+  onFieldsChanged?: (fields: { title: string; goalType: string; timeline: string | null }) => void;
   /** Soft-delete this goal (recoverable). Parent closes the sheet + offers a re-plan. */
   onRemove?: () => void;
   /** Postpone this goal until `untilDate` (YYYY-MM-DD). */
   onPostpone?: (untilDate: string) => void;
   /** Resume a postponed goal now. */
   onResume?: () => void;
+  /** ISO timestamp of the goal's last update — used to detect staleness. */
+  goalUpdatedAt?: string;
 }
 
 const SNOOZE_PRESETS: { label: string; until: () => string }[] = [
@@ -41,12 +47,13 @@ const SNOOZE_PRESETS: { label: string; until: () => string }[] = [
   { label: '3 months', until: () => format(addMonths(new Date(), 3), 'yyyy-MM-dd') },
 ];
 
-type LifecycleMode = 'view' | 'postpone' | 'confirmRemove';
+type LifecycleMode = 'view' | 'edit' | 'postpone' | 'confirmRemove';
 
 export function GoalDetailSheet({
   visible, onClose, goalId, goalTitle, goalType, goalLevel,
   initialDescription, userId, goalStatus, snoozeUntil,
   onCommentChange, onDescriptionChange, onRemove, onPostpone, onResume,
+  goalUpdatedAt, onFieldsChanged,
 }: Props) {
   const c = useColors();
   const typeColor = useGoalTypeColor()(goalType);
@@ -56,6 +63,13 @@ export function GoalDetailSheet({
   const [descLoading, setDescLoading] = useState(false);
   const [descError, setDescError] = useState<string | null>(null);
   const [mode, setMode] = useState<LifecycleMode>('view');
+  const [recoveryPlan, setRecoveryPlan] = useState<GoalSlipRecovery | null>(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editGoalType, setEditGoalType] = useState('');
+  const [editTimeline, setEditTimeline] = useState('');
 
   useEffect(() => {
     if (visible && goalId) {
@@ -63,8 +77,57 @@ export function GoalDetailSheet({
       setDescription(initialDescription ?? '');
       setDescError(null);
       setMode('view');
+      setRecoveryPlan(null);
+      setRecoveryError(null);
+      setShowRecovery(false);
+      setEditTitle(goalTitle);
+      setEditGoalType(goalType);
+      setEditTimeline('');
     }
-  }, [visible, goalId, initialDescription]);
+  }, [visible, goalId, initialDescription, goalTitle, goalType]);
+
+  const handleSaveFields = () => {
+    if (!goalId || !editTitle.trim()) return;
+    const fields = {
+      title: editTitle.trim(),
+      goalType: editGoalType,
+      timeline: editTimeline.trim() || null,
+    };
+    updateGoalFields(goalId, fields);
+    onFieldsChanged?.(fields);
+    setMode('view');
+  };
+
+  const daysSinceUpdate = goalUpdatedAt
+    ? differenceInDays(new Date(), parseISO(goalUpdatedAt))
+    : 0;
+  const isStalled = goalStatus === 'active' && daysSinceUpdate > 7;
+
+  const handleGetBackOnTrack = async () => {
+    if (!goalId) return;
+    setShowRecovery(true);
+    setRecoveryLoading(true);
+    setRecoveryError(null);
+    setRecoveryPlan(null);
+    try {
+      const children = getChildGoals(goalId);
+      const lastDone = children.find((c) => c.status === 'completed');
+      const nextUp = children.find((c) => c.status === 'active');
+      const plan = await recoverGoal({
+        goalTitle,
+        goalType,
+        daysMissed: daysSinceUpdate,
+        lastCompletedTask: lastDone?.title ?? 'No recent tasks',
+        upcomingMilestone: nextUp?.title ?? 'No upcoming milestone set',
+      });
+      if (!plan) { setRecoveryError('Couldn\'t generate a plan. Try again.'); return; }
+      setRecoveryPlan(plan);
+    } catch {
+      setRecoveryError('Something went wrong. Try again.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
 
   const handleGenerateDescription = async () => {
     if (!goalId) return;
@@ -178,6 +241,73 @@ export function GoalDetailSheet({
             </Pressable>
           </View>
 
+          {isStalled && !showRecovery && (
+            <>
+              <View style={[styles.divider, { backgroundColor: c.border }]} />
+              <Pressable
+                onPress={handleGetBackOnTrack}
+                style={[styles.recoveryBanner, { backgroundColor: typeColor.light, borderColor: typeColor.color + '44' }]}
+              >
+                <Ionicons name="rocket-outline" size={16} color={typeColor.color} />
+                <View style={{ flex: 1 }}>
+                  <Caption style={{ color: typeColor.color, fontFamily: fonts.heading }}>
+                    {`${daysSinceUpdate}d since last update`}
+                  </Caption>
+                  <Caption style={{ color: c.textSecondary }}>Get a 7-day recovery plan</Caption>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={typeColor.color} />
+              </Pressable>
+            </>
+          )}
+
+          {showRecovery && (
+            <>
+              <View style={[styles.divider, { backgroundColor: c.border }]} />
+              <View style={styles.section}>
+                <View style={styles.descHeader}>
+                  <Caption style={{ color: c.textSecondary, letterSpacing: 1, fontFamily: fonts.heading }}>
+                    RECOVERY PLAN
+                  </Caption>
+                  <Pressable onPress={() => setShowRecovery(false)} hitSlop={8}>
+                    <Ionicons name="close" size={16} color={c.textMuted} />
+                  </Pressable>
+                </View>
+                {recoveryLoading && (
+                  <View style={styles.recoveryLoading}>
+                    <ActivityIndicator size="small" color={typeColor.color} />
+                    <Caption style={{ color: c.textSecondary }}>Building your plan…</Caption>
+                  </View>
+                )}
+                {recoveryError && (
+                  <Caption style={{ color: c.error }}>{recoveryError}</Caption>
+                )}
+                {recoveryPlan && (
+                  <>
+                    <Body style={{ color: c.textSecondary, fontStyle: 'italic' }}>{recoveryPlan.encouragement}</Body>
+                    <View style={[styles.quickWin, { backgroundColor: typeColor.light, borderColor: typeColor.color + '44' }]}>
+                      <Ionicons name="flash" size={14} color={typeColor.color} />
+                      <Caption style={{ color: typeColor.color, flex: 1 }}>
+                        <Caption style={{ fontFamily: fonts.heading }}>Quick win: </Caption>
+                        {recoveryPlan.quickWin}
+                      </Caption>
+                    </View>
+                    {recoveryPlan.recoveryPlan.map((step) => (
+                      <View key={step.day} style={[styles.recoveryStep, { borderColor: c.border }]}>
+                        <View style={[styles.dayBadge, { backgroundColor: typeColor.light }]}>
+                          <Caption style={{ color: typeColor.color, fontFamily: fonts.heading }}>{`D${step.day}`}</Caption>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Caption style={{ color: c.textPrimary }}>{step.task}</Caption>
+                          <Caption style={{ color: c.textMuted }}>{step.duration}</Caption>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </View>
+            </>
+          )}
+
           {(onRemove || onPostpone || onResume) && (
             <>
               <View style={[styles.divider, { backgroundColor: c.border }]} />
@@ -225,8 +355,64 @@ export function GoalDetailSheet({
                     <Button title="Cancel" variant="secondary" onPress={() => setMode('view')} style={styles.lifecycleBtn} />
                   </View>
                 </View>
+              ) : mode === 'edit' ? (
+                <View style={styles.lifecycleSection}>
+                  <Caption style={{ color: c.textSecondary, letterSpacing: 1, fontFamily: fonts.heading }}>
+                    EDIT GOAL
+                  </Caption>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
+                    value={editTitle}
+                    onChangeText={setEditTitle}
+                    placeholder="Goal title"
+                    placeholderTextColor={c.textMuted}
+                    returnKeyType="next"
+                  />
+                  <Caption style={{ color: c.textSecondary }}>Type</Caption>
+                  <View style={styles.chipRow}>
+                    {GOAL_TYPE_LEGEND.map((entry) => {
+                      const isSelected = editGoalType === entry.goalType;
+                      return (
+                        <Pressable
+                          key={entry.goalType}
+                          onPress={() => setEditGoalType(entry.goalType)}
+                          style={[
+                            styles.chip,
+                            { borderColor: isSelected ? typeColor.color : c.border,
+                              backgroundColor: isSelected ? typeColor.light : 'transparent' },
+                          ]}
+                        >
+                          <Caption style={{ color: isSelected ? typeColor.color : c.textSecondary, fontFamily: isSelected ? fonts.heading : fonts.body }}>
+                            {entry.label}
+                          </Caption>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Caption style={{ color: c.textSecondary }}>Timeline (optional)</Caption>
+                  <TextInput
+                    style={[styles.editInput, { backgroundColor: c.background, borderColor: c.border, color: c.textPrimary }]}
+                    value={editTimeline}
+                    onChangeText={setEditTimeline}
+                    placeholder="e.g. By end of Q3 2026"
+                    placeholderTextColor={c.textMuted}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveFields}
+                  />
+                  <View style={styles.lifecycleRow}>
+                    <Button
+                      title="Save"
+                      onPress={handleSaveFields}
+                      style={styles.lifecycleBtn}
+                    />
+                    <Button title="Cancel" variant="secondary" onPress={() => setMode('view')} style={styles.lifecycleBtn} />
+                  </View>
+                </View>
               ) : (
                 <View style={styles.lifecycleRow}>
+                  {(goalStatus === 'active' || !goalStatus) && (
+                    <Button title="Edit" variant="secondary" onPress={() => setMode('edit')} style={styles.lifecycleBtn} />
+                  )}
                   {(goalStatus === 'active' || !goalStatus) && onPostpone && (
                     <Button title="Postpone" variant="secondary" onPress={() => setMode('postpone')} style={styles.lifecycleBtn} />
                   )}
@@ -278,5 +464,26 @@ const styles = StyleSheet.create({
   descBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 8,
+  },
+  editInput: {
+    borderRadius: 10, borderWidth: 1,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    fontFamily: fonts.body, fontSize: fontSizes.md, minHeight: 44,
+  },
+  recoveryBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    padding: spacing.md, borderRadius: 12, borderWidth: 1,
+  },
+  recoveryLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+  quickWin: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs,
+    padding: spacing.sm, borderRadius: 10, borderWidth: 1,
+  },
+  recoveryStep: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+    paddingVertical: spacing.sm, borderBottomWidth: 1,
+  },
+  dayBadge: {
+    width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
   },
 });

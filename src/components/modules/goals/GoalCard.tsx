@@ -17,13 +17,22 @@ interface GoalCardProps {
   commentCount?: number;
   isPrimary?: boolean;
   onPress?: () => void;
+  /** Total descendant steps. When 0, the goal is a leaf and progress is hidden. */
+  stepCount?: number;
+  stepsComplete?: number;
 }
 
 export function GoalCard({
   title, level, status, progress, goalType = 'personal', commentCount = 0, isPrimary, onPress,
+  stepCount = 0, stepsComplete = 0,
 }: GoalCardProps) {
   const c = useColors();
   const typeColor = useGoalTypeColor()(goalType);
+
+  const hasSteps = stepCount > 0;
+  const progressLabel = hasSteps
+    ? `${stepsComplete} of ${stepCount} steps`
+    : null;
 
   const content = (
     <Card moduleColor={typeColor.color} style={isPrimary ? styles.primaryCard : styles.card}>
@@ -37,9 +46,15 @@ export function GoalCard({
       <Body style={[styles.title, isPrimary && styles.primaryTitle, { color: c.textPrimary }]}>
         {title}
       </Body>
-      <ProgressBar value={progress} color={typeColor.color} height={isPrimary ? 8 : 6} />
+      {hasSteps && (
+        <ProgressBar value={progress} color={typeColor.color} height={isPrimary ? 8 : 6} />
+      )}
       <View style={styles.footer}>
-        <Caption style={{ color: c.textSecondary }}>{Math.round(progress)}% complete</Caption>
+        {progressLabel ? (
+          <Caption style={{ color: c.textSecondary }}>{progressLabel}</Caption>
+        ) : (
+          <Caption style={{ color: c.textMuted }}>No sub-goals yet</Caption>
+        )}
         {commentCount > 0 && (
           <View style={styles.commentBadge}>
             <Ionicons name="chatbubble-outline" size={12} color={c.textSecondary} />

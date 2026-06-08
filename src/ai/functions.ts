@@ -943,3 +943,26 @@ export async function generateAnnualReview(input: AnnualReviewInput): Promise<An
     recordSchemaFailure('generateAnnualReview', 'AnnualReview', response, err);
   }
 }
+
+/** Generate a short, evocative 3–5 word title for a rabbit-hole exploration map. */
+export async function suggestMapTitle(input: {
+  anchorTitle: string;
+  sampleNodeTitles: string[];
+}): Promise<string> {
+  if (isMock) {
+    return input.anchorTitle.split(' ').slice(0, 5).join(' ') || 'Untitled Map';
+  }
+
+  const sample = input.sampleNodeTitles.slice(0, 8).join(', ');
+  const prompt = `Starting topic: "${input.anchorTitle}". Ideas explored: ${sample || '(none yet)'}. Write a short, evocative 3–5 word title for this intellectual journey. Return only the title — no quotes, no punctuation.`;
+
+  const response = await callAI({
+    system: 'You name intellectual explorations. Respond with only a 3–5 word evocative title. No quotes, no punctuation, no explanation.',
+    messages: [{ role: 'user', content: prompt }],
+    model: pickModel('suggestMapTitle'),
+    task: 'suggestMapTitle',
+    maxTokens: 20,
+  });
+
+  return response.trim().replace(/^["'`]|["'`]$/g, '');
+}

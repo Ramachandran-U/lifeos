@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { callAI } from './client';
 import { extractJson } from './extractJson';
 import { pickModel } from './modelRouter';
-import { GOAL_REBALANCE_PROMPT } from './prompts/goals';
+import { GOAL_REBALANCE_PROMPT, GOAL_SLIP_RECOVERY_PROMPT } from './prompts/goals';
 
 const isMock = () =>
   process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
@@ -72,6 +72,62 @@ export async function rebalanceGoals(input: GoalRebalanceInput): Promise<GoalReb
       task: 'rebalanceGoals',
     });
     return GoalRebalanceSchema.parse(extractJson(response));
+  } catch {
+    return null;
+  }
+}
+
+// --- Slip recovery ---
+
+export interface GoalSlipRecoveryInput {
+  goalTitle: string;
+  goalType: string;
+  daysMissed: number;
+  lastCompletedTask: string;
+  upcomingMilestone: string;
+}
+
+export const GoalSlipRecoverySchema = z.object({
+  encouragement: z.string().min(1),
+  recoveryPlan: z.array(
+    z.object({
+      day: z.number().int().min(1).max(7),
+      task: z.string().min(1),
+      duration: z.string().min(1),
+    }),
+  ),
+  quickWin: z.string().min(1),
+});
+
+export type GoalSlipRecovery = z.infer<typeof GoalSlipRecoverySchema>;
+
+/**
+ * Generates a 7-day recovery plan for a goal that has stalled. Returns null on
+ * parse failure (never throws into the caller). Caller must NOT show the plan
+ * without surfacing the "Get back on track" intent first.
+ */
+export async function recoverGoal(input: GoalSlipRecoveryInput): Promise<GoalSlipRecovery | null> {
+  if (isMock()) {
+    return {
+      encouragement: `Missing a few days is normal — you're back now. (mock)`,
+      recoveryPlan: Array.from({ length: 7 }, (_, i) => ({
+        day: i + 1,
+        task: `Step ${i + 1} toward "${input.goalTitle}"`,
+        duration: '20 min',
+      })),
+      quickWin: `Write down 3 reasons "${input.goalTitle}" still matters to you. (5 min)`,
+    };
+  }
+
+  try {
+    const response = await callAI({
+      system: GOAL_SLIP_RECOVERY_PROMPT,
+      messages: [{ role: 'user', content: JSON.stringify(input) }],
+      model: pickModel('recoverGoal'),
+      cacheSystem: true,
+      task: 'recoverGoal',
+    });
+    return GoalSlipRecoverySchema.parse(extractJson(response));
   } catch {
     return null;
   }

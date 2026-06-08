@@ -1,5 +1,15 @@
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, type LayoutChangeEvent } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  ZoomIn,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  cancelAnimation,
+} from 'react-native-reanimated';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
 import { radii } from '@/theme/radii';
@@ -24,7 +34,7 @@ interface Props {
 
 /** One tile on the map. Encodes its state: gold = active path · neutral solid =
  * visited-off-path · dashed faint = an un-taken ghost fork. The cursor gets a
- * thicker gold ring. */
+ * pulsing gold ring. */
 export function RabbitHoleMapNode({ title, kind, arrivedVia, x, y, width, height, onPress, onLayout, accessibilityLabel }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
@@ -35,8 +45,49 @@ export function RabbitHoleMapNode({ title, kind, arrivedVia, x, y, width, height
   const borderColor = onPath ? c.polymath : c.border;
   const backgroundColor = ghost ? 'transparent' : onPath ? c.polymath + '14' : c.card;
 
+  // Ripple ring: expands and fades out repeatedly while this tile is the cursor.
+  const ringScale = useSharedValue(1);
+  const ringOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (cursor) {
+      ringScale.value = withRepeat(
+        withSequence(withTiming(1, { duration: 0 }), withTiming(1.4, { duration: 1100 })),
+        -1,
+        false,
+      );
+      ringOpacity.value = withRepeat(
+        withSequence(withTiming(0.55, { duration: 0 }), withTiming(0, { duration: 1100 })),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(ringScale);
+      cancelAnimation(ringOpacity);
+      ringScale.value = withTiming(1, { duration: 150 });
+      ringOpacity.value = withTiming(0, { duration: 150 });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursor]);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+    opacity: ringOpacity.value,
+  }));
+
+  // New realized nodes pop in; ghost and path nodes (already in tree) just fade.
+  const entering = ghost || kind === 'path' || kind === 'visited'
+    ? FadeIn.duration(200)
+    : ZoomIn.duration(220).springify().damping(14);
+
   return (
-    <Animated.View entering={FadeIn.duration(240)} style={[styles.wrap, { left: x, top: y, width, height }]}>
+    <Animated.View entering={entering} style={[styles.wrap, { left: x, top: y, width, height }]}>
+      {cursor && (
+        <Animated.View
+          style={[StyleSheet.absoluteFillObject, styles.cursorRing, { borderColor: c.polymath }, ringStyle]}
+          pointerEvents="none"
+        />
+      )}
       <Pressable
         onPress={onPress}
         onLayout={onLayout}
@@ -79,5 +130,9 @@ const makeStyles = (_c: AppColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+  },
+  cursorRing: {
+    borderRadius: radii.tile,
+    borderWidth: 2,
   },
 });

@@ -14,16 +14,6 @@
  */
 
 export interface FeatureFlags {
-  /** P0: emit rows to the mutation log on writes (shadow — no sync yet). */
-  mutationLog: boolean;
-  /** P1: push/pull mutations across devices. */
-  syncEngine: boolean;
-  /** P1: per-entity version history + restore-to-timestamp. */
-  versionHistory: boolean;
-  /** P1: encrypted backup/export/import. */
-  encryptedBackup: boolean;
-  /** P2: cognitive detectors + reasoning (shadow-capable). */
-  cognitiveEngine: boolean;
   /** P2: domain-stagnation detector runs (detect + store insight). */
   domainNudges: boolean;
   /** P2: render the domain-nudge card. Off + domainNudges on = shadow mode. */
@@ -32,22 +22,8 @@ export interface FeatureFlags {
   overcommitmentDetector: boolean;
   /** P2: render the overcommitment card. Off + detector on = shadow mode. */
   overcommitmentVisible: boolean;
-  /** P3: coach can take gated, confirmed actions via tool-use. */
-  aiCoachActions: boolean;
-  /** P4: long-term memory graph projection. */
-  memoryGraph: boolean;
   /** Priority change → routine adjustment (Phase A: tomorrow; Phase B: adjust-now). */
   priorityAdjust: boolean;
-  /** P5: autonomous calendar-aware orchestration suggestions. */
-  orchestration: boolean;
-  /** Explore redesign: "Chasing now" — model-surfaced live questions grounded in real exploration signal. */
-  exploreChasing: boolean;
-  /** Explore redesign: "Pull thread" runs a tool-use agent grounded in the user's real exploration history (vs. single-shot confabulation). */
-  exploreAgenticThread: boolean;
-  /** Explore redesign: "The frontier" — model picks the most fertile UNEXPLORED edge between the user's interests (replaces the Discover grid). */
-  exploreFrontier: boolean;
-  /** Explore redesign: the rabbit hole renders as a navigable decision-tree MAP (persistent, branchable) vs. the legacy destructive linear stack. */
-  rabbitHoleTreeMap: boolean;
   /** Explore redesign: prefetch the OTHER (un-taken) fork's node so taking it later is instant. Off by default — keep off until cost-ledger data justifies the spend. */
   exploreAgenticPrefetch: boolean;
   /** Profile: upload a photo → AI-generated gamified avatar (nano banana). Paid image-gen — off until billing is enabled. */
@@ -57,23 +33,11 @@ export interface FeatureFlags {
 export type FeatureFlag = keyof FeatureFlags;
 
 export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
-  mutationLog: false,
-  syncEngine: false,
-  versionHistory: false,
-  encryptedBackup: false,
-  cognitiveEngine: false,
   domainNudges: false,
   domainNudgesVisible: false,
   overcommitmentDetector: false,
   overcommitmentVisible: false,
-  aiCoachActions: false,
-  memoryGraph: false,
-  priorityAdjust: false,
-  orchestration: false,
-  exploreChasing: true,
-  exploreAgenticThread: true,
-  exploreFrontier: true,
-  rabbitHoleTreeMap: true,
+  priorityAdjust: true,
   exploreAgenticPrefetch: false,
   profileAvatarGen: false,
 });

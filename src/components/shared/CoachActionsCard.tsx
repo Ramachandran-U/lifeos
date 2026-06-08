@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
@@ -10,6 +11,8 @@ import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useUserStore } from '@/store/useUserStore';
 import { useFlagStore } from '@/store/useFlagStore';
 import { useCoachActions } from '@/hooks/useCoachActions';
+import type { ProposedAction } from '@/ai/agent/actionQueue';
+import type { ProposalState } from '@/hooks/useCoachActions';
 
 /**
  * Today-screen entry point for the propose-and-confirm coach — the acting
@@ -18,7 +21,7 @@ import { useCoachActions } from '@/hooks/useCoachActions';
  * time. Nothing mutates until Confirm: useCoachActions → commitActions maps a
  * confirmed proposal to a real DB query.
  *
- * Gated by `ai_coach_actions` (default off). Mounted instead of WhatNextCard
+ * Gated by `ai_coach_actions` (default on). Mounted instead of WhatNextCard
  * when on, so only one "what next" card shows.
  */
 export function CoachActionsCard() {
@@ -64,18 +67,31 @@ export function CoachActionsCard() {
 
       {status === 'done' && visible.length > 0 && (
         <View style={styles.proposals}>
-          {visible.map((p) => {
+          {visible.map((p, visibleIndex) => {
             const index = proposals.indexOf(p);
+            const accentColor = accentForAction(p.action.kind, c);
+            const borderColor =
+              p.state === 'done' ? c.success :
+              p.state === 'failed' ? c.error :
+              accentColor + '44';
             return (
-              <View key={index} style={[styles.proposal, { borderColor: c.border }]}>
+              <Animated.View
+                key={index}
+                entering={FadeInDown.duration(260).delay(visibleIndex * 60)}
+                style={[styles.proposal, { borderColor, backgroundColor: accentColor + '0d' }]}
+              >
+                <View style={[styles.iconBadge, { backgroundColor: accentColor + '22' }]}>
+                  <Ionicons
+                    name={iconForAction(p.action.kind) as 'add'}
+                    size={18}
+                    color={p.state === 'done' ? c.success : p.state === 'failed' ? c.error : accentColor}
+                  />
+                </View>
                 <Body style={styles.proposalText}>{p.action.summary}</Body>
                 {p.state === 'pending' && (
                   <View style={styles.proposalActions}>
                     <Pressable
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        dismiss(index);
-                      }}
+                      onPress={() => { Haptics.selectionAsync(); dismiss(index); }}
                       style={({ pressed }) => [
                         styles.smallBtn,
                         { borderColor: c.border, backgroundColor: pressed ? c.card : 'transparent' },
@@ -84,27 +100,32 @@ export function CoachActionsCard() {
                       <Caption style={{ color: c.textSecondary }}>Skip</Caption>
                     </Pressable>
                     <Pressable
-                      onPress={() => {
-                        Haptics.selectionAsync();
-                        void confirm(index);
-                      }}
+                      onPress={() => { Haptics.selectionAsync(); void confirm(index); }}
                       style={({ pressed }) => [
                         styles.smallBtn,
-                        { borderColor: 'transparent', backgroundColor: pressed ? c.primary + 'cc' : c.primary },
+                        { borderColor: 'transparent', backgroundColor: pressed ? accentColor + 'cc' : accentColor },
                       ]}
                     >
                       <Caption style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>Confirm</Caption>
                     </Pressable>
                   </View>
                 )}
-                {p.state === 'committing' && <LoadingDots />}
+                {p.state === 'committing' && (
+                  <View style={styles.stateIndicator}>
+                    <LoadingDots />
+                  </View>
+                )}
                 {p.state === 'done' && (
-                  <Ionicons name="checkmark-circle" size={22} color={c.success} />
+                  <View style={styles.stateIndicator}>
+                    <Ionicons name="checkmark-circle" size={22} color={c.success} />
+                  </View>
                 )}
                 {p.state === 'failed' && (
-                  <Caption style={{ color: c.error }}>{p.error ?? "Couldn't apply"}</Caption>
+                  <Caption style={[styles.failedText, { color: c.error }]}>
+                    {p.error ?? "Couldn't apply"}
+                  </Caption>
                 )}
-              </View>
+              </Animated.View>
             );
           })}
         </View>
@@ -113,12 +134,9 @@ export function CoachActionsCard() {
       {status === 'error' && <Body style={{ color: c.error }}>{error ?? 'Something went wrong.'}</Body>}
 
       <View style={styles.actions}>
-        {status === 'done' || status === 'error' ? (
+        {(status === 'done' || status === 'error') && (
           <Pressable
-            onPress={() => {
-              Haptics.selectionAsync();
-              reset();
-            }}
+            onPress={() => { Haptics.selectionAsync(); reset(); }}
             style={({ pressed }) => [
               styles.btn,
               { backgroundColor: pressed ? c.card : 'transparent', borderColor: c.border },
@@ -126,17 +144,14 @@ export function CoachActionsCard() {
           >
             <Body style={{ color: c.textSecondary }}>Close</Body>
           </Pressable>
-        ) : null}
+        )}
         <Pressable
           onPress={onAsk}
           disabled={status === 'loading'}
           style={({ pressed }) => [
             styles.btn,
             styles.btnPrimary,
-            {
-              backgroundColor: pressed ? c.primary + 'cc' : c.primary,
-              opacity: status === 'loading' ? 0.7 : 1,
-            },
+            { backgroundColor: pressed ? c.primary + 'cc' : c.primary, opacity: status === 'loading' ? 0.7 : 1 },
           ]}
         >
           {status === 'loading' ? (
@@ -150,6 +165,24 @@ export function CoachActionsCard() {
       </View>
     </Card>
   );
+}
+
+function iconForAction(kind: ProposedAction['kind']): string {
+  switch (kind) {
+    case 'createRoutineBlock': return 'calendar-outline';
+    case 'completeBlock': return 'checkmark-circle-outline';
+    case 'skipBlock': return 'close-circle-outline';
+    case 'adjustGoalStatus': return 'flag-outline';
+  }
+}
+
+function accentForAction(kind: ProposedAction['kind'], c: AppColors): string {
+  switch (kind) {
+    case 'createRoutineBlock': return c.primary;
+    case 'completeBlock': return c.success;
+    case 'skipBlock': return c.textMuted;
+    case 'adjustGoalStatus': return c.goal ?? c.primary;
+  }
 }
 
 const makeStyles = (c: AppColors) =>
@@ -184,12 +217,21 @@ const makeStyles = (c: AppColors) =>
       paddingVertical: spacing.sm,
       paddingHorizontal: spacing.md,
       borderWidth: 1,
-      borderRadius: 12,
-      minHeight: 52,
+      borderRadius: 14,
+      minHeight: 56,
+    },
+    iconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     proposalText: {
       flex: 1,
       color: c.textPrimary,
+      fontSize: fontSizes.sm,
+      lineHeight: 19,
     },
     proposalActions: {
       flexDirection: 'row',
@@ -204,6 +246,15 @@ const makeStyles = (c: AppColors) =>
       minHeight: 36,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    stateIndicator: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: 28,
+    },
+    failedText: {
+      flex: 1,
+      fontSize: fontSizes.xs,
     },
     actions: {
       flexDirection: 'row',

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
@@ -9,7 +10,7 @@ import { radii } from '@/theme/radii';
 import { Caption } from '@/components/ui/Typography';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { useRabbitHoleStore } from '@/store/useRabbitHoleStore';
-import { loadOrCreateThread, renameActiveThread, type RabbitHoleSeed } from '@/explore/rabbitHoleActions';
+import { loadOrCreateThread, loadThreadById, renameActiveThread, type RabbitHoleSeed } from '@/explore/rabbitHoleActions';
 import {
   asLookup,
   depthOf,
@@ -28,12 +29,13 @@ const WIDE_BREAKPOINT = 900;
 
 interface Props {
   seed: RabbitHoleSeed | null;
+  treeId?: string;
   onExit: () => void;
 }
 
 /** The decision-tree-map rabbit hole. Phone: a map with a Focus sheet over a
  * dimmed map. Web (>= 900pt): a map pane + a persistent Focus pane. */
-export function RabbitHoleScreen({ seed, onExit }: Props) {
+export function RabbitHoleScreen({ seed, treeId, onExit }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
   const { width } = useWindowDimensions();
@@ -52,12 +54,13 @@ export function RabbitHoleScreen({ seed, onExit }: Props) {
 
   const [showExit, setShowExit] = useState(false);
 
-  // Open (or resume) the tree for this seed.
+  // Open (or resume) the tree. treeId = resume a stored map; seed = new/existing spark thread.
   useEffect(() => {
+    if (treeId) { loadThreadById(treeId); return; }
     if (seed) loadOrCreateThread(seed);
-    // Re-run only when the spark changes, not on every parent re-render.
+    // Re-run only when the tree identity changes, not on every parent re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed?.sparkId]);
+  }, [treeId ?? seed?.sparkId]);
 
   const cursor = cursorId ? nodeMap[cursorId] ?? null : null;
   const lookup = asLookup(nodeMap);
@@ -103,12 +106,16 @@ export function RabbitHoleScreen({ seed, onExit }: Props) {
         {!wide && sheetOpen && cursor ? (
           <>
             <Pressable style={styles.backdrop} onPress={() => setSheetOpen(false)} accessibilityLabel="Close" />
-            <View style={styles.sheet}>
+            <Animated.View
+              entering={SlideInDown.springify().damping(18).stiffness(180)}
+              exiting={SlideOutDown.duration(220)}
+              style={styles.sheet}
+            >
               <Pressable onPress={() => setSheetOpen(false)} style={styles.grab} accessibilityLabel="Close sheet">
                 <View style={styles.grabBar} />
               </Pressable>
               {focus}
-            </View>
+            </Animated.View>
           </>
         ) : null}
 

@@ -50,6 +50,13 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // time — see actionQueue.commitActions. The admin `flags` table remains the
   // authoritative kill switch (a row here overrides this fallback default).
   ai_coach_actions: true,
+  // Explore GA flags — all default-on; Worker is the remote kill switch.
+  // These graduated out of flags.ts (typed compile-time) into the runtime store
+  // so a broken feature can be flipped off from /v1/config without a deploy.
+  explore_chasing: true,
+  explore_agentic_thread: true,
+  explore_frontier: true,
+  rabbit_hole_tree_map: true,
 };
 
 interface FlagState {

@@ -36,13 +36,17 @@ MAX_TOKENS_CAP = "8000"
 # Update before deploy: add your real admin host (Vercel) and any other
 # legitimate frontends.
 ALLOWED_ORIGINS = "https://lifeos-6r5.pages.dev,https://lifeos-6r5-eqa.pages.dev,https://project-yom9m.vercel.app,http://localhost:8081,http://localhost:3030,http://localhost:19006"
-# Which LLM the /claude endpoint dispatches to: "anthropic" | "gemini" | "openai".
+# Which LLM the /claude endpoint dispatches to: "anthropic" | "gemini" | "openai" | "groq".
 # Switching providers only requires updating this var + having the matching API
 # key set as a secret. The client request/response shape is unchanged.
+# groq = Llama 3.3-70B on Groq LPUs — very low TTFT, generous free tier (~14.4k req/day).
+#         Best for the cheap tier (categorisation, daily briefing, spark). Planning/reasoning
+#         calls automatically fall back to gemini for higher quality.
 LLM_PROVIDER = "gemini"
 
 # Secrets — set with:
 #   wrangler secret put GEMINI_API_KEY            (free tier: aistudio.google.com/apikey)
+#   wrangler secret put GROQ_API_KEY              (groq.com/keys — cheap tier + fallback)
 #   wrangler secret put ANTHROPIC_API_KEY         (only if LLM_PROVIDER="anthropic")
 #   wrangler secret put OPENAI_API_KEY            (only if LLM_PROVIDER="openai")
 #   wrangler secret put SUPABASE_SERVICE_ROLE_KEY (required for /v1/config and /v1/admin/*)

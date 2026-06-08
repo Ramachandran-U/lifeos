@@ -28,7 +28,9 @@ import {
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useAI } from '@/hooks/useAI';
-import { suggestInterestAreas, suggestCrossDisciplineLink } from '@/ai/functions';
+import { suggestInterestAreas, suggestCrossDisciplineLink, suggestMapTitle } from '@/ai/functions';
+import { upsertRabbitHoleTree } from '@/db/queries/rabbitHoleTrees';
+import Svg, { Circle as SvgCircle, Line as SvgLine } from 'react-native-svg';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import { XP_VALUES } from '@/utils/gamification';
 import type { Interest } from '@/db/queries/interests';
@@ -37,6 +39,7 @@ import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { useRouter } from 'expo-router';
 import { format, differenceInCalendarDays, parseISO } from 'date-fns';
 import { isEnabled } from '@/config/flags';
+import { useFlagStore } from '@/store/useFlagStore';
 import { SparkHeroCard } from '@/components/modules/polymath/SparkHeroCard';
 import { ChasingNowCard } from '@/components/modules/polymath/ChasingNowCard';
 import { generateChasingNow, type ChasingSignal, type ChasingThread } from '@/explore/chasing';
@@ -46,12 +49,69 @@ import { ExpeditionProgressRow } from '@/components/modules/polymath/ExpeditionP
 import { ConstellationView } from '@/components/modules/polymath/ConstellationView';
 import { generateDailySpark, type Spark } from '@/explore/spark';
 import { recordSpark, getSparkByDate, listRecentSparkTitles, updateSparkStatus } from '@/db/queries/sparks';
+import { listRabbitHoleTrees, type RabbitHoleTreeRow } from '@/db/queries/rabbitHoleTrees';
 import { listExpeditions, listActiveExpeditionProgress, getExpedition as getExpeditionDef, createExpedition, saveExpeditionProgress } from '@/db/queries/expeditions';
 import { generateExpedition } from '@/explore/expeditionGen';
 import { startExpedition, canStartExpedition, MAX_ACTIVE_EXPEDITIONS } from '@/explore/expeditions';
 import { track, EVENTS } from '@/utils/telemetry';
 import { nanoid } from '@/utils/id';
 import type { ConstellationInput } from '@/explore/constellation';
+
+function MapSilhouette({ treeJson, color }: { treeJson: string; color: string }) {
+  const W = 72;
+  const H = 48;
+  const DOT = 3;
+
+  const positions: { id: string; x: number; y: number }[] = [];
+  const edges: { x1: number; y1: number; x2: number; y2: number }[] = [];
+
+  try {
+    const data = JSON.parse(treeJson) as { nodeMap: Record<string, { parentId: string | null }>; rootId: string };
+    const { nodeMap, rootId } = data;
+    const layers: string[][] = [[rootId]];
+    const seen = new Set([rootId]);
+    for (let depth = 0; depth < 4; depth++) {
+      const next: string[] = [];
+      for (const id of layers[layers.length - 1]) {
+        for (const [nodeId, node] of Object.entries(nodeMap)) {
+          if (node.parentId === id && !seen.has(nodeId)) {
+            next.push(nodeId);
+            seen.add(nodeId);
+          }
+        }
+      }
+      if (next.length === 0) break;
+      layers.push(next.slice(0, 6));
+    }
+    const posMap: Record<string, { x: number; y: number }> = {};
+    layers.forEach((layer, depth) => {
+      const y = DOT + (depth / Math.max(layers.length - 1, 1)) * (H - DOT * 2);
+      layer.forEach((id, i) => {
+        const x = ((i + 1) / (layer.length + 1)) * W;
+        posMap[id] = { x, y };
+        positions.push({ id, x, y });
+      });
+    });
+    for (const [nodeId, node] of Object.entries(nodeMap)) {
+      if (node.parentId && posMap[nodeId] && posMap[node.parentId]) {
+        const p = posMap[node.parentId];
+        const c = posMap[nodeId];
+        edges.push({ x1: p.x, y1: p.y, x2: c.x, y2: c.y });
+      }
+    }
+  } catch {}
+
+  return (
+    <Svg width={W} height={H}>
+      {edges.map((e, i) => (
+        <SvgLine key={i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} stroke={color} strokeWidth={1} strokeOpacity={0.35} />
+      ))}
+      {positions.map((p) => (
+        <SvgCircle key={p.id} cx={p.x} cy={p.y} r={DOT} fill={color} fillOpacity={0.65} />
+      ))}
+    </Svg>
+  );
+}
 
 function pairKeyFor(a: Interest, b: Interest): string {
   // Stable, order-independent key so refreshes don't churn when interests
@@ -107,7 +167,38 @@ export default function ExploreScreen() {
 
   // ─── Explore redesign: "The frontier" — best unexplored edge ────────────
   const [frontier, setFrontier] = useState<Frontier | null>(null);
-  const frontierEnabled = isEnabled('exploreFrontier');
+  const frontierEnabled = useFlagStore((s) => s.isEnabled('explore_frontier'));
+  const exploreChasing = useFlagStore((s) => s.isEnabled('explore_chasing'));
+
+  // ─── §12.2: Your Maps history ───────────────────────────────────────────
+  const [rabbitHoleTrees, setRabbitHoleTrees] = useState<RabbitHoleTreeRow[]>([]);
+  const [suggestingFor, setSuggestingFor] = useState<string | null>(null);
+
+  const handleSuggestTitle = async (row: RabbitHoleTreeRow) => {
+    setSuggestingFor(row.id);
+    try {
+      let anchorTitle = '';
+      let sampleNodeTitles: string[] = [];
+      try {
+        anchorTitle = (JSON.parse(row.anchorJson) as { title?: string }).title ?? '';
+        const treeData = JSON.parse(row.treeJson) as { nodeMap?: Record<string, { title?: string }> };
+        sampleNodeTitles = Object.values(treeData.nodeMap ?? {})
+          .map((n) => n.title ?? '')
+          .filter(Boolean)
+          .slice(0, 8);
+      } catch {}
+      const title = await suggestMapTitle({ anchorTitle, sampleNodeTitles });
+      if (title) {
+        const updated = { ...row, title, updatedAt: new Date().toISOString() };
+        upsertRabbitHoleTree(updated);
+        setRabbitHoleTrees((prev) => prev.map((r) => r.id === row.id ? updated : r));
+      }
+    } catch {
+      // ignore — user can retry
+    } finally {
+      setSuggestingFor(null);
+    }
+  };
 
   // ─── Explore v2: sparks + expeditions + constellation ──────────────────
   const [todaySpark, setTodaySpark] = useState<Spark | null>(null);
@@ -151,6 +242,9 @@ export default function ExploreScreen() {
             .catch(() => {}); // non-fatal
         }
       }
+      // Load saved rabbit-hole maps
+      setRabbitHoleTrees(listRabbitHoleTrees(userId));
+
       // Load active expeditions
       const progList = listActiveExpeditionProgress(userId);
       const loaded = progList.map((p) => {
@@ -165,7 +259,7 @@ export default function ExploreScreen() {
   // in the user's real exploration signal — interests + recently-logged sessions
   // (minutes + their own notes). An empty result is valid (thin signal).
   useEffect(() => {
-    if (!userId || !isEnabled('exploreChasing')) return;
+    if (!userId || !exploreChasing) return;
     if (chasingThreads !== null) return;
     if (interests.length === 0) return;
     const idToName = new Map(interests.map((i) => [i.id, i.name] as const));
@@ -472,7 +566,7 @@ export default function ExploreScreen() {
           <ModuleHeader title="Explore" domain="polymath" color={c.polymath} />
 
           {/* ─── Explore redesign: Chasing now (live questions) ─── */}
-          {isEnabled('exploreChasing') && chasingThreads && chasingThreads.length > 0 && (
+          {exploreChasing && chasingThreads && chasingThreads.length > 0 && (
             <Animated.View entering={FadeInDown.duration(400)}>
               <ChasingNowCard
                 threads={chasingThreads}
@@ -552,6 +646,63 @@ export default function ExploreScreen() {
               existingInterestNames={interests.map((i) => i.name)}
               onImport={handleYouTubeImport}
             />
+          )}
+
+          {/* ─── §12.2: Your Maps gallery ─── */}
+          {rabbitHoleTrees.length > 0 && (
+            <>
+              <View style={[styles.listHeader, { marginTop: spacing.md }]}>
+                <Label>YOUR MAPS</Label>
+              </View>
+              {rabbitHoleTrees.map((row) => {
+                let mapTitle = row.title ?? '';
+                let nodeCount = 0;
+                try {
+                  if (!mapTitle) mapTitle = (JSON.parse(row.anchorJson) as { title?: string }).title ?? '';
+                  nodeCount = Object.keys((JSON.parse(row.treeJson) as { nodeMap?: Record<string, unknown> }).nodeMap ?? {}).length;
+                } catch {}
+                const isNamed = !!mapTitle;
+                const isSuggesting = suggestingFor === row.id;
+                return (
+                  <Animated.View key={row.id} entering={FadeInDown.duration(300)}>
+                    <Pressable
+                      onPress={() => {
+                        Haptics.selectionAsync();
+                        router.push({ pathname: '/rabbit-hole', params: { treeId: row.id } });
+                      }}
+                    >
+                      <Card moduleColor={c.polymath} style={styles.mapCard}>
+                        <View style={styles.mapCardRow}>
+                          <MapSilhouette treeJson={row.treeJson} color={c.polymath} />
+                          <View style={styles.mapCardInfo}>
+                            <Body
+                              numberOfLines={1}
+                              style={!isNamed ? { color: c.textMuted, fontStyle: 'italic' } : undefined}
+                            >
+                              {mapTitle || 'Untitled map'}
+                            </Body>
+                            <Caption style={{ color: c.textMuted }}>
+                              {nodeCount} node{nodeCount === 1 ? '' : 's'} · {row.createdAt.slice(0, 10)}
+                            </Caption>
+                            {!isNamed && (
+                              <Pressable
+                                onPress={() => { Haptics.selectionAsync().catch(() => {}); handleSuggestTitle(row); }}
+                                hitSlop={8}
+                                disabled={isSuggesting}
+                              >
+                                <Caption style={{ color: isSuggesting ? c.textMuted : c.polymath, marginTop: 2 }}>
+                                  {isSuggesting ? 'Naming…' : 'Suggest name →'}
+                                </Caption>
+                              </Pressable>
+                            )}
+                          </View>
+                        </View>
+                      </Card>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
+            </>
           )}
 
           <View style={styles.listHeader}>
@@ -639,6 +790,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: 999,
+  },
+  mapCard: {
+    gap: spacing.xs,
+  },
+  mapCardRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  mapCardInfo: {
+    flex: 1,
+    gap: 2,
   },
   empty: {
     alignItems: 'center',

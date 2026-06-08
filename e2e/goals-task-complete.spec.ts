@@ -38,20 +38,22 @@ test.describe("Goals — complete a Today's Task [#77]", () => {
     await page.waitForURL((url) => !url.pathname.includes('/(auth)/sign'), { timeout: 10_000 }).catch(() => undefined);
     await page.goto('/(tabs)/goals');
 
-    // Module header + the seeded task render.
+    // §11.1: daily tasks are now surfaced in the "YOUR NEXT MOVE" hero card.
     await expect(page.getByText('Goals').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Today's Tasks")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('YOUR NEXT MOVE')).toBeVisible({ timeout: 10_000 });
 
-    const task = page.getByText('Read 20 pages');
-    await expect(task).toBeVisible();
-    await task.click();
+    // The first seeded daily task appears as the next-move title.
+    await expect(page.getByText('Read 20 pages')).toBeVisible();
 
-    // After completion the task drops out of the active "Today's Tasks" list.
+    // Completion is via the "Mark done" button, not a tap on the title.
+    await page.getByText('Mark done', { exact: true }).click();
+
+    // After completion the task leaves the hero card — the next task takes over.
+    await expect(page.getByText('Log a workout')).toBeVisible({ timeout: 8_000 });
+
+    // The completed task is no longer in the "YOUR NEXT MOVE" title (it moves to
+    // Archive, which is collapsed by default, so it's not in the DOM at all).
     await expect(page.getByText('Read 20 pages')).toHaveCount(0, { timeout: 8_000 });
-
-    // The second daily task is still there (we only completed one) — proves the
-    // list re-rendered rather than blanking.
-    await expect(page.getByText('Log a workout')).toBeVisible();
 
     // No crash signals.
     const childCount = await assertNotBlank(page);
