@@ -10,6 +10,7 @@ const USER = {
   passwordSalt: 'x',
   name: 'E2E User',
   onboardingStage: 100,
+  primaryDomains: ['health', 'career', 'goals', 'finance'],
   installDate: NOW,
   createdAt: NOW,
   updatedAt: NOW,
@@ -36,6 +37,13 @@ export interface SeedGoal {
   parentId?: string;
 }
 
+export interface SeedGameState {
+  /** Starting XP total. Default 0. */
+  totalXP?: number;
+  /** Per-domain scores 0–100. Defaults to realistic mid-game values. */
+  domainScores?: Partial<Record<string, number>>;
+}
+
 export interface SeedOptions {
   /**
    * Routine blocks to seed for *today*. When provided, these REPLACE the single
@@ -44,6 +52,8 @@ export interface SeedOptions {
   blocks?: SeedBlock[];
   /** Goal rows to seed under the e2e user. Defaults to none ([]). */
   goals?: SeedGoal[];
+  /** Gamification state. Defaults to zeroed-out XP and mid-game domain scores. */
+  gamification?: SeedGameState;
 }
 
 export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
@@ -51,8 +61,13 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
     ({ user, userId, options }) => {
       localStorage.setItem('lifeos_users', JSON.stringify([user]));
       localStorage.setItem('lifeos_session', userId);
-      const today = new Date().toISOString().slice(0, 10);
-      const now = new Date().toISOString();
+      const now = new Date();
+      // Use LOCAL date (matching date-fns `format(new Date(), 'yyyy-MM-dd')`) so
+      // getRoutineBlocksByDate finds our seeded blocks and does NOT trigger
+      // cloneRoutineToDate (which generates fresh nanoid IDs, breaking testID lookups).
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+      const nowIso = now.toISOString();
 
       // Goals — caller-supplied rows (e.g. a daily "Today's Task"). The web
       // store filters on userId, so every row is stamped with the e2e user.
@@ -63,8 +78,8 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
         timeline: undefined,
         status: g.status ?? 'active',
         aiGenerated: false,
-        createdAt: now,
-        updatedAt: now,
+        createdAt: nowIso,
+        updatedAt: nowIso,
         ...g,
       }));
       localStorage.setItem('lifeos_goals', JSON.stringify(goals));
@@ -84,8 +99,8 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
       const blocks = sourceBlocks.map((b) => ({
         date: today,
         status: 'upcoming',
-        createdAt: now,
-        updatedAt: now,
+        createdAt: nowIso,
+        updatedAt: nowIso,
         ...b,
       }));
       localStorage.setItem('lifeos_routine_blocks', JSON.stringify(blocks));
@@ -95,7 +110,8 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
       // ≥2 entries per domain. Without this seed the smoke would have passed
       // and we would have shipped the loop again. zustand-persist shape:
       // { state: { entries }, version: 0 }.
-      const yesterdayDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+      const yest = new Date(now.getTime() - 86_400_000);
+      const yesterdayDate = `${yest.getFullYear()}-${pad(yest.getMonth() + 1)}-${pad(yest.getDate())}`;
       const history = {
         state: {
           entries: {
@@ -110,9 +126,180 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
         version: 0,
       };
       localStorage.setItem('lifeos_domain_history_v1', JSON.stringify(history));
+
+      // Gamification row. The web app reads lifeos_gamification on mount via
+      // getOrCreateGamification. Seeding a known totalXP lets CUJ tests assert
+      // the exact delta after actions like block completion (should be +10, not +20).
+      const scores = {
+        goals: 40, health: 50, finance: 30, career: 35, social: 20, polymath: 25,
+        ...(options.gamification?.domainScores ?? {}),
+      };
+      const gamif = {
+        id: userId + '-game',
+        userId,
+        domainScores: JSON.stringify(scores),
+        streaks: JSON.stringify({
+          workout:      { count: 3, lastDate: yesterdayDate, graceUsed: false },
+          learning:     { count: 5, lastDate: yesterdayDate, graceUsed: false },
+          foodTracking: { count: 2, lastDate: yesterdayDate, graceUsed: false },
+          journaling:   { count: 0, lastDate: null, graceUsed: false },
+          social:       { count: 1, lastDate: yesterdayDate, graceUsed: false },
+        }),
+        badges: JSON.stringify([]),
+        totalXP: options.gamification?.totalXP ?? 0,
+        weeklyXP: 0,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      localStorage.setItem('lifeos_gamification', JSON.stringify([gamif]));
     },
     { user: USER, userId: USER_ID, options },
   );
+}
+
+/**
+ * Seed a fake Supabase auth session so `callViaProxy` passes the client-side
+ * auth guard (`supabase.auth.getSession()` must return a non-null session).
+ *
+ * Call this BEFORE `seedAuthedUser` in tests that exercise AI-dependent flows
+ * (e.g. goal decomposition). Do NOT use it in tests that don't need AI — the
+ * fake token can trigger Supabase's background validation, which fires a
+ * SIGNED_OUT event that wipes the user store and breaks navigation tests.
+ *
+ * Why it works: `mockAIProxy` intercepts the network request before it reaches
+ * the Worker, so the fake access_token is never validated server-side.
+ * `expires_at: 9999999999` suppresses Supabase's auto-refresh timer.
+ */
+export async function seedSupabaseSession(page: Page) {
+  await page.addInitScript(({ userId }) => {
+    const fakeSession = {
+      access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMmUtdXNlci0xIiwiZW1haWwiOiJlMmVAbGlmZW9zLnRlc3QiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJleHAiOjk5OTk5OTk5OTl9.e2e-fake-sig',
+      token_type: 'bearer',
+      expires_in: 3600,
+      expires_at: 9999999999,
+      refresh_token: 'e2e-fake-refresh',
+      user: {
+        id: userId,
+        aud: 'authenticated',
+        role: 'authenticated',
+        email: 'e2e@lifeos.test',
+        email_confirmed_at: '2024-01-01T00:00:00.000Z',
+        app_metadata: { provider: 'email', providers: ['email'] },
+        user_metadata: { name: 'E2E User' },
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+    };
+    // Supabase JS v2 reads from 'sb-{projectRef}-auth-token' (projectRef from URL).
+    localStorage.setItem('sb-izojsgzlaehodwlqwyvf-auth-token', JSON.stringify(fakeSession));
+  }, { userId: USER_ID });
+}
+
+/**
+ * Seed a logged-in user with *filled* data tuned for visual-regression baselines
+ * — the test-suite mirror of the run-lifeos driver's `--rich` flag (keep the two
+ * in sync). Where `seedAuthedUser` leaves bars empty and `fullyLoaded` seeds
+ * 0%-progress data, this produces the deterministic fill proportions the gradient
+ * bars are meant to show: goals Career 75 % / Health 40 % (parent + children with
+ * completions), finance 50 % (completed-milestone amount / target), social 60 %
+ * (3 of 5 contacts inside cadence). Also forces reduce-motion so animated fills
+ * jump to final state, and dismisses the Add-to-Home-Screen banner — both remove
+ * non-determinism from the screenshot. Call before `page.goto()`.
+ */
+export async function seedVisualRich(page: Page) {
+  await page.addInitScript(
+    ({ user, userId }) => {
+      const now = new Date().toISOString();
+      const dateAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+      const today = now.slice(0, 10);
+      const yesterday = dateAgo(1);
+      const set = (k: string, v: unknown) => localStorage.setItem(k, JSON.stringify(v));
+
+      set('lifeos_users', [user]);
+      localStorage.setItem('lifeos_session', userId);
+
+      // Deterministic rendering: reduce-motion (fills land instantly) + no A2HS banner.
+      set('lifeos_preferences_v1', { theme: 'dark', density: 'cozy', motionIntensity: 'off', gamification: 'full', narrationEnabled: true });
+      localStorage.setItem('lifeos_a2hs_dismissed', '1');
+
+      // Goals: yearly parents + monthly children. Progress = completed / total
+      // descendants → Career 3/4 = 75 %, Health 2/5 = 40 %.
+      const g = (o: Record<string, unknown>) => ({ userId, status: 'active', aiGenerated: false, createdAt: now, updatedAt: now, ...o });
+      set('lifeos_goals', [
+        g({ id: 'vr-career', title: 'Ship the mobile app', goalType: 'career', level: 'yearly', priority: 0 }),
+        g({ id: 'vr-career-1', title: 'Design system', goalType: 'career', level: 'monthly', parentId: 'vr-career', status: 'completed' }),
+        g({ id: 'vr-career-2', title: 'Auth flow', goalType: 'career', level: 'monthly', parentId: 'vr-career', status: 'completed' }),
+        g({ id: 'vr-career-3', title: 'Offline sync', goalType: 'career', level: 'monthly', parentId: 'vr-career', status: 'completed' }),
+        g({ id: 'vr-career-4', title: 'App store launch', goalType: 'career', level: 'monthly', parentId: 'vr-career' }),
+        g({ id: 'vr-health', title: 'Run a half marathon', goalType: 'health', level: 'yearly', priority: 1 }),
+        g({ id: 'vr-health-1', title: 'Build a base', goalType: 'health', level: 'monthly', parentId: 'vr-health', status: 'completed' }),
+        g({ id: 'vr-health-2', title: '10k race', goalType: 'health', level: 'monthly', parentId: 'vr-health', status: 'completed' }),
+        g({ id: 'vr-health-3', title: 'Long runs', goalType: 'health', level: 'monthly', parentId: 'vr-health' }),
+        g({ id: 'vr-health-4', title: 'Taper weeks', goalType: 'health', level: 'monthly', parentId: 'vr-health' }),
+        g({ id: 'vr-health-5', title: 'Race day', goalType: 'health', level: 'monthly', parentId: 'vr-health' }),
+      ]);
+
+      // Finance: goal + milestones. Completed amount / target = 25000 / 50000 = 50 %.
+      set('lifeos_financial_goals', [
+        { id: 'vr-fgoal', title: 'Dream home down payment', goalType: 'home', targetAmount: 50000, currency: 'USD', monthlySavings: 1500, status: 'active', createdAt: now, updatedAt: now },
+      ]);
+      const ms = (id: string, title: string, done: boolean) => ({ id, goalId: 'vr-fgoal', title, targetAmount: 12500, targetDate: '2028-06-01', createdAt: now, ...(done ? { completedAt: now } : {}) });
+      set('lifeos_finance_milestones', [ms('vr-m1', 'First 25%', true), ms('vr-m2', 'Halfway', true), ms('vr-m3', 'Three quarters', false), ms('vr-m4', 'Full deposit', false)]);
+
+      // Contacts: 3 of 5 inside their cadence window → social score 60 %.
+      const c = (id: string, name: string, rel: string, cadence: number, lastDays: number) => ({ id, userId, name, nickname: null, relationshipType: rel, preferredCadenceDays: cadence, lastContactDate: dateAgo(lastDays), notes: null, birthday: null, source: 'manual', createdAt: now, updatedAt: now, deletedAt: null });
+      set('lifeos_contacts', [
+        c('vr-c1', 'Alex Rivera', 'inner_circle', 7, 3),
+        c('vr-c2', 'Sam Chen', 'close_friend', 14, 10),
+        c('vr-c3', 'Jordan Lee', 'family', 14, 8),
+        c('vr-c4', 'Priya Patel', 'colleague', 21, 40),
+        c('vr-c5', 'Morgan Diaz', 'mentor', 30, 55),
+      ]);
+
+      // Two days of domain history so Today's yesterdaySnapshot path renders.
+      set('lifeos_domain_history_v1', {
+        state: { entries: {
+          goals: [{ date: yesterday, score: 22 }, { date: today, score: 28 }],
+          health: [{ date: yesterday, score: 35 }, { date: today, score: 40 }],
+          finance: [{ date: yesterday, score: 18 }, { date: today, score: 21 }],
+          career: [{ date: yesterday, score: 30 }, { date: today, score: 32 }],
+          social: [{ date: yesterday, score: 12 }, { date: today, score: 14 }],
+          mind: [{ date: yesterday, score: 25 }, { date: today, score: 30 }],
+        } }, version: 0,
+      });
+    },
+    { user: USER, userId: USER_ID },
+  );
+}
+
+/**
+ * Intercept all calls to the LifeOS AI proxy Worker and return a deterministic
+ * response. Prevents real AI quota use and makes AI-dependent flows testable.
+ *
+ * Call before `page.goto()`. Pass `responseText` for the JSON text the proxy
+ * would normally return (already-stringified JSON string, matching what callAI
+ * returns as the `text` field).
+ */
+export async function mockAIProxy(page: Page, responseText: string) {
+  await page.route('**/lifeos-ai-proxy**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ text: responseText, model: 'mock', usage: { input_tokens: 0, output_tokens: 0 } }),
+    });
+  });
+}
+
+/**
+ * Read the current totalXP for the seeded e2e user from localStorage.
+ * Call after an action that should award XP and a brief settle delay.
+ */
+export async function readTotalXP(page: Page, userId = 'e2e-user-1'): Promise<number> {
+  return page.evaluate((uid) => {
+    try {
+      const all = JSON.parse(localStorage.getItem('lifeos_gamification') ?? '[]') as Array<{ userId: string; totalXP: number }>;
+      return all.find((g) => g.userId === uid)?.totalXP ?? 0;
+    } catch { return 0; }
+  }, userId);
 }
 
 /**
@@ -121,12 +308,29 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
  * pressIn (HOLD_MS=250, or 80ms under reduced motion) and only commits on
  * timeout. We dispatch real mouse down → wait → up. 600ms clears both windows
  * with margin for slow CI runners.
+ *
+ * Uses waitForSelector(attached) + JS scrollIntoView instead of Playwright's
+ * scrollIntoViewIfNeeded, which can block indefinitely when Reanimated 4
+ * entering-animation wrappers keep the element's stability check pending on
+ * the static-export (Cloudflare Pages) build.
  */
 export async function holdToComplete(page: Page, blockId: string, holdMs = 600) {
+  const selector = `[data-testid="routine-block-${blockId}-status"]`;
+  // Wait for the element to be in the DOM. State 'attached' has no
+  // visibility/stability requirement, so Reanimated animations don't block it.
+  await page.waitForSelector(selector, { state: 'attached', timeout: 30_000 });
+  // Give FadeIn entering animations time to finish (420ms delay + 420ms duration
+  // in index.tsx + 300ms in RoutineBlock = ~1140ms total), then scroll via JS
+  // so we skip Playwright's stability-check loop entirely.
+  await page.waitForTimeout(1300);
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'instant' });
+  }, selector);
+  await page.waitForTimeout(100);
   const statusBtn = page.getByTestId(`routine-block-${blockId}-status`);
-  await statusBtn.scrollIntoViewIfNeeded();
   const box = await statusBtn.boundingBox();
-  if (!box) throw new Error(`status button for ${blockId} has no bounding box`);
+  if (!box) throw new Error(`status button for ${blockId} has no bounding box — element may be hidden by an animation`);
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
   await page.mouse.move(cx, cy);

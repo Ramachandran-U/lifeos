@@ -653,7 +653,7 @@ export default function GoalsScreen() {
         </Animated.View>
       )}
 
-      <Pressable style={styles.fab} onPress={() => setShowAddSheet(true)}>
+      <Pressable testID="add-goal-fab" style={styles.fab} onPress={() => setShowAddSheet(true)}>
         <Ionicons name="add" size={28} color="#FFF" />
       </Pressable>
 

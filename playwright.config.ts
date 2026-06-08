@@ -19,6 +19,7 @@ if (fs.existsSync(envTestPath)) {
 }
 
 const SMOKE_BASE_URL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
+const CUJ_BASE_URL = process.env.CUJ_BASE_URL ?? 'https://lifeos-6r5-eqa.pages.dev';
 const AUTH_STORAGE = path.join(__dirname, '.auth', 'user.json');
 
 export default defineConfig({
@@ -66,6 +67,9 @@ export default defineConfig({
         '**/engine-authed.spec.ts',
         // Cross-device sync — two contexts off the authenticated storageState.
         '**/sync-cross-device.spec.ts',
+        // Visual regression belongs only to the `visual` project (screenshot
+        // baselines + its own viewport); running it here would have no baselines.
+        '**/visual-regression.spec.ts',
       ],
       // routine-block-complete uses a press-and-hold gesture that can race on
       // slow CI runners; one retry absorbs the flake without masking real breaks.
@@ -99,6 +103,22 @@ export default defineConfig({
       },
     },
     {
+      // Critical User Journey (CUJ) tests — business-outcome assertions against
+      // the staging deployment. Default target: lifeos-6r5-eqa.pages.dev.
+      // Override: CUJ_BASE_URL=http://localhost:8081 npm run e2e:cuj:local
+      name: 'cuj',
+      testMatch: ['**/cuj-staging.spec.ts'],
+      retries: 1,
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: CUJ_BASE_URL,
+        viewport: { width: 1280, height: 800 },
+        trace: 'on-first-retry',
+        screenshot: 'only-on-failure',
+        video: 'retain-on-failure',
+      },
+    },
+    {
       // Authenticated tests — depend on setup, reuse stored session.
       name: 'authenticated',
       testMatch: [
@@ -115,6 +135,22 @@ export default defineConfig({
         baseURL: SMOKE_BASE_URL,
         viewport: { width: 390, height: 844 },
         storageState: AUTH_STORAGE,
+      },
+    },
+    {
+      // Visual regression — seeds rich data (filled gradient bars) and compares
+      // against committed screenshot baselines. Seeded localStorage, no session.
+      // NOT run by CI (.github/workflows/e2e.yml invokes chromium/smoke/
+      // authenticated only): Playwright baselines are platform-specific and must
+      // be generated in the asserting OS. Run locally via `npm run visual`;
+      // regenerate with `npm run visual:update`. Targets a served build —
+      // point SMOKE_BASE_URL at it (see e2e/README.md § Visual regression).
+      name: 'visual',
+      testMatch: ['**/visual-regression.spec.ts'],
+      use: {
+        ...devices['iPhone 13'],
+        baseURL: SMOKE_BASE_URL,
+        timezoneId: 'UTC', // date-keyed copy stays deterministic across runs
       },
     },
   ],

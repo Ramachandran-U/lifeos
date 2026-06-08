@@ -133,3 +133,34 @@ the first ~50 runs, so a Supabase blip won't block merges. Once it's been
 stable, drop the `continue-on-error` line in
 [.github/workflows/e2e.yml](../.github/workflows/e2e.yml) to make it
 required.
+
+## Visual regression
+
+[`visual-regression.spec.ts`](./visual-regression.spec.ts) (project `visual`)
+guards the Aurora gradient progress bars + domain-tinted cards (DELTA Phase 10)
+against committed screenshot baselines. It seeds **filled** data via
+[`seedVisualRich`](./helpers.ts) — the test-suite mirror of the run-lifeos
+driver's `--rich` flag — so the bars render at fixed proportions (goals Career
+75 % / Health 40 %, social 60 %). The seed also forces reduce-motion and dismisses
+the Add-to-Home-Screen banner so each capture is deterministic. Targets `/goals`
+and `/social` (time-stable headers — no "Good morning/evening" greeting like Today).
+
+```bash
+# 1. Build + serve a current bundle (the project reads SMOKE_BASE_URL).
+npx expo export --platform web --output-dir tmp/dist-verify
+npx serve tmp/dist-verify -l 8090 --single &
+
+# 2. Compare against baselines …
+SMOKE_BASE_URL=http://localhost:8090 npm run visual
+# … or (re)generate them:
+SMOKE_BASE_URL=http://localhost:8090 npm run visual:update
+```
+
+Baselines live in `e2e/visual-regression.spec.ts-snapshots/` and are
+**platform-suffixed** (e.g. `-visual-win32.png`). **This project is intentionally
+NOT in CI** — Playwright baselines are pixel-specific to the OS/browser that
+generated them, and this repo's CI is Linux. Wiring it into the blocking CI
+projects would require generating Linux baselines (run `visual:update` inside the
+Playwright Linux container / a CI job) and committing the `-linux` variants; until
+then it's a local pre-merge check. The committed baselines here were generated on
+win32.

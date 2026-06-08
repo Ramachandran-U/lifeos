@@ -23,7 +23,11 @@
     "smoke:mobile": "playwright test --project=smoke-mobile",
     "e2e": "playwright test --project=chromium",
     "e2e:auth": "playwright test --project=authenticated",
+    "e2e:cuj": "playwright test --project=cuj",
+    "e2e:cuj:local": "CUJ_BASE_URL=http://localhost:8081 playwright test --project=cuj",
     "e2e:create-test-user": "npx ts-node e2e/create-test-user.ts",
+    "visual": "playwright test --project=visual",
+    "visual:update": "playwright test --project=visual --update-snapshots",
     "verify": "npm run typecheck && jest && npm run smoke",
     "gen:onboarding-audio": "node scripts/generate-onboarding-audio.js"
   },
