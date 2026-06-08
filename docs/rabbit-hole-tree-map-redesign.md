@@ -1,6 +1,6 @@
 # Rabbit Hole → Constellation Map: A Navigable Decision-Tree Redesign
 
-> **Status (2026-06-05): design complete and reconciled.** Produced via a three-discipline iteration (UI/UX, solution architecture, game design) — independent drafts → cross-critique & revise → lead synthesis. The six open questions were then resolved in a follow-up decision round; this document already incorporates those rulings (the four spec edits are folded into the relevant sections, and the former "Open Questions" section now records the decisions). Ships behind the `rabbitHoleTreeMap` feature flag (default off).
+> **Status (2026-06-09): design complete and all 7 phases shipped.** Produced via a three-discipline iteration (UI/UX, solution architecture, game design) — independent drafts → cross-critique & revise → lead synthesis. The six open questions were then resolved in a follow-up decision round; this document already incorporates those rulings (the four spec edits are folded into the relevant sections, and the former "Open Questions" section now records the decisions). **No feature flag used** — the tree-map was wired directly into `app/rabbit-hole.tsx` without a legacy fork (Phase 7 complete 2026-06-09).
 
 ## North Star
 Turn the rabbit hole from a screen you read into a **territory you wander** — a persistent, vertically-growing decision tree where every fork you ever opened stays drawn, "back" climbs the tree instead of deleting it, the path not taken is always a tappable dashed ghost beside the path you took, and curiosity is rewarded by the *shape* you leave behind, never by the act of tapping.
@@ -399,10 +399,10 @@ Input shape unchanged: `{ parent: {title, body}, anchor: {title, seedInterest?, 
 | `c:\personal\Project X\lifeos\src\db\queries\rabbitHoleTrees.ts` | **New** | Native Drizzle: `upsertTree`, `getTree`, `getSavedTrees`, `countTreesToday`, `countQualifyingTrees`, soft-delete prune |
 | `c:\personal\Project X\lifeos\src\db\webStorage\rabbitHoleTrees.ts` | **New** | Synchronous localStorage shim, same surface, Zod-validated reads |
 | `c:\personal\Project X\lifeos\src\explore\constellation.ts` | **Modify** | Read `constellationEdges` as an extra edge source in `projectConstellation`; export the cross-category test for the shared helper |
-| `c:\personal\Project X\lifeos\src\config\flags.ts` | **Modify** | Add `rabbitHoleTreeMap: false`, `exploreAgenticPrefetch: false` |
+| `c:\personal\Project X\lifeos\src\config\flags.ts` | **Modify (partial)** | `rabbitHoleTreeMap` was never added — tree-map wired directly. `exploreAgenticPrefetch: false` was added. |
 | `c:\personal\Project X\lifeos\src\constants\gamification.ts` | **Modify** | Add `deep_diver`, `cartographer`, `road_not_taken`, `connector`, `archivist` to `BadgeId` + `BADGE_META` |
 | `c:\personal\Project X\lifeos\src\store\useGameStore.ts` | **Modify** | Add `hasSynapsePair`/`recordSynapsePair` (cross-map ever-once de-dupe) + daily/lifetime tree counters in a persisted `polymath` slice |
-| `c:\personal\Project X\lifeos\app\rabbit-hole.tsx` | **Modify** | Screen. `rabbitHoleTreeMap` off → legacy linear JSX (kept one sprint); on → `<RabbitHoleScreen />`. Wrap in error boundary |
+| `c:\personal\Project X\lifeos\app\rabbit-hole.tsx` | **Rewritten** | Screen wired directly to `<RabbitHoleScreen />` — no flag fork, no legacy linear JSX retained |
 | `c:\personal\Project X\lifeos\src\components\modules\polymath\RabbitHoleScreen.tsx` | **New** | Header, phone sheet-over-map vs web two-pane layout (via `useWindowDimensions`), Exit Summary host |
 | `c:\personal\Project X\lifeos\src\components\modules\polymath\RabbitHoleMapView.tsx` | **New** | Deterministic single-pass layout (`column`/`depth` → x/y), memoized on `revision`; renders tiles + connectors; off-path collapse |
 | `c:\personal\Project X\lifeos\src\components\modules\polymath\RabbitHoleMapNode.tsx` | **New** | One tile; `onLayout`→`setTileLayout`; realized/ghost/focused/visited states; bloom + cursor pulse |
@@ -466,7 +466,7 @@ No per-tap XP (the deleted `addXP(userId, 8)` line). No fake urgency (no timers;
 
 ## Build Sequence
 
-All steps land behind `rabbitHoleTreeMap` (default off); legacy linear JSX stays one sprint for A/B.
+All steps were built progressively. **No `rabbitHoleTreeMap` flag was used** — the tree-map was wired directly without a legacy A/B fork.
 
 **Phase 1 — Data model (no UI).**
 - `rabbitHoleTree.ts` (types, Zod, pure helpers) + unit tests (`pathToRoot`, `depthOf`, `childrenOf`, `maxDeeperDepth`, `realizedBranchCount`; Zod rejects short body / bad datetime / wrong fork count).
@@ -494,9 +494,10 @@ All steps land behind `rabbitHoleTreeMap` (default off); legacy linear JSX stays
 - Rewrite `app/rabbit-hole.tsx` with the flag fork. Stamp `sparks.threadId` on tree creation.
 - E2E smoke: open from explore → advance 3 deeper → back (previous node still present) → jump 2 levels up → open the other (ghost) fork (advance fires + `road_not_taken`) → Done (no double-charge; XP banked once).
 
-**Phase 7 — Enable & clean up.**
-- Flip `rabbitHoleTreeMap: true`; delete legacy JSX.
-- `docs/PARKED_ITEMS.md`: "Your Maps" gallery + silhouette cover art + image share + AI-suggested title + web drag-pan + rabbit-hole sync (thread metadata via mutation log once constellation sync is scoped) + react-native-skia connectors if node count > 50.
+**Phase 7 — Enable & clean up.** ✅ **2026-06-09**
+- No flag to flip — tree-map was always live. Legacy JSX was never written.
+- "Your Maps" gallery + map silhouette (`MapSilhouette` SVG) + AI-suggested title (`suggestMapTitle`) shipped as §12.2 (2026-06-09).
+- `docs/PARKED_ITEMS.md` updated with remaining fast-follows: image share (needs `react-native-view-shot`), web drag-pan, rabbit-hole sync (thread metadata via mutation log once constellation sync is scoped), react-native-skia connectors if node count > 50.
 
 ## Risks & Mitigations
 - **react-native-web `onLayout` async gap** — connectors lag nodes by one frame. Mitigation: ghosts render in the layout tree from first pass at `opacity 0` (holding their lane); connectors `withTiming(1)` once both endpoints measured. Single imperceptible frame.

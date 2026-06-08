@@ -1,6 +1,10 @@
 # AI Functions Reference
 
-All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → the `workers/ai-proxy` Cloudflare Worker (`POST /claude` — name is historical; the body is provider-neutral, Bearer = Supabase JWT, `task` field forwarded for per-feature rate-limit bucketing) → the configured LLM. **The Worker runs `LLM_PROVIDER` (currently Gemini by default).** The per-task `pickModel()` in [`src/ai/modelRouter.ts`](../src/ai/modelRouter.ts) selects the model tier (cheap / planning / reasoning); see `MODELS` there for current Gemini model IDs. The chatbot (`app/chat.tsx`) and voice assistant (Gemini Live, `src/ai/voiceClient.ts`) share the same auth/transport. Every function:
+All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → the `workers/ai-proxy` Cloudflare Worker (`POST /claude` — name is historical; the body is provider-neutral, Bearer = Supabase JWT, `task` field forwarded for per-feature rate-limit bucketing) → the configured LLM. **The Worker runs `LLM_PROVIDER` (currently Gemini by default; `cheap`-tier tasks route to Groq `llama-3.1-8b-instant` when `EXPO_PUBLIC_CHEAP_PROVIDER=groq` is set).** The per-task `pickModel()` in [`src/ai/modelRouter.ts`](../src/ai/modelRouter.ts) selects the model tier (cheap / planning / reasoning); see `MODELS` there for current Gemini/Groq model IDs. The chatbot (`app/chat.tsx`) and voice assistant (Gemini Live, `src/ai/voiceClient.ts`) share the same auth/transport.
+
+**Three client entry points:** `callAI` (returns text), `callAIRaw` (returns `{ text, functionCalls, model }` — used by the tool-use agent), and `callAIStream` (SSE streaming — takes an `onChunk` callback, used by `app/chat.tsx` for live-bubble rendering; cost/telemetry/tracing fire on the `done` chunk). All three go through the same proxy; do not add a fourth entry point that bypasses `recordUsage`/`track`/spans.
+
+Every function:
 - Has a Zod schema in [`src/ai/types.ts`](../src/ai/types.ts)
 - Has a prompt in [`src/ai/prompts/`](../src/ai/prompts/)
 - Has a mock in [`src/ai/mocks/`](../src/ai/mocks/) (`EXPO_PUBLIC_USE_AI_MOCK=true` serves these)
@@ -40,8 +44,11 @@ All AI calls go through [`src/ai/client.ts`](../src/ai/client.ts) → the `worke
 | `assessTrajectory` | goal + progress | `TrajectoryAssessment` | Goals — trajectory card |
 | `generateAnnualReview` | year's data | `AnnualReview` | Annual review |
 | `generateGamifiedAvatar` | `(base64 photo, mimeType)` | base64 avatar image | Profile — AI avatar (flag `profileAvatarGen`, default OFF — paid image-gen) |
+| `rebalanceGoals` | domain divergence context (stagnant domains, goal list) | rebalancing suggestions (goals to pause/accelerate/swap) | Goals — `GoalRebalanceSheet`, triggered when `detectDomainDivergence` fires |
+| `recoverGoal` | goal + recent progress context | 7-day recovery plan (daily micro-actions) | Goals — `GoalDetailSheet` stalled/off-track state |
+| `suggestMapTitle` | `{ anchorTitle, sampleNodeTitles }` | `string` (3–5 word evocative title) | Explore — "Your Maps" gallery suggest-name button. `cheap` tier, `maxTokens: 20`; strips surrounding quotes from response |
 
-> Not in `functions.ts` but the same `callAI`/Zod/mock contract: `generateDailySpark`, `generateExpedition`, `generateRabbitHoleNode` (`src/explore/*`), the flag-gated `chasingNow` / `frontier` (`src/explore/chasing.ts`, `frontier.ts`), and the tool-use agent `whatShouldIDoNext` (`src/ai/agent/whatNext.ts`).
+> Not in `functions.ts` but the same `callAI`/Zod/mock contract: `generateDailySpark`, `generateExpedition`, `generateRabbitHoleNode`, `exploreThreadNode` (`src/explore/*`; `exploreThreadNode` also uses the tool-use agent via `src/ai/agent/exploreThread.ts`), the flag-gated `chasingNow` / `frontier` (`src/explore/chasing.ts`, `frontier.ts`), and the tool-use agent `whatShouldIDoNext` (`src/ai/agent/whatNext.ts`).
 
 ## Conventions
 

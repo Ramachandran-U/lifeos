@@ -16,7 +16,6 @@ XP_VALUES = {
 
 Every handler that awards XP also calls `logBehaviourEvent(...)` and then `checkBadges(...)`.
 
-> **Known gaps (as of 2026-05-31, pre-PR #80):** (1) `logFood` is defined but **not yet wired** — manual meal logging advances the food streak + quest but does not call `addXP`, so the XP total doesn't move on a manual log (only the photo path, `photoFood: 20`, credits XP today). (2) Routine-block completion currently **double-credits** — `completeBlock` adds `completeBlock` XP and the screen calls `addXP(completeBlock)` again. Both are fixed by PR #80 (open at time of writing): `completeBlock` becomes the single XP source and `logFood` is wired into manual logging. Update this note when #80 merges.
 
 ## Levels
 
