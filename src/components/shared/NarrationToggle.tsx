@@ -3,53 +3,74 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { Caption } from '@/components/ui/Typography';
-import { useOnboardingNarration } from '@/hooks/useOnboardingNarration';
-import { usePreferencesStore } from '@/store/usePreferencesStore';
+import type { UseNarrationResult } from '@/hooks/useNarration';
 
 interface NarrationToggleProps {
-  scriptId: string;
+  narration: UseNarrationResult;
 }
 
-// Small floating control rendered on onboarding screens that have bundled
-// narration. Hidden entirely when no MP3 ships for the given scriptId, so
-// pre-asset builds look identical to today.
-export function NarrationToggle({ scriptId }: NarrationToggleProps) {
+/**
+ * Floating narration controls rendered on onboarding screens.
+ * Shows the mute/unmute chip and a Skip button (while narration is active
+ * and not all cards have been revealed yet).
+ *
+ * The component is a thin view over UseNarrationResult — all logic lives
+ * in the hook, keeping this purely presentational.
+ */
+export function NarrationToggle({ narration }: NarrationToggleProps) {
   const c = useColors();
-  const { isPlaying, isAvailable, toggle } = useOnboardingNarration(scriptId);
-  const narrationEnabled = usePreferencesStore((s) => s.narrationEnabled);
-  const toggleNarrationPref = usePreferencesStore((s) => s.toggleNarration);
+  const { isPlaying, isAvailable, isMuted, allCardsRevealed, toggle, skip } = narration;
 
   if (!isAvailable) return null;
 
-  const handlePress = async () => {
-    if (!narrationEnabled) {
-      toggleNarrationPref();
-      return;
-    }
-    await toggle();
-  };
+  const icon: React.ComponentProps<typeof Ionicons>['name'] = isMuted
+    ? 'volume-mute'
+    : isPlaying
+      ? 'pause'
+      : 'volume-high';
 
-  const icon = !narrationEnabled ? 'volume-mute' : isPlaying ? 'pause' : 'volume-high';
+  const label = isMuted ? 'Tap to narrate' : isPlaying ? 'Speaking…' : 'Replay';
+
+  const showSkip = !isMuted && !allCardsRevealed;
 
   return (
-    <Pressable
-      onPress={handlePress}
-      hitSlop={8}
-      testID={`narration-toggle-${scriptId}`}
-      style={[styles.container, { backgroundColor: c.card, borderColor: c.border }]}
-    >
-      <Ionicons name={icon} size={16} color={c.primary} />
-      <View>
-        <Caption color={c.textSecondary}>
-          {!narrationEnabled ? 'Tap to enable voice' : isPlaying ? 'Speaking…' : 'Replay'}
-        </Caption>
-      </View>
-    </Pressable>
+    <View style={styles.row}>
+      <Pressable
+        onPress={toggle}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={isMuted ? 'Unmute narration' : 'Mute narration'}
+        testID="narration-toggle"
+        style={[styles.chip, { backgroundColor: c.card, borderColor: c.border }]}
+      >
+        <Ionicons name={icon} size={16} color={c.primary} />
+        <Caption color={c.textSecondary}>{label}</Caption>
+      </Pressable>
+
+      {showSkip && (
+        <Pressable
+          onPress={skip}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Skip narration"
+          testID="narration-skip"
+          style={[styles.chip, { backgroundColor: c.card, borderColor: c.border }]}
+        >
+          <Caption color={c.textSecondary}>Skip</Caption>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignSelf: 'stretch',
+    gap: spacing.xs,
+  },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -57,6 +78,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: 999,
     borderWidth: 1,
-    alignSelf: 'flex-end',
   },
 });

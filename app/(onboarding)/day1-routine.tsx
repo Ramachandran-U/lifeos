@@ -11,6 +11,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { NarrationToggle } from '@/components/shared/NarrationToggle';
+import { OnboardingIntroSection } from '@/components/shared/OnboardingIntroSection';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -21,6 +22,7 @@ import { DomainBalanceBar } from '@/components/shared/DomainBalanceBar';
 import { aggregatePlannedDomainMinutes } from '@/utils/routineBalance';
 import { reorderBlocksFixedSlots } from '@/utils/routineReorder';
 import { useAI } from '@/hooks/useAI';
+import { useNarration } from '@/hooks/useNarration';
 import { planRoutineWithContext } from '@/ai/routinePlanner';
 import { selectPlannerGoals } from '@/db/queries/goals';
 import { useUserStore, ONBOARDING_COMPLETE } from '@/store/useUserStore';
@@ -103,6 +105,7 @@ export default function Day1RoutineScreen() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const isEditMode = mode === 'edit';
   const { call, loading, error } = useAI();
+  const narration = useNarration('day1-routine');
   const { userId, setOnboardingStage } = useUserStore();
   const { awardBadge } = useGameStore();
 
@@ -261,7 +264,11 @@ export default function Day1RoutineScreen() {
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    router.replace('/(tabs)');
+    if (isEditMode) {
+      router.replace('/(tabs)');
+    } else {
+      router.push('/(onboarding)/day1-voice');
+    }
   };
 
   const pickersLocked = loading || routine !== null;
@@ -285,17 +292,25 @@ export default function Day1RoutineScreen() {
           </Pressable>
         )}
 
-        {!isEditMode && <NarrationToggle scriptId="day1-routine" />}
+        {!isEditMode && <NarrationToggle narration={narration} />}
         <Animated.View entering={FadeInDown.duration(600)}>
           <Heading style={styles.title}>
             {isEditMode ? 'Edit your daily routine' : 'Build your daily routine'}
           </Heading>
           <Body style={styles.subtitle}>
             {isEditMode
-              ? "Adjust your schedule — saving will replace today’s blocks."
+              ? "Adjust your schedule — saving will replace today's blocks."
               : "Tell us your schedule and we'll design your day"}
           </Body>
         </Animated.View>
+
+        {!isEditMode && (
+          <OnboardingIntroSection
+            scriptId="day1-routine"
+            revealedCards={narration.revealedCards}
+            accentColor={c.primary}
+          />
+        )}
 
         {/* Lock pickers once generating / generated so the user can't change
             times while the AI is working or after the result is shown. */}

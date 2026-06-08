@@ -8,12 +8,14 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { NarrationToggle } from '@/components/shared/NarrationToggle';
+import { OnboardingIntroSection } from '@/components/shared/OnboardingIntroSection';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAI } from '@/hooks/useAI';
+import { useNarration } from '@/hooks/useNarration';
 import { decomposeGoal } from '@/ai/functions';
 import { useUserStore } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
@@ -24,6 +26,7 @@ import type { GoalHierarchy } from '@/ai/types';
 export default function Day1VisionScreen() {
   const router = useRouter();
   const { call, loading, error } = useAI();
+  const narration = useNarration('day1-vision');
   const { userId, name: storedName, email: userEmail, setUser, setOnboardingStage } = useUserStore();
   const c = useColors();
   const styles = makeStyles(c);
@@ -68,7 +71,7 @@ export default function Day1VisionScreen() {
           <Animated.Text entering={FadeIn.duration(800)} style={styles.logo}>
             LifeOS
           </Animated.Text>
-          <NarrationToggle scriptId="day1-vision" />
+          <NarrationToggle narration={narration} />
 
           <Animated.View entering={FadeInDown.delay(300).duration(600)}>
             <Heading style={styles.title}>What's your vision for your life?</Heading>
@@ -76,6 +79,12 @@ export default function Day1VisionScreen() {
               Describe the life you want to build. Be ambitious.
             </Body>
           </Animated.View>
+
+          <OnboardingIntroSection
+            scriptId="day1-vision"
+            revealedCards={narration.revealedCards}
+            accentColor={c.goal}
+          />
 
           <Animated.View entering={FadeInDown.delay(500).duration(600)} style={styles.form}>
             <Input

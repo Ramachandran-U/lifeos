@@ -1,85 +1,68 @@
 import { render, screen, fireEvent } from '@testing-library/react-native';
-
-// Native AsyncStorage isn't linked under jest-expo; the store import chain pulls
-// it in via the persist middleware. Use AsyncStorage's official in-memory jest mock.
-jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
-);
-
 import { NarrationToggle } from '@/components/shared/NarrationToggle';
-import { usePreferencesStore } from '@/store/usePreferencesStore';
-import type { UseOnboardingNarrationResult } from '@/hooks/useOnboardingNarration';
+import type { UseNarrationResult } from '@/hooks/useNarration';
 
-// The hook owns the expo-speech plumbing + asset availability; we only need to
-// drive its return value to exercise the toggle's branches.
-const mockToggle = jest.fn().mockResolvedValue(undefined);
-const mockStop = jest.fn().mockResolvedValue(undefined);
-// `mock`-prefixed so jest's mock factory may reference it (hoisting rule).
-let mockNarration: UseOnboardingNarrationResult;
-
-jest.mock('@/hooks/useOnboardingNarration', () => ({
-  useOnboardingNarration: () => mockNarration,
-}));
-
-function setNarration(isAvailable: boolean, isPlaying = false) {
-  mockNarration = { isAvailable, isPlaying, toggle: mockToggle, stop: mockStop };
+function makeNarration(overrides: Partial<UseNarrationResult> = {}): UseNarrationResult {
+  return {
+    isAvailable: true,
+    isPlaying: false,
+    isMuted: false,
+    revealedCards: new Set(),
+    allCardsRevealed: false,
+    toggle: jest.fn(),
+    skip: jest.fn(),
+    stop: jest.fn(),
+    ...overrides,
+  };
 }
 
 describe('NarrationToggle', () => {
-  beforeEach(() => {
-    usePreferencesStore.setState({ narrationEnabled: true });
-  });
-
-  afterEach(() => {
-    usePreferencesStore.setState({ narrationEnabled: true });
-    jest.clearAllMocks();
-  });
-
   it('renders nothing when no narration asset is available', () => {
-    setNarration(false);
-    const { toJSON } = render(<NarrationToggle scriptId="day1-vision" />);
+    const { toJSON } = render(<NarrationToggle narration={makeNarration({ isAvailable: false })} />);
     expect(toJSON()).toBeNull();
   });
 
-  it('shows the "Replay" affordance when enabled and idle', () => {
-    setNarration(true, false);
-    usePreferencesStore.setState({ narrationEnabled: true });
-    render(<NarrationToggle scriptId="day1-vision" />);
+  it('shows "Replay" when enabled and idle', () => {
+    render(<NarrationToggle narration={makeNarration({ isPlaying: false, isMuted: false })} />);
     expect(screen.getByText('Replay')).toBeTruthy();
   });
 
   it('shows "Speaking…" while playing', () => {
-    setNarration(true, true);
-    usePreferencesStore.setState({ narrationEnabled: true });
-    render(<NarrationToggle scriptId="day1-vision" />);
+    render(<NarrationToggle narration={makeNarration({ isPlaying: true })} />);
     expect(screen.getByText('Speaking…')).toBeTruthy();
   });
 
-  it('prompts to enable voice when narration preference is off', () => {
-    setNarration(true, false);
-    usePreferencesStore.setState({ narrationEnabled: false });
-    render(<NarrationToggle scriptId="day1-vision" />);
-    expect(screen.getByText('Tap to enable voice')).toBeTruthy();
+  it('shows "Tap to narrate" when muted', () => {
+    render(<NarrationToggle narration={makeNarration({ isMuted: true })} />);
+    expect(screen.getByText('Tap to narrate')).toBeTruthy();
   });
 
-  it('enables the narration preference (without toggling playback) when off and pressed', () => {
-    setNarration(true, false);
-    usePreferencesStore.setState({ narrationEnabled: false });
-    render(<NarrationToggle scriptId="day1-vision" />);
-
-    fireEvent.press(screen.getByTestId('narration-toggle-day1-vision'));
-
-    expect(usePreferencesStore.getState().narrationEnabled).toBe(true);
-    expect(mockToggle).not.toHaveBeenCalled();
+  it('calls toggle() when the chip is pressed', () => {
+    const toggle = jest.fn();
+    render(<NarrationToggle narration={makeNarration({ toggle })} />);
+    fireEvent.press(screen.getByTestId('narration-toggle'));
+    expect(toggle).toHaveBeenCalledTimes(1);
   });
 
-  it('toggles playback when enabled and pressed', () => {
-    setNarration(true, false);
-    usePreferencesStore.setState({ narrationEnabled: true });
-    render(<NarrationToggle scriptId="day1-vision" />);
+  it('shows Skip when unmuted and not all cards revealed', () => {
+    render(<NarrationToggle narration={makeNarration({ isMuted: false, allCardsRevealed: false })} />);
+    expect(screen.getByTestId('narration-skip')).toBeTruthy();
+  });
 
-    fireEvent.press(screen.getByTestId('narration-toggle-day1-vision'));
+  it('hides Skip when all cards have been revealed', () => {
+    render(<NarrationToggle narration={makeNarration({ allCardsRevealed: true })} />);
+    expect(screen.queryByTestId('narration-skip')).toBeNull();
+  });
 
-    expect(mockToggle).toHaveBeenCalledTimes(1);
+  it('hides Skip when muted', () => {
+    render(<NarrationToggle narration={makeNarration({ isMuted: true, allCardsRevealed: false })} />);
+    expect(screen.queryByTestId('narration-skip')).toBeNull();
+  });
+
+  it('calls skip() when Skip is pressed', () => {
+    const skip = jest.fn();
+    render(<NarrationToggle narration={makeNarration({ isMuted: false, allCardsRevealed: false, skip })} />);
+    fireEvent.press(screen.getByTestId('narration-skip'));
+    expect(skip).toHaveBeenCalledTimes(1);
   });
 });
