@@ -37,7 +37,7 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   domainNudgesVisible: false,
   overcommitmentDetector: false,
   overcommitmentVisible: false,
-  priorityAdjust: true,
+  priorityAdjust: false,
   exploreAgenticPrefetch: false,
   profileAvatarGen: false,
 });

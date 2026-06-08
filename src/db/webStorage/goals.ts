@@ -9,7 +9,7 @@ export interface WebGoal {
   goalType: string;
   parentId?: string;
   level: string;
-  timeline?: string;
+  timeline?: string | null;
   status: string;
   energyLevel?: string;
   aiGenerated?: boolean;

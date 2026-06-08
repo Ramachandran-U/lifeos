@@ -1,4 +1,5 @@
 import { View, StyleSheet, Pressable } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -6,6 +7,7 @@ import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Body, Label, Caption } from '@/components/ui/Typography';
+import { usePressScale } from '@/hooks/usePressScale';
 import { useGoalTypeColor } from '@/utils/goalTypeColor';
 
 interface GoalCardProps {
@@ -28,11 +30,12 @@ export function GoalCard({
 }: GoalCardProps) {
   const c = useColors();
   const typeColor = useGoalTypeColor()(goalType);
+  const press = usePressScale(0.98);
 
   const hasSteps = stepCount > 0;
   const progressLabel = hasSteps
     ? `${stepsComplete} of ${stepCount} steps`
-    : null;
+    : `${Math.round(progress)}% complete`;
 
   const content = (
     <Card moduleColor={typeColor.color} style={isPrimary ? styles.primaryCard : styles.card}>
@@ -46,15 +49,9 @@ export function GoalCard({
       <Body style={[styles.title, isPrimary && styles.primaryTitle, { color: c.textPrimary }]}>
         {title}
       </Body>
-      {hasSteps && (
-        <ProgressBar value={progress} color={typeColor.color} height={isPrimary ? 8 : 6} />
-      )}
+      <ProgressBar value={progress} color={typeColor.color} gradientColors={typeColor.gradient} height={isPrimary ? 8 : 6} />
       <View style={styles.footer}>
-        {progressLabel ? (
-          <Caption style={{ color: c.textSecondary }}>{progressLabel}</Caption>
-        ) : (
-          <Caption style={{ color: c.textMuted }}>No sub-goals yet</Caption>
-        )}
+        <Caption style={{ color: c.textSecondary }}>{progressLabel}</Caption>
         {commentCount > 0 && (
           <View style={styles.commentBadge}>
             <Ionicons name="chatbubble-outline" size={12} color={c.textSecondary} />
@@ -66,7 +63,11 @@ export function GoalCard({
   );
 
   if (onPress) {
-    return <Pressable onPress={onPress}>{content}</Pressable>;
+    return (
+      <Pressable onPress={onPress} onPressIn={press.onPressIn} onPressOut={press.onPressOut}>
+        <Animated.View style={press.animatedStyle}>{content}</Animated.View>
+      </Pressable>
+    );
   }
   return content;
 }
