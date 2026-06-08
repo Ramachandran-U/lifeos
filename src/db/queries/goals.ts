@@ -245,6 +245,32 @@ export function updateGoalDescription(id: string, description: string) {
   recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), description, updatedAt: now } });
 }
 
+/** Update mutable user-facing fields on a goal (title, goalType, timeline). */
+export function updateGoalFields(id: string, fields: { title?: string; goalType?: string; timeline?: string | null }) {
+  const before = readGoalSnapshot(id);
+  const now = new Date().toISOString();
+  if (isWeb) {
+    webUpdateGoalFields(id, fields);
+  } else {
+    db.update(goals).set({ ...fields, updatedAt: now }).where(eq(goals.id, id)).run();
+  }
+  recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), ...fields, updatedAt: now } });
+}
+
+/** Merge `partial` into the goal's existing metadata JSON. Existing keys not in `partial` are preserved. */
+export function updateGoalMetadata(id: string, partial: Record<string, unknown>) {
+  const before = readGoalSnapshot(id);
+  const existing = parseGoalMetadata(before?.metadata);
+  const metadata = JSON.stringify({ ...existing, ...partial });
+  const now = new Date().toISOString();
+  if (isWeb) {
+    webUpdateGoalFields(id, { metadata });
+  } else {
+    db.update(goals).set({ metadata, updatedAt: now }).where(eq(goals.id, id)).run();
+  }
+  recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), metadata, updatedAt: now } });
+}
+
 export function setGoalPriorities(updates: { id: string; priority: number }[]) {
   if (updates.length === 0) return;
   const beforeSnapshots = updates.map((u) => readGoalSnapshot(u.id));

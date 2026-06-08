@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable, Linking } from 'react-native';
 import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useEffect } from 'react';
@@ -40,7 +40,7 @@ export function CalorieRing({ consumed, target, protein, carbs, fat, proteinTarg
     strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
   }));
 
-  const ringColor = ratio > 1.1 ? c.error : ratio > 0.9 ? c.warning : c.health;
+  const ringColor = c.health;
 
   return (
     <View style={styles.container}>
@@ -97,6 +97,15 @@ export function CalorieRing({ consumed, target, protein, carbs, fat, proteinTarg
           </Body>
         </View>
       </View>
+
+      <Pressable
+        onPress={() => Linking.openURL('https://www.nationaleatingdisorders.org/help-support/contact-helpline').catch(() => {})}
+        accessibilityRole="link"
+        accessibilityLabel="Eating concerns? Get support"
+        hitSlop={8}
+      >
+        <Caption style={styles.supportLink}>Eating concerns? Get support →</Caption>
+      </Pressable>
     </View>
   );
 }
@@ -135,5 +144,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   macroValue: {
     fontFamily: fonts.bodyMedium,
+  },
+  supportLink: {
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    textDecorationLine: 'underline',
   },
 });

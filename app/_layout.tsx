@@ -24,6 +24,13 @@ import { syncEngine } from '@/sync/engine';
 
 SplashScreen.preventAutoHideAsync();
 
+// Expose mock-mode status so Playwright specs can detect it via
+// `page.evaluate(() => window.__AI_MOCK)` and skip AI-dependent tests when
+// the server wasn't started with EXPO_PUBLIC_USE_AI_MOCK=true.
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  (window as { __AI_MOCK?: boolean }).__AI_MOCK = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true';
+}
+
 const queryClient = new QueryClient();
 
 // Module-level run-once guard for boot init. Without it, React StrictMode (dev)

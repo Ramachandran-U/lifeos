@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { normalizeMerchantForCache } from '../merchantKey';
 
 export type TxDirection = 'debit' | 'credit';
 export type TxSource = 'hdfc' | 'icici' | 'axis' | 'manual';
@@ -19,7 +20,7 @@ export interface TxRecord {
 /**
  * Merchant → category memo cache. Avoids re-categorizing the same merchant
  * via the AI on every sync. Keyed by `merchantKey` (normalized merchant
- * string from normalizeMerchantForCache in categorizer.ts).
+ * string from normalizeMerchantForCache in merchantKey.ts).
  *
  * `source`:
  *  - 'rule' = matched the static rule map
@@ -164,9 +165,6 @@ export async function updateTransactionCategory(
   // so future syncs (and other transactions from the same merchant) inherit
   // the user's preference instead of re-asking the AI.
   if (tx) {
-    // Local import to avoid a circular dependency at module load time —
-    // categorizer.ts imports from this file too.
-    const { normalizeMerchantForCache } = await import('@/finance/categorizer');
     await setCachedCategory({
       merchantKey: normalizeMerchantForCache(tx.merchant),
       category,

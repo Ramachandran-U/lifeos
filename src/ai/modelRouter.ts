@@ -57,13 +57,15 @@ export type AITask =
   | 'generateMoneyReview'
   | 'consolidateMemory'
   | 'rebalanceGoals'
+  | 'recoverGoal'
   | 'agent.propose'
   | 'agent.critique'
   | 'agent.brief'
   | 'agent.goal.propose'
   | 'agent.goal.critique'
   | 'agent.whatNext'
-  | 'agent.exploreThread';
+  | 'agent.exploreThread'
+  | 'suggestMapTitle';
 
 const TASK_TIER: Record<AITask, Tier> = {
   categorizeMerchant: 'cheap',
@@ -79,6 +81,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   chasingNow: 'planning', // synthesises real history into live questions — quality is the whole point
   generateExpedition: 'planning', // structure matters — worth the better model
   generateRabbitHoleNode: 'cheap', // short interactive calls; cost adds up if user pulls 10 threads
+  suggestMapTitle: 'cheap',        // 3-5 word creative title — a one-liner cheap call
   generateMonthlyInsightReport: 'planning',
   generateDailyBriefing: 'cheap',
   assessTrajectory: 'planning',
@@ -86,6 +89,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   generateMoneyReview: 'planning',
   consolidateMemory: 'planning', // one summarisation pass over the window — quality matters
   rebalanceGoals: 'planning', // reallocates weekly hours across goals — reasoning-ish
+  recoverGoal: 'planning',   // 7-day catch-up plan for a stalled goal
   'agent.brief': 'cheap',
 
   decomposeGoal: 'planning',

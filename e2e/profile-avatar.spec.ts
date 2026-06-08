@@ -35,6 +35,10 @@ test.describe('Profile avatar — generate & save (mock)', () => {
       (await editAvatar.count()) === 0,
       'profileAvatarGen flag not enabled in this build — start the web server with EXPO_PUBLIC_FLAG_PROFILE_AVATAR_GEN=true',
     );
+    // The generate step makes an AI call; without mock mode the "Use this avatar"
+    // result never appears. Skip rather than fail when mock mode is off.
+    const isMock = await page.evaluate(() => !!(window as { __AI_MOCK?: boolean }).__AI_MOCK);
+    test.skip(!isMock, 'AI mock mode not enabled — start the server with EXPO_PUBLIC_USE_AI_MOCK=true');
     await expect(editAvatar).toBeVisible();
     await editAvatar.click();
 

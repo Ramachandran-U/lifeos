@@ -6,6 +6,7 @@ import { goalComments } from '../schema';
 import {
   webInsertGoalComment,
   webListGoalComments,
+  webListAllGoalComments,
   webDeleteGoalComment,
   type WebGoalComment,
 } from '../webStorage';
@@ -38,6 +39,16 @@ export function listGoalComments(goalId: string): GoalComment[] {
     .where(eq(goalComments.goalId, goalId))
     .orderBy(asc(goalComments.createdAt))
     .all();
+}
+
+/** Returns a goalId→count map for all goals belonging to this user in one pass. */
+export function getCommentCountsByUser(userId: string): Record<string, number> {
+  const comments = isWeb
+    ? webListAllGoalComments()
+    : db.select().from(goalComments).where(eq(goalComments.userId, userId)).all();
+  const map: Record<string, number> = {};
+  for (const c of comments) map[c.goalId] = (map[c.goalId] ?? 0) + 1;
+  return map;
 }
 
 export function deleteGoalComment(id: string): void {

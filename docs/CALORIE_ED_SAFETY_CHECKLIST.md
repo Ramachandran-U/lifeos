@@ -10,10 +10,10 @@
 - ✅ **Pull, not push** — calorie tracking is opt-in (the user opens the Health tab / vitals editor); nothing proactively pushes it.
 
 ## Required before promoting the surface (human sign-off — ☐)
-- ☐ **Present a range, not a single hard number?** Decide whether to show "~1,900–2,100 est." rather than a single authoritative figure. (Recommended by the red-team review; not yet implemented.)
-- ☐ **No shaming UI** — audit `CalorieRing` / `MealSuggestionsCard` and any "over budget" state: no red/danger framing for exceeding the target, no guilt copy. Neutral language only. *(Action: review the over-target visual state.)*
-- ☐ **Crisis off-ramp** — add a discreet, always-available link to eating-disorder support (region-aware, e.g. NEDA in the US / Beat in the UK / regional equivalent) on the Health/food surface. *(Not yet present — concrete action item.)*
-- ☐ **No gamification pressure on calorie accuracy** — do **not** add streaks/badges/XP tied to *hitting* a calorie target exactly (that rewards restriction). Logging food can be encouraged; "you stayed under budget" celebration must not.
+- ☐ **Present a range, not a single hard number?** Decide whether to show "~1,900–2,100 est." rather than a single authoritative figure. (Recommended by the red-team review; not yet implemented — product decision needed first.)
+- ✅ **No shaming UI** — `CalorieRing` over-target state changed from `c.error` (red) to `c.health` (neutral) for all fill levels. `MealSuggestionsCard` copy reviewed: no guilt language, "Estimates — adjust after logging" disclaimer present. *(Done 2026-06-08)*
+- ✅ **Crisis off-ramp** — "Eating concerns? Get support →" link added to `CalorieRing`, linking to NEDA helpline (`nationaleatingdisorders.org/help-support/contact-helpline`). Discreet `c.textMuted` caption, always visible, `accessibilityRole="link"`. *(Done 2026-06-08)*
+- ✅ **No gamification pressure on calorie accuracy** — audited `src/utils/gamification.ts`: `food_photo` badge fires on using photo logging (any photo, not calorie accuracy); `logFood` XP (5pts) rewards the act of logging; `foodTracking` streak rewards daily logging habit. No badge, XP, or streak tied to hitting a calorie target. Clean. *(Audited 2026-06-08)*
 - ☐ **Vulnerable-user copy review** — a human (ideally with clinical input) reviews all calorie/macro/meal copy for triggering language before any promotion.
 - ☐ **No proactive calorie notifications** without this checklist complete — e.g. "you have 600 kcal left today" push notifications are out of scope until sign-off.
 
@@ -23,7 +23,7 @@ Any "we learned your *real* expenditure is X" number (see [`ADAPTIVE_TDEE_DESIGN
 ## Sign-off
 | Reviewer | Role | Date | Notes |
 |---|---|---|---|
-| | Product | | |
+| | Product | | Copy review + range-vs-single-number decision |
 | | Clinical / safety (recommended) | | |
 
 ## Sources

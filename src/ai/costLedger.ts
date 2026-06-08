@@ -23,6 +23,14 @@ export const PRICING: Record<string, ModelPricing> = {
   'gemini-2.5-flash': { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 },
   'gemini-3.5-flash': { input: 1.5, output: 9, cacheRead: 0.15, cacheWrite: 0 },
   'gemini-flash-latest': { input: 0.3, output: 2.5, cacheRead: 0.03, cacheWrite: 0 },
+  // Groq (cheap tier fast-path — EXPO_PUBLIC_CHEAP_PROVIDER=groq). Groq pricing
+  // is token-based with no caching discount tier, so cacheRead == input.
+  // Rates: console.groq.com/docs/openai/pricing (USD per 1M tokens, as of 2026-Q2).
+  'llama-3.3-70b-versatile': { input: 0.59, output: 0.79, cacheRead: 0.59, cacheWrite: 0 },
+  'llama-3.1-8b-instant':    { input: 0.05, output: 0.08, cacheRead: 0.05, cacheWrite: 0 },
+  'llama3-8b-8192':          { input: 0.05, output: 0.08, cacheRead: 0.05, cacheWrite: 0 },
+  'llama3-70b-8192':         { input: 0.59, output: 0.79, cacheRead: 0.59, cacheWrite: 0 },
+  'gemma2-9b-it':            { input: 0.2,  output: 0.2,  cacheRead: 0.2,  cacheWrite: 0 },
 };
 
 export interface UsageRecord {
@@ -43,6 +51,9 @@ function priceFor(model: string): ModelPricing {
   // Unknown model: fall back within the same provider family so a renamed or
   // preview model ID isn't priced against the wrong vendor's rates.
   if (model.startsWith('gemini-')) return PRICING['gemini-2.5-flash']!;
+  if (model.startsWith('llama') || model.startsWith('gemma') || model.startsWith('mixtral')) {
+    return PRICING['llama-3.3-70b-versatile']!;
+  }
   return PRICING['claude-haiku-4-5-20251001']!;
 }
 

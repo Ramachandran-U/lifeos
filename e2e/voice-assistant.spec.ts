@@ -18,7 +18,10 @@ test.describe('Voice Assistant E2E', () => {
     await input.fill('What should I do next?');
     await page.getByTestId('voice-send').click();
 
-    await expect(page.getByTestId('voice-transcript')).toContainText(
+    // The user's sent message is reflected immediately in voice-user-transcript
+    // (synchronous state update in useVoice.sendText), not in voice-transcript
+    // which holds the assistant's reply.
+    await expect(page.getByTestId('voice-user-transcript')).toContainText(
       'What should I do next?',
       { timeout: 5000 },
     );

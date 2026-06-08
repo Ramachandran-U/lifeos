@@ -13,6 +13,7 @@
  */
 import { nanoid } from '@/utils/id';
 import { isEnabled } from '@/config/flags';
+import { useFlagStore } from '@/store/useFlagStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useRabbitHoleStore } from '@/store/useRabbitHoleStore';
@@ -79,7 +80,7 @@ function buildGenParams(parent: { title: string; body: string }, anchor: RabbitH
  * the flag is on and we have a user, else single-shot. Both never dead-end. */
 function generateNode(parent: { title: string; body: string }, anchor: RabbitHoleAnchor, direction: RabbitHoleDirection, userId: string | null): Promise<GeneratedNode> {
   const params = buildGenParams(parent, anchor, direction);
-  return isEnabled('exploreAgenticThread') && userId
+  return useFlagStore.getState().isEnabled('explore_agentic_thread') && userId
     ? exploreThreadNode({ ...params, userId })
     : generateRabbitHoleNode(params);
 }
@@ -125,6 +126,17 @@ function hydrateFromRow(row: RabbitHoleTreeRow): boolean {
   } catch {
     return false; // corrupt row → caller creates a fresh tree
   }
+}
+
+/**
+ * Resume an existing rabbit-hole tree by its DB id.
+ * Returns true if the row was found and hydrated; false if the id is unknown or
+ * the row is corrupt.
+ */
+export function loadThreadById(treeId: string): boolean {
+  const row = getRabbitHoleTree(treeId);
+  if (!row) return false;
+  return hydrateFromRow(row);
 }
 
 /**

@@ -128,6 +128,150 @@ export async function callAIRaw(request: AIRequest): Promise<AIToolResponse> {
 }
 
 /**
+ * Streaming AI call for prose surfaces (chat, narrative). Calls `onChunk` for
+ * each text delta as it arrives, then resolves with the full accumulated text.
+ * Falls back to a single `onChunk(full_text)` call if the runtime does not
+ * expose `response.body` as a ReadableStream.
+ *
+ * Still goes through the same auth, cost-ledger, telemetry, and tracing as
+ * `callAI` — this is NOT a bypass of any of those.
+ */
+export async function callAIStream(
+  request: AIRequest,
+  onChunk: (text: string) => void,
+): Promise<{ text: string; model: string }> {
+  const span = startSpan('callAI', { task: request.task, model: request.model, stream: true });
+
+  try {
+    const token = await getSupabaseAccessToken();
+    if (!token) throw new Error('Sign in required to use AI features.');
+
+    const providerHint = pickProvider(request.task);
+    const fetchStart = Date.now();
+    const response = await fetch(`${PROXY_URL}/claude`, {
+      method: 'POST',
+      signal: request.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        system: request.system,
+        messages: request.messages,
+        maxTokens: request.maxTokens ?? pickMaxTokens(request.task),
+        model: request.model,
+        cacheSystem: request.cacheSystem,
+        task: request.task,
+        stream: true,
+        ...(providerHint ? { provider: providerHint } : {}),
+      }),
+    });
+    const ttfbMs = Date.now() - fetchStart;
+
+    if (response.status === 429) throw new Error("You've hit today's AI limit. Try again tomorrow.");
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      throw new Error(`AI proxy ${response.status}: ${errBody.slice(0, 200)}`);
+    }
+
+    let accumulated = '';
+    let model = request.model ?? 'unknown';
+    let usage: {
+      input_tokens: number;
+      output_tokens: number;
+      cache_read_input_tokens: number;
+      cache_creation_input_tokens: number;
+    } | null = null;
+
+    const parseLine = (line: string) => {
+      if (!line.startsWith('data: ')) return;
+      const raw = line.slice(6).trim();
+      if (!raw) return;
+      let chunk: Record<string, unknown>;
+      try {
+        chunk = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        return;
+      }
+      if (typeof chunk.error === 'string') throw new Error(chunk.error);
+      if (typeof chunk.text === 'string') {
+        accumulated += chunk.text;
+        onChunk(chunk.text);
+      }
+      if (chunk.done === true) {
+        if (typeof chunk.model === 'string') model = chunk.model;
+        const u = chunk.usage;
+        if (u !== null && u !== undefined && typeof u === 'object') {
+          const uo = u as Record<string, unknown>;
+          usage = {
+            input_tokens: typeof uo.input_tokens === 'number' ? uo.input_tokens : 0,
+            output_tokens: typeof uo.output_tokens === 'number' ? uo.output_tokens : 0,
+            cache_read_input_tokens:
+              typeof uo.cache_read_input_tokens === 'number' ? uo.cache_read_input_tokens : 0,
+            cache_creation_input_tokens:
+              typeof uo.cache_creation_input_tokens === 'number' ? uo.cache_creation_input_tokens : 0,
+          };
+        }
+      }
+    };
+
+    if (response.body) {
+      // Modern browser / React Native — true streaming via ReadableStream.
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) parseLine(line);
+      }
+      // Flush any remaining partial line.
+      if (buf) parseLine(buf);
+    } else {
+      // Fallback: body not exposed as ReadableStream — buffer the entire SSE text.
+      const text = await response.text();
+      for (const line of text.split('\n')) parseLine(line);
+    }
+
+    const latency = {
+      ttfbMs,
+      totalMs: Date.now() - fetchStart,
+      ...parseServerTiming(response.headers.get('Server-Timing')),
+    };
+
+    if (usage) {
+      recordUsage({ model, task: request.task ?? 'unknown', usage });
+      track(EVENTS.aiCall, {
+        task: request.task ?? 'unknown',
+        model,
+        input_tokens: usage.input_tokens,
+        output_tokens: usage.output_tokens,
+        cache_read_tokens: usage.cache_read_input_tokens,
+      });
+      endSpan(span, {
+        model,
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+        cacheReadTokens: usage.cache_read_input_tokens,
+        cacheCreationTokens: usage.cache_creation_input_tokens,
+        costUsd: computeCost(model, usage),
+        metadata: latency,
+      });
+    } else {
+      endSpan(span, { model, metadata: latency });
+    }
+
+    return { text: accumulated, model };
+  } catch (err) {
+    endSpan(span, { status: 'error', error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+}
+
+/**
  * Avatar image generation (nano banana). A SEPARATE transport from
  * `callViaProxy` because the response is a base64 image, not text — but it
  * keeps the same auth, error-surfacing, cost-ledger, telemetry, and tracing

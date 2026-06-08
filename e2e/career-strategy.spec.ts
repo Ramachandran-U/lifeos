@@ -10,6 +10,11 @@ test.describe('Career Strategist E2E', () => {
     await page.goto('/career');
     await expect(page.getByText('NEW CAREER PATH')).toBeVisible();
 
+    // This test exercises an AI-driven flow end-to-end and requires the server
+    // to be started with EXPO_PUBLIC_USE_AI_MOCK=true so responses are instant.
+    const isMock = await page.evaluate(() => !!(window as { __AI_MOCK?: boolean }).__AI_MOCK);
+    test.skip(!isMock, 'AI mock mode not enabled — start the server with EXPO_PUBLIC_USE_AI_MOCK=true');
+
     // These inputs use rotating (animated) placeholders, so there's no static
     // placeholder to target — locate them by their accessibility label instead.
     await page.getByLabel('Current role').fill('Data Analyst');

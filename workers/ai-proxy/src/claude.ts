@@ -94,6 +94,8 @@ interface ClientRequest {
    * (pinned to gemini). See proxyClaude.
    */
   provider?: string;
+  /** When true, proxy uses SSE streaming. Prose surfaces only — tool-use always non-streaming. */
+  stream?: boolean;
 }
 
 interface NormalisedResponse {
@@ -164,7 +166,11 @@ function pickModel(provider: keyof typeof DEFAULTS, requested: string | undefine
     (provider === 'gemini' && requested.startsWith('gemini-')) ||
     (provider === 'openai' && (requested.startsWith('gpt-') || requested.startsWith('o'))) ||
     (provider === 'groq' && (requested.startsWith('llama-') || requested.startsWith('gemma') || requested.startsWith('mixtral')));
-  return matches ? requested : DEFAULTS[provider];
+  if (matches) return requested;
+  // Cross-provider translation: cheap-tier Gemini model → Groq's fast 8B for low TTFT.
+  // Planning/reasoning tiers fall through to llama-3.3-70b-versatile (the default).
+  if (provider === 'groq' && requested === 'gemini-2.5-flash') return 'llama-3.1-8b-instant';
+  return DEFAULTS[provider];
 }
 
 async function callAnthropic(body: ClientRequest, env: Env): Promise<NormalisedResponse> {
@@ -304,6 +310,181 @@ async function callGroq(body: ClientRequest, env: Env): Promise<NormalisedRespon
   };
 }
 
+/** Shared SSE response header set used by both streaming functions. */
+function makeSSEHeaders(provider: string, workerStart: number, cors: HeadersInit): HeadersInit {
+  return {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Server-Timing': `provider;desc="${provider}";dur=0, worker;dur=${Date.now() - workerStart}`,
+    'Access-Control-Expose-Headers': 'Server-Timing',
+    ...cors,
+  };
+}
+
+async function callGeminiStream(
+  body: ClientRequest,
+  env: Env,
+  cors: HeadersInit,
+  workerStart: number,
+  ctx: ExecutionContext | undefined,
+  userId: string | undefined,
+  task: string | undefined,
+): Promise<Response> {
+  const model = pickModel('gemini', body.model);
+  const sys = flattenSystem(body);
+  const contents = mapMessagesToGeminiContents(body.messages);
+  const payload = JSON.stringify({
+    ...(sys ? { system_instruction: { parts: [{ text: sys }] } } : {}),
+    contents,
+    generationConfig: {
+      maxOutputTokens: resolveOutputTokens(body, env),
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+  const url = `${GEMINI_BASE}/${model}:streamGenerateContent?alt=sse&key=${env.GEMINI_API_KEY}`;
+  const upstream = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+  });
+  if (!upstream.ok) {
+    const t = await upstream.text();
+    throw new ProviderError('gemini', upstream.status, t);
+  }
+
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  (async () => {
+    const reader = upstream.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let rawUsage: Record<string, unknown> | null = null;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(raw) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+          const { text } = parseGeminiCandidate(parsed);
+          if (text) await writer.write(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+          const meta = parsed.usageMetadata;
+          if (meta !== null && meta !== undefined && typeof meta === 'object') {
+            rawUsage = meta as Record<string, unknown>;
+          }
+        }
+      }
+      if (ctx && userId && rawUsage && env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+        ctx.waitUntil(recordCostEvent(env, { userId, task, provider: 'gemini', model, usage: rawUsage }));
+      }
+      await writer.write(
+        encoder.encode(
+          `data: ${JSON.stringify({ done: true, model, usage: rawUsage ? toCanonicalUsage('gemini', rawUsage) : null })}\n\n`,
+        ),
+      );
+    } catch (e) {
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ error: String(e) })}\n\n`));
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  return new Response(readable, { status: 200, headers: makeSSEHeaders('gemini', workerStart, cors) });
+}
+
+async function callGroqStream(
+  body: ClientRequest,
+  env: Env,
+  cors: HeadersInit,
+  workerStart: number,
+  ctx: ExecutionContext | undefined,
+  userId: string | undefined,
+  task: string | undefined,
+): Promise<Response> {
+  const model = pickModel('groq', body.model);
+  const sys = flattenSystem(body);
+  const messages = [
+    ...(sys ? [{ role: 'system', content: sys }] : []),
+    ...body.messages,
+  ];
+  const upstream = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+    body: JSON.stringify({ model, messages, max_tokens: resolveOutputTokens(body, env), stream: true }),
+  });
+  if (!upstream.ok) {
+    const t = await upstream.text();
+    throw new ProviderError('groq', upstream.status, t);
+  }
+
+  const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+
+  (async () => {
+    const reader = upstream.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let rawUsage: Record<string, unknown> | null = null;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]' || !raw) continue;
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(raw) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+          const choices = Array.isArray(parsed.choices) ? parsed.choices : [];
+          if (choices.length > 0) {
+            const delta = (choices[0] as Record<string, unknown>).delta as Record<string, unknown> | undefined;
+            const text = typeof delta?.content === 'string' ? delta.content : '';
+            if (text) await writer.write(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+          }
+          const u = parsed.usage;
+          if (u !== null && u !== undefined && typeof u === 'object') {
+            rawUsage = u as Record<string, unknown>;
+          }
+        }
+      }
+      if (ctx && userId && rawUsage && env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
+        ctx.waitUntil(recordCostEvent(env, { userId, task, provider: 'groq', model, usage: rawUsage }));
+      }
+      await writer.write(
+        encoder.encode(
+          `data: ${JSON.stringify({ done: true, model, usage: rawUsage ? toCanonicalUsage('groq', rawUsage) : null })}\n\n`,
+        ),
+      );
+    } catch (e) {
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ error: String(e) })}\n\n`));
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  return new Response(readable, { status: 200, headers: makeSSEHeaders('groq', workerStart, cors) });
+}
+
 async function callOpenAI(body: ClientRequest, env: Env): Promise<NormalisedResponse> {
   const model = pickModel('openai', body.model);
   const sys = flattenSystem(body);
@@ -408,6 +589,31 @@ export async function proxyClaude(
   }
 
   const errors: Array<{ provider: string; status: number; detail: string }> = [];
+
+  // Streaming path — prose surfaces only (chat, narrative). Tool-use is always
+  // non-streaming because function-call parts need to be fully parsed. Gemini and
+  // Groq both have SSE streaming implementations; other providers fall through to
+  // the buffered path below.
+  if (body.stream === true && !(Array.isArray(body.tools) && body.tools.length > 0)) {
+    for (const provider of chain) {
+      if (provider === 'gemini' && !env.GEMINI_API_KEY) continue;
+      if (provider === 'groq' && !env.GROQ_API_KEY) continue;
+      if (provider !== 'gemini' && provider !== 'groq') continue;
+      try {
+        if (provider === 'gemini') {
+          return await callGeminiStream(body, env, cors, workerStart, ctx, userId, task);
+        }
+        return await callGroqStream(body, env, cors, workerStart, ctx, userId, task);
+      } catch (e) {
+        if (e instanceof ProviderError && (e.status === 429 || (e.status >= 500 && e.status < 600))) {
+          errors.push({ provider: e.provider, status: e.status, detail: e.detail.slice(0, 200) });
+          continue;
+        }
+        throw e;
+      }
+    }
+    // All streaming-capable providers exhausted — fall through to non-streaming.
+  }
 
   for (const provider of chain) {
     // Skip providers without an API key configured.

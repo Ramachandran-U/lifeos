@@ -3,11 +3,9 @@
 // under test is imported, because `financeDb = new FinanceDb()` opens at load.
 import 'fake-indexeddb/auto';
 
-// `updateTransactionCategory` does a dynamic `import('@/finance/categorizer')`
-// to reach `normalizeMerchantForCache`. The real categorizer pulls in the AI
-// function chain; stub it down to the one pure helper we actually need so this
-// spec stays hermetic to the DB layer.
-jest.mock('@/finance/categorizer', () => ({
+// Stub normalizeMerchantForCache so this spec stays hermetic to the DB layer
+// without pulling in the AI function chain.
+jest.mock('@/finance/merchantKey', () => ({
   normalizeMerchantForCache: (merchant: string): string =>
     merchant.toLowerCase().replace(/\s+/g, ' ').trim(),
 }));
