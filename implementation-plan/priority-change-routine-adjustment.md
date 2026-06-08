@@ -2,13 +2,13 @@
 
 > Comprehensive plan for making the routine actually *respond* when a user changes their life priorities. Covers every scenario, the two-option UX, tradeoff surfacing, impact on existing systems, and a phased rollout.
 
-## Status (updated 2026-05-30)
+## Status (updated 2026-06-09)
 
 | Phase | Status | Where it landed |
 |---|---|---|
 | **Phase A** — Two-option sheet, "Start tomorrow" pre-gens via `generateAndSaveTomorrow`, impact summary, behaviour event, `priorityAdjust` flag | ✅ **Shipped** | PR #43 (squash `8161fa1`) |
 | **Phase B** — Real "Adjust now" with `replanRemainingDay`, `RoutineDiffPreview`, 5-phase sheet (`choice`/`loading`/`preview`/`applied`/`error`), 24h-TTL `replanStash` undo | ✅ **Shipped** | PR #50 (squash `16e199c`) |
-| **Phase C** — Wire `GOAL_REBALANCE_PROMPT` as follow-up; "why did you change?" capture; animated diff transitions | ⏳ Not started | — |
+| **Phase C** — Wire `GOAL_REBALANCE_PROMPT` as follow-up; "why did you change?" capture; animated diff transitions | 🔄 **Partial** | `GoalRebalanceSheet` + `detectDomainDivergence` wired (§3.3, ✅ 2026-06-06); `priorityAdjust` flag ON (2026-06-09); "why" capture + animated diff still pending |
 
 **Design decisions resolved during build:**
 - **Undo is routine-only** — restoring blocks reverses today's plan but priorities stay updated. (Spec originally proposed full reversal; the simpler model was preferred during implementation.)
@@ -252,7 +252,7 @@ Both surface **what you're gaining AND what you're losing** before confirming �
 - [ ] AI failure doesn't block the priority save
 - [ ] "Skip" saves priorities silently; evening-reflect picks them up
 - [ ] Stagnation detector stops watching removed domains; starts watching added ones
-- [ ] Behind `priorityAdjust` flag; off by default
+- [x] Behind `priorityAdjust` flag; **now ON** (flipped 2026-06-09)
 
 ## Build sequence
 
