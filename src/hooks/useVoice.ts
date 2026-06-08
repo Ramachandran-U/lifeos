@@ -48,6 +48,13 @@ export function useVoice(
   const sessionRef = useRef<VoiceSession | null>(null);
   const micRef = useRef<MicHandle | null>(null);
   const playerRef = useRef<PcmPlayerHandle | null>(null);
+  // One-shot auto-recovery from an unexpected upstream close (e.g. Gemini Live
+  // dropping a session with code 1011). `intentionalCloseRef` distinguishes a
+  // user-driven disconnect from a dropped socket; `connectRef` lets the close
+  // handler re-invoke connect() without a callback dependency cycle.
+  const reconnectAttemptsRef = useRef(0);
+  const intentionalCloseRef = useRef(false);
+  const connectRef = useRef<(() => void) | null>(null);
 
   const [status, setStatusState] = useState<VoiceStatus>('idle');
   const [isConnected, setConnected] = useState(false);
@@ -108,6 +115,7 @@ export function useVoice(
 
   const connect = useCallback(() => {
     if (sessionRef.current?.isOpen()) return;
+    intentionalCloseRef.current = false;
     setError(null);
     setTranscript('');
     setUserTranscript('');
@@ -143,6 +151,7 @@ export function useVoice(
         switch (event.type) {
           case 'open':
             clearTimeout(timeout);
+            reconnectAttemptsRef.current = 0; // a clean open resets the retry budget
             setConnected(true);
             setStatus('listening');
             // Best-effort unlock now that the session is live (the real unlock
@@ -201,6 +210,20 @@ export function useVoice(
             machineRef.current = { ...machineRef.current, userSpeaking: false, activityActive: false };
             setUserSpeaking(false);
             setAudioLevel(0);
+            // Auto-recover once from an unexpected drop before surfacing failure —
+            // the live model occasionally closes a session mid-stream (1011). A
+            // clean reopen resets the budget (see 'open'); a user disconnect sets
+            // intentionalCloseRef so we don't fight it.
+            if (!intentionalCloseRef.current && reconnectAttemptsRef.current < 1) {
+              reconnectAttemptsRef.current += 1;
+              sessionRef.current = null;
+              setError(null);
+              setStatus('connecting');
+              setTimeout(() => {
+                if (!intentionalCloseRef.current) connectRef.current?.();
+              }, 600);
+              break;
+            }
             if (machineRef.current.status !== 'error') setStatus('idle');
             break;
         }
@@ -209,6 +232,7 @@ export function useVoice(
   }, [options, dispatch, handleLevel, onModelOutput, setStatus]);
 
   const disconnect = useCallback(() => {
+    intentionalCloseRef.current = true; // a user disconnect must not trigger auto-reconnect
     micRef.current?.stop();
     micRef.current = null;
     playerRef.current?.dispose();
@@ -248,6 +272,12 @@ export function useVoice(
   const resumeAudio = useCallback(() => {
     playerRef.current?.resume();
   }, []);
+
+  // Keep a ref to the latest connect() so the close handler can re-invoke it for
+  // auto-reconnect without taking a callback dependency on connect (cycle-free).
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     return () => {

@@ -25,6 +25,91 @@ function parseServerTiming(header: string | null): Record<string, number> {
   return out;
 }
 
+// ── Client-side transport resilience ─────────────────────────────────────────
+// The Worker already does provider failover + upstream retries; this guards the
+// transport between app and Worker. A hung connection or a transient blip
+// (worker 5xx / dropped network) shouldn't freeze the UI or permanently fail a
+// call a quick retry would have saved. We do NOT retry 4xx (bad request / auth)
+// or 429 (daily limit) — those won't change on retry. (Voice exposed exactly
+// this class of gap: a degraded dependency with no timeout/retry took a whole
+// surface dark with no recovery.)
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 2; // → up to 3 attempts total
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function backoffDelayMs(attempt: number): number {
+  // 400ms, then 1200ms, plus up to 250ms jitter — invisible on a blip, gentle
+  // on a struggling worker.
+  return 400 * 3 ** attempt + Math.floor(Math.random() * 250);
+}
+
+/** Compose a caller AbortSignal with a timeout into one signal for a fetch. */
+function withTimeout(callerSignal: AbortSignal | undefined, timeoutMs: number) {
+  const ctrl = new AbortController();
+  let timedOut = false;
+  const onAbort = () => ctrl.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) ctrl.abort();
+    else callerSignal.addEventListener('abort', onAbort);
+  }
+  const timer = setTimeout(() => {
+    timedOut = true;
+    ctrl.abort();
+  }, timeoutMs);
+  return {
+    signal: ctrl.signal,
+    timedOut: () => timedOut,
+    cleanup: () => {
+      clearTimeout(timer);
+      if (callerSignal) callerSignal.removeEventListener('abort', onAbort);
+    },
+  };
+}
+
+/**
+ * fetch the Worker with a per-attempt timeout and bounded retry. Retries only
+ * transient failures (network throw / timeout / worker 5xx); returns the
+ * Response untouched for everything else (2xx / 4xx / 429) so callers' existing
+ * status handling is unchanged. Never retries a caller-initiated cancellation.
+ * Returns `done()` — call it once the response is fully consumed so the
+ * timeout/abort wiring is torn down (the timer stays armed until then, so a slow
+ * body read is bounded too).
+ */
+async function resilientFetch(
+  url: string,
+  init: RequestInit,
+  opts: { callerSignal?: AbortSignal; timeoutMs: number; retries?: number },
+): Promise<{ response: Response; done: () => void }> {
+  const retries = opts.retries ?? MAX_RETRIES;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const t = withTimeout(opts.callerSignal, opts.timeoutMs);
+    try {
+      const response = await fetch(url, { ...init, signal: t.signal });
+      // Retry only transient 5xx; surface 2xx/4xx/429 (and the final 5xx) as-is.
+      if (response.status >= 500 && attempt < retries) {
+        t.cleanup();
+        await sleep(backoffDelayMs(attempt));
+        continue;
+      }
+      return { response, done: t.cleanup };
+    } catch (err) {
+      t.cleanup();
+      if (opts.callerSignal?.aborted) throw err; // caller cancelled → final
+      lastError = t.timedOut()
+        ? new Error('The AI request timed out. Please try again.')
+        : err;
+      if (attempt < retries) {
+        await sleep(backoffDelayMs(attempt));
+        continue;
+      }
+      throw lastError;
+    }
+  }
+  throw lastError ?? new Error('AI request failed.');
+}
+
 async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
   const span = startSpan('callAI', { task: request.task, model: request.model, cacheSystem: !!request.cacheSystem });
 
@@ -39,75 +124,83 @@ async function callViaProxy(request: AIRequest): Promise<AIToolResponse> {
     // has no key, so it's safe to send. See modelRouter.pickProvider.
     const providerHint = pickProvider(request.task);
     const fetchStart = Date.now();
-    const response = await fetch(`${PROXY_URL}/claude`, {
-      method: 'POST',
-      signal: request.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+    const { response, done } = await resilientFetch(
+      `${PROXY_URL}/claude`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          system: request.system,
+          messages: request.messages,
+          // Default the output budget per task (generation time scales with it);
+          // an explicit request.maxTokens still wins. See modelRouter.pickMaxTokens.
+          maxTokens: request.maxTokens ?? pickMaxTokens(request.task),
+          model: request.model,
+          cacheSystem: request.cacheSystem,
+          task: request.task,
+          ...(providerHint ? { provider: providerHint } : {}),
+          ...(request.tools && request.tools.length > 0 ? { tools: request.tools } : {}),
+        }),
       },
-      body: JSON.stringify({
-        system: request.system,
-        messages: request.messages,
-        // Default the output budget per task (generation time scales with it);
-        // an explicit request.maxTokens still wins. See modelRouter.pickMaxTokens.
-        maxTokens: request.maxTokens ?? pickMaxTokens(request.task),
-        model: request.model,
-        cacheSystem: request.cacheSystem,
-        task: request.task,
-        ...(providerHint ? { provider: providerHint } : {}),
-        ...(request.tools && request.tools.length > 0 ? { tools: request.tools } : {}),
-      }),
-    });
-    const ttfbMs = Date.now() - fetchStart;
+      { callerSignal: request.signal, timeoutMs: REQUEST_TIMEOUT_MS },
+    );
 
-    if (response.status === 429) {
-      throw new Error("You've hit today's AI limit. Try again tomorrow.");
-    }
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`AI proxy ${response.status}: ${body.slice(0, 200)}`);
-    }
+    try {
+      const ttfbMs = Date.now() - fetchStart;
 
-    const data = await response.json();
-    // Latency breakdown: client-measured ttfb (request→headers) + total
-    // (request→body parsed), plus the Worker's Server-Timing (provider/worker).
-    // Lands in span metadata so the trace shows WHERE a slow call spent its time.
-    const latency = {
-      ttfbMs,
-      totalMs: Date.now() - fetchStart,
-      ...parseServerTiming(response.headers.get('Server-Timing')),
-    };
-    if (data.error) throw new Error(data.error);
+      if (response.status === 429) {
+        throw new Error("You've hit today's AI limit. Try again tomorrow.");
+      }
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        throw new Error(`AI proxy ${response.status}: ${body.slice(0, 200)}`);
+      }
 
-    const model = data.model ?? request.model ?? 'unknown';
-    if (data.usage) {
-      recordUsage({ model, task: request.task ?? 'unknown', usage: data.usage });
-      track(EVENTS.aiCall, {
-        task: request.task ?? 'unknown',
+      const data = await response.json();
+      // Latency breakdown: client-measured ttfb (request→headers) + total
+      // (request→body parsed), plus the Worker's Server-Timing (provider/worker).
+      // Lands in span metadata so the trace shows WHERE a slow call spent its time.
+      const latency = {
+        ttfbMs,
+        totalMs: Date.now() - fetchStart,
+        ...parseServerTiming(response.headers.get('Server-Timing')),
+      };
+      if (data.error) throw new Error(data.error);
+
+      const model = data.model ?? request.model ?? 'unknown';
+      if (data.usage) {
+        recordUsage({ model, task: request.task ?? 'unknown', usage: data.usage });
+        track(EVENTS.aiCall, {
+          task: request.task ?? 'unknown',
+          model,
+          input_tokens: data.usage.input_tokens,
+          output_tokens: data.usage.output_tokens,
+          cache_read_tokens: data.usage.cache_read_input_tokens,
+        });
+        endSpan(span, {
+          model,
+          inputTokens: data.usage.input_tokens,
+          outputTokens: data.usage.output_tokens,
+          cacheReadTokens: data.usage.cache_read_input_tokens,
+          cacheCreationTokens: data.usage.cache_creation_input_tokens,
+          costUsd: computeCost(model, data.usage),
+          metadata: latency,
+        });
+      } else {
+        endSpan(span, { model, metadata: latency });
+      }
+
+      return {
+        text: data.text ?? '',
+        functionCalls: Array.isArray(data.functionCalls) ? data.functionCalls : [],
         model,
-        input_tokens: data.usage.input_tokens,
-        output_tokens: data.usage.output_tokens,
-        cache_read_tokens: data.usage.cache_read_input_tokens,
-      });
-      endSpan(span, {
-        model,
-        inputTokens: data.usage.input_tokens,
-        outputTokens: data.usage.output_tokens,
-        cacheReadTokens: data.usage.cache_read_input_tokens,
-        cacheCreationTokens: data.usage.cache_creation_input_tokens,
-        costUsd: computeCost(model, data.usage),
-        metadata: latency,
-      });
-    } else {
-      endSpan(span, { model, metadata: latency });
+      };
+    } finally {
+      done();
     }
-
-    return {
-      text: data.text ?? '',
-      functionCalls: Array.isArray(data.functionCalls) ? data.functionCalls : [],
-      model,
-    };
   } catch (err) {
     endSpan(span, { status: 'error', error: err instanceof Error ? err.message : String(err) });
     throw err;
@@ -242,22 +335,24 @@ export async function callAIStream(
       ...parseServerTiming(response.headers.get('Server-Timing')),
     };
 
-    if (usage) {
-      recordUsage({ model, task: request.task ?? 'unknown', usage });
+    // Snapshot into a const so TS can narrow without closure-escape widening.
+    const finalUsage = usage;
+    if (finalUsage) {
+      recordUsage({ model, task: request.task ?? 'unknown', usage: finalUsage });
       track(EVENTS.aiCall, {
         task: request.task ?? 'unknown',
         model,
-        input_tokens: usage.input_tokens,
-        output_tokens: usage.output_tokens,
-        cache_read_tokens: usage.cache_read_input_tokens,
+        input_tokens: finalUsage.input_tokens,
+        output_tokens: finalUsage.output_tokens,
+        cache_read_tokens: finalUsage.cache_read_input_tokens,
       });
       endSpan(span, {
         model,
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cacheReadTokens: usage.cache_read_input_tokens,
-        cacheCreationTokens: usage.cache_creation_input_tokens,
-        costUsd: computeCost(model, usage),
+        inputTokens: finalUsage.input_tokens,
+        outputTokens: finalUsage.output_tokens,
+        cacheReadTokens: finalUsage.cache_read_input_tokens,
+        cacheCreationTokens: finalUsage.cache_creation_input_tokens,
+        costUsd: computeCost(model, finalUsage),
         metadata: latency,
       });
     } else {
