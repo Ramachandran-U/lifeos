@@ -455,6 +455,105 @@ See `MOTION.md` scene 06 for the full enter / exit timing chart.
 
 ---
 
+## Phase 10 · Brilliant-inspired press + gradient + celebration pass — ✅ shipped 2026-06-09
+
+Unlike the phases above, this one is **already applied** — it's recorded here as the
+design-system log of what landed, not an apply-me diff. Motivation: a competitive
+pass over Brilliant's "feel alive" interaction language (physical press, gradient
+progress, distinct haptics, number rolls, celebration bursts). Zero new deps — all
+`react-native-reanimated` + `expo-linear-gradient` (already installed) + `expo-haptics`.
+Rive was evaluated and **deliberately skipped** (needs Expo prebuild; Reanimated
+covers the same ground). Verified: `npm run typecheck` clean on all touched files,
+242/242 component tests, gradient bars confirmed in a real web build.
+
+### `src/theme/colors.ts` — `+ add` `DOMAIN_GRADIENTS`
+
+A two-stop (hue → ~25 % lighter) gradient per domain, plus `primary` and `xp`. This
+is **additive** — it does not touch the existing palette (the "do not change
+`colors.ts`" rule above is about the resting hues, not new tokens). Consumed by the
+gradient progress bars below; `useGoalTypeColor()` now also returns a `gradient` pair.
+
+### `src/components/ui/Button.tsx` — press opacity → spring scale
+
+Same move Phase 3 made for `GlassCard`, now on the primary `Button`. The flat
+`opacity: pressed ? 0.85 : 1` is replaced by a spring scale to **0.97** on `onPressIn`
+and back on `onPressOut`, wrapping the content in an `Animated.View`. Commit haptic
+softened `Medium → Light` (guardrail 2 + 4: immediate *feel*, light touch).
+Accessibility/loading/disabled surface unchanged — `Button.test` still green.
+(The scale logic was subsequently extracted into the shared `usePressScale` hook —
+see the press-feel rollout below; Button now consumes it.)
+
+### `src/hooks/usePressScale.ts` — `+ add` (new) — shared press-feel, rolled out to cards
+
+The spring-compression interaction extracted into one reusable primitive so every
+tappable surface shares one motion vocabulary instead of each re-implementing opacity
+dips or ad-hoc scales. Returns `{ onPressIn, onPressOut, animatedStyle }`; honors
+reduce-motion for free (`useSpringConfig` collapses to a near-instant overdamped spring
+at motion intensity 0). Convention: controls compress to **0.97**, larger card surfaces
+to a gentler **0.98** so the motion reads as proportional to size.
+
+Rolled out to the tappable surfaces:
+
+- **`Button.tsx`** — refactored onto the hook (removed its inline copy; no behavior change).
+- **`GlassCard.tsx`** — replaced the Phase 3 discrete `scale: 0.985` + opacity dip with
+  the spring hook. Highest-leverage: every `GlassCard onPress={…}` across the app now
+  springs, with no per-call-site change.
+- **`QuestCard.tsx`** — replaced the `opacity: pressed ? 0.9 : 1` dip; the card style
+  moved onto an inner `Animated.View` carrying the scale.
+- **`GoalCard.tsx`** — its `onPress` branch now wraps `content` in a scaled `Animated.View`.
+
+Deliberately **not** applied to `RoutineBlock.tsx` — it owns a bespoke long-press-to-
+complete gesture (Phase 6 / MOTION scene 02) that a press-scale could fight. Left for a
+later pass that coordinates the two. Verified: typecheck clean on touched files, 15/15
+across `Button`/`QuestCard`/`GoalCard` tests, GoalCard confirmed rendering post-restructure
+in a real web build.
+
+### `src/components/ui/ProgressBar.tsx` + `src/components/gamification/XpBar.tsx` — gradient fill
+
+Both gained an optional `gradientColors?: readonly [string, string]` prop. When set,
+the animated fill renders an `expo-linear-gradient` (left→right) instead of a solid
+`backgroundColor`; omitted → solid, fully backwards-compatible. Wired through all six
+module progress bars (`GoalCard`, `FinanceGoalCard`, `GoalHierarchy`, `SkillGapChart`,
+`LearningResourceCard`, `SocialScoreCard`) using `DOMAIN_GRADIENTS` / the goal-type
+gradient. `XpBar` defaults to `DOMAIN_GRADIENTS.xp`.
+
+### `src/components/gamification/XpChip.tsx` — number roll
+
+The XP amount now rolls on change with the **scene 04 / StreakFlame** choreography
+(old value slides up + fades, new springs in from below via `EASING.bounce`), gated on
+`useMotionScale()`. Because the chip now renders prefix / number / suffix as separate
+`Text` nodes, it exposes a composed `accessibilityLabel` (`+30 XP`) — `XpChip.test` and
+`QuestCard.test` assert against that label.
+
+### `src/components/gamification/RewardOrchestrator.tsx` — streak haptic + burst
+
+Streak beats now fire `ImpactFeedbackStyle.Heavy` (a satisfying "thud") while XP beats
+stay `Light`. Peak beats (any streak, or XP ≥ 50) also mount a `CelebrationBurst`.
+
+### `src/components/gamification/CelebrationBurst.tsx` — `+ add` (new) — see MOTION.md scene 12
+
+A radial particle burst (12 dots, even angular spread, gravity arc, fade) for
+celebration peaks. Pure Reanimated, fixed-count `Particle` children, skipped entirely
+under reduce-motion. Full pattern documented in `MOTION.md` scene 12.
+
+### Tooling · `.claude/skills/run-lifeos/driver.mjs` — `+ add` `--rich` seed
+
+Opt-in flag (requires `--seed`) that layers stepped goals + finance goal/milestones +
+contacts so the gradient bars and social score render filled for visual regression
+(Career 75 %, Health 40 %, Finance 50 %, Social 60 %). See the skill's SKILL.md.
+
+### Tests · `e2e/visual-regression.spec.ts` — `+ add` (new) — screenshot baselines
+
+A Playwright `visual` project that pins the gradient bars against committed
+screenshots. Seeds the same filled proportions via `seedVisualRich` (the in-suite
+mirror of `--rich`, with reduce-motion + A2HS-dismissed for determinism), captures
+`/goals` and `/social` on an iPhone-13 viewport, and asserts `toHaveScreenshot`.
+Run `npm run visual` / `npm run visual:update`. Deliberately **not** in CI —
+Playwright baselines are OS-specific and this repo's CI is Linux (see e2e/README.md
+§ Visual regression).
+
+---
+
 ## What you should NOT change
 
 - `src/theme/colors.ts`, `typography.ts`, `spacing.ts`, `density.ts`, `surfaces.ts`, `shadows.ts` — leave alone.

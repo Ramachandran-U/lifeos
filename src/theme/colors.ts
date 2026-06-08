@@ -43,6 +43,20 @@ const MODULE = {
   inkOnColor:   '#1A0612',
 } as const;
 
+// Two-stop left→right gradient per domain — used by ProgressBar, XpBar, etc.
+// End stop is ~25% lighter than the domain hue; same in both themes since
+// domain hues are fixed accent colours.
+export const DOMAIN_GRADIENTS = {
+  goal:     ['#C9A0FF', '#E4CBFF'] as const,
+  health:   ['#7EE0B8', '#AEEFD8'] as const,
+  finance:  ['#F4C16A', '#FAD89A'] as const,
+  career:   ['#7FB8FF', '#AECFFF'] as const,
+  social:   ['#FF99C5', '#FFB8D9'] as const,
+  polymath: ['#FFD66B', '#FFE49A'] as const,
+  primary:  ['#A584FF', '#C5B3FF'] as const,
+  xp:       ['#C5B3FF', '#DDD4FF'] as const,
+} as const;
+
 // ─── Dark palette (Aurora Glass — primary) ───────────────────────────────────
 
 export const darkColors = {

@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, PressableProps, StyleSheet, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, PressableProps, StyleSheet, ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { usePressScale } from '@/hooks/usePressScale';
 import { Body } from './Typography';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -34,6 +36,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const c = useColors();
+
   const variantStyles: Record<ButtonVariant, { bg: string; text: string; border?: string }> = {
     primary: { bg: c.primary, text: '#FFFFFF' },
     secondary: { bg: 'transparent', text: c.primary, border: c.primary },
@@ -43,36 +46,56 @@ export function Button({
   const v = variantStyles[variant];
   const isInteractive = !disabled && !loading;
 
+  // Spring-based press scale — Brilliant-style physical depth feedback.
+  const { onPressIn, onPressOut, animatedStyle: scaleStyle } = usePressScale(0.97);
+
+  const handlePressIn = () => {
+    if (!isInteractive) return;
+    onPressIn();
+  };
+
+  const handlePressOut = () => {
+    onPressOut();
+  };
+
   const handlePress = (e: Parameters<NonNullable<PressableProps['onPress']>>[0]) => {
     if (!isInteractive) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     onPress?.(e);
   };
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.base,
-        {
-          backgroundColor: v.bg,
-          borderColor: v.border ?? 'transparent',
-          borderWidth: v.border ? 1.5 : 0,
-          opacity: !isInteractive ? 0.45 : pressed ? 0.85 : 1,
-        },
-        style,
-      ]}
       onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={!isInteractive}
       accessibilityRole="button"
       accessibilityState={{ disabled: !isInteractive, busy: loading }}
       {...props}
     >
-      <View style={styles.content}>
-        {loading && <ActivityIndicator size="small" color={v.text} />}
-        {!loading && icon && iconPosition === 'left' ? icon : null}
-        <Body style={[styles.label, { color: v.text }]}>{loading && loadingTitle ? loadingTitle : title}</Body>
-        {!loading && icon && iconPosition === 'right' ? icon : null}
-      </View>
+      <Animated.View
+        style={[
+          styles.base,
+          {
+            backgroundColor: v.bg,
+            borderColor: v.border ?? 'transparent',
+            borderWidth: v.border ? 1.5 : 0,
+            opacity: !isInteractive ? 0.45 : 1,
+          },
+          style,
+          scaleStyle,
+        ]}
+      >
+        <Animated.View style={styles.content}>
+          {loading && <ActivityIndicator size="small" color={v.text} />}
+          {!loading && icon && iconPosition === 'left' ? icon : null}
+          <Body style={[styles.label, { color: v.text }]}>
+            {loading && loadingTitle ? loadingTitle : title}
+          </Body>
+          {!loading && icon && iconPosition === 'right' ? icon : null}
+        </Animated.View>
+      </Animated.View>
     </Pressable>
   );
 }
