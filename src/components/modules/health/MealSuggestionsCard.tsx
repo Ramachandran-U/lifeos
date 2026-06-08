@@ -48,7 +48,7 @@ export function MealSuggestionsCard({
 }: MealSuggestionsCardProps) {
   const c = useColors();
   const styles = makeStyles(c);
-  const { call, loading } = useAI();
+  const { call, loading, error } = useAI();
   const [suggestion, setSuggestion] = useState<MealSuggestion | null>(null);
   const [logged, setLogged] = useState<Set<number>>(new Set());
   const [targetMeal, setTargetMeal] = useState<MealType>('lunch');
@@ -117,6 +117,15 @@ export function MealSuggestionsCard({
           variant="secondary"
           onPress={handleSuggest}
         />
+      )}
+
+      {/* The AI call (via useAI) swallows thrown errors into `error` and returns
+          null, so without this the button would silently do nothing on a failed
+          fetch/refresh. Surface a friendly retry hint instead. */}
+      {error && !loading && (
+        <Caption style={{ color: c.error }}>
+          Couldn't fetch meal ideas just now. Tap to try again.
+        </Caption>
       )}
 
       {suggestion && (

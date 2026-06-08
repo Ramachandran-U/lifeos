@@ -224,11 +224,19 @@ export function useVoice(
 
   const sendText = useCallback(
     (text: string) => {
+      // The session drops sendText() when the socket isn't open, so without this
+      // guard a typed message would vanish and the UI would sit on "thinking"
+      // forever. Surface the disconnected state instead of hanging.
+      if (!sessionRef.current?.isOpen()) {
+        setError('Not connected — wait for the assistant to connect, or close and reopen it.');
+        return;
+      }
+      setError(null);
       setUserTranscript((prev) => (prev ? `${prev}\n${text}` : text));
       // Typed messages get no mic-driven "thinking" transition, so set it here
       // for immediate feedback that the message is being processed.
       setStatus('thinking');
-      sessionRef.current?.sendText(text);
+      sessionRef.current.sendText(text);
     },
     [setStatus],
   );

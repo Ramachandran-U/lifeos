@@ -4,7 +4,17 @@ import type { AgentTool } from './agent/runtime';
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true';
 
-const MODEL = 'models/gemini-2.5-flash-native-audio-preview-12-2025';
+// Track the current stable native-audio model via the `-latest` alias instead
+// of pinning the dated `preview-12-2025`, which Google's Live API has been
+// closing mid-turn with code=1011 at a high rate since late May 2026 (known
+// upstream issue — see Google AI Developers Forum). `-latest`, the two dated
+// previews, and `gemini-3.1-flash-live-preview` are all visible to our key;
+// `-latest` is the safe default. Override per-build via EXPO_PUBLIC_VOICE_MODEL
+// (e.g. set it to `models/gemini-3.1-flash-live-preview` to try the newer live
+// model) without touching code.
+const MODEL =
+  process.env.EXPO_PUBLIC_VOICE_MODEL ||
+  'models/gemini-2.5-flash-native-audio-latest';
 
 function buildWsUrl(): string {
   const base = PROXY_URL.replace(/^http/, 'ws');

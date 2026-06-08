@@ -216,6 +216,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       pendingBadges: [...get().pendingBadges, ...newBadges],
     });
 
+    // Snapshot the new XP + scores so the Rewards charts reflect this completion
+    // immediately, rather than only on the next focus/loadFromDB. Mirrors
+    // completeGoalNode (domain history) + loadFromDB (XP history); idempotent
+    // within a UTC day, so repeated completions just refresh today's point.
+    import('./useDomainHistoryStore').then(({ useDomainHistoryStore }) =>
+      useDomainHistoryStore.getState().record(newScores),
+    ).catch(() => { /* non-fatal */ });
+    import('./useXpHistoryStore').then(({ useXpHistoryStore }) =>
+      useXpHistoryStore.getState().record(newXP),
+    ).catch(() => { /* non-fatal */ });
+
     // Routine quest — every completed block ticks toward "Complete morning routine".
     get().advanceQuest('q_routine', 1);
   },

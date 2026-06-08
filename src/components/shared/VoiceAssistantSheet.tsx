@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, TextInput, View, ScrollView } from 'react-native';
 import Animated, {
   FadeIn,
@@ -18,7 +18,10 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { useVoice, type VoiceStatus } from '@/hooks/useVoice';
 import { SPRING, useStaggerDelay } from '@/theme/motion';
+import { callAIStream } from '@/ai/client';
 import type { AgentTool } from '@/ai/agent/runtime';
+import type { VoiceSessionOptions } from '@/ai/voiceClient';
+import { getUser } from '@/db/queries/users';
 
 // ─── Status presentation ──────────────────────────────────────────────────────
 function statusColor(c: AppColors, status: VoiceStatus, hasError: boolean): string {
@@ -78,6 +81,8 @@ interface VoiceAssistantSheetProps {
   visible: boolean;
   onClose: () => void;
   systemInstruction?: string;
+  /** Override the voice. If omitted, the user's saved preferredVoiceId is used. */
+  voice?: VoiceSessionOptions['voice'];
   /** Read-only tools the assistant can call to ground answers in real data. */
   tools?: AgentTool[];
 }
@@ -86,24 +91,67 @@ export function VoiceAssistantSheet({
   visible,
   onClose,
   systemInstruction,
+  voice: voiceProp,
   tools,
 }: VoiceAssistantSheetProps) {
   const c = useColors();
   const [input, setInput] = useState('');
-  const voice = useVoice({ systemInstruction, tools });
+  const resolvedVoice = (voiceProp ?? (getUser()?.preferredVoiceId ?? undefined)) as VoiceSessionOptions['voice'] | undefined;
+  const voice = useVoice({ systemInstruction, tools, voice: resolvedVoice });
   // 50 ms step matches MOTION scene-06 chart for inner stagger.
   const stagger = useStaggerDelay();
+  const scrollRef = useRef<ScrollView | null>(null);
+
+  // Fallback text chat. The live session silently drops sendText() when its
+  // socket isn't open, so when voice isn't connected we route typed messages
+  // through the reliable HTTP chat path instead — text-only replies (no spoken
+  // audio), but the chat box keeps working when the live-audio socket is down.
+  // Own thread/state, rendered above the spoken transcript.
+  const [httpMessages, setHttpMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [httpStreaming, setHttpStreaming] = useState<string | null>(null);
+  const [httpBusy, setHttpBusy] = useState(false);
+  const [httpError, setHttpError] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) voice.connect();
     else voice.disconnect();
   }, [visible]);
 
+  const sendViaHttp = async (text: string) => {
+    setHttpError(null);
+    const next = [...httpMessages, { role: 'user' as const, content: text }];
+    setHttpMessages(next);
+    setHttpBusy(true);
+    setHttpStreaming('');
+    try {
+      let acc = '';
+      await callAIStream(
+        { system: systemInstruction, messages: next, maxTokens: 800, task: 'chatbot', cacheSystem: true },
+        (chunk) => {
+          acc += chunk;
+          setHttpStreaming(acc);
+        },
+      );
+      setHttpMessages((prev) => [...prev, { role: 'assistant', content: acc.trim() }]);
+    } catch (e) {
+      setHttpError(e instanceof Error ? e.message : "Couldn't reach the assistant. Please try again.");
+    } finally {
+      setHttpStreaming(null);
+      setHttpBusy(false);
+    }
+  };
+
   const handleSend = () => {
     const trimmed = input.trim();
-    if (!trimmed) return;
-    voice.sendText(trimmed);
+    if (!trimmed || httpBusy) return;
     setInput('');
+    if (voice.isConnected) {
+      // Live session up — let it handle the turn (it can also speak the reply).
+      voice.sendText(trimmed);
+    } else {
+      // Live-audio socket unavailable → fall back to HTTP so typed chat works.
+      void sendViaHttp(trimmed);
+    }
   };
 
   const statusLabel = voice.error
@@ -200,9 +248,31 @@ export function VoiceAssistantSheet({
           )}
 
           <ScrollView
+            ref={scrollRef}
             style={[styles.transcript, { borderColor: c.border, backgroundColor: c.card }]}
             contentContainerStyle={styles.transcriptContent}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
           >
+            {/* Fallback text-chat thread — shown when typed messages were routed
+                through HTTP because the live session wasn't connected. */}
+            {httpMessages.map((m, i) => (
+              <View key={`http-${i}`} style={{ marginBottom: spacing.sm }}>
+                <Caption style={{ color: c.textMuted, marginBottom: 2 }}>
+                  {m.role === 'user' ? 'You' : 'Assistant'}
+                </Caption>
+                <Body style={{ color: m.role === 'user' ? c.textSecondary : c.textPrimary, fontSize: fontSizes.sm }}>
+                  {m.content}
+                </Body>
+              </View>
+            ))}
+            {httpStreaming !== null && (
+              <View style={{ marginBottom: spacing.sm }}>
+                <Caption style={{ color: c.textMuted, marginBottom: 2 }}>Assistant</Caption>
+                <Body style={{ color: c.textPrimary, fontSize: fontSizes.sm }}>{httpStreaming || '…'}</Body>
+              </View>
+            )}
+
+            {/* Spoken-turn transcript (live voice session). */}
             {!!voice.userTranscript && (
               <View style={{ marginBottom: spacing.sm }}>
                 <Caption style={{ color: c.textMuted, marginBottom: 2 }}>You</Caption>
@@ -224,11 +294,14 @@ export function VoiceAssistantSheet({
               }}
               testID="voice-transcript"
             >
-              {voice.transcript || 'Ask anything about your day, goals, or routine.'}
+              {voice.transcript ||
+                (httpMessages.length === 0 && httpStreaming === null
+                  ? 'Ask anything about your day, goals, or routine.'
+                  : '')}
             </Body>
-            {voice.error && (
+            {(httpError || voice.error) && (
               <Caption style={{ color: c.error, marginTop: spacing.sm }}>
-                {voice.error}
+                {httpError || voice.error}
               </Caption>
             )}
           </ScrollView>
@@ -248,8 +321,9 @@ export function VoiceAssistantSheet({
               testID="voice-input"
             />
             <Pressable
-              style={[styles.sendBtn, { backgroundColor: c.primary }]}
+              style={[styles.sendBtn, { backgroundColor: c.primary }, httpBusy && { opacity: 0.4 }]}
               onPress={handleSend}
+              disabled={httpBusy}
               testID="voice-send"
             >
               <Ionicons name="arrow-up" size={18} color="#fff" />
