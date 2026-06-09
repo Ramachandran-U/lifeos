@@ -10,6 +10,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Button } from '@/components/ui/Button';
 import { Body, Label, Caption } from '@/components/ui/Typography';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -471,7 +472,11 @@ export default function HealthScreen() {
         )}
 
         {/* Calorie Tracking — collapsible sub-section */}
-        <Pressable onPress={() => toggleSection('calories')}>
+        <PressableScale
+          onPress={() => toggleSection('calories')}
+          accessibilityRole="button"
+          accessibilityLabel={`Calorie tracking, ${openSection === 'calories' ? 'expanded' : 'collapsed'}`}
+        >
           <Card style={styles.sectionHeader}>
             <View style={styles.sectionHeaderRow}>
               <View>
@@ -488,7 +493,7 @@ export default function HealthScreen() {
               />
             </View>
           </Card>
-        </Pressable>
+        </PressableScale>
 
         {openSection === 'calories' && (
           <Animated.View entering={FadeInDown.duration(300)} style={styles.sectionBody}>
@@ -557,7 +562,11 @@ export default function HealthScreen() {
         )}
 
         {/* Blood Reports — collapsible sub-section */}
-        <Pressable onPress={() => toggleSection('blood')}>
+        <PressableScale
+          onPress={() => toggleSection('blood')}
+          accessibilityRole="button"
+          accessibilityLabel={`Blood reports, ${openSection === 'blood' ? 'expanded' : 'collapsed'}`}
+        >
           <Card style={styles.sectionHeader}>
             <View style={styles.sectionHeaderRow}>
               <View>
@@ -573,7 +582,7 @@ export default function HealthScreen() {
               />
             </View>
           </Card>
-        </Pressable>
+        </PressableScale>
 
         {openSection === 'blood' && (
           <Animated.View entering={FadeInDown.duration(300)} style={styles.sectionBody}>

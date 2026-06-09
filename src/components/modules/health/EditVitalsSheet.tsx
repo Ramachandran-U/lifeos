@@ -63,7 +63,23 @@ export function EditVitalsSheet({
     }
   }, [visible, initialWeightKg, initialHeightCm, initialAge, initialSex, initialActivityLevel, initialGoalType]);
 
+  // Inline validation so invalid input is explained, not silently dropped.
+  const ageNum = parseInt(age, 10);
+  const weightNum = parseFloat(weight);
+  const heightNum = parseFloat(height);
+  const ageError = age.trim() && (!Number.isFinite(ageNum) || ageNum < MIN_AGE || ageNum > MAX_AGE)
+    ? `Enter an age between ${MIN_AGE} and ${MAX_AGE}`
+    : null;
+  const weightError = weight.trim() && (!Number.isFinite(weightNum) || weightNum <= 0)
+    ? 'Enter a weight in kg greater than 0'
+    : null;
+  const heightError = height.trim() && (!Number.isFinite(heightNum) || heightNum <= 0)
+    ? 'Enter a height in cm greater than 0'
+    : null;
+  const hasError = Boolean(ageError || weightError || heightError);
+
   const handleSave = () => {
+    if (hasError) return;
     const w = parseFloat(weight);
     const h = parseFloat(height);
     const a = parseInt(age, 10);
@@ -98,6 +114,7 @@ export function EditVitalsSheet({
               onChangeText={setWeight}
               keyboardType="decimal-pad"
             />
+            {weightError && <Caption style={{ color: c.error }}>{weightError}</Caption>}
             <Input
               label="Height (cm)"
               placeholder="175"
@@ -105,6 +122,7 @@ export function EditVitalsSheet({
               onChangeText={setHeight}
               keyboardType="decimal-pad"
             />
+            {heightError && <Caption style={{ color: c.error }}>{heightError}</Caption>}
             <Input
               label="Age"
               placeholder="30"
@@ -112,6 +130,7 @@ export function EditVitalsSheet({
               onChangeText={setAge}
               keyboardType="number-pad"
             />
+            {ageError && <Caption style={{ color: c.error }}>{ageError}</Caption>}
 
             <Label style={styles.fieldLabel}>Sex (for calorie accuracy)</Label>
             <View style={styles.chipRow}>
@@ -152,7 +171,7 @@ export function EditVitalsSheet({
               ))}
             </View>
 
-            <Button title="Save" onPress={handleSave} />
+            <Button title="Save" onPress={handleSave} disabled={hasError} />
           </ScrollView>
         </Pressable>
       </Pressable>
