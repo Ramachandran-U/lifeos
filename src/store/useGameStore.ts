@@ -23,8 +23,10 @@ import {
   restoreFromLoss,
   markMilestoneCelebrated,
   accrueFreezeProgress,
+  MAX_FREEZES_BANKED,
   type MilestoneTier,
 } from '@/gamification/streakEngine';
+import { maybeGrantChest } from '@/gamification/chestGrants';
 import { useFlagStore } from './useFlagStore';
 import { tickQuestMetric } from './useQuestStore';
 import { track, EVENTS } from '@/utils/telemetry';
@@ -73,6 +75,8 @@ interface GameState {
   freezeProgressXP: number;
   pendingMilestone: { streakKey: keyof Streaks; tier: MilestoneTier } | null;
   pendingStreakLoss: { streakKey: keyof Streaks; lostCount: number } | null;
+  // variable_rewards_v1 — owned companion-cosmetic ids (chest drops).
+  cosmetics: string[];
 
   loadFromDB: (userId: string) => void;
   completeBlock: (userId: string, module: string, completedCount: number, totalCount: number) => void;
@@ -87,6 +91,10 @@ interface GameState {
   triggerStreak: (userId: string, streakType: keyof Streaks) => void;
   /** Recovery CTA: restore a streak lost within the last 24h. */
   restoreStreak: (userId: string, streakType: keyof Streaks) => boolean;
+  /** Chest drop: bank one streak freeze (clamped — lootTable converts overflow to XP). */
+  addFreeze: (userId: string) => void;
+  /** Chest drop: own a cosmetic. Sorted union, mirroring mergeGamification. */
+  addCosmetic: (userId: string, cosmeticId: string) => void;
   awardBadge: (userId: string, badgeId: BadgeId) => void;
   popBadge: () => BadgeId | undefined;
   advanceQuest: (id: string, delta?: number) => void;
@@ -182,6 +190,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   freezeProgressXP: 0,
   pendingMilestone: null,
   pendingStreakLoss: null,
+  cosmetics: [],
 
   loadFromDB: (userId) => {
     const game = getOrCreateGamification(userId);
@@ -208,6 +217,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     // guarantees all five keys are always present.
     try { streaks = { ...DEFAULT_STREAKS, ...JSON.parse(game.streaks) }; } catch { /* keep default */ }
     try { badges = JSON.parse(game.badges); } catch { /* keep default */ }
+    let cosmetics: string[] = [];
+    try {
+      const parsed = JSON.parse(game.cosmetics ?? '[]');
+      if (Array.isArray(parsed)) cosmetics = parsed.filter((v): v is string => typeof v === 'string');
+    } catch { /* keep default */ }
 
     // Retroactive first_blueprint award. The badge used to only be granted
     // from day1-routine.tsx; users who finished via welcome-intent or
@@ -231,6 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       domainScores: scores,
       streaks,
       badges,
+      cosmetics,
       totalXP: game.totalXP,
       weeklyXP: game.weeklyXP,
       streakFreezes: game.streakFreezes ?? 0,
@@ -423,6 +438,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       nextStreak = markMilestoneCelebrated(nextStreak, result.milestoneCrossed);
       pendingMilestone = { streakKey: streakType, tier: result.milestoneCrossed };
       track(EVENTS.streakMilestone, { streak: streakType, tier: result.milestoneCrossed });
+      // R2: the big identity tiers (30/100/365) also drop a chest. 7-day
+      // milestones fire weekly across five streak types — too frequent for a
+      // variable reward to stay special. No-op while variable_rewards_v1 is
+      // off; capped ≤1/day inside.
+      if (result.milestoneCrossed >= 30) maybeGrantChest(userId, 'milestone');
     }
     if (result.lost) {
       // Surface recovery only for runs worth mourning (mirrors the cognition
@@ -479,6 +499,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
     track(EVENTS.streakRecovered, { streak: streakType, count: restored.count });
     return true;
+  },
+
+  addFreeze: (userId) => {
+    // Spendable counter ⇒ LWW in mergeGamification — write the new absolute
+    // value, never a delta. Clamped defensively: lootTable converts a roll on
+    // a full bank to XP, so this should never actually hit the ceiling.
+    const next = Math.min(MAX_FREEZES_BANKED, get().streakFreezes + 1);
+    updateGamification(userId, { streakFreezes: next });
+    set({ streakFreezes: next });
+  },
+
+  addCosmetic: (userId, cosmeticId) => {
+    const { cosmetics } = get();
+    if (cosmetics.includes(cosmeticId)) return;
+    // Sorted union — byte-identical to what mergeGamification produces, so a
+    // local add and a sync merge can never disagree on ordering.
+    const next = [...cosmetics, cosmeticId].sort();
+    updateGamification(userId, { cosmetics: JSON.stringify(next) });
+    set({ cosmetics: next });
   },
 
   awardBadge: (userId, badgeId) => {

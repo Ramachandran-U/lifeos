@@ -470,6 +470,26 @@ export async function initDatabase() {
     );
     CREATE INDEX IF NOT EXISTS quests_user_day_idx ON quests (user_id, day_local);
 
+    -- Variable-reward chests (Aurora Alive R2, variable_rewards_v1). Granted
+    -- on peak moments, max one per local day; the roll is sealed by seed at
+    -- grant time. Chests only ADD (xp/freeze/cosmetic) — no timers, expiry,
+    -- or purchases.
+    CREATE TABLE IF NOT EXISTS chests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      source TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      seed TEXT NOT NULL,
+      contents TEXT,
+      day_local TEXT NOT NULL,
+      granted_at TEXT NOT NULL,
+      claimed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS chests_user_day_idx ON chests (user_id, day_local);
+
     -- Append-only XP ledger (Aurora Alive R0). Every grant via grantXP lands
     -- here in addition to the gamification counters; day_local buckets make a
     -- future server-side weekly league a pure GROUP BY over synced rows.

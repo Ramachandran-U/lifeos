@@ -15,6 +15,7 @@ import {
 } from '@/gamification/questEngine';
 import type { DailyQuestGenResult } from '@/ai/types';
 import { enqueueXPReward } from './useRewardQueueStore';
+import { maybeGrantChest } from '@/gamification/chestGrants';
 import { useFlagStore } from './useFlagStore';
 import type { DomainKey } from '@/components/ui/DomainGlyph';
 import { track, EVENTS } from '@/utils/telemetry';
@@ -111,6 +112,17 @@ export const useQuestStore = create<QuestV2State>((set, get) => ({
     track(EVENTS.questClaimed, { template: q.templateId ?? q.metricKey, xp: q.xp });
 
     get().refresh(userId);
+
+    // R2 (variable_rewards_v1): claiming the LAST live quest of the day is a
+    // peak moment — the full sweep drops a chest. Rerolled rows don't count
+    // against the sweep (they were replaced), but at least one claim must
+    // exist so an all-rerolled day can't trigger it. No-op while the flag is
+    // off; capped ≤1/day inside maybeGrantChest.
+    const rows = get().quests;
+    const live = rows.filter((r) => r.status !== 'rerolled');
+    if (live.length > 0 && live.every((r) => r.status === 'claimed')) {
+      maybeGrantChest(userId, 'quest_sweep');
+    }
     return true;
   },
 
