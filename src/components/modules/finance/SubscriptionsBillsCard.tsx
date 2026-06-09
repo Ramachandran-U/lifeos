@@ -55,7 +55,7 @@ export function SubscriptionsBillsCard({ clientId }: { clientId?: string }) {
           )}
         </View>
         {it.amount > 0 && <Body style={styles.amount}>{formatInr(it.amount)}</Body>}
-        <Pressable onPress={() => void dismiss(it.id)} hitSlop={10}>
+        <Pressable onPress={() => void dismiss(it.id)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dismiss">
           <Ionicons name="close" size={16} color={c.textMuted} />
         </Pressable>
       </View>

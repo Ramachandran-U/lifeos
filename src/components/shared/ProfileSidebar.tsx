@@ -180,7 +180,7 @@ export function ProfileSidebar({ visible, onClose }: ProfileSidebarProps) {
           showsVerticalScrollIndicator={false}
         >
           {/* Close button */}
-          <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={12}>
+          <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close menu">
             <Ionicons name="close" size={22} color={c.textSecondary} />
           </Pressable>
 
