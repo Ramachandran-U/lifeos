@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Body } from '@/components/ui/Typography';
 import { AuroraAnimatedBackground } from '@/components/shared/AuroraAnimatedBackground';
 
@@ -31,9 +31,10 @@ export default function WelcomeScreen() {
         </Animated.View>
       </View>
       <Animated.View entering={FadeInDown.delay(800).duration(600)} style={styles.bottom}>
-        <Button
+        <Button3D
           title="Let's build your life plan"
           onPress={() => router.push('/(onboarding)/day1-vision')}
+          fullWidth
         />
       </Animated.View>
       </SafeAreaView>
