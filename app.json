@@ -41,7 +41,8 @@
           "contactsPermission": "LifeOS reads your contacts only so you can pick people to add to your Social Hub. Names and details stay on this device and are never sent to any server."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-audio"
     ],
     "ios": {
       "bundleIdentifier": "com.lifeos.app",
