@@ -3,6 +3,7 @@ import { addDays, setHours, setMinutes, parseISO } from 'date-fns';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Platform } from 'react-native';
+import { STREAK_AT_RISK_NOTIFICATION } from '@/constants/notifications';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -144,8 +145,8 @@ export async function scheduleStreakAtRiskNotification() {
   await Notifications.scheduleNotificationAsync({
     identifier: 'streak_at_risk',
     content: {
-      title: 'Streak at risk!',
-      body: 'Don\'t lose your streak — complete one task before midnight to keep it alive.',
+      title: STREAK_AT_RISK_NOTIFICATION.title,
+      body: STREAK_AT_RISK_NOTIFICATION.body,
       data: { screen: 'today' },
     },
     trigger: {
