@@ -10,7 +10,7 @@ import Animated, {
   Extrapolate,
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
-import { EASING } from '@/theme/motion';
+import { EASING, MOTION_BUDGET } from '@/theme/motion';
 import { DOMAIN_META } from '@/constants/gamification';
 import type { DomainKey, ColorKey } from '@/constants/gamification';
 import { DOMAIN_ICONS } from '@/theme/domainIcons';
@@ -94,7 +94,7 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
     prevVertices.value = pv;
     nextVertices.value = nv;
     morphP.value = 0;
-    morphP.value = withTiming(1, { duration: 1600, easing: EASING.inOut });
+    morphP.value = withTiming(1, { duration: MOTION_BUDGET.morphLong, easing: EASING.inOut });
 
     prevScoresRef.current = scores;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,8 +125,8 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
     if (pulseKey && pulseKey !== prevPulseKey.current) {
       pulseScale.value = 1;
       pulseScale.value = withSequence(
-        withTiming(1.2, { duration: 400, easing: EASING.bounce }),
-        withTiming(1, { duration: 400, easing: EASING.bounce }),
+        withTiming(1.2, { duration: MOTION_BUDGET.reveal, easing: EASING.bounce }),
+        withTiming(1, { duration: MOTION_BUDGET.reveal, easing: EASING.bounce }),
       );
     }
     prevPulseKey.current = pulseKey;

@@ -17,13 +17,17 @@ import { Text as AuroraText } from '@/components/ui/Text';
 import { DomainGlyph } from '@/components/ui/DomainGlyph';
 import { CelebrationBurst } from '@/components/gamification/CelebrationBurst';
 import { useRewardQueueStore, type RewardBeat } from '@/store/useRewardQueueStore';
-import { useMotionScale } from '@/theme/motion';
+import { MOTION_BUDGET, useMotionScale } from '@/theme/motion';
 import { usePreferencesStore } from '@/store/usePreferencesStore';
 
 // Mounted once at the root. Drains the reward queue with the Aurora
 // choreography — currently the XP chip beat. Badge toasts and level-up
 // overlays continue to be rendered by AchievementToast / LevelUpOverlay
 // (this orchestrator does not replace them).
+
+// Reduce-motion path only: how long the chip dwells before fading. No motion
+// token fits (it's a static hold, not an animation beat), so it stays local.
+const BURST_HOLD_MS = 800; // burst dwell before fade
 
 export function RewardOrchestrator() {
   const active = useRewardQueueStore((s) => s.active);
@@ -48,14 +52,14 @@ function Beat({ beat }: { beat: RewardBeat }) {
       // Reduce-motion: still show the chip briefly so the reward registers.
       opacity.value = withSequence(
         withTiming(1, { duration: 0 }),
-        withDelay(800, withTiming(0, { duration: 120 }, () => runOnJS(complete)())),
+        withDelay(BURST_HOLD_MS, withTiming(0, { duration: MOTION_BUDGET.pressFeedback }, () => runOnJS(complete)())),
       );
       return;
     }
     // Slide in from above with spring overshoot, hold, then exit upward.
-    const rise = 380 / motionScale;
-    const hold = 1100 / motionScale;
-    const fade = 300 / motionScale;
+    const rise = MOTION_BUDGET.rewardRise / motionScale;
+    const hold = MOTION_BUDGET.rewardHold / motionScale;
+    const fade = MOTION_BUDGET.rewardExit / motionScale;
 
     // Fade in quickly, hold opaque, then fade out.
     opacity.value = withSequence(
@@ -75,8 +79,9 @@ function Beat({ beat }: { beat: RewardBeat }) {
     );
 
     if (Platform.OS !== 'web') {
-      // Streak beats get a satisfying Heavy "thud"; XP beats stay Light.
-      const style = beat.type === 'streak'
+      // Streak beats (and a freeze save — a near-loss moment) get a satisfying
+      // Heavy "thud"; XP beats stay Light.
+      const style = beat.type === 'streak' || beat.type === 'streakSave'
         ? Haptics.ImpactFeedbackStyle.Heavy
         : Haptics.ImpactFeedbackStyle.Light;
       Haptics.impactAsync(style).catch(() => undefined);
@@ -119,6 +124,35 @@ function Beat({ beat }: { beat: RewardBeat }) {
           {beat.domain ? <DomainGlyph domain={beat.domain} size={14} color={hue} /> : null}
           <AuroraText variant="bodyLg" numeric color={hue}>
             {`+${beat.amount} XP`}
+          </AuroraText>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  if (beat.type === 'streakSave') {
+    // A banked freeze just rescued this streak. The save must be SEEN —
+    // loss aversion only works when the near-loss registers. Shield styling
+    // (success hue), no burst: it's relief, not triumph.
+    return (
+      <View pointerEvents="none" style={styles.wrap}>
+        <Animated.View
+          style={[
+            styles.chip,
+            {
+              backgroundColor: c.success + '1A',
+              borderColor: c.success + '80',
+              shadowColor: c.success,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.5,
+              shadowRadius: 14,
+              elevation: 6,
+            },
+            animatedStyle,
+          ]}
+        >
+          <AuroraText variant="caption" color={c.success}>
+            {`🛡️ Streak saved · ${beat.label} stays at ${beat.count}`}
           </AuroraText>
         </Animated.View>
       </View>

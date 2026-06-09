@@ -43,6 +43,10 @@ export function getOrCreateGamification(userId: string): WebGamification {
       badges: '[]',
       totalXP: 0,
       weeklyXP: 0,
+      streakFreezes: 0,
+      freezeProgressXP: 0,
+      cosmetics: '[]',
+      companion: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -81,6 +85,10 @@ export function updateGamification(userId: string, data: Partial<{
   badges: string;
   totalXP: number;
   weeklyXP: number;
+  streakFreezes: number;
+  freezeProgressXP: number;
+  cosmetics: string;
+  companion: string | null;
 }>) {
   // Read the full row first so the mutation carries a complete snapshot, then
   // apply, then log. Gamification is a per-user SINGLETON, so the sync entityId

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { MOTION_BUDGET } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Card } from '@/components/ui/Card';
 import { Body, Caption, Label } from '@/components/ui/Typography';
@@ -77,7 +78,7 @@ export function CoachActionsCard() {
             return (
               <Animated.View
                 key={index}
-                entering={FadeInDown.duration(260).delay(visibleIndex * 60)}
+                entering={FadeInDown.duration(MOTION_BUDGET.microFeedback).delay(visibleIndex * 60)}
                 style={[styles.proposal, { borderColor, backgroundColor: accentColor + '0d' }]}
               >
                 <View style={[styles.iconBadge, { backgroundColor: accentColor + '22' }]}>

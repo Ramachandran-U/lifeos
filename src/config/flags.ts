@@ -28,6 +28,19 @@ export interface FeatureFlags {
   exploreAgenticPrefetch: boolean;
   /** Profile: upload a photo → AI-generated gamified avatar (nano banana). Paid image-gen — off until billing is enabled. */
   profileAvatarGen: boolean;
+  // ── Aurora Alive motion track (UI/UX revamp program) ──────────────────────
+  /** M0: behavioural motion additions — sheet exit animations, haptic gap-fill (warning/error/hold-tick/tab-press). Token migration itself is unflagged (behaviour-preserving). */
+  motionPolish: boolean;
+  /** M1: custom tab/stack/modal transitions + AppSheet standardization + scroll-driven effects. */
+  motionTransitions: boolean;
+  /** M2: Skia celebration engine (tiered confetti/bursts via CelebrationHost). */
+  celebrationEngine: boolean;
+  /** M3: Rive companion runtime (dev-client only — not available in Expo Go). */
+  riveCompanion: boolean;
+  /** M4: victory-native animated charts (XP history, health trends, finance). */
+  animatedCharts: boolean;
+  /** M5: micro-sound effects on reward beats (opt-in pref on top of this flag). */
+  soundEffects: boolean;
 }
 
 export type FeatureFlag = keyof FeatureFlags;
@@ -40,6 +53,12 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   priorityAdjust: true,
   exploreAgenticPrefetch: false,
   profileAvatarGen: false,
+  motionPolish: false,
+  motionTransitions: false,
+  celebrationEngine: false,
+  riveCompanion: false,
+  animatedCharts: false,
+  soundEffects: false,
 });
 
 /** UPPER_SNAKE env-var suffix for each flag, e.g. mutationLog -> MUTATION_LOG. */

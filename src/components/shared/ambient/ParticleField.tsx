@@ -8,7 +8,7 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
-import { useMotionScale } from '@/theme/motion';
+import { AMBIENT, useMotionScale } from '@/theme/motion';
 
 interface ParticleFieldProps {
   count: number;
@@ -43,7 +43,7 @@ function useParticleConfigs(count: number, hues: string[]): ParticleConfig[] {
         x: 10 + r0 * 80,
         hue: hues[Math.floor(r1 * hues.length) % hues.length],
         size: 5 + r2 * 5,
-        duration: 6000 + r3 * 2000,
+        duration: AMBIENT.fieldDrift + r3 * 2000,
         delay: r4 * 8000,
       });
     }

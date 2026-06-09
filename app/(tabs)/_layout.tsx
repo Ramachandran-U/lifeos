@@ -2,6 +2,10 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
+import { haptic } from '@/utils/haptics';
+import { isEnabled } from '@/config/flags';
+import { useMotionScale } from '@/theme/motion';
+import { tabTransition } from '@/navigation/transitions';
 
 type TabIcon = {
   name: keyof typeof Ionicons.glyphMap;
@@ -21,12 +25,23 @@ function getTabConfig(c: ReturnType<typeof useColors>): Record<string, TabIcon> 
 export default function TabLayout() {
   const c = useColors();
   const tabConfig = getTabConfig(c);
+  const motionScale = useMotionScale();
+  // M1: subtle lateral shift between tabs (flag-gated; 'none' on reduce-motion).
+  const transition = tabTransition({ enabled: isEnabled('motionTransitions'), motionScale });
 
   return (
     <Tabs
+      // M0 haptic gap-fill: tab switches are meaningful navigation, so they
+      // get a selection tick (no-op on web; flag-gated for safe rollout).
+      screenListeners={{
+        tabPress: () => {
+          if (isEnabled('motionPolish')) haptic.selection();
+        },
+      }}
       screenOptions={({ route }) => {
         const config = tabConfig[route.name] ?? { name: 'ellipse' as const, activeColor: c.primary };
         return {
+          ...transition,
           headerShown: false,
           tabBarStyle: {
             backgroundColor: c.surface,

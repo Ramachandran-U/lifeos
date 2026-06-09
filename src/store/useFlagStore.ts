@@ -57,6 +57,16 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   explore_agentic_thread: true,
   explore_frontier: true,
   rabbit_hole_tree_map: true,
+  // Aurora Alive retention mechanics (UI/UX revamp program). Runtime flags,
+  // default OFF — flip on per-cohort from the Worker /v1/config; each is a
+  // remote kill switch for its wave. All additionally respect
+  // usePreferencesStore.gamification !== 'off' at the render layer.
+  streak_protection_v1: false, // W1: earned freezes + milestone tiers + 24h recovery
+  quests_v2: false,            // W2: DB-backed procedural daily quests + claim/reroll
+  variable_rewards_v1: false,  // W3: chest drops on peak beats (additive only, no timers)
+  companion_v1: false,         // W4: companion mood/reactions (product layer)
+  comeback_v1: false,          // W4: comeback chest + recovery quest + gentle nudge
+  progress_map_v1: false,      // W5: ProgressPath replaces LevelLadder on Rewards
 };
 
 interface FlagState {

@@ -5,6 +5,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { MOTION_BUDGET } from '@/theme/motion';
 import { Card } from '@/components/ui/Card';
 import { Body, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
@@ -63,7 +64,7 @@ export function SubscriptionsBillsCard({ clientId }: { clientId?: string }) {
   };
 
   return (
-    <Animated.View entering={FadeInDown.delay(160).duration(400)}>
+    <Animated.View entering={FadeInDown.delay(160).duration(MOTION_BUDGET.reveal)}>
       <Card style={styles.card}>
         <View style={styles.header}>
           <Label color={c.finance}>SUBSCRIPTIONS & BILLS</Label>

@@ -188,6 +188,42 @@ describe('mergeGamification', () => {
     expect(mergeGamification(a, b)).toEqual(mergeGamification(b, a));
     expect(mergeGamification(a, a).totalXP).toBe(110);
   });
+
+  // streak_protection_v1 columns — see the merge-strategy doc comment.
+  test('cosmetics union; freezes/companion last-writer (spendable, never max)', () => {
+    const a = gami({
+      cosmetics: JSON.stringify(['hat', 'scarf']),
+      streakFreezes: 2, freezeProgressXP: 150,
+      companion: JSON.stringify({ name: 'Pip', equipped: ['hat'] }),
+      updatedAt: '2026-05-31T09:00:00.000Z',
+    });
+    // Later writer SPENT a freeze — max() would resurrect it, LWW must win.
+    const b = gami({
+      cosmetics: JSON.stringify(['scarf', 'boots']),
+      streakFreezes: 0, freezeProgressXP: 20,
+      companion: JSON.stringify({ name: 'Nova', equipped: [] }),
+      updatedAt: '2026-05-31T12:00:00.000Z',
+    });
+    const merged = mergeGamification(a, b);
+    expect(new Set(JSON.parse(merged.cosmetics as string))).toEqual(new Set(['hat', 'scarf', 'boots']));
+    expect(merged.streakFreezes).toBe(0);
+    expect(merged.freezeProgressXP).toBe(20);
+    expect(JSON.parse(merged.companion as string).name).toBe('Nova');
+    // Still commutative with the new fields.
+    expect(mergeGamification(a, b)).toEqual(mergeGamification(b, a));
+  });
+
+  test('pre-v1 snapshots (no new columns) merge without stripping or NaN', () => {
+    const legacy = gami({ updatedAt: '2026-05-31T12:00:00.000Z' }); // later, lacks new fields
+    const modern = gami({
+      cosmetics: JSON.stringify(['hat']), streakFreezes: 1, freezeProgressXP: 80,
+      updatedAt: '2026-05-31T09:00:00.000Z',
+    });
+    const merged = mergeGamification(legacy, modern);
+    expect(JSON.parse(merged.cosmetics as string)).toEqual(['hat']); // union survives a legacy later-writer
+    expect(merged.streakFreezes).toBe(0); // LWW from the (legacy) later side, defaulted — not undefined/NaN
+    expect(merged.companion).toBeNull();
+  });
 });
 
 describe('materializeEntity', () => {

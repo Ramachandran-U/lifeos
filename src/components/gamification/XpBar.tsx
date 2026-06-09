@@ -3,6 +3,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from '
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { useColors, DOMAIN_GRADIENTS } from '@/theme/colors';
+import { MOTION_BUDGET } from '@/theme/motion';
 
 interface Props {
   pct: number;
@@ -18,7 +19,7 @@ export function XpBar({ pct, color, gradientColors = DOMAIN_GRADIENTS.xp, height
 
   useEffect(() => {
     w.value = withTiming(Math.max(0, Math.min(1, pct)), {
-      duration: 1000,
+      duration: MOTION_BUDGET.progressFill,
       easing: Easing.out(Easing.cubic),
     });
   }, [pct, w]);

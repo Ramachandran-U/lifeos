@@ -23,6 +23,7 @@ import { consolidateMemory } from '@/ai/memory/consolidate';
 import type { TomorrowTweak } from '@/ai/types';
 import { useUserStore } from '@/store/useUserStore';
 import { useFlagStore } from '@/store/useFlagStore';
+import { tickQuestMetric } from '@/store/useQuestStore';
 import { getUserProfile, upsertUserProfile } from '@/db/queries/userProfile';
 import type { UserProfile } from '@/ai/types';
 import { generateAndSaveTomorrow, isRecoveryLow } from '@/ai/replanApply';
@@ -265,6 +266,8 @@ export default function EveningReflectScreen() {
         block_count: Object.keys(blockReviews).length,
         tweak_accepted: tweakAccepted,
       });
+      // quests_v2: a finished reflection is the 'journal' metric (no-op flag-off).
+      if (userId) tickQuestMetric(userId, 'journal', 1);
 
       // Piggyback the durable-memory consolidation on end-of-day (no background
       // daemon on RN). Fire-and-forget: a consolidation failure must never block

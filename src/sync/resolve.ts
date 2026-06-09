@@ -99,9 +99,13 @@ function pickLater(a: Snapshot, b: Snapshot): Snapshot {
 /**
  * Field-aware gamification merge (chosen strategy):
  *  - badges            → set union (never drop an earned achievement)
+ *  - cosmetics         → set union (unlocks behave like badges)
  *  - totalXP/weeklyXP  → max (monotonic; exact for one-device-at-a-time use)
  *  - streaks           → per-streak max count
  *  - domainScores      → last-writer by updatedAt (a 0-100 gauge, not a counter)
+ *  - streakFreezes / freezeProgressXP → last-writer (SPENDABLE counters — max()
+ *    would resurrect a freeze already consumed on the other device)
+ *  - companion         → last-writer (document-shaped: name + equipped)
  * Commutative + idempotent ⇒ two devices converge regardless of arrival order.
  */
 export function mergeGamification(a: Snapshot, b: Snapshot): Snapshot {
@@ -112,6 +116,10 @@ export function mergeGamification(a: Snapshot, b: Snapshot): Snapshot {
   // merge(b,a) stringify differently and break convergence.
   const badges = Array.from(
     new Set([...parseJson<string[]>(a.badges, []), ...parseJson<string[]>(b.badges, [])]),
+  ).sort();
+
+  const cosmetics = Array.from(
+    new Set([...parseJson<string[]>(a.cosmetics, []), ...parseJson<string[]>(b.cosmetics, [])]),
   ).sort();
 
   const sa = parseJson<Record<string, { count?: number }>>(a.streaks, {});
@@ -127,6 +135,12 @@ export function mergeGamification(a: Snapshot, b: Snapshot): Snapshot {
     streaks: JSON.stringify(streaks),
     totalXP: Math.max(Number(a.totalXP ?? 0), Number(b.totalXP ?? 0)),
     weeklyXP: Math.max(Number(a.weeklyXP ?? 0), Number(b.weeklyXP ?? 0)),
+    cosmetics: JSON.stringify(cosmetics),
+    // Spell the LWW fields out (defaulted) so a pre-v1 snapshot on the later
+    // side can't strip the columns from the merged row.
+    streakFreezes: Number(later.streakFreezes ?? 0),
+    freezeProgressXP: Number(later.freezeProgressXP ?? 0),
+    companion: later.companion ?? null,
   };
 }
 

@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { MOTION_BUDGET } from '@/theme/motion';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -33,7 +34,7 @@ export function CalorieRing({ consumed, target, protein, carbs, fat, proteinTarg
   const ratio = target > 0 ? consumed / target : 0;
 
   useEffect(() => {
-    progress.value = withTiming(Math.min(ratio, 1.2), { duration: 800 });
+    progress.value = withTiming(Math.min(ratio, 1.2), { duration: MOTION_BUDGET.progressFill });
   }, [ratio, progress]);
 
   const animatedProps = useAnimatedProps(() => ({

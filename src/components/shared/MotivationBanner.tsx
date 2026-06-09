@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
+import { TIMING } from '@/theme/motion';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption } from '@/components/ui/Typography';
 import { useMotivationStore } from '@/store/useMotivationStore';
@@ -33,7 +34,7 @@ export function MotivationBanner({ module, context, accent }: Props) {
 
   return (
     <Animated.View
-      entering={FadeIn.duration(300)}
+      entering={FadeIn.duration(TIMING.normal)}
       style={[styles.wrap, { backgroundColor: c.surface, borderColor: c.border, borderLeftColor: accent }]}
     >
       <View style={[styles.iconBadge, { backgroundColor: accent }]}>

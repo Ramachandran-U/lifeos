@@ -25,6 +25,38 @@ export const MOTION_BUDGET = {
   textReveal:      1900,  // AI insight typing (49 chars/sec)
   staggerTight:      40,  // tight row stagger
   stagger:           70,  // standard row stagger (timeline, sheet tiles)
+  // Sheets — MOTION.md scene 06. Exit is slightly slower than scrim so the
+  // surface visibly leaves before the dim lifts.
+  sheetExit:        520,  // sheet slide-out
+  scrimEnter:       480,  // scrim fade-in behind a sheet
+  scrimExit:        460,  // scrim fade-out after the sheet leaves
+  sheetContentEnter: 320, // per-row content arrival inside an open sheet
+  // Reward beat choreography (RewardOrchestrator).
+  rewardRise:       380,  // chip slide-down + pop in
+  rewardHold:      1100,  // chip dwell at full opacity
+  rewardExit:       300,  // chip rise-away + shrink
+  // Celebration & loading.
+  celebrationFall: 2000,  // full-screen confetti fall
+  shimmer:          900,  // skeleton shimmer half-cycle (1.8s sweep)
+  progressFill:    1000,  // XP / calorie / generic progress bar+ring fill
+} as const;
+
+// Input-gesture windows — these are interaction thresholds, not animation
+// curves, so they live apart from MOTION_BUDGET and are NOT scaled by motion
+// intensity (a hold-to-confirm must take the same effort at every setting;
+// reduce-motion gets the shorter window instead).
+export const INTERACTION = {
+  holdToConfirm:        250,  // RoutineBlock press-and-hold commit window
+  holdToConfirmReduced:  80,  // same, when reduce-motion is active
+  holdRelease:          200,  // arc rewind after an aborted hold
+} as const;
+
+// Idle/ambient loop periods — Aurora guardrail: idle loops never run faster
+// than 3s. These are baselines; ambient components may add per-instance jitter.
+export const AMBIENT = {
+  breath:      4000,  // live-block / companion breathing sine
+  fieldDrift:  6000,  // particle field rise baseline
+  auroraDrift: 8000,  // aurora blob drift baseline (longest visible period)
 } as const;
 
 // Aurora Refined motion tokens — see DESIGN_DOC.md / ds-motion.jsx.

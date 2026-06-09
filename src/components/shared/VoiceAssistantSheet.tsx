@@ -17,11 +17,12 @@ import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Heading, Body, Label, Caption } from '@/components/ui/Typography';
 import { useVoice, type VoiceStatus } from '@/hooks/useVoice';
-import { SPRING, useStaggerDelay } from '@/theme/motion';
+import { MOTION_BUDGET, SPRING, TIMING, useStaggerDelay } from '@/theme/motion';
 import { callAIStream } from '@/ai/client';
 import type { AgentTool } from '@/ai/agent/runtime';
 import type { VoiceSessionOptions } from '@/ai/voiceClient';
 import { getUser } from '@/db/queries/users';
+import { useSheetLifecycle } from '@/hooks/useSheetLifecycle';
 
 // ─── Status presentation ──────────────────────────────────────────────────────
 function statusColor(c: AppColors, status: VoiceStatus, hasError: boolean): string {
@@ -61,7 +62,7 @@ function statusHelp(status: VoiceStatus, userSpeaking: boolean, hasError: boolea
 function ThinkingDots({ color }: { color: string }) {
   const p = useSharedValue(0.3);
   useEffect(() => {
-    p.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
+    p.value = withRepeat(withTiming(1, { duration: TIMING.slow }), -1, true);
     return () => cancelAnimation(p);
   }, [p]);
   const dot = useAnimatedStyle(() => ({ opacity: p.value }));
@@ -105,6 +106,8 @@ export function VoiceAssistantSheet({
   // 50 ms step matches MOTION scene-06 chart for inner stagger.
   const stagger = useStaggerDelay();
   const scrollRef = useRef<ScrollView | null>(null);
+  // M0.4: keeps the Modal mounted through the exit animations — see the hook.
+  const sheet = useSheetLifecycle(visible, onClose);
 
   // Fallback text chat. The live session silently drops sendText() when its
   // socket isn't open, so when voice isn't connected we route typed messages
@@ -176,31 +179,34 @@ export function VoiceAssistantSheet({
   const dotColor = statusColor(c, voice.status, !!voice.error);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={sheet.mounted} transparent animationType="fade" onRequestClose={sheet.requestClose}>
+      {!sheet.closing && (
       <Animated.View
-        entering={FadeIn.duration(480).delay(150)}
-        exiting={FadeOut.duration(460).delay(80)}
+        entering={FadeIn.duration(MOTION_BUDGET.scrimEnter).delay(150)}
+        exiting={FadeOut.duration(MOTION_BUDGET.scrimExit).delay(80)}
         style={[styles.backdrop, { backgroundColor: c.background + 'CC' }]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={sheet.requestClose} />
       </Animated.View>
+      )}
+      {!sheet.closing && (
       <Animated.View
         entering={SlideInDown.springify().stiffness(SPRING.soft.stiffness).damping(SPRING.soft.damping)}
-        exiting={SlideOutDown.duration(520)}
+        exiting={SlideOutDown.duration(MOTION_BUDGET.sheetExit)}
         style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}
         testID="voice-sheet"
       >
-          <Animated.View entering={FadeIn.delay(700 + stagger(0, 50)).duration(320)} style={styles.header}>
+          <Animated.View entering={FadeIn.delay(700 + stagger(0, 50)).duration(MOTION_BUDGET.sheetContentEnter)} style={styles.header}>
             <View style={styles.headerLeft}>
               <Ionicons name="mic" size={20} color={c.primary} />
               <Heading style={{ color: c.textPrimary, fontSize: fontSizes.lg }}>Voice Assistant</Heading>
             </View>
-            <Pressable onPress={onClose} hitSlop={8} testID="voice-close">
+            <Pressable onPress={sheet.requestClose} hitSlop={8} testID="voice-close">
               <Ionicons name="close" size={22} color={c.textSecondary} />
             </Pressable>
           </Animated.View>
 
-          <Animated.View entering={FadeIn.delay(700 + stagger(1, 50)).duration(320)} style={styles.statusRow}>
+          <Animated.View entering={FadeIn.delay(700 + stagger(1, 50)).duration(MOTION_BUDGET.sheetContentEnter)} style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: dotColor }]} testID="voice-status-dot" />
             <Label color={c.textSecondary} testID="voice-status">{statusLabel}</Label>
           </Animated.View>
@@ -212,7 +218,7 @@ export function VoiceAssistantSheet({
 
           {/* Audio waveform — shows mic intensity while listening */}
           {voice.isListening && (
-            <Animated.View entering={FadeIn.delay(200).duration(300)} style={styles.waveRow} testID="voice-wave">
+            <Animated.View entering={FadeIn.delay(200).duration(TIMING.normal)} style={styles.waveRow} testID="voice-wave">
               {[0.6, 0.8, 1.0, 0.9, 0.7, 0.5, 0.85].map((weight, i) => {
                 const h = Math.max(4, voice.audioLevel * weight * 32);
                 return (
@@ -234,7 +240,7 @@ export function VoiceAssistantSheet({
 
           {/* Processing indicator — model is generating a reply. */}
           {voice.isThinking && (
-            <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(160)}>
+            <Animated.View entering={FadeIn.duration(MOTION_BUDGET.microFeedback)} exiting={FadeOut.duration(TIMING.fast)}>
               <ThinkingDots color={c.warning} />
             </Animated.View>
           )}
@@ -242,7 +248,7 @@ export function VoiceAssistantSheet({
           {/* Speaking indicator — model audio is playing back. */}
           {voice.isSpeaking && (
             <Animated.View
-              entering={FadeIn.duration(220)}
+              entering={FadeIn.duration(MOTION_BUDGET.microFeedback)}
               style={styles.speakingRow}
               testID="voice-speaking"
             >
@@ -338,6 +344,7 @@ export function VoiceAssistantSheet({
             Speak or type — the assistant hears you and responds when you pause.
           </Caption>
         </Animated.View>
+      )}
     </Modal>
   );
 }

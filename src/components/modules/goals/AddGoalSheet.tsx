@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
+  FadeIn,
   FadeInDown,
+  FadeOut,
+  SlideInDown,
+  SlideOutDown,
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
@@ -13,6 +17,8 @@ import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
+import { MOTION_BUDGET, SPRING, TIMING } from '@/theme/motion';
+import { useSheetLifecycle } from '@/hooks/useSheetLifecycle';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -59,6 +65,8 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
   const { call, error } = useAI();
   const { userId, name } = useUserStore();
   const loadGoals = useGoalStore((s) => s.loadGoals);
+  // M0.4: keeps the Modal mounted through the exit animations — see the hook.
+  const sheet = useSheetLifecycle(visible, onClose);
 
   const [goalText, setGoalText] = useState('');
   const [hierarchy, setHierarchy] = useState<GoalHierarchy | null>(null);
@@ -82,7 +90,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
   const pulse = useSharedValue(0.5);
   useEffect(() => {
     if (decomposing) {
-      pulse.value = withRepeat(withTiming(1, { duration: 850 }), -1, true);
+      pulse.value = withRepeat(withTiming(1, { duration: MOTION_BUDGET.shimmer }), -1, true);
     } else {
       cancelAnimation(pulse);
       pulse.value = 0.5;
@@ -161,7 +169,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
     // The goal already feeds future plans via the live-goal bridge; the parent
     // may also offer to work it into the rest of today (gated, previewed, undoable).
     onGoalCreated?.(createdTitle);
-    onClose();
+    sheet.requestClose();
   };
 
   const handleCancelDecompose = () => {
@@ -178,7 +186,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
   const handleClose = () => {
     handleCancelDecompose();
     resetState();
-    onClose();
+    sheet.requestClose();
   };
 
   const selectDomain = (gt: string) => {
@@ -199,8 +207,8 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
 
   return (
     <Modal
-      visible={visible}
-      animationType="slide"
+      visible={sheet.mounted}
+      animationType="fade"
       transparent
       // KB-04: without onRequestClose, RN-web's Modal ignores Esc entirely
       // (focus is irrelevant — Esc was a no-op from anywhere). Every other
@@ -208,8 +216,21 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
       // definitive KB-04 fix.
       onRequestClose={handleClose}
     >
-      <Pressable style={styles.backdrop} onPress={handleClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
+      {!sheet.closing && (
+      <Animated.View
+        entering={FadeIn.duration(MOTION_BUDGET.scrimEnter).delay(150)}
+        exiting={FadeOut.duration(MOTION_BUDGET.scrimExit).delay(80)}
+        style={styles.backdrop}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+      </Animated.View>
+      )}
+      {!sheet.closing && (
+      <Animated.View
+        entering={SlideInDown.springify().stiffness(SPRING.soft.stiffness).damping(SPRING.soft.damping)}
+        exiting={SlideOutDown.duration(MOTION_BUDGET.sheetExit)}
+        style={styles.sheet}
+      >
           <View style={styles.handle} />
           <ScrollView
             contentContainerStyle={styles.sheetScroll}
@@ -255,7 +276,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
             {hierarchy && !decomposing && (
               <View style={styles.preview}>
                 {/* GOAL — editable */}
-                <Animated.View entering={FadeInDown.duration(280)}>
+                <Animated.View entering={FadeInDown.duration(TIMING.normal)}>
                   <View style={[styles.editCard, { borderLeftColor: accent, borderColor: c.border }]}>
                     <Label color={accent}>GOAL</Label>
                     <TextInput
@@ -270,7 +291,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                 </Animated.View>
 
                 {/* DOMAIN — which life area this belongs to (item 3) */}
-                <Animated.View entering={FadeInDown.delay(60).duration(280)}>
+                <Animated.View entering={FadeInDown.delay(60).duration(TIMING.normal)}>
                   <Caption style={styles.fieldLabel}>LIFE AREA</Caption>
                   <View style={styles.chipRow}>
                     {GOAL_TYPE_LEGEND.map((entry) => {
@@ -296,7 +317,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                 </Animated.View>
 
                 {/* OUTCOME + MILESTONES — editable, undated (item 2) */}
-                <Animated.View entering={FadeInDown.delay(120).duration(280)}>
+                <Animated.View entering={FadeInDown.delay(120).duration(TIMING.normal)}>
                   <Caption style={styles.fieldLabel}>WHAT SUCCESS LOOKS LIKE</Caption>
                   <View style={[styles.editCard, { borderLeftColor: accent, borderColor: c.border }]}>
                     <TextInput
@@ -310,7 +331,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                   </View>
                 </Animated.View>
 
-                <Animated.View entering={FadeInDown.delay(180).duration(280)}>
+                <Animated.View entering={FadeInDown.delay(180).duration(TIMING.normal)}>
                   <Caption style={styles.fieldLabel}>FIRST MILESTONES</Caption>
                   {draftMilestones.map((m, i) => (
                     <View key={i} style={[styles.milestoneCard, { borderColor: c.border }]}>
@@ -335,7 +356,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                 </Animated.View>
 
                 {/* TIMELINE — the user sets the horizon, not the AI (item 2) */}
-                <Animated.View entering={FadeInDown.delay(240).duration(280)}>
+                <Animated.View entering={FadeInDown.delay(240).duration(TIMING.normal)}>
                   <Caption style={styles.fieldLabel}>HOW LONG ARE YOU GIVING YOURSELF?</Caption>
                   <View style={styles.chipRow}>
                     {TIMELINES.map((t) => {
@@ -358,15 +379,15 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                   </View>
                 </Animated.View>
 
-                <Animated.View entering={FadeInDown.delay(360).duration(280)} style={styles.actions}>
+                <Animated.View entering={FadeInDown.delay(360).duration(TIMING.normal)} style={styles.actions}>
                   <Button title="Save goal" onPress={handleSave} />
                   <Button title="Close" variant="ghost" onPress={handleClose} />
                 </Animated.View>
               </View>
             )}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+      </Animated.View>
+      )}
     </Modal>
   );
 }

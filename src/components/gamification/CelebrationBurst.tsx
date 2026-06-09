@@ -7,7 +7,7 @@ import Animated, {
   withDelay,
   withSequence,
 } from 'react-native-reanimated';
-import { EASING, useMotionScale } from '@/theme/motion';
+import { EASING, MOTION_BUDGET, TIMING, useMotionScale } from '@/theme/motion';
 
 // A radial particle burst for celebration peak moments (streak hits, big XP).
 // Pure Reanimated — particles shoot outward evenly, arc down under "gravity",
@@ -70,13 +70,14 @@ function Particle({
     const ox = Math.cos(angle) * dist;
     const oy = Math.sin(angle) * dist;
 
-    tx.value = withTiming(ox, { duration: dur(640), easing: EASING.out });
+    tx.value = withTiming(ox, { duration: dur(TIMING.slow), easing: EASING.out });
     ty.value = withSequence(
-      withTiming(oy, { duration: dur(280), easing: EASING.out }),
-      withTiming(oy + 48, { duration: dur(420), easing: EASING.inOut }), // gravity
+      withTiming(oy, { duration: dur(TIMING.normal), easing: EASING.out }),
+      withTiming(oy + 48, { duration: dur(MOTION_BUDGET.reveal), easing: EASING.inOut }), // gravity
     );
-    scale.value = withTiming(0.35, { duration: dur(700), easing: EASING.out });
-    opacity.value = withDelay(dur(280), withTiming(0, { duration: dur(420), easing: EASING.out }));
+    scale.value = withTiming(0.35, { duration: dur(TIMING.slow), easing: EASING.out });
+    // Fade starts when the gravity phase begins (after the outward rise).
+    opacity.value = withDelay(dur(TIMING.normal), withTiming(0, { duration: dur(MOTION_BUDGET.reveal), easing: EASING.out }));
     // Fire once on mount — the component is keyed by event id upstream.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

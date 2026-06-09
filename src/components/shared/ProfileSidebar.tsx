@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { TIMING } from '@/theme/motion';
 import { Body, Caption, Label } from '@/components/ui/Typography';
 import { useUserStore } from '@/store/useUserStore';
 import { useThemeStore } from '@/store/useThemeStore';
@@ -31,7 +32,7 @@ import { isGmailConnected, startGmailOAuth, clearGmailTokens } from '@/finance/g
 const FEEDBACK_EMAIL = 'projectm7sct+lifeos@gmail.com';
 
 const SIDEBAR_WIDTH = 300;
-const ANIM_DURATION = 260;
+const ANIM_DURATION = TIMING.normal;
 
 interface ProfileSidebarProps {
   visible: boolean;

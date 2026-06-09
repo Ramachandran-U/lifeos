@@ -50,6 +50,20 @@
       "when": 1780658191464,
       "tag": "0006_rabbit_hole_trees",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1781136000000,
+      "tag": "0007_xp_events_streak_protection",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1781222400000,
+      "tag": "0008_quests",
+      "breakpoints": true
     }
   ]
 }

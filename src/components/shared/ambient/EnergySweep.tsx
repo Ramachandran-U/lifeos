@@ -6,7 +6,7 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import { EASING, useMotionScale } from '@/theme/motion';
+import { EASING, MOTION_BUDGET, useMotionScale } from '@/theme/motion';
 
 interface EnergySweepProps {
   hue: string;
@@ -14,7 +14,7 @@ interface EnergySweepProps {
   onComplete?: () => void;
 }
 
-const SWEEP_DURATION = 2200;
+const SWEEP_DURATION = MOTION_BUDGET.celebrationFall; // full-screen energy sweep ≈ confetti-fall period
 const BAND_HEIGHT = 400;
 
 export function EnergySweep({ hue, active, onComplete }: EnergySweepProps) {

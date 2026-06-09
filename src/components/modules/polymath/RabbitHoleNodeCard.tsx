@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { TIMING } from '@/theme/motion';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { RabbitHoleForkButton } from './RabbitHoleForkButton';
@@ -33,7 +34,7 @@ export function RabbitHoleNodeCard({ node, onClimb, onMap }: Props) {
   };
 
   return (
-    <Animated.View entering={FadeInDown.duration(280)}>
+    <Animated.View entering={FadeInDown.duration(TIMING.normal)}>
       <Card style={[styles.card, { borderLeftWidth: 4, borderLeftColor: c.polymath }]}>
         <Caption style={{ color: c.polymath, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
           {node.arrivedVia == null ? '✦ START' : node.arrivedVia === 'deeper' ? '↓ DEEPER' : '↻ SIDEWAYS'}
