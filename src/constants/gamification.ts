@@ -121,6 +121,11 @@ export interface Quest {
   progress: number;
   total: number;
   type: 'daily' | 'weekly';
+  // quests_v2 passthrough (set by toLegacyQuest in useQuestStore) — lets the
+  // existing QuestCard/QuestDetailSheet render DB-backed quests and expose
+  // claim/reroll without a parallel component tree. Absent on legacy quests.
+  metricKey?: string;
+  status?: string; // 'active' | 'completed' | 'claimed' | 'rerolled'
 }
 
 export const DEFAULT_QUESTS: Quest[] = [

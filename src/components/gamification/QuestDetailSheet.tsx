@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
-import { useStaggerDelay } from '@/theme/motion';
+import { TIMING, useStaggerDelay } from '@/theme/motion';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
@@ -18,11 +18,23 @@ import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 
 // What the user actually does to move each quest forward, plus where to do it
-// when there's no checkable routine block today.
+// when there's no checkable routine block today. Keyed by v2 metricKey, with
+// the three legacy quest ids kept for the flag-off path.
 const QUEST_HOWTO: Record<string, { how: string; route?: string }> = {
+  // legacy (DEFAULT_QUESTS ids)
   q_food: { how: 'Log each meal from the Health tab. Every logged meal ticks this quest.', route: '/(tabs)/health' },
   q_routine: { how: 'Complete the routine blocks scheduled for today. Each one counts.', route: '/(tabs)' },
   q_learn: { how: 'Finish a learning resource in Explore to complete this week’s quest.', route: '/(tabs)/explore' },
+  // quests_v2 metric keys
+  blocks_completed: { how: 'Complete the routine blocks scheduled for today. Each one counts.', route: '/(tabs)' },
+  meals_logged: { how: 'Log each meal from the Health tab. Every logged meal ticks this quest.', route: '/(tabs)/health' },
+  weight_logged: { how: 'Log your weight from the Health tab vitals card.', route: '/(tabs)/health' },
+  water_logged: { how: 'Track each glass on the Health tab water card.', route: '/(tabs)/health' },
+  learning_resource: { how: 'Finish a learning resource in Explore.', route: '/(tabs)/explore' },
+  spark_engaged: { how: 'Open Explore and chase today’s spark.', route: '/(tabs)/explore' },
+  journal: { how: 'Close the day with an evening reflection.', route: '/evening-reflect' },
+  social_touch: { how: 'Log a call, message, or meetup with someone in Social.', route: '/(tabs)/social' },
+  goal_task: { how: 'Complete a task on any goal from the Goals tab.', route: '/(tabs)/goals' },
 };
 
 interface Props {
@@ -31,9 +43,13 @@ interface Props {
   onClose: () => void;
   /** Called after a block is completed so the parent can refresh quest state. */
   onChanged?: () => void;
+  /** quests_v2: claim the earned XP (rendered when status === 'completed'). */
+  onClaim?: () => void;
+  /** quests_v2: swap this quest for another (one free per day, progress 0 only). */
+  onReroll?: () => void;
 }
 
-export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) {
+export function QuestDetailSheet({ quest, visible, onClose, onChanged, onClaim, onReroll }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
   const stagger = useStaggerDelay();
@@ -48,8 +64,9 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
   const refresh = useCallback(() => {
     if (!quest) return;
     const all = getRoutineBlocksByDate(today) as BlockRow[];
-    // q_routine tracks ALL blocks completed today (cross-domain), not one module.
-    setBlocks(quest.id === 'q_routine' ? all : all.filter((b) => b.module === quest.module));
+    // Block-based quests track ALL blocks completed today (cross-domain).
+    const crossDomain = quest.id === 'q_routine' || quest.metricKey === 'blocks_completed';
+    setBlocks(crossDomain ? all : all.filter((b) => b.module === quest.module));
   }, [quest, today]);
 
   // Refresh whenever the sheet opens (it's a modal, not a navigated screen, so
@@ -63,7 +80,11 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
   const color = c[meta.colorKey];
   const pct = quest.total > 0 ? quest.progress / quest.total : 0;
   const done = pct >= 1;
-  const howto = QUEST_HOWTO[quest.id];
+  // v2 quests carry a metricKey; legacy quests key by id.
+  const howto = QUEST_HOWTO[quest.metricKey ?? quest.id];
+  const claimable = !!onClaim && quest.status === 'completed';
+  const claimed = quest.status === 'claimed';
+  const rerollable = !!onReroll && quest.status === 'active' && quest.progress === 0;
   const pending = blocks.filter((b) => b.status !== 'completed');
 
   const handleComplete = (blockId: string) => {
@@ -84,7 +105,7 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
         <Pressable style={styles.sheet} onPress={() => {}}>
           <View style={styles.handle} />
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <Animated.View entering={FadeIn.delay(120 + stagger(0, 50)).duration(300)}>
+            <Animated.View entering={FadeIn.delay(120 + stagger(0, 50)).duration(TIMING.normal)}>
               <View style={styles.header}>
                 <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
                   <Body style={{ fontSize: 20 }}>{meta.emoji}</Body>
@@ -97,7 +118,7 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
               </View>
             </Animated.View>
 
-            <Animated.View entering={FadeIn.delay(120 + stagger(1, 50)).duration(300)}>
+            <Animated.View entering={FadeIn.delay(120 + stagger(1, 50)).duration(TIMING.normal)}>
               <View style={styles.progressRow}>
                 <View style={{ flex: 1 }}>
                   <XpBar pct={pct} color={color} height={6} />
@@ -107,16 +128,28 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
             </Animated.View>
 
             {howto && (
-              <Animated.View entering={FadeIn.delay(120 + stagger(2, 50)).duration(300)}>
+              <Animated.View entering={FadeIn.delay(120 + stagger(2, 50)).duration(TIMING.normal)}>
                 <Body style={[styles.how, { color: c.textSecondary }]}>{howto.how}</Body>
               </Animated.View>
             )}
 
-            <Animated.View entering={FadeIn.delay(120 + stagger(3, 50)).duration(300)}>
-              {done ? (
+            <Animated.View entering={FadeIn.delay(120 + stagger(3, 50)).duration(TIMING.normal)}>
+              {claimable ? (
+                <Pressable
+                  onPress={onClaim}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Claim ${quest.xp} XP`}
+                  style={[styles.goBtn, { backgroundColor: color }]}
+                >
+                  <Body style={{ color: '#fff', fontFamily: fonts.heading }}>Claim +{quest.xp} XP</Body>
+                  <Ionicons name="sparkles" size={16} color="#fff" />
+                </Pressable>
+              ) : done || claimed ? (
                 <View style={[styles.doneBanner, { backgroundColor: color + '18', borderColor: color + '55' }]}>
                   <Ionicons name="checkmark-circle" size={18} color={color} />
-                  <Body style={{ color: c.textPrimary }}>Quest complete — nice work!</Body>
+                  <Body style={{ color: c.textPrimary }}>
+                    {claimed ? 'Claimed — nice work!' : 'Quest complete — nice work!'}
+                  </Body>
                 </View>
               ) : pending.length > 0 ? (
                 <View style={styles.taskList}>
@@ -153,6 +186,18 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged }: Props) 
               )}
             </Animated.View>
 
+            {rerollable && (
+              <Pressable
+                onPress={onReroll}
+                accessibilityRole="button"
+                accessibilityLabel="Swap this quest for another"
+                style={[styles.rerollBtn, { borderColor: c.border }]}
+              >
+                <Ionicons name="shuffle" size={14} color={c.textSecondary} />
+                <Caption style={{ color: c.textSecondary }}>Not feeling it? Swap this quest (1/day)</Caption>
+              </Pressable>
+            )}
+
             <Pressable onPress={onClose} style={styles.closeBtn}>
               <Body style={{ color: c.textSecondary }}>Close</Body>
             </Pressable>
@@ -188,5 +233,6 @@ const makeStyles = (c: AppColors) => StyleSheet.create({
   taskRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderWidth: 1, borderRadius: 14 },
   doBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: 10 },
   goBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.md, borderRadius: 14 },
+  rerollBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, borderRadius: 14, borderWidth: 1 },
   closeBtn: { alignItems: 'center', paddingVertical: spacing.sm },
 });

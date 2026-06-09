@@ -183,6 +183,55 @@ export const gamification = sqliteTable('gamification', {
   badges: text('badges').notNull().default('[]'), // JSON: BadgeId[]
   totalXP: integer('total_xp').notNull().default(0),
   weeklyXP: integer('weekly_xp').notNull().default(0),
+  // Streak protection (streak_protection_v1). Freezes are EARNED (one per
+  // FREEZE_EARN_XP of XP routed through grantXP), banked to a small cap, and
+  // auto-consumed by the streak engine when a streak would otherwise reset.
+  streakFreezes: integer('streak_freezes').notNull().default(0),
+  freezeProgressXP: integer('freeze_progress_xp').notNull().default(0), // XP accrued toward the next freeze
+  cosmetics: text('cosmetics').notNull().default('[]'), // JSON: string[] — owned companion-cosmetic ids (chest drops)
+  companion: text('companion'), // JSON: { name, createdAt, equipped: string[] } | null until named
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// --- Daily Quests (quests_v2) ---
+// Procedurally selected per local day by src/gamification/questEngine.ts
+// (template drafts insert synchronously; the AI pass may retitle/retarget
+// drafts still at progress 0). Rollover is implicit: a new day_local means new
+// rows; old actives are simply ignored. XP is granted only at claim time.
+export const quests = sqliteTable('quests', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  dayLocal: text('day_local').notNull(), // YYYY-MM-DD device-local
+  kind: text('kind').notNull().default('daily'), // 'daily' | 'weekly'
+  title: text('title').notNull(),
+  module: text('module').notNull(), // QuestModule (goal/health/finance/career/social/polymath)
+  metricKey: text('metric_key').notNull(), // QuestMetricKey — the progress event it tracks
+  target: integer('target').notNull(),
+  progress: integer('progress').notNull().default(0),
+  xp: integer('xp').notNull(),
+  status: text('status').notNull().default('active'), // 'active' | 'completed' | 'claimed' | 'rerolled'
+  source: text('source').notNull().default('template'), // 'template' | 'ai'
+  templateId: text('template_id'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+  deletedAt: text('deleted_at'),
+});
+
+// --- XP Events (append-only ledger) ---
+// Every XP grant is appended here via grantXP (useGameStore) in addition to
+// bumping the gamification counters. Rows are immutable; amounts are always
+// positive. This is the league-ready spine: a future server-side weekly league
+// is a GROUP BY over synced day_local buckets — no client migration needed.
+// Insert-only ⇒ the default sync fold handles it (no CRDT merger required).
+export const xpEvents = sqliteTable('xp_events', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  amount: integer('amount').notNull(), // always > 0, immutable
+  domain: text('domain'), // DomainKey | null for non-domain sources
+  source: text('source').notNull(), // 'block' | 'goal_task' | 'quest' | 'badge' | 'chest' | 'milestone' | 'comeback' | 'food' | 'resource' | 'misc'
+  refId: text('ref_id'), // blockId / questId / badgeId / chestId
+  dayLocal: text('day_local').notNull(), // YYYY-MM-DD in device-local time
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });

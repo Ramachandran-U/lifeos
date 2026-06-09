@@ -83,6 +83,18 @@ export const EVENTS = {
   overcommitmentShown: 'overcommitment_shown',
   overcommitmentAccepted: 'overcommitment_accepted',
   overcommitmentDismissed: 'overcommitment_dismissed',
+  // Retention mechanics (Aurora Alive W1+). NOTE: the Worker's ALLOWED_EVENTS
+  // allowlist must be deployed with these names BEFORE a client release, or
+  // the events 400 server-side (client track() fails silently — no user impact).
+  streakFreezeEarned: 'streak_freeze_earned',
+  streakFreezeUsed: 'streak_freeze_used',
+  streakMilestone: 'streak_milestone',
+  streakLost: 'streak_lost',
+  streakRecovered: 'streak_recovered',
+  questGenerated: 'quest_generated',
+  questCompleted: 'quest_completed',
+  questClaimed: 'quest_claimed',
+  questRerolled: 'quest_rerolled',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

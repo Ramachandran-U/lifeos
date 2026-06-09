@@ -8,6 +8,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { useColors } from '@/theme/colors';
+import { TIMING } from '@/theme/motion';
 
 interface ProgressBarProps {
   value: number;
@@ -25,7 +26,7 @@ export function ProgressBar({ value, color, gradientColors, height = 8 }: Progre
 
   useEffect(() => {
     progress.value = withTiming(Math.min(Math.max(value, 0), 100), {
-      duration: 600,
+      duration: TIMING.slow,
       easing: Easing.out(Easing.cubic),
     });
   }, [value, progress]);

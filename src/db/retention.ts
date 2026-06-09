@@ -26,3 +26,14 @@ export const BEHAVIOUR_RETENTION_DAYS = 35;
  * `WEB_CAP` convention in `src/sync/sink.ts`.
  */
 export const BEHAVIOUR_WEB_CAP = 5000;
+
+/**
+ * Days of `xp_events` ledger history kept in web localStorage. The weekly-XP
+ * derivation looks back ≤7 days and nothing on web reads further than ~90
+ * (native keeps full history in SQLite; the synced mutation log preserves the
+ * complete ledger for future server-side aggregation regardless of this prune).
+ */
+export const XP_EVENTS_RETENTION_DAYS = 95;
+
+/** Hard row-count backstop for web `xp_events`, mirroring BEHAVIOUR_WEB_CAP. */
+export const XP_EVENTS_WEB_CAP = 4000;

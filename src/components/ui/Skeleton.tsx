@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { radii } from '@/theme/radii';
-import { useMotionScale } from '@/theme/motion';
+import { MOTION_BUDGET, useMotionScale } from '@/theme/motion';
 
 interface SkeletonProps {
   width?: number | string;
@@ -42,7 +42,7 @@ export function Skeleton({
   useEffect(() => {
     if (!visible || motionScale === 0) return;
     opacity.value = withRepeat(
-      withTiming(0.85, { duration: 900 / motionScale, easing: Easing.inOut(Easing.quad) }),
+      withTiming(0.85, { duration: MOTION_BUDGET.shimmer / motionScale, easing: Easing.inOut(Easing.quad) }),
       -1,
       true,
     );

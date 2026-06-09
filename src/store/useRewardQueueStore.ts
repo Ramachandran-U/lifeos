@@ -9,7 +9,10 @@ import type { DomainKey } from '@/components/ui/DomainGlyph';
 
 export type RewardBeatInput =
   | { type: 'xp'; amount: number; domain?: DomainKey }
-  | { type: 'streak'; label: string; count: number };
+  | { type: 'streak'; label: string; count: number }
+  // streak_protection_v1 — a banked freeze just rescued a streak. Rendered as
+  // a shield chip so the save is *seen* (loss aversion needs visible saves).
+  | { type: 'streakSave'; label: string; count: number };
 
 export type RewardBeat = RewardBeatInput & { id: string };
 

@@ -5,6 +5,7 @@ import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
+import { MOTION_BUDGET } from '@/theme/motion';
 import { LEVEL_PERKS } from '@/constants/gamification';
 
 interface Props {
@@ -40,7 +41,7 @@ export function LevelUpOverlay({ level, userName, onClose }: Props) {
     // box-none lets touches fall through everywhere except the banner itself,
     // so the screen behind stays fully usable while the nudge is up.
     <View pointerEvents="box-none" style={styles.wrap}>
-      <Animated.View entering={FadeInDown.duration(360)} exiting={FadeOutUp.duration(240)}>
+      <Animated.View entering={FadeInDown.duration(MOTION_BUDGET.reveal)} exiting={FadeOutUp.duration(MOTION_BUDGET.microFeedback)}>
         <Pressable
           onPress={onClose}
           accessibilityRole="button"

@@ -121,6 +121,10 @@ describe('echo-safety: webUpsertGamification (sync reducer path)', () => {
       badges: '["synced"]',
       totalXP: 500,
       weeklyXP: 50,
+      streakFreezes: 0,
+      freezeProgressXP: 0,
+      cosmetics: '[]',
+      companion: null,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     };

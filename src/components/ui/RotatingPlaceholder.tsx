@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { fonts, fontSizes } from '@/theme/typography';
-import { useMotionScale } from '@/theme/motion';
+import { MOTION_BUDGET, TIMING, useMotionScale } from '@/theme/motion';
 import { useRotatingPlaceholder } from '@/hooks/useRotatingPlaceholder';
 
 interface Props {
@@ -27,8 +27,8 @@ interface Props {
   intervalMs?: number;
 }
 
-const FADE_OUT_MS = 180;
-const FADE_IN_MS = 240;
+const FADE_OUT_MS = TIMING.fast;
+const FADE_IN_MS = MOTION_BUDGET.microFeedback;
 
 /**
  * A drop-in animated stand-in for a `TextInput` placeholder that cross-fades

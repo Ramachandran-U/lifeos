@@ -6,7 +6,8 @@ import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Heading } from '@/components/ui/Typography';
 import { DomainGlyph, type DomainKey } from '@/components/ui/DomainGlyph';
-import { SPRING, useStaggerDelay } from '@/theme/motion';
+import { MOTION_BUDGET, SPRING, useStaggerDelay } from '@/theme/motion';
+import { useSheetLifecycle } from '@/hooks/useSheetLifecycle';
 
 type Hub = {
   route: '/(tabs)/goals' | '/(tabs)/health' | '/(tabs)/finance' | '/(tabs)/career' | '/(tabs)/social' | '/(tabs)/explore';
@@ -36,24 +37,29 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
   const router = useRouter();
   // 50 ms step matches the MOTION scene-06 chart for inner grid cascade.
   const stagger = useStaggerDelay();
+  // M0.4: keeps the Modal mounted through the exit animations — see the hook.
+  const sheet = useSheetLifecycle(visible, onClose);
 
   const handlePick = (route: Hub['route']) => {
-    onClose();
+    sheet.requestClose();
     router.push(route);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={sheet.mounted} transparent animationType="fade" onRequestClose={sheet.requestClose}>
+      {!sheet.closing && (
       <Animated.View
-        entering={FadeIn.duration(480).delay(150)}
-        exiting={FadeOut.duration(460).delay(80)}
+        entering={FadeIn.duration(MOTION_BUDGET.scrimEnter).delay(150)}
+        exiting={FadeOut.duration(MOTION_BUDGET.scrimExit).delay(80)}
         style={StyleSheet.absoluteFill}
       >
-        <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={onClose} />
+        <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={sheet.requestClose} />
       </Animated.View>
+      )}
+      {!sheet.closing && (
       <Animated.View
         entering={SlideInDown.springify().stiffness(SPRING.soft.stiffness).damping(SPRING.soft.damping)}
-        exiting={SlideOutDown.duration(520)}
+        exiting={SlideOutDown.duration(MOTION_BUDGET.sheetExit)}
         style={[styles.sheet, { backgroundColor: c.surface, borderTopColor: c.border }]}
       >
         <View style={[styles.handle, { backgroundColor: c.border }]} />
@@ -66,7 +72,7 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
           {HUBS.map((h, i) => (
             <Animated.View
               key={h.route}
-              entering={FadeIn.delay(700 + stagger(i, 50)).duration(320)}
+              entering={FadeIn.delay(700 + stagger(i, 50)).duration(MOTION_BUDGET.sheetContentEnter)}
               style={styles.tileWrap}
             >
               <Pressable
@@ -91,6 +97,7 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
           ))}
         </View>
       </Animated.View>
+      )}
     </Modal>
   );
 }

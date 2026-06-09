@@ -108,6 +108,9 @@ import {
   DailyBriefingResult,
   DailyBriefingSchema,
   DailyBriefingInput,
+  DailyQuestGenResult,
+  DailyQuestGenSchema,
+  DailyQuestGenInput,
   TrajectoryAssessment,
   TrajectoryAssessmentSchema,
   TrajectoryAssessmentInput,
@@ -145,6 +148,8 @@ import { MONTHLY_INSIGHT_REPORT_PROMPT } from './prompts/behaviour';
 import { buildMockMonthlyInsightReport } from './mocks/behaviour';
 import { DAILY_BRIEFING_PROMPT } from './prompts/briefing';
 import { buildMockDailyBriefing } from './mocks/briefing';
+import { DAILY_QUESTS_PROMPT } from './prompts/quests';
+import { buildMockDailyQuests } from './mocks/quests';
 import { TRAJECTORY_PROMPT } from './prompts/trajectory';
 import { buildMockTrajectoryAssessment } from './mocks/trajectory';
 import { ANNUAL_REVIEW_PROMPT } from './prompts/annualReview';
@@ -901,6 +906,31 @@ export async function generateDailyBriefing(input: DailyBriefingInput): Promise<
     return DailyBriefingSchema.parse(extractJson(response));
   } catch (err) {
     recordSchemaFailure('generateDailyBriefing', 'DailyBriefing', response, err);
+  }
+}
+
+/**
+ * Daily quests personalization (quests_v2). The template drafts in `input`
+ * are already on screen — this pass only retitles/retargets them, and the
+ * caller re-validates every output against the template bounds
+ * (clampDraftToTemplate), so a malformed response degrades to the templates.
+ */
+export async function generateDailyQuests(input: DailyQuestGenInput): Promise<DailyQuestGenResult> {
+  if (isMock) return buildMockDailyQuests(input);
+
+  const response = await callAI({
+    system: DAILY_QUESTS_PROMPT,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    model: pickModel('generateDailyQuests'),
+    cacheSystem: true,
+    task: 'generateDailyQuests',
+    maxTokens: 500,
+  });
+
+  try {
+    return DailyQuestGenSchema.parse(extractJson(response));
+  } catch (err) {
+    recordSchemaFailure('generateDailyQuests', 'DailyQuestGen', response, err);
   }
 }
 

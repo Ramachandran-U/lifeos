@@ -3,6 +3,7 @@ import Animated, { FadeInRight } from 'react-native-reanimated';
 import { useColors, DOMAIN_GRADIENTS, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { MOTION_BUDGET } from '@/theme/motion';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Body, Caption } from '@/components/ui/Typography';
 
@@ -31,7 +32,7 @@ export function SkillGapChart({ gaps }: SkillGapChartProps) {
         const required = LEVEL_VALUES[gap.requiredLevel] ?? 100;
 
         return (
-          <Animated.View key={gap.skill} entering={FadeInRight.delay(i * 100).duration(400)} style={styles.row}>
+          <Animated.View key={gap.skill} entering={FadeInRight.delay(i * 100).duration(MOTION_BUDGET.reveal)} style={styles.row}>
             <View style={styles.labelCol}>
               <Body style={styles.skillName}>{gap.skill}</Body>
               <Caption>{gap.currentLevel} → {gap.requiredLevel}</Caption>

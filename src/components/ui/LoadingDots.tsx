@@ -10,6 +10,7 @@ import Animated, {
 import { useEffect } from 'react';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { MOTION_BUDGET } from '@/theme/motion';
 
 interface LoadingDotsProps {
   color?: string;
@@ -24,8 +25,8 @@ function Dot({ color, size, delay }: { color: string; size: number; delay: numbe
       delay,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: 400 }),
-          withTiming(0.3, { duration: 400 }),
+          withTiming(1, { duration: MOTION_BUDGET.reveal }),
+          withTiming(0.3, { duration: MOTION_BUDGET.reveal }),
         ),
         -1,
       ),

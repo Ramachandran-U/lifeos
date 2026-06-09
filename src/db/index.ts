@@ -447,6 +447,44 @@ export async function initDatabase() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS constellation_edges_user_idx ON constellation_edges (user_id);
+
+    -- Daily quests (Aurora Alive R1, quests_v2). Procedural drafts per local
+    -- day; XP granted only at claim. Soft-deleted; pruned with the 90-day pass.
+    CREATE TABLE IF NOT EXISTS quests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      day_local TEXT NOT NULL,
+      kind TEXT NOT NULL DEFAULT 'daily',
+      title TEXT NOT NULL,
+      module TEXT NOT NULL,
+      metric_key TEXT NOT NULL,
+      target INTEGER NOT NULL,
+      progress INTEGER NOT NULL DEFAULT 0,
+      xp INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      source TEXT NOT NULL DEFAULT 'template',
+      template_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS quests_user_day_idx ON quests (user_id, day_local);
+
+    -- Append-only XP ledger (Aurora Alive R0). Every grant via grantXP lands
+    -- here in addition to the gamification counters; day_local buckets make a
+    -- future server-side weekly league a pure GROUP BY over synced rows.
+    CREATE TABLE IF NOT EXISTS xp_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      domain TEXT,
+      source TEXT NOT NULL,
+      ref_id TEXT,
+      day_local TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS xp_events_user_day_idx ON xp_events (user_id, day_local);
   `);
 
   // Lightweight migrations for columns added after initial release.
@@ -482,6 +520,11 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE users ADD COLUMN activated_modules TEXT`);
   await safeAlter(`ALTER TABLE interests ADD COLUMN time_protected INTEGER NOT NULL DEFAULT 0`);
   await safeAlter(`ALTER TABLE memory_facts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
+  // Streak protection (Aurora Alive R0, streak_protection_v1).
+  await safeAlter(`ALTER TABLE gamification ADD COLUMN streak_freezes INTEGER NOT NULL DEFAULT 0`);
+  await safeAlter(`ALTER TABLE gamification ADD COLUMN freeze_progress_xp INTEGER NOT NULL DEFAULT 0`);
+  await safeAlter(`ALTER TABLE gamification ADD COLUMN cosmetics TEXT NOT NULL DEFAULT '[]'`);
+  await safeAlter(`ALTER TABLE gamification ADD COLUMN companion TEXT`);
 
   // Retention: behaviour_events is append-only analytics read only over the
   // last ≤30 days, so prune anything older at boot to bound on-device growth.

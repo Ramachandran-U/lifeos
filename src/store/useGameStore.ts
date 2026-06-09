@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { Platform } from 'react-native';
 import { getOrCreateGamification, updateGamification } from '@/db/queries/gamification';
+import { insertXpEvent, localDayISO, type XpGrantInput } from '@/db/queries/xpEvents';
 import { getUser } from '@/db/queries/users';
 import { ONBOARDING_COMPLETE } from './useUserStore';
 import {
   DomainScores,
   Streaks,
   BadgeId,
-  updateStreak,
   calculateDomainScore,
   checkBadges,
   XP_VALUES,
@@ -15,7 +15,19 @@ import {
   GOALTYPE_TO_DOMAIN,
   GOAL_LEVEL_BUMP,
   bumpDomainScore,
+  STREAK_META,
 } from '@/utils/gamification';
+import { useRewardQueueStore } from './useRewardQueueStore';
+import {
+  advanceStreak,
+  restoreFromLoss,
+  markMilestoneCelebrated,
+  accrueFreezeProgress,
+  type MilestoneTier,
+} from '@/gamification/streakEngine';
+import { useFlagStore } from './useFlagStore';
+import { tickQuestMetric } from './useQuestStore';
+import { track, EVENTS } from '@/utils/telemetry';
 import { DEFAULT_QUESTS, type Quest } from '@/constants/gamification';
 
 // Quest progress is held in zustand memory + persisted to localStorage on web.
@@ -56,17 +68,75 @@ interface GameState {
   questDailyResetDate: string; // YYYY-MM-DD; resets q_food, q_routine on rollover
   pendingLevelUp: number | null;
   lastKnownLevel: number;
+  // streak_protection_v1
+  streakFreezes: number;
+  freezeProgressXP: number;
+  pendingMilestone: { streakKey: keyof Streaks; tier: MilestoneTier } | null;
+  pendingStreakLoss: { streakKey: keyof Streaks; lostCount: number } | null;
 
   loadFromDB: (userId: string) => void;
   completeBlock: (userId: string, module: string, completedCount: number, totalCount: number) => void;
   completeGoalNode: (userId: string, goalType: string, level: string) => void;
   addXP: (userId: string, amount: number) => void;
+  /**
+   * The single XP grant path: appends an immutable xp_events ledger row,
+   * accrues streak-freeze progress, bumps counters, detects level-ups.
+   * All XP awards should flow through here (addXP delegates).
+   */
+  grantXP: (userId: string, input: XpGrantInput) => void;
   triggerStreak: (userId: string, streakType: keyof Streaks) => void;
+  /** Recovery CTA: restore a streak lost within the last 24h. */
+  restoreStreak: (userId: string, streakType: keyof Streaks) => boolean;
   awardBadge: (userId: string, badgeId: BadgeId) => void;
   popBadge: () => BadgeId | undefined;
   advanceQuest: (id: string, delta?: number) => void;
   resetDailyQuestsIfNeeded: () => void;
   dismissLevelUp: () => void;
+  dismissMilestone: () => void;
+  dismissStreakLoss: () => void;
+}
+
+/** Runtime kill switch for the whole streak-protection layer. */
+function streakProtectionOn(): boolean {
+  return useFlagStore.getState().isEnabled('streak_protection_v1');
+}
+
+interface XpApplication {
+  totalXP: number;
+  weeklyXP: number;
+  streakFreezes: number;
+  freezeProgressXP: number;
+}
+
+/**
+ * Apply an XP amount to the counters + freeze bank in one pure step. Every
+ * XP-granting action uses this so freeze accrual can't drift between paths.
+ */
+function applyXp(
+  state: Pick<XpApplication, 'totalXP' | 'weeklyXP' | 'streakFreezes' | 'freezeProgressXP'>,
+  amount: number,
+): XpApplication {
+  const accrual = streakProtectionOn()
+    ? accrueFreezeProgress(state.freezeProgressXP, state.streakFreezes, amount)
+    : { freezeProgressXP: state.freezeProgressXP, streakFreezes: state.streakFreezes, freezesEarned: 0 };
+  if (accrual.freezesEarned > 0) {
+    track(EVENTS.streakFreezeEarned, { count: accrual.freezesEarned });
+  }
+  return {
+    totalXP: state.totalXP + amount,
+    weeklyXP: state.weeklyXP + amount,
+    streakFreezes: accrual.streakFreezes,
+    freezeProgressXP: accrual.freezeProgressXP,
+  };
+}
+
+/** Best-effort ledger append — losing a row must never break the grant. */
+function recordXpEvent(userId: string, input: XpGrantInput): void {
+  try {
+    insertXpEvent(userId, input);
+  } catch {
+    /* the counters above are the user-visible truth; ledger is additive */
+  }
 }
 
 function todayISO(): string {
@@ -108,6 +178,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   questDailyResetDate: persistedQuests?.questDailyResetDate ?? todayISO(),
   pendingLevelUp: null,
   lastKnownLevel: 1,
+  streakFreezes: 0,
+  freezeProgressXP: 0,
+  pendingMilestone: null,
+  pendingStreakLoss: null,
 
   loadFromDB: (userId) => {
     const game = getOrCreateGamification(userId);
@@ -159,6 +233,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       badges,
       totalXP: game.totalXP,
       weeklyXP: game.weeklyXP,
+      streakFreezes: game.streakFreezes ?? 0,
+      freezeProgressXP: game.freezeProgressXP ?? 0,
       lastKnownLevel: levelFromXP(game.totalXP),
     });
 
@@ -182,17 +258,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   completeBlock: (userId, module, completedCount, totalCount) => {
-    const { domainScores, badges, streaks, totalXP, weeklyXP } = get();
+    const { domainScores, badges, streaks, lastKnownLevel } = get();
 
     // XP is credited for EVERY completed block, including non-domain modules
     // (rest/meal/work). This is the single source of block-completion XP —
     // callers must NOT also call addXP(completeBlock) or they'd double-credit
     // (QA RW-01/double-credit fix). The domain-score bump below is gated on a
     // known domain; non-domain blocks still earn XP but move no domain score.
-    const newXP = totalXP + XP_VALUES.completeBlock;
-    const newWeeklyXP = weeklyXP + XP_VALUES.completeBlock;
-
     const domain = MODULE_TO_DOMAIN[module];
+    const xp = applyXp(get(), XP_VALUES.completeBlock);
+    recordXpEvent(userId, { amount: XP_VALUES.completeBlock, domain: domain ?? null, source: 'block' });
+
     const newScores = { ...domainScores };
     if (domain) {
       newScores[domain] = calculateDomainScore(completedCount, totalCount, newScores[domain]);
@@ -204,15 +280,22 @@ export const useGameStore = create<GameState>((set, get) => ({
     updateGamification(userId, {
       domainScores: JSON.stringify(newScores),
       badges: JSON.stringify(allBadges),
-      totalXP: newXP,
-      weeklyXP: newWeeklyXP,
+      totalXP: xp.totalXP,
+      weeklyXP: xp.weeklyXP,
+      streakFreezes: xp.streakFreezes,
+      freezeProgressXP: xp.freezeProgressXP,
     });
 
+    const newLevel = levelFromXP(xp.totalXP);
     set({
       domainScores: newScores,
       badges: allBadges,
-      totalXP: newXP,
-      weeklyXP: newWeeklyXP,
+      totalXP: xp.totalXP,
+      weeklyXP: xp.weeklyXP,
+      streakFreezes: xp.streakFreezes,
+      freezeProgressXP: xp.freezeProgressXP,
+      lastKnownLevel: newLevel,
+      pendingLevelUp: newLevel > lastKnownLevel ? newLevel : get().pendingLevelUp,
       pendingBadges: [...get().pendingBadges, ...newBadges],
     });
 
@@ -224,15 +307,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       useDomainHistoryStore.getState().record(newScores),
     ).catch(() => { /* non-fatal */ });
     import('./useXpHistoryStore').then(({ useXpHistoryStore }) =>
-      useXpHistoryStore.getState().record(newXP),
+      useXpHistoryStore.getState().record(xp.totalXP),
     ).catch(() => { /* non-fatal */ });
 
     // Routine quest — every completed block ticks toward "Complete morning routine".
     get().advanceQuest('q_routine', 1);
+    // quests_v2: same event, DB-backed metric (no-op while the flag is off).
+    tickQuestMetric(userId, 'blocks_completed', 1);
   },
 
   completeGoalNode: (userId, goalType, level) => {
-    const { domainScores, badges, totalXP, weeklyXP } = get();
+    const { domainScores, badges, lastKnownLevel } = get();
     const domain = GOALTYPE_TO_DOMAIN[goalType] ?? 'goals';
     const delta = GOAL_LEVEL_BUMP[level] ?? GOAL_LEVEL_BUMP.daily;
 
@@ -241,8 +326,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // A finished daily task is worth a task; a finished milestone is worth more.
     const xpGain = level === 'daily' ? XP_VALUES.completeGoalTask : XP_VALUES.completeGoalTask * 2;
-    const newXP = totalXP + xpGain;
-    const newWeeklyXP = weeklyXP + xpGain;
+    const xp = applyXp(get(), xpGain);
+    recordXpEvent(userId, { amount: xpGain, domain, source: 'goal_task' });
 
     // The 'Goal Crusher' badge fires only when the whole life goal is done.
     const newBadges = checkBadges(badges, {
@@ -254,15 +339,22 @@ export const useGameStore = create<GameState>((set, get) => ({
     updateGamification(userId, {
       domainScores: JSON.stringify(newScores),
       badges: JSON.stringify(allBadges),
-      totalXP: newXP,
-      weeklyXP: newWeeklyXP,
+      totalXP: xp.totalXP,
+      weeklyXP: xp.weeklyXP,
+      streakFreezes: xp.streakFreezes,
+      freezeProgressXP: xp.freezeProgressXP,
     });
 
+    const newLevel = levelFromXP(xp.totalXP);
     set({
       domainScores: newScores,
       badges: allBadges,
-      totalXP: newXP,
-      weeklyXP: newWeeklyXP,
+      totalXP: xp.totalXP,
+      weeklyXP: xp.weeklyXP,
+      streakFreezes: xp.streakFreezes,
+      freezeProgressXP: xp.freezeProgressXP,
+      lastKnownLevel: newLevel,
+      pendingLevelUp: newLevel > lastKnownLevel ? newLevel : get().pendingLevelUp,
       pendingBadges: [...get().pendingBadges, ...newBadges],
     });
 
@@ -271,27 +363,106 @@ export const useGameStore = create<GameState>((set, get) => ({
     import('./useDomainHistoryStore').then(({ useDomainHistoryStore }) =>
       useDomainHistoryStore.getState().record(newScores),
     ).catch(() => { /* non-fatal */ });
+
+    // quests_v2: a goal node moved forward (no-op while the flag is off).
+    tickQuestMetric(userId, 'goal_task', 1);
   },
 
   addXP: (userId, amount) => {
-    const { totalXP, weeklyXP, lastKnownLevel } = get();
-    const newTotal = totalXP + amount;
-    const newWeekly = weeklyXP + amount;
-    const newLevel = levelFromXP(newTotal);
-    updateGamification(userId, { totalXP: newTotal, weeklyXP: newWeekly });
+    // Legacy entry — kept for existing call sites; routes through the ledger.
+    get().grantXP(userId, { amount, source: 'misc' });
+  },
+
+  grantXP: (userId, input) => {
+    const { lastKnownLevel } = get();
+    const xp = applyXp(get(), input.amount);
+    recordXpEvent(userId, input);
+    const newLevel = levelFromXP(xp.totalXP);
+    updateGamification(userId, {
+      totalXP: xp.totalXP,
+      weeklyXP: xp.weeklyXP,
+      streakFreezes: xp.streakFreezes,
+      freezeProgressXP: xp.freezeProgressXP,
+    });
     set({
-      totalXP: newTotal,
-      weeklyXP: newWeekly,
+      totalXP: xp.totalXP,
+      weeklyXP: xp.weeklyXP,
+      streakFreezes: xp.streakFreezes,
+      freezeProgressXP: xp.freezeProgressXP,
       lastKnownLevel: newLevel,
       pendingLevelUp: newLevel > lastKnownLevel ? newLevel : get().pendingLevelUp,
     });
   },
 
   triggerStreak: (userId, streakType) => {
-    const { streaks, badges } = get();
-    const updated = { ...streaks };
-    updated[streakType] = updateStreak(updated[streakType]);
+    const { streaks, badges, streakFreezes } = get();
+    const protectionOn = streakProtectionOn();
+    const prior = streaks[streakType];
+    const result = advanceStreak(prior, {
+      today: localDayISO(),
+      // Flag off ⇒ no freezes offered ⇒ the engine reproduces the legacy
+      // grace/reset ladder exactly (extra JSON fields are additive/ignored).
+      freezesAvailable: protectionOn ? streakFreezes : 0,
+    });
 
+    let nextStreak = result.next;
+    let newFreezes = streakFreezes;
+    let pendingMilestone = get().pendingMilestone;
+    let pendingStreakLoss = get().pendingStreakLoss;
+
+    if (result.freezeConsumed) {
+      newFreezes = Math.max(0, streakFreezes - 1);
+      useRewardQueueStore.getState().enqueue({
+        type: 'streakSave',
+        label: STREAK_META[streakType].label,
+        count: nextStreak.count,
+      });
+      track(EVENTS.streakFreezeUsed, { streak: streakType, count: nextStreak.count });
+    }
+    if (protectionOn && result.milestoneCrossed) {
+      nextStreak = markMilestoneCelebrated(nextStreak, result.milestoneCrossed);
+      pendingMilestone = { streakKey: streakType, tier: result.milestoneCrossed };
+      track(EVENTS.streakMilestone, { streak: streakType, tier: result.milestoneCrossed });
+    }
+    if (result.lost) {
+      // Surface recovery only for runs worth mourning (mirrors the cognition
+      // layer's MIN_STREAK_TO_PROTECT). Copy stays warm — see StreakRecoveryCard.
+      if (protectionOn && prior.count >= 3) {
+        pendingStreakLoss = { streakKey: streakType, lostCount: prior.count };
+      }
+      track(EVENTS.streakLost, { streak: streakType, count: prior.count });
+    }
+
+    const updated = { ...streaks, [streakType]: nextStreak };
+    const newBadges = checkBadges(badges, { streaks: updated });
+    const allBadges = [...badges, ...newBadges];
+
+    updateGamification(userId, {
+      streaks: JSON.stringify(updated),
+      badges: JSON.stringify(allBadges),
+      streakFreezes: newFreezes,
+    });
+
+    set({
+      streaks: updated,
+      badges: allBadges,
+      streakFreezes: newFreezes,
+      pendingMilestone,
+      pendingStreakLoss,
+      pendingBadges: [...get().pendingBadges, ...newBadges],
+    });
+  },
+
+  restoreStreak: (userId, streakType) => {
+    const { streaks, badges } = get();
+    const restored = restoreFromLoss(streaks[streakType], localDayISO());
+    if (!restored) {
+      // Window passed — clear the stale card so it can't dangle forever.
+      if (get().pendingStreakLoss?.streakKey === streakType) set({ pendingStreakLoss: null });
+      return false;
+    }
+
+    const updated = { ...streaks, [streakType]: restored };
     const newBadges = checkBadges(badges, { streaks: updated });
     const allBadges = [...badges, ...newBadges];
 
@@ -303,8 +474,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       streaks: updated,
       badges: allBadges,
+      pendingStreakLoss: null,
       pendingBadges: [...get().pendingBadges, ...newBadges],
     });
+    track(EVENTS.streakRecovered, { streak: streakType, count: restored.count });
+    return true;
   },
 
   awardBadge: (userId, badgeId) => {
@@ -347,4 +521,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   dismissLevelUp: () => set({ pendingLevelUp: null }),
+  dismissMilestone: () => set({ pendingMilestone: null }),
+  dismissStreakLoss: () => set({ pendingStreakLoss: null }),
 }));

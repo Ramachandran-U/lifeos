@@ -27,6 +27,7 @@ import {
 } from '@/store/usePolymathStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
+import { tickQuestMetric } from '@/store/useQuestStore';
 import { useAI } from '@/hooks/useAI';
 import { suggestInterestAreas, suggestCrossDisciplineLink, suggestMapTitle } from '@/ai/functions';
 import { upsertRabbitHoleTree } from '@/db/queries/rabbitHoleTrees';
@@ -399,6 +400,7 @@ export default function ExploreScreen() {
     triggerStreak(userId, 'learning');
     completeBlock(userId, 'polymath', 1, 1);
     advanceQuest('q_learn', 1);
+    tickQuestMetric(userId, 'learning_resource', 1);
 
     // Polymath Starter: first log on a deep_dive interest.
     if (activeInterest.explorationDepth === 'deep_dive') {
@@ -509,6 +511,7 @@ export default function ExploreScreen() {
       track(EVENTS.sparkSaved, { domain: 'polymath' });
       triggerStreak(userId, 'learning');
       track(EVENTS.curiosityStreakDay, {});
+      tickQuestMetric(userId, 'spark_engaged', 1);
     }
     if (action === 'dismiss') track(EVENTS.sparkDismissed, {});
   }, [todaySpark, userId, addXP, triggerStreak, router]);

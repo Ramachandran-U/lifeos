@@ -58,6 +58,9 @@ import { XpBar } from '@/components/gamification/XpBar';
 import { StreakFlame } from '@/components/gamification/StreakFlame';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { QuestDetailSheet } from '@/components/gamification/QuestDetailSheet';
+import { StreakRecoveryCard } from '@/components/gamification/StreakRecoveryCard';
+import { useDailyQuests } from '@/hooks/useDailyQuests';
+import { toLegacyQuest } from '@/store/useQuestStore';
 import type { Quest } from '@/constants/gamification';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
 import { xpProgressInLevel, XP_VALUES } from '@/utils/gamification';
@@ -103,6 +106,10 @@ export default function TodayScreen() {
   const totalXP = useGameStore((s) => s.totalXP);
   const quests = useGameStore((s) => s.quests);
   const gameDomainScores = useGameStore((s) => s.domainScores);
+  const pendingStreakLoss = useGameStore((s) => s.pendingStreakLoss);
+  const dismissStreakLoss = useGameStore((s) => s.dismissStreakLoss);
+  const restoreStreak = useGameStore((s) => s.restoreStreak);
+  const dailyQuests = useDailyQuests();
   // `today` lives in state so a focus that crosses midnight re-keys queries
   // onto the new date. Without this, completing a block at 12:01am writes to
   // yesterday's routine (walkthrough P0-3).
@@ -112,6 +119,7 @@ export default function TodayScreen() {
   // so we can show a skeleton instead of the empty-state on first paint.
   const [loaded, setLoaded] = useState(false);
   const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
+  const streakProtection = useFlagStore((s) => s.isEnabled('streak_protection_v1'));
   // The acting coach supersedes the read-only "what next" card when enabled, so
   // only one of the two shows.
   const coachActionsEnabled = useFlagStore((s) => s.isEnabled('ai_coach_actions'));
@@ -581,8 +589,31 @@ export default function TodayScreen() {
             </View>
           )}
 
-          {/* Active Quests (hidden when gamification off) */}
-          {gamification === 'full' && quests.length > 0 && (
+          {/* Active Quests (hidden when gamification off). quests_v2 swaps in
+              the DB-backed daily set with inline claim. */}
+          {gamification === 'full' && dailyQuests.enabled && dailyQuests.quests.length > 0 && (
+            <View style={styles.questsSection}>
+              <Body style={styles.sectionLabel}>TODAY'S QUESTS</Body>
+              <View style={styles.questList}>
+                {dailyQuests.quests
+                  .filter((q) => q.status !== 'rerolled' && q.status !== 'claimed')
+                  .slice(0, 3)
+                  .map((q) => {
+                    const legacy = toLegacyQuest(q);
+                    return (
+                      <QuestCard
+                        key={q.id}
+                        quest={legacy}
+                        compact
+                        onPress={() => setOpenQuest(legacy)}
+                        onClaim={() => dailyQuests.claim(q.id)}
+                      />
+                    );
+                  })}
+              </View>
+            </View>
+          )}
+          {gamification === 'full' && !dailyQuests.enabled && quests.length > 0 && (
             <View style={styles.questsSection}>
               <Body style={styles.sectionLabel}>ACTIVE QUESTS</Body>
               <View style={styles.questList}>
@@ -657,6 +688,18 @@ export default function TodayScreen() {
               onCtaPress={blocks.length === 0 ? startOnboarding : undefined}
             />
           </Animated.View>
+
+          {streakProtection && gamification !== 'off' && pendingStreakLoss && (
+            <StreakRecoveryCard
+              streakKey={pendingStreakLoss.streakKey}
+              lostCount={pendingStreakLoss.lostCount}
+              onRestore={() => {
+                const uid = userId;
+                if (uid) restoreStreak(uid, pendingStreakLoss.streakKey);
+              }}
+              onDismiss={dismissStreakLoss}
+            />
+          )}
 
           {blocks.length > 0 && (
             <Animated.View entering={FadeInDown.delay(140).duration(400)}>
@@ -967,6 +1010,16 @@ export default function TodayScreen() {
         visible={openQuest !== null}
         onClose={() => setOpenQuest(null)}
         onChanged={loadData}
+        onClaim={
+          dailyQuests.enabled && openQuest
+            ? () => { dailyQuests.claim(openQuest.id); setOpenQuest(null); }
+            : undefined
+        }
+        onReroll={
+          dailyQuests.enabled && openQuest && dailyQuests.canReroll
+            ? () => { dailyQuests.reroll(openQuest.id); setOpenQuest(null); }
+            : undefined
+        }
       />
     </View>
   );

@@ -12,14 +12,18 @@ interface Props {
   quest: Quest;
   onPress?: () => void;
   compact?: boolean;
+  /** quests_v2: completed-but-unclaimed → render a Claim pill instead of the check. */
+  onClaim?: () => void;
 }
 
-export function QuestCard({ quest, onPress, compact = false }: Props) {
+export function QuestCard({ quest, onPress, compact = false, onClaim }: Props) {
   const c = useColors();
   const meta = MODULE_META[quest.module];
   const color = c[meta.colorKey];
   const pct = quest.progress / quest.total;
   const done = pct >= 1;
+  const claimable = !!onClaim && quest.status === 'completed';
+  const claimed = quest.status === 'claimed';
   const press = usePressScale(0.98);
 
   return (
@@ -59,14 +63,30 @@ export function QuestCard({ quest, onPress, compact = false }: Props) {
             </Text>
           </View>
         </View>
-        <View
-          style={[
-            styles.check,
-            { borderColor: done ? color : c.border, backgroundColor: done ? color : 'transparent' },
-          ]}
-        >
-          {done && <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>✓</Text>}
-        </View>
+        {claimable ? (
+          // The reward is EARNED but not banked — an explicit claim makes the
+          // XP grant a deliberate, felt moment (variable-reward groundwork).
+          <Pressable
+            onPress={onClaim}
+            accessibilityRole="button"
+            accessibilityLabel={`Claim ${quest.xp} XP for ${quest.title}`}
+            style={[styles.claimPill, { backgroundColor: color }]}
+          >
+            <Text style={styles.claimText}>Claim +{quest.xp}</Text>
+          </Pressable>
+        ) : (
+          <View
+            style={[
+              styles.check,
+              {
+                borderColor: done || claimed ? color : c.border,
+                backgroundColor: done || claimed ? color : 'transparent',
+              },
+            ]}
+          >
+            {(done || claimed) && <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>✓</Text>}
+          </View>
+        )}
       </View>
       </Animated.View>
     </Pressable>
@@ -99,6 +119,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
+  claimPill: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: 10,
+    marginTop: 2,
+  },
+  claimText: { color: '#FFF', fontFamily: fonts.heading, fontSize: fontSizes.xs },
 });
 
 // Suppress unused import warnings when spacing is not used directly

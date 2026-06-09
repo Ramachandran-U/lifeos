@@ -20,7 +20,9 @@ import { MODULE_ICONS } from '@/theme/domainIcons';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption } from '@/components/ui/Typography';
-import { EASING, SPRING, TIMING, useMotionScale } from '@/theme/motion';
+import { EASING, INTERACTION, SPRING, TIMING, useMotionScale } from '@/theme/motion';
+import { haptic } from '@/utils/haptics';
+import { isEnabled } from '@/config/flags';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -28,9 +30,9 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 // gesture duration, not an animation curve. Kept short (250ms) so it fires
 // well before a mobile browser's native long-press text-selection / copy
 // menu (~500ms), which previously hijacked the gesture on web.
-const HOLD_MS = 250;
+const HOLD_MS = INTERACTION.holdToConfirm;
 // Reduce-motion / users with motionIntensity=off get a near-instant tap window.
-const REDUCED_HOLD_MS = 80;
+const REDUCED_HOLD_MS = INTERACTION.holdToConfirmReduced;
 
 // Progress arc geometry (drawn on the status button when pressed).
 const ARC_RADIUS = 13;
@@ -115,6 +117,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
   }));
 
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completedRef = useRef(false);
 
   const commit = () => {
@@ -134,6 +137,12 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     if (isCompleted || completedRef.current) return;
     pressP.value = withTiming(1, { duration: holdMs, easing: EASING.inOut });
     holdTimer.current = setTimeout(() => commit(), holdMs);
+    // M0 haptic gap-fill: a sub-perceptual tick at 50% of the arc tells the
+    // finger the hold is registering. Intent feedback only — success still
+    // fires on commit (guardrail 4). Skipped on the reduced (instant) window.
+    if (isEnabled('motionPolish') && motionScale > 0) {
+      tickTimer.current = setTimeout(() => haptic.holdTick(), holdMs / 2);
+    }
   };
 
   const cancelHold = () => {
@@ -141,8 +150,12 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
       clearTimeout(holdTimer.current);
       holdTimer.current = null;
     }
+    if (tickTimer.current) {
+      clearTimeout(tickTimer.current);
+      tickTimer.current = null;
+    }
     if (!completedRef.current) {
-      pressP.value = withTiming(0, { duration: 200, easing: EASING.out });
+      pressP.value = withTiming(0, { duration: INTERACTION.holdRelease, easing: EASING.out });
     }
   };
 
@@ -169,7 +182,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     // Two-layer animation wrapper: outer view owns the layout entry animation,
     // inner view owns the per-frame opacity/scale. Reanimated 4 warns when both
     // coexist on the same node ("opacity may be overwritten by a layout animation").
-    <Animated.View entering={FadeIn.duration(300)}>
+    <Animated.View entering={FadeIn.duration(TIMING.normal)}>
       <Animated.View style={animatedStyle}>
       <View
         testID={`routine-block-${id}`}
