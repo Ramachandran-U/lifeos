@@ -79,4 +79,44 @@ walk(DIST);
 if (importMetaPatchedFiles > 0) {
   console.log(`post-export-web: neutralized ${importMetaPatchedHits} import.meta.env occurrence(s) across ${importMetaPatchedFiles} file(s)`);
 }
+
+// 4. Completeness guard — FAIL the build if the export dropped route HTML files.
+//    An interrupted/concurrent `expo export` (e.g. building from a worktree whose
+//    files change mid-export) can silently omit routes, shipping 404s to prod.
+//    That happened on 2026-06-09: ~9 routes (goals, rewards, …) were missing and
+//    the deploy went out anyway. Better to fail loudly here than to find out in
+//    production. We assert a curated set of always-present routes exist, plus a
+//    sane floor on the total route count (a healthy build emits ~77).
+const CRITICAL_ROUTES = [
+  'index', 'goals', 'rewards', 'health', 'finance', 'career', 'social', 'explore',
+  'profile', 'what-lifeos-knows', 'notifications-settings', 'terms-privacy',
+];
+const MIN_HTML_FILES = 40;
+
+const htmlBasenames = [];
+(function collectHtml(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, entry.name);
+    if (entry.isDirectory()) collectHtml(p);
+    else if (entry.name.endsWith('.html')) htmlBasenames.push(entry.name);
+  }
+})(DIST);
+
+const htmlCount = htmlBasenames.length;
+const missingCritical = CRITICAL_ROUTES.filter((r) => !htmlBasenames.includes(`${r}.html`));
+
+if (missingCritical.length > 0 || htmlCount < MIN_HTML_FILES) {
+  console.error(
+    `post-export-web: FATAL — incomplete export, refusing to ship.\n` +
+    `  route HTML files: ${htmlCount} (minimum expected ${MIN_HTML_FILES})\n` +
+    `  missing critical routes: ${missingCritical.length ? missingCritical.join(', ') : 'none'}\n` +
+    `  This usually means the export was interrupted or built from a changing tree. ` +
+    `Re-run from a clean/isolated checkout (npm ci + expo export --clear).`,
+  );
+  process.exit(1);
+}
+
+console.log(
+  `post-export-web: completeness OK — ${htmlCount} route files, all ${CRITICAL_ROUTES.length} critical routes present`,
+);
 console.log('post-export-web: dist ready for Cloudflare Pages');
