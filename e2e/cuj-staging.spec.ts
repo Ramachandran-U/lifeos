@@ -856,3 +856,108 @@ test.describe('CUJ 16 — Monthly money review renders from seeded transactions'
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── CUJ 17: Intra-day replan — skip a block → "Re-plan" mutates the rest of today ─
+//
+// Human equivalent: "I skipped my morning deep-work block. I tap 'Re-plan' and
+// LifeOS actually rebalances the rest of my day — it doesn't just say it did."
+//
+// This is the cognitive layer's signature move (replan rest of today). The Today
+// CTA applies directly (no diff sheet): handleReplan → rebalanceRestOfToday →
+// replanRemainingDay → applyReplan mutates the routine + surfaces a rationale.
+//
+// Mode-agnostic: in a mock build replanRemainingDay returns buildMockReplanRemainingDay
+// (no /claude call); against a live target routeAI returns the SAME plan by reading
+// the request's real block ids back. Seeding exactly ONE skipped block keeps
+// `soften` false (isRecoveryLow needs ≥3), so both paths take the deterministic
+// "retry the skipped block in the next slot" branch — one remaining block is
+// retitled "<skipped title> (retry)". Upcoming blocks span the day so a "remaining"
+// block exists for all but the last ~30s before midnight (clock is UTC-pinned).
+
+const REPLAN_BLOCKS: SeedBlock[] = [
+  { id: 'rp-skip',  title: 'Morning Deep Work', module: 'career', startTime: '07:00', endTime: '08:00', status: 'skipped' },
+  { id: 'rp-up-1',  title: 'Afternoon Focus',   module: 'goal',   startTime: '13:00', endTime: '14:00' },
+  { id: 'rp-up-2',  title: 'Evening Review',     module: 'goal',   startTime: '23:30', endTime: '23:59' },
+];
+
+test.describe('CUJ 17 — Re-plan rest of today mutates the routine and shows a rationale', () => {
+  test('skipping a block then tapping Re-plan rebalances the remaining day', async ({ page }) => {
+    await seedSupabaseSession(page);            // AI auth guard (live target)
+    await seedAuthedUser(page, { blocks: REPLAN_BLOCKS });
+    // handleReplan bails with "No profile yet" unless a user_profiles row exists.
+    await page.addInitScript(() => {
+      const profile = {
+        version: 1,
+        identity: { firstName: 'E2E', ageBand: null, seasonOfLife: null },
+        vision: { statement: null, horizon: null, topGoals: [] },
+        schedule: { wakeTime: '07:00', sleepTime: '23:00', workStartTime: '09:00', workEndTime: '17:00', fixedBlocks: [] },
+        chronotype: 'morning',
+        primaryDomains: ['health', 'career', 'goals'],
+        habits: { current: [], aspirational: [] },
+        constraints: [], struggles: [], values: [],
+        communication: { tone: null, avoid: [] },
+        confidence: { identity: 1, vision: 1, schedule: 1, chronotype: 1, habits: 1, constraints: 1, primaryDomains: 1, overall: 1 },
+        inferredPreferences: { preferredBlockMinutes: null, productiveHours: [], droppedHabits: [], preferredRestDays: [] },
+        source: 'form',
+        lastUpdated: new Date().toISOString(),
+      };
+      localStorage.setItem('lifeos_user_profiles', JSON.stringify([{ userId: 'e2e-user-1', profile }]));
+    });
+
+    // Mirror buildMockReplanRemainingDay exactly from the request body so the
+    // outcome matches whether the build is mock (no /claude) or live (this route).
+    await routeAI(page, (body) => {
+      if (body.task !== 'replanRemainingDay') return {};
+      type RB = { id: string; startTime: string; endTime: string; title: string; module: string };
+      const b = body as { task?: string; messages?: Array<{ content?: string }> };
+      let input: { remainingBlocks?: RB[]; skippedToday?: Array<{ id: string; title: string; module: string }>; softenForRecovery?: boolean } = {};
+      try { input = JSON.parse(b.messages?.[0]?.content ?? '{}'); } catch { /* keep {} */ }
+      const remaining = input.remainingBlocks ?? [];
+      const skipped = input.skippedToday?.[0];
+      let plan;
+      if (input.softenForRecovery) {
+        const heavy = remaining.filter((x) => x.title.toLowerCase().includes('workout') || x.module === 'career');
+        plan = {
+          drop: heavy.map((x) => x.id),
+          edits: [],
+          add: heavy.length ? [{ startTime: heavy[0].startTime, endTime: heavy[0].endTime, title: 'Easy walk + reset', module: 'rest', energyRequired: 'low' }] : [],
+          rationale: 'Lower-energy day — swapped the hard blocks for a recovery walk.',
+        };
+      } else if (skipped && remaining[0]) {
+        plan = {
+          drop: [],
+          edits: [{ id: remaining[0].id, title: `${skipped.title} (retry)` }],
+          add: [],
+          rationale: `Re-tried the ${skipped.title.toLowerCase()} you missed in the next slot.`,
+        };
+      } else {
+        plan = { drop: [], edits: [], add: [], rationale: 'Day is on track — no changes.' };
+      }
+      return { text: JSON.stringify(plan) };
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+
+    // The skip-driven CTA: "1 skipped — let me rebalance what's left." + "Re-plan".
+    const replanBtn = page.getByText('Re-plan', { exact: true });
+    await expect(replanBtn).toBeVisible({ timeout: 10_000 });
+    await replanBtn.click();
+
+    // Business outcome 1: a rationale replaces the CTA (proves the plan ran).
+    await expect(page.getByText(/Re-tried the morning deep work/i)).toBeVisible({ timeout: 15_000 });
+
+    // Business outcome 2: the routine is ACTUALLY mutated — one block now carries
+    // the "(retry)" title written by applyReplan, not just a UI message.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const blocks = JSON.parse(localStorage.getItem('lifeos_routine_blocks') ?? '[]') as Array<{ title?: string }>;
+          return blocks.some((b) => b.title === 'Morning Deep Work (retry)');
+        } catch { return false; }
+      }), { timeout: 10_000 })
+      .toBe(true);
+    expect(pageErrors).toEqual([]);
+  });
+});
