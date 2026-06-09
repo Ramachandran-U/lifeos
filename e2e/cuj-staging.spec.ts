@@ -1103,3 +1103,64 @@ test.describe('CUJ 19 — Recategorising a transaction persists the correction',
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── CUJ 20: Gamification — completing a block ticks a streak; hitting 30 earns a badge ─
+//
+// Human equivalent: "I finish my workout block. My streak ticks up — and this one
+// hits 30 days, so I get the achievement toast." Covers streak increment + a
+// badge earned (with its toast) in one deterministic flow.
+//
+// Mechanics: the Today block-completion handler maps module health→'workout' and
+// calls triggerStreak, which runs updateStreak (yesterday→today = +1) then
+// checkBadges({streaks}) — any streak reaching 30 fires `streak_30_any`. We seed
+// the workout streak at 29 (lastDate=yesterday, from seedAuthedUser), so finishing
+// one health block (cuj-health-1, reusing CUJ 1's proven holdToComplete) takes it
+// to 30. first_blueprint is added silently on load (not queued), so the only toast
+// is the streak badge. No AI on this path.
+
+test.describe('CUJ 20 — Completing a health block ticks the workout streak to a 30-day badge', () => {
+  test('finishing a workout block increments the streak and earns the 30-day badge + toast', async ({ page }) => {
+    await seedAuthedUser(page, { blocks: TODAY_BLOCKS }); // cuj-health-1 is a 'health' block
+    // Bump the seeded workout streak to 29 (keeps its yesterday lastDate) so one
+    // completion crosses the 30-day badge threshold.
+    await page.addInitScript(() => {
+      try {
+        const all = JSON.parse(localStorage.getItem('lifeos_gamification') ?? '[]') as Array<{ userId: string; streaks: string; badges: string }>;
+        const row = all[0];
+        if (row) {
+          const streaks = JSON.parse(row.streaks);
+          streaks.workout = { ...streaks.workout, count: 29 }; // lastDate stays yesterday
+          row.streaks = JSON.stringify(streaks);
+          row.badges = JSON.stringify([]); // start clean so the badge is newly earned
+          localStorage.setItem('lifeos_gamification', JSON.stringify(all));
+        }
+      } catch { /* leave seed as-is */ }
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Morning run').first()).toBeVisible({ timeout: 10_000 });
+
+    await holdToComplete(page, 'cuj-health-1');
+
+    // Business outcome 1: the achievement toast for the 30-day streak badge shows.
+    await expect(page.getByText('30-Day Streak')).toBeVisible({ timeout: 8_000 });
+
+    // Business outcome 2: the streak ticked to 30 AND the badge persisted.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const all = JSON.parse(localStorage.getItem('lifeos_gamification') ?? '[]') as Array<{ userId: string; streaks: string; badges: string }>;
+          const row = all.find((g) => g.userId === 'e2e-user-1');
+          if (!row) return null;
+          return {
+            workout: JSON.parse(row.streaks).workout?.count,
+            hasBadge: JSON.parse(row.badges).includes('streak_30_any'),
+          };
+        } catch { return null; }
+      }), { timeout: 10_000 })
+      .toEqual({ workout: 30, hasBadge: true });
+    expect(pageErrors).toEqual([]);
+  });
+});
