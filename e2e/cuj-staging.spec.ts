@@ -813,14 +813,22 @@ async function seedFinanceTx(
 // and get a real breakdown of where my money went."
 
 test.describe('CUJ 16 — Monthly money review renders from seeded transactions', () => {
-  // FIXME: the Dexie seed below puts a transaction into lifeos_finance.transactions
-  // without error, but after reload the finance transaction store still reads
-  // empty (Finance shows its no-transactions state), so the review entry point
-  // never appears. Needs investigation into the store's load path (timing/filter)
-  // or the Dexie version mapping. Helper + flow are kept as scaffolding.
-  test.fixme('with a transaction present, the review generates and shows its sections', async ({ page }) => {
+  // The Monthly Money Review CTA lives in the Overview tab, which early-returns a
+  // "Connect your inbox" prompt when Gmail isn't connected — so seeding a
+  // transaction alone never surfaces it (the seeded row IS in Dexie; that was a
+  // red herring). isGmailConnected() is just `!!localStorage['lifeos_gmail_tokens']`,
+  // so seeding a token flips the tab to its real content and the CTA appears once
+  // load() reads the tx. No auto-sync runs on mount, so the fake token is inert.
+  test('with a transaction present, the review generates and shows its sections', async ({ page }) => {
     await seedSupabaseSession(page);
     await seedAuthedUser(page);
+    // Fake Gmail connection so the Overview tab renders transactions instead of
+    // the connect-inbox empty state. Re-applied on reload (addInitScript).
+    await page.addInitScript(() => {
+      localStorage.setItem('lifeos_gmail_tokens', JSON.stringify({
+        access_token: 'e2e-fake-gmail', refresh_token: 'e2e-fake-refresh', expires_at: 9999999999,
+      }));
+    });
     await routeAI(page, (body) =>
       body.task === 'generateMoneyReview'
         ? { text: JSON.stringify({
@@ -841,17 +849,20 @@ test.describe('CUJ 16 — Monthly money review renders from seeded transactions'
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     await seedFinanceTx(page, [{
       id: 'cuj-tx-1', date: today, amount: 50000, direction: 'debit',
-      merchant: 'Swiggy', category: 'food', source: 'manual',
+      merchant: 'Swiggy', category: 'food_delivery', source: 'manual',
       rawEmailId: 'cuj-1', confidence: 0.95, userCorrected: false,
     }]);
-    // Reload so the transaction store picks up the seeded row.
+    // Reload so the transaction store's load() (in useFocusEffect) reads the row.
     await page.reload({ waitUntil: 'domcontentloaded' });
 
-    // Business outcome 1: the review entry point appears (only shows when txns exist).
-    await page.getByText('Monthly Money Review').click({ timeout: 15_000 });
+    // Business outcome 1: the review entry point appears (Overview tab, txns present).
+    const reviewCta = page.getByText('Monthly Money Review');
+    await expect(reviewCta).toBeVisible({ timeout: 20_000 });
+    await reviewCta.click();
 
-    // Business outcome 2: the review renders its sections.
-    await expect(page.getByText('Where your money went')).toBeVisible({ timeout: 15_000 });
+    // Business outcome 2: the review renders its sections. ('Where your money went'
+    // also appears as a subtitle elsewhere, so match the heading exactly.)
+    await expect(page.getByText('Where your money went', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('WINS')).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
@@ -958,6 +969,72 @@ test.describe('CUJ 17 — Re-plan rest of today mutates the routine and shows a 
         } catch { return false; }
       }), { timeout: 10_000 })
       .toBe(true);
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 18: Full-week routine generation — "Plan my next 7 days" persists 7 days ─
+//
+// Human equivalent: "I tap 'Plan my next 7 days' and LifeOS actually fills my
+// calendar — seven days of blocks, not just a promise."
+//
+// This is the master-planner's generate path (generateAndSaveWeek → single
+// generateWeekRoutine call → createRoutineBlocks per day, wiping each date first).
+// The CTA only shows when today already has a routine, so we seed today's blocks.
+//
+// Mode-agnostic: a mock build returns buildMockWeekRoutine (7 days from startDate,
+// no /claude); against a live target routeAI returns a schema-valid 7-day week
+// keyed to the same startDate read off the request. Either way the asserted
+// outcome is identical: 7 distinct dates (today..today+6) now hold routine blocks.
+
+test.describe('CUJ 18 — Plan my next 7 days generates and persists a week of blocks', () => {
+  test('tapping "Plan my next 7 days" writes routine blocks across 7 dates', async ({ page }) => {
+    await seedSupabaseSession(page);                       // AI auth guard (live target)
+    await seedAuthedUser(page, { blocks: TODAY_BLOCKS });  // blocks today → CTA is shown
+
+    // Mirror buildMockWeekRoutine: 7 schema-valid days starting at the request's
+    // startDate, so a live target persists the same 7 dates a mock build would.
+    await routeAI(page, (body) => {
+      if (body.task !== 'generateWeekRoutine') return {};
+      const b = body as { task?: string; messages?: Array<{ content?: string }> };
+      let startDate = '';
+      try { startDate = (JSON.parse(b.messages?.[0]?.content ?? '{}') as { startDate?: string }).startDate ?? ''; } catch { /* keep '' */ }
+      const [y, m, d] = (startDate || '2026-01-01').split('-').map(Number);
+      const dayBlocks = [
+        { startTime: '07:00', endTime: '07:30', title: 'Morning routine + stretch', module: 'health', energyRequired: 'low' },
+        { startTime: '09:00', endTime: '12:00', title: 'Deep work', module: 'career', energyRequired: 'high' },
+        { startTime: '20:00', endTime: '22:00', title: 'Wind down', module: 'rest', energyRequired: 'low' },
+      ];
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const dt = new Date(Date.UTC(y, m - 1, d + i));
+        const date = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+        return { date, dayOfWeek: dt.getUTCDay(), blocks: dayBlocks, briefing: 'Planned day.' };
+      });
+      return { text: JSON.stringify({ days, weeklyOutline: 'A balanced week with morning deep-work peaks.' }) };
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+
+    const planWeek = page.getByText('Plan my next 7 days', { exact: true });
+    await planWeek.scrollIntoViewIfNeeded().catch(() => {});
+    await expect(planWeek).toBeVisible({ timeout: 10_000 });
+    await planWeek.click();
+
+    // Business outcome 1: the flow completes and says so.
+    await expect(page.getByText('Your next 7 days are planned.')).toBeVisible({ timeout: 20_000 });
+
+    // Business outcome 2: blocks ACTUALLY persisted across 7 distinct dates
+    // (today through today+6), not just a confirmation message.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const blocks = JSON.parse(localStorage.getItem('lifeos_routine_blocks') ?? '[]') as Array<{ date?: string }>;
+          return new Set(blocks.map((b) => b.date)).size;
+        } catch { return 0; }
+      }), { timeout: 10_000 })
+      .toBeGreaterThanOrEqual(7);
     expect(pageErrors).toEqual([]);
   });
 });
