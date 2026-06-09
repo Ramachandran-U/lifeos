@@ -813,14 +813,22 @@ async function seedFinanceTx(
 // and get a real breakdown of where my money went."
 
 test.describe('CUJ 16 — Monthly money review renders from seeded transactions', () => {
-  // FIXME: the Dexie seed below puts a transaction into lifeos_finance.transactions
-  // without error, but after reload the finance transaction store still reads
-  // empty (Finance shows its no-transactions state), so the review entry point
-  // never appears. Needs investigation into the store's load path (timing/filter)
-  // or the Dexie version mapping. Helper + flow are kept as scaffolding.
-  test.fixme('with a transaction present, the review generates and shows its sections', async ({ page }) => {
+  // The Monthly Money Review CTA lives in the Overview tab, which early-returns a
+  // "Connect your inbox" prompt when Gmail isn't connected — so seeding a
+  // transaction alone never surfaces it (the seeded row IS in Dexie; that was a
+  // red herring). isGmailConnected() is just `!!localStorage['lifeos_gmail_tokens']`,
+  // so seeding a token flips the tab to its real content and the CTA appears once
+  // load() reads the tx. No auto-sync runs on mount, so the fake token is inert.
+  test('with a transaction present, the review generates and shows its sections', async ({ page }) => {
     await seedSupabaseSession(page);
     await seedAuthedUser(page);
+    // Fake Gmail connection so the Overview tab renders transactions instead of
+    // the connect-inbox empty state. Re-applied on reload (addInitScript).
+    await page.addInitScript(() => {
+      localStorage.setItem('lifeos_gmail_tokens', JSON.stringify({
+        access_token: 'e2e-fake-gmail', refresh_token: 'e2e-fake-refresh', expires_at: 9999999999,
+      }));
+    });
     await routeAI(page, (body) =>
       body.task === 'generateMoneyReview'
         ? { text: JSON.stringify({
@@ -841,18 +849,318 @@ test.describe('CUJ 16 — Monthly money review renders from seeded transactions'
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     await seedFinanceTx(page, [{
       id: 'cuj-tx-1', date: today, amount: 50000, direction: 'debit',
-      merchant: 'Swiggy', category: 'food', source: 'manual',
+      merchant: 'Swiggy', category: 'food_delivery', source: 'manual',
       rawEmailId: 'cuj-1', confidence: 0.95, userCorrected: false,
     }]);
-    // Reload so the transaction store picks up the seeded row.
+    // Reload so the transaction store's load() (in useFocusEffect) reads the row.
     await page.reload({ waitUntil: 'domcontentloaded' });
 
-    // Business outcome 1: the review entry point appears (only shows when txns exist).
-    await page.getByText('Monthly Money Review').click({ timeout: 15_000 });
+    // Business outcome 1: the review entry point appears (Overview tab, txns present).
+    const reviewCta = page.getByText('Monthly Money Review');
+    await expect(reviewCta).toBeVisible({ timeout: 20_000 });
+    await reviewCta.click();
 
-    // Business outcome 2: the review renders its sections.
-    await expect(page.getByText('Where your money went')).toBeVisible({ timeout: 15_000 });
+    // Business outcome 2: the review renders its sections. ('Where your money went'
+    // also appears as a subtitle elsewhere, so match the heading exactly.)
+    await expect(page.getByText('Where your money went', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('WINS')).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 17: Intra-day replan — skip a block → "Re-plan" mutates the rest of today ─
+//
+// Human equivalent: "I skipped my morning deep-work block. I tap 'Re-plan' and
+// LifeOS actually rebalances the rest of my day — it doesn't just say it did."
+//
+// This is the cognitive layer's signature move (replan rest of today). The Today
+// CTA applies directly (no diff sheet): handleReplan → rebalanceRestOfToday →
+// replanRemainingDay → applyReplan mutates the routine + surfaces a rationale.
+//
+// Mode-agnostic: in a mock build replanRemainingDay returns buildMockReplanRemainingDay
+// (no /claude call); against a live target routeAI returns the SAME plan by reading
+// the request's real block ids back. Seeding exactly ONE skipped block keeps
+// `soften` false (isRecoveryLow needs ≥3), so both paths take the deterministic
+// "retry the skipped block in the next slot" branch — one remaining block is
+// retitled "<skipped title> (retry)". Upcoming blocks span the day so a "remaining"
+// block exists for all but the last ~30s before midnight (clock is UTC-pinned).
+
+const REPLAN_BLOCKS: SeedBlock[] = [
+  { id: 'rp-skip',  title: 'Morning Deep Work', module: 'career', startTime: '07:00', endTime: '08:00', status: 'skipped' },
+  { id: 'rp-up-1',  title: 'Afternoon Focus',   module: 'goal',   startTime: '13:00', endTime: '14:00' },
+  { id: 'rp-up-2',  title: 'Evening Review',     module: 'goal',   startTime: '23:30', endTime: '23:59' },
+];
+
+test.describe('CUJ 17 — Re-plan rest of today mutates the routine and shows a rationale', () => {
+  test('skipping a block then tapping Re-plan rebalances the remaining day', async ({ page }) => {
+    await seedSupabaseSession(page);            // AI auth guard (live target)
+    await seedAuthedUser(page, { blocks: REPLAN_BLOCKS });
+    // handleReplan bails with "No profile yet" unless a user_profiles row exists.
+    await page.addInitScript(() => {
+      const profile = {
+        version: 1,
+        identity: { firstName: 'E2E', ageBand: null, seasonOfLife: null },
+        vision: { statement: null, horizon: null, topGoals: [] },
+        schedule: { wakeTime: '07:00', sleepTime: '23:00', workStartTime: '09:00', workEndTime: '17:00', fixedBlocks: [] },
+        chronotype: 'morning',
+        primaryDomains: ['health', 'career', 'goals'],
+        habits: { current: [], aspirational: [] },
+        constraints: [], struggles: [], values: [],
+        communication: { tone: null, avoid: [] },
+        confidence: { identity: 1, vision: 1, schedule: 1, chronotype: 1, habits: 1, constraints: 1, primaryDomains: 1, overall: 1 },
+        inferredPreferences: { preferredBlockMinutes: null, productiveHours: [], droppedHabits: [], preferredRestDays: [] },
+        source: 'form',
+        lastUpdated: new Date().toISOString(),
+      };
+      localStorage.setItem('lifeos_user_profiles', JSON.stringify([{ userId: 'e2e-user-1', profile }]));
+    });
+
+    // Mirror buildMockReplanRemainingDay exactly from the request body so the
+    // outcome matches whether the build is mock (no /claude) or live (this route).
+    await routeAI(page, (body) => {
+      if (body.task !== 'replanRemainingDay') return {};
+      type RB = { id: string; startTime: string; endTime: string; title: string; module: string };
+      const b = body as { task?: string; messages?: Array<{ content?: string }> };
+      let input: { remainingBlocks?: RB[]; skippedToday?: Array<{ id: string; title: string; module: string }>; softenForRecovery?: boolean } = {};
+      try { input = JSON.parse(b.messages?.[0]?.content ?? '{}'); } catch { /* keep {} */ }
+      const remaining = input.remainingBlocks ?? [];
+      const skipped = input.skippedToday?.[0];
+      let plan;
+      if (input.softenForRecovery) {
+        const heavy = remaining.filter((x) => x.title.toLowerCase().includes('workout') || x.module === 'career');
+        plan = {
+          drop: heavy.map((x) => x.id),
+          edits: [],
+          add: heavy.length ? [{ startTime: heavy[0].startTime, endTime: heavy[0].endTime, title: 'Easy walk + reset', module: 'rest', energyRequired: 'low' }] : [],
+          rationale: 'Lower-energy day — swapped the hard blocks for a recovery walk.',
+        };
+      } else if (skipped && remaining[0]) {
+        plan = {
+          drop: [],
+          edits: [{ id: remaining[0].id, title: `${skipped.title} (retry)` }],
+          add: [],
+          rationale: `Re-tried the ${skipped.title.toLowerCase()} you missed in the next slot.`,
+        };
+      } else {
+        plan = { drop: [], edits: [], add: [], rationale: 'Day is on track — no changes.' };
+      }
+      return { text: JSON.stringify(plan) };
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+
+    // The skip-driven CTA: "1 skipped — let me rebalance what's left." + "Re-plan".
+    const replanBtn = page.getByText('Re-plan', { exact: true });
+    await expect(replanBtn).toBeVisible({ timeout: 10_000 });
+    await replanBtn.click();
+
+    // Business outcome 1: a rationale replaces the CTA (proves the plan ran).
+    await expect(page.getByText(/Re-tried the morning deep work/i)).toBeVisible({ timeout: 15_000 });
+
+    // Business outcome 2: the routine is ACTUALLY mutated — one block now carries
+    // the "(retry)" title written by applyReplan, not just a UI message.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const blocks = JSON.parse(localStorage.getItem('lifeos_routine_blocks') ?? '[]') as Array<{ title?: string }>;
+          return blocks.some((b) => b.title === 'Morning Deep Work (retry)');
+        } catch { return false; }
+      }), { timeout: 10_000 })
+      .toBe(true);
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 18: Full-week routine generation — "Plan my next 7 days" persists 7 days ─
+//
+// Human equivalent: "I tap 'Plan my next 7 days' and LifeOS actually fills my
+// calendar — seven days of blocks, not just a promise."
+//
+// This is the master-planner's generate path (generateAndSaveWeek → single
+// generateWeekRoutine call → createRoutineBlocks per day, wiping each date first).
+// The CTA only shows when today already has a routine, so we seed today's blocks.
+//
+// Mode-agnostic: a mock build returns buildMockWeekRoutine (7 days from startDate,
+// no /claude); against a live target routeAI returns a schema-valid 7-day week
+// keyed to the same startDate read off the request. Either way the asserted
+// outcome is identical: 7 distinct dates (today..today+6) now hold routine blocks.
+
+test.describe('CUJ 18 — Plan my next 7 days generates and persists a week of blocks', () => {
+  test('tapping "Plan my next 7 days" writes routine blocks across 7 dates', async ({ page }) => {
+    await seedSupabaseSession(page);                       // AI auth guard (live target)
+    await seedAuthedUser(page, { blocks: TODAY_BLOCKS });  // blocks today → CTA is shown
+
+    // Mirror buildMockWeekRoutine: 7 schema-valid days starting at the request's
+    // startDate, so a live target persists the same 7 dates a mock build would.
+    await routeAI(page, (body) => {
+      if (body.task !== 'generateWeekRoutine') return {};
+      const b = body as { task?: string; messages?: Array<{ content?: string }> };
+      let startDate = '';
+      try { startDate = (JSON.parse(b.messages?.[0]?.content ?? '{}') as { startDate?: string }).startDate ?? ''; } catch { /* keep '' */ }
+      const [y, m, d] = (startDate || '2026-01-01').split('-').map(Number);
+      const dayBlocks = [
+        { startTime: '07:00', endTime: '07:30', title: 'Morning routine + stretch', module: 'health', energyRequired: 'low' },
+        { startTime: '09:00', endTime: '12:00', title: 'Deep work', module: 'career', energyRequired: 'high' },
+        { startTime: '20:00', endTime: '22:00', title: 'Wind down', module: 'rest', energyRequired: 'low' },
+      ];
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const dt = new Date(Date.UTC(y, m - 1, d + i));
+        const date = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+        return { date, dayOfWeek: dt.getUTCDay(), blocks: dayBlocks, briefing: 'Planned day.' };
+      });
+      return { text: JSON.stringify({ days, weeklyOutline: 'A balanced week with morning deep-work peaks.' }) };
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+
+    const planWeek = page.getByText('Plan my next 7 days', { exact: true });
+    await planWeek.scrollIntoViewIfNeeded().catch(() => {});
+    await expect(planWeek).toBeVisible({ timeout: 10_000 });
+    await planWeek.click();
+
+    // Business outcome 1: the flow completes and says so.
+    await expect(page.getByText('Your next 7 days are planned.')).toBeVisible({ timeout: 20_000 });
+
+    // Business outcome 2: blocks ACTUALLY persisted across 7 distinct dates
+    // (today through today+6), not just a confirmation message.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const blocks = JSON.parse(localStorage.getItem('lifeos_routine_blocks') ?? '[]') as Array<{ date?: string }>;
+          return new Set(blocks.map((b) => b.date)).size;
+        } catch { return 0; }
+      }), { timeout: 10_000 })
+      .toBeGreaterThanOrEqual(7);
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 19: Recategorise a transaction — the correction sticks in Dexie ────────
+//
+// Human equivalent: "Swiggy got tagged Food Delivery but it was a grocery run.
+// I retag it to Groceries and it stays that way." No AI — deterministic Dexie write.
+//
+// Tap a transaction → CategoryPickerModal ("RECATEGORISE") → tap a category chip
+// → updateTransactionCategory writes { category, userCorrected: true } to the
+// lifeos_finance.transactions store. We assert the persisted row, not just the UI.
+// Same Gmail-token seed as CUJ 16 so the Transactions tab renders the row.
+
+test.describe('CUJ 19 — Recategorising a transaction persists the correction', () => {
+  test('retagging a transaction writes the new category and marks it user-corrected', async ({ page }) => {
+    await seedAuthedUser(page); // no AI on this path → no seedSupabaseSession
+    await page.addInitScript(() => {
+      localStorage.setItem('lifeos_gmail_tokens', JSON.stringify({
+        access_token: 'e2e-fake-gmail', refresh_token: 'e2e-fake-refresh', expires_at: 9999999999,
+      }));
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/(tabs)/finance');
+    await expect(page.getByText('Finance').first()).toBeVisible({ timeout: 15_000 });
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    await seedFinanceTx(page, [{
+      id: 'cuj-cat-tx-1', date: today, amount: 50000, direction: 'debit',
+      merchant: 'Swiggy', category: 'food_delivery', source: 'manual',
+      rawEmailId: 'cuj-cat-1', confidence: 0.95, userCorrected: false,
+    }]);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Switch to the Transactions tab and open the seeded row.
+    await page.getByText('Transactions', { exact: true }).first().click();
+    const row = page.getByText('Swiggy', { exact: true });
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    await row.click();
+
+    // Recategorise: Food Delivery → Groceries.
+    await expect(page.getByText('RECATEGORISE')).toBeVisible({ timeout: 10_000 });
+    await page.getByText('Groceries', { exact: true }).click();
+
+    // Business outcome: the persisted Dexie row now reads groceries + user-corrected.
+    await expect
+      .poll(async () => page.evaluate(async (id) => {
+        const db: IDBDatabase | null = await new Promise((res) => {
+          const r = indexedDB.open('lifeos_finance');
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => res(null);
+        });
+        if (!db) return null;
+        const rec = await new Promise<{ category?: string; userCorrected?: boolean } | undefined>((res) => {
+          const tx = db.transaction('transactions', 'readonly');
+          const req = tx.objectStore('transactions').get(id);
+          req.onsuccess = () => res(req.result);
+          req.onerror = () => res(undefined);
+        });
+        db.close();
+        return rec ? { category: rec.category, userCorrected: rec.userCorrected } : null;
+      }, 'cuj-cat-tx-1'), { timeout: 10_000 })
+      .toEqual({ category: 'groceries', userCorrected: true });
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 20: Gamification — completing a block ticks a streak; hitting 30 earns a badge ─
+//
+// Human equivalent: "I finish my workout block. My streak ticks up — and this one
+// hits 30 days, so I get the achievement toast." Covers streak increment + a
+// badge earned (with its toast) in one deterministic flow.
+//
+// Mechanics: the Today block-completion handler maps module health→'workout' and
+// calls triggerStreak, which runs updateStreak (yesterday→today = +1) then
+// checkBadges({streaks}) — any streak reaching 30 fires `streak_30_any`. We seed
+// the workout streak at 29 (lastDate=yesterday, from seedAuthedUser), so finishing
+// one health block (cuj-health-1, reusing CUJ 1's proven holdToComplete) takes it
+// to 30. first_blueprint is added silently on load (not queued), so the only toast
+// is the streak badge. No AI on this path.
+
+test.describe('CUJ 20 — Completing a health block ticks the workout streak to a 30-day badge', () => {
+  test('finishing a workout block increments the streak and earns the 30-day badge + toast', async ({ page }) => {
+    await seedAuthedUser(page, { blocks: TODAY_BLOCKS }); // cuj-health-1 is a 'health' block
+    // Bump the seeded workout streak to 29 (keeps its yesterday lastDate) so one
+    // completion crosses the 30-day badge threshold.
+    await page.addInitScript(() => {
+      try {
+        const all = JSON.parse(localStorage.getItem('lifeos_gamification') ?? '[]') as Array<{ userId: string; streaks: string; badges: string }>;
+        const row = all[0];
+        if (row) {
+          const streaks = JSON.parse(row.streaks);
+          streaks.workout = { ...streaks.workout, count: 29 }; // lastDate stays yesterday
+          row.streaks = JSON.stringify(streaks);
+          row.badges = JSON.stringify([]); // start clean so the badge is newly earned
+          localStorage.setItem('lifeos_gamification', JSON.stringify(all));
+        }
+      } catch { /* leave seed as-is */ }
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Morning run').first()).toBeVisible({ timeout: 10_000 });
+
+    await holdToComplete(page, 'cuj-health-1');
+
+    // Business outcome 1: the achievement toast for the 30-day streak badge shows.
+    await expect(page.getByText('30-Day Streak')).toBeVisible({ timeout: 8_000 });
+
+    // Business outcome 2: the streak ticked to 30 AND the badge persisted.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const all = JSON.parse(localStorage.getItem('lifeos_gamification') ?? '[]') as Array<{ userId: string; streaks: string; badges: string }>;
+          const row = all.find((g) => g.userId === 'e2e-user-1');
+          if (!row) return null;
+          return {
+            workout: JSON.parse(row.streaks).workout?.count,
+            hasBadge: JSON.parse(row.badges).includes('streak_30_any'),
+          };
+        } catch { return null; }
+      }), { timeout: 10_000 })
+      .toEqual({ workout: 30, hasBadge: true });
     expect(pageErrors).toEqual([]);
   });
 });
