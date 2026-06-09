@@ -4,6 +4,14 @@ export interface StreakData {
   count: number;
   lastDate: string;
   graceUsed: boolean;
+  // streak_protection_v1 — optional so '{}'-era rows parse unchanged; the
+  // engine (src/gamification/streakEngine.ts) defaults them on read.
+  /** High-water mark across all runs of this streak. */
+  best?: number;
+  /** Milestone tiers already celebrated (e.g. [7, 30]) — dedupes overlays. */
+  milestones?: number[];
+  /** Set on a genuine reset; enables the 24h recovery restore. */
+  lastLoss?: { count: number; date: string } | null;
 }
 
 export interface DomainScores {

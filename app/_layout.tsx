@@ -16,9 +16,13 @@ import { AchievementToast } from '@/components/shared/AchievementToast';
 import { AddToHomeScreenPrompt } from '@/components/shared/AddToHomeScreenPrompt';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
+import { MilestoneOverlay } from '@/components/gamification/MilestoneOverlay';
 import { RewardOrchestrator } from '@/components/gamification/RewardOrchestrator';
 import { useGameStore } from '@/store/useGameStore';
 import { useFlagStore } from '@/store/useFlagStore';
+import { useMotionScale } from '@/theme/motion';
+import { isEnabled } from '@/config/flags';
+import { stackTransition, modalTransition, MODAL_ROUTES } from '@/navigation/transitions';
 import { usePromptStore } from '@/store/usePromptStore';
 import { syncEngine } from '@/sync/engine';
 
@@ -50,6 +54,10 @@ export default function RootLayout() {
   const setAvatarUri = useUserStore((s) => s.setAvatarUri);
   const pendingLevelUp = useGameStore((s) => s.pendingLevelUp);
   const dismissLevelUp = useGameStore((s) => s.dismissLevelUp);
+  const pendingMilestone = useGameStore((s) => s.pendingMilestone);
+  const dismissMilestone = useGameStore((s) => s.dismissMilestone);
+  const motionScale = useMotionScale();
+  const transitionPrefs = { enabled: isEnabled('motionTransitions'), motionScale };
 
   useEffect(() => {
     async function init() {
@@ -159,14 +167,34 @@ export default function RootLayout() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: '#0D0D0D' },
-                animation: 'fade',
+                // M1: platform-native push when motionTransitions is on
+                // (web stays instant — native-stack anims are no-ops there);
+                // legacy 'fade' when off; 'none' under reduce-motion.
+                ...stackTransition(transitionPrefs),
               }}
-            />
+            >
+              {MODAL_ROUTES.map((route) => (
+                <Stack.Screen
+                  key={route}
+                  name={route}
+                  options={{ ...modalTransition(transitionPrefs) }}
+                />
+              ))}
+            </Stack>
           </ErrorBoundary>
         </View>
         <RewardOrchestrator />
         <AchievementToast />
-        <LevelUpOverlay level={pendingLevelUp} userName={name ?? undefined} onClose={dismissLevelUp} />
+        {/* Overlay priority: a streak milestone outranks a level-up (both can
+            fire from one action). The level-up banner is HELD (not dropped) —
+            pendingLevelUp stays set until its own dismiss — so it appears once
+            the milestone clears. */}
+        <MilestoneOverlay milestone={pendingMilestone} onClose={dismissMilestone} />
+        <LevelUpOverlay
+          level={pendingMilestone ? null : pendingLevelUp}
+          userName={name ?? undefined}
+          onClose={dismissLevelUp}
+        />
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

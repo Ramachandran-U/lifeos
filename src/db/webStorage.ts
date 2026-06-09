@@ -22,3 +22,5 @@ export * from './webStorage/expeditions';
 export * from './webStorage/sparks';
 export * from './webStorage/rabbitHoleTrees';
 export * from './webStorage/constellationEdges';
+export * from './webStorage/xpEvents';
+export * from './webStorage/quests';

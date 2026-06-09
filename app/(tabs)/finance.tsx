@@ -19,6 +19,7 @@ import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -367,7 +368,7 @@ export default function FinanceScreen() {
               ))}
             </View>
             {selectedType !== '' && (
-              <Button title="Continue" onPress={() => setSetupStep('details')} style={styles.continueBtn} />
+              <Button3D title="Continue" onPress={() => setSetupStep('details')} style={styles.continueBtn} fullWidth />
             )}
           </ScrollView>
         </SafeAreaView>
@@ -475,7 +476,7 @@ export default function FinanceScreen() {
                 {error} — please try again.
               </Body>
             )}
-            <Button title="Generate my plan" onPress={handleGeneratePlan} style={styles.continueBtn} />
+            <Button3D title="Generate my plan" onPress={handleGeneratePlan} style={styles.continueBtn} fullWidth />
           </ScrollView>
         </SafeAreaView>
       );
@@ -686,7 +687,7 @@ function OverviewTab({
           <Caption style={styles.connectBody}>
             LifeOS reads HDFC, ICICI, and Axis bank alert emails to categorise spending and surface behavioural insights. Only transaction emails are scanned — nothing is uploaded.
           </Caption>
-          <Button title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} />
+          <Button3D title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} fullWidth />
         </Card>
       </Animated.View>
     );
@@ -923,7 +924,7 @@ function TransactionsTab({
           Connect Gmail on the Overview tab to start ingesting bank alert emails.
         </Caption>
         {Platform.OS === 'web' && (
-          <Button title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} />
+          <Button3D title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} fullWidth />
         )}
       </Card>
     );

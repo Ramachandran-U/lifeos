@@ -56,6 +56,17 @@ const ALLOWED_EVENTS = new Set([
   // Retention — fires once per UTC day per device on first Today focus.
   // Props: { days_since_install: number }
   'app_opened',
+  // Retention mechanics (Aurora Alive program). Deploy this allowlist BEFORE
+  // the client release that emits them, or ingestion 400s.
+  'streak_freeze_earned',
+  'streak_freeze_used',
+  'streak_milestone',
+  'streak_lost',
+  'streak_recovered',
+  'quest_generated',
+  'quest_completed',
+  'quest_claimed',
+  'quest_rerolled',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;

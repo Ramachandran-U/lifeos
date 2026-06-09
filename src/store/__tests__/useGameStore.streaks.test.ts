@@ -199,9 +199,16 @@ describe('addXP', () => {
     expect(useGameStore.getState().weeklyXP).toBe(37);
   });
 
-  it('persists only the XP fields', () => {
+  it('persists the XP fields plus the freeze bank (never streaks/badges)', () => {
     useGameStore.getState().addXP('u1', 10);
-    expect(updateGamification).toHaveBeenCalledWith('u1', { totalXP: 10, weeklyXP: 10 });
+    // addXP routes through grantXP (Aurora Alive R0), which always persists
+    // the freeze-accrual pair alongside the counters — flag off ⇒ unchanged 0s.
+    expect(updateGamification).toHaveBeenCalledWith('u1', {
+      totalXP: 10,
+      weeklyXP: 10,
+      streakFreezes: 0,
+      freezeProgressXP: 0,
+    });
   });
 
   it('queues a pending level-up when the new total crosses a level boundary', () => {

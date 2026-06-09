@@ -45,6 +45,7 @@ import { recoveryFromFitDays, computeRecoveryScore } from '@/utils/recovery';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
+import { tickQuestMetric } from '@/store/useQuestStore';
 import { XP_VALUES } from '@/utils/gamification';
 import { useUserStore } from '@/store/useUserStore';
 import { useFitSyncStore } from '@/store/useFitSyncStore';
@@ -285,7 +286,10 @@ export default function HealthScreen() {
     if (data.weightKg != null) {
       createHealthLog({ date: today, weight: data.weightKg });
       logBehaviourEvent('weight_logged', 'health');
-      if (userId) addXP(userId, 10);
+      if (userId) {
+        addXP(userId, 10);
+        tickQuestMetric(userId, 'weight_logged', 1);
+      }
     }
     const profile: { heightCm?: number; age?: number; sex?: string; activityLevel?: string; healthGoalType?: string } = {};
     if (data.heightCm != null) profile.heightCm = data.heightCm;
@@ -316,6 +320,7 @@ export default function HealthScreen() {
     logBehaviourEvent('food_logged', 'health');
     advanceQuest('q_food', 1);
     if (userId) {
+      tickQuestMetric(userId, 'meals_logged', 1);
       triggerStreak(userId, 'foodTracking');
       // Logging a meal awards XP, same as any tracked action — previously only
       // the photo-recognition path credited XP, so manual logging advanced the
@@ -417,7 +422,15 @@ export default function HealthScreen() {
         )}
 
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <WaterCard totalMl={waterMl} goalMl={waterGoalMl} onLogged={loadData} />
+          <WaterCard
+            totalMl={waterMl}
+            goalMl={waterGoalMl}
+            onLogged={() => {
+              // quests_v2: one tick per logged glass (no-op while flag is off).
+              if (userId) tickQuestMetric(userId, 'water_logged', 1);
+              loadData();
+            }}
+          />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(350).duration(400)}>

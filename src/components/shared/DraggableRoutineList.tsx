@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { TIMING } from '@/theme/motion';
 import { fonts } from '@/theme/typography';
 import { Body, Caption } from '@/components/ui/Typography';
 
@@ -119,7 +120,7 @@ function DragRow({ index, count, block, color, activeIndex, dragY, onReorder, on
       else if (from > to && index < from && index >= to) slot = index + 1;
     }
     return {
-      transform: [{ translateY: withTiming(slot * ROW_HEIGHT, { duration: 160 }) }, { scale: 1 }],
+      transform: [{ translateY: withTiming(slot * ROW_HEIGHT, { duration: TIMING.fast }) }, { scale: 1 }],
       zIndex: 1,
       shadowOpacity: 0,
       opacity: 1,

@@ -52,6 +52,7 @@ export type AITask =
   | 'generateRabbitHoleNode'
   | 'generateMonthlyInsightReport'
   | 'generateDailyBriefing'
+  | 'generateDailyQuests'
   | 'assessTrajectory'
   | 'generateAnnualReview'
   | 'generateMoneyReview'
@@ -84,6 +85,8 @@ const TASK_TIER: Record<AITask, Tier> = {
   suggestMapTitle: 'cheap',        // 3-5 word creative title — a one-liner cheap call
   generateMonthlyInsightReport: 'planning',
   generateDailyBriefing: 'cheap',
+  generateDailyQuests: 'cheap', // one short structured call per day; templates are the fallback
+
   assessTrajectory: 'planning',
   generateAnnualReview: 'reasoning',
   generateMoneyReview: 'planning',

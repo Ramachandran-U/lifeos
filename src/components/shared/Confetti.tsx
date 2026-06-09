@@ -14,10 +14,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
-import { useMotionScale } from '@/theme/motion';
+import { MOTION_BUDGET, useMotionScale } from '@/theme/motion';
 
 const COUNT = 28;
-const DURATION = 2000;
+const DURATION = MOTION_BUDGET.celebrationFall;
 
 interface Props {
   onDone?: () => void;

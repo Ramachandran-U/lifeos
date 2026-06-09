@@ -44,6 +44,7 @@ import { useAI } from '@/hooks/useAI';
 import { generateConversationStarters } from '@/ai/functions';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
+import { tickQuestMetric } from '@/store/useQuestStore';
 import type { ConversationStarters } from '@/ai/types';
 
 const INTERACTION_TYPES: InteractionType[] = ['call', 'message', 'in_person', 'email', 'other'];
@@ -99,6 +100,7 @@ export default function ContactDetailScreen() {
     logInteraction({ contactId: contact.id, type });
     if (userId) {
       triggerStreak(userId, 'social');
+      tickQuestMetric(userId, 'social_touch', 1);
       // Inner Orbit: all inner-circle contacts inside their cadence window.
       const all = getContactsByUser(userId);
       const inner = all.filter((c) => c.relationshipType === 'inner_circle');

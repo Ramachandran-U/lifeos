@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { TIMING } from '@/theme/motion';
 import { Caption, Label } from '@/components/ui/Typography';
 import { ONBOARDING_SCRIPTS } from '@/integrations/elevenlabs/scripts';
 
@@ -37,7 +38,7 @@ export function OnboardingIntroSection({
       {visible.map((card) => (
         <Animated.View
           key={card.id}
-          entering={FadeInDown.duration(320)}
+          entering={FadeInDown.duration(TIMING.normal)}
         >
           <View
             style={[

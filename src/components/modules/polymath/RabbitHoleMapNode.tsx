@@ -14,6 +14,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
 import { radii } from '@/theme/radii';
 import { spacing } from '@/theme/spacing';
+import { MOTION_BUDGET, TIMING } from '@/theme/motion';
 import { Caption } from '@/components/ui/Typography';
 import type { RabbitHoleDirection } from '@/explore/rabbitHoleTree';
 
@@ -52,20 +53,20 @@ export function RabbitHoleMapNode({ title, kind, arrivedVia, x, y, width, height
   useEffect(() => {
     if (cursor) {
       ringScale.value = withRepeat(
-        withSequence(withTiming(1, { duration: 0 }), withTiming(1.4, { duration: 1100 })),
+        withSequence(withTiming(1, { duration: 0 }), withTiming(1.4, { duration: TIMING.epic })), // ping ring
         -1,
         false,
       );
       ringOpacity.value = withRepeat(
-        withSequence(withTiming(0.55, { duration: 0 }), withTiming(0, { duration: 1100 })),
+        withSequence(withTiming(0.55, { duration: 0 }), withTiming(0, { duration: TIMING.epic })), // ping ring
         -1,
         false,
       );
     } else {
       cancelAnimation(ringScale);
       cancelAnimation(ringOpacity);
-      ringScale.value = withTiming(1, { duration: 150 });
-      ringOpacity.value = withTiming(0, { duration: 150 });
+      ringScale.value = withTiming(1, { duration: TIMING.fast });
+      ringOpacity.value = withTiming(0, { duration: TIMING.fast });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor]);
@@ -77,8 +78,8 @@ export function RabbitHoleMapNode({ title, kind, arrivedVia, x, y, width, height
 
   // New realized nodes pop in; ghost and path nodes (already in tree) just fade.
   const entering = ghost || kind === 'path' || kind === 'visited'
-    ? FadeIn.duration(200)
-    : ZoomIn.duration(220).springify().damping(14);
+    ? FadeIn.duration(MOTION_BUDGET.microFeedback)
+    : ZoomIn.duration(MOTION_BUDGET.microFeedback).springify().damping(14);
 
   return (
     <Animated.View entering={entering} style={[styles.wrap, { left: x, top: y, width, height }]}>

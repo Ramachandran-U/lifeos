@@ -11,12 +11,32 @@ export interface WebGamification {
   badges: string;
   totalXP: number;
   weeklyXP: number;
+  // Streak protection (streak_protection_v1) — see schema.ts gamification.
+  streakFreezes: number;
+  freezeProgressXP: number;
+  cosmetics: string; // JSON string[] of owned cosmetic ids
+  companion: string | null; // JSON { name, createdAt, equipped } | null
   createdAt: string;
   updatedAt: string;
 }
 
+/**
+ * Rows written before streak_protection_v1 lack the four new fields.
+ * Default them on read so every consumer sees a complete record.
+ */
+export function withGamificationDefaults(g: WebGamification): WebGamification {
+  return {
+    ...g,
+    streakFreezes: g.streakFreezes ?? 0,
+    freezeProgressXP: g.freezeProgressXP ?? 0,
+    cosmetics: g.cosmetics ?? '[]',
+    companion: g.companion ?? null,
+  };
+}
+
 export function webGetGamification(userId: string): WebGamification | undefined {
-  return load<WebGamification>(GAMIFICATION_KEY).find((g) => g.userId === userId);
+  const row = load<WebGamification>(GAMIFICATION_KEY).find((g) => g.userId === userId);
+  return row ? withGamificationDefaults(row) : undefined;
 }
 
 export function webUpsertGamification(record: WebGamification): void {

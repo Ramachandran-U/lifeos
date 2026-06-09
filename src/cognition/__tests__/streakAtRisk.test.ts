@@ -59,14 +59,14 @@ describe('detectStreakAtRisk — firing cases', () => {
     expect(c).not.toBeNull();
     expect(c.streak).toBe('learning');
     expect(c.daysSinceLastAdvance).toBe(1);
-    expect(c.reason).toMatch(/alive today/);
+    expect(c.reason).toMatch(/one action does it today/);
   });
 
   it('treats a 2-day gap as the urgent last chance (higher severity than 1-day)', () => {
     const oneDay = detectStreakAtRisk(deps({ streaks: { learning: { count: 10, lastDate: '2026-05-29' } } }))!;
     const twoDay = detectStreakAtRisk(deps({ streaks: { learning: { count: 10, lastDate: '2026-05-28' } } }))!;
     expect(twoDay.daysSinceLastAdvance).toBe(MAX_RECOVERABLE_GAP);
-    expect(twoDay.reason).toMatch(/resets if you skip today/);
+    expect(twoDay.reason).toMatch(/keeps it building/);
     expect(twoDay.severity).toBeGreaterThan(oneDay.severity);
   });
 
@@ -80,5 +80,28 @@ describe('detectStreakAtRisk — firing cases', () => {
       }),
     )!;
     expect(c.streak).toBe('workout');
+  });
+});
+
+describe('detectStreakAtRisk — reason uses no loss-aversion framing (§11 red line #1)', () => {
+  // Both the 1-day ("alive") and 2-day ("last chance") branches must read as
+  // forward momentum, never streak-shaming. Guards against reintroducing
+  // "don't lose" / "resets if you skip" / "keep it alive" copy.
+  const LOSS_AVERSION_TERMS = [
+    'lose', 'losing', 'at risk', "don't", 'dont', 'break your streak',
+    'before midnight', 'midnight', 'reset', 'expire', 'alive', 'skip today',
+    'shame', 'last chance', 'hurry',
+  ];
+
+  it.each([
+    ['1-day gap', '2026-05-29'],
+    ['2-day gap (last chance)', '2026-05-28'],
+  ])('reason for a %s carries no loss-aversion phrasing', (_label, lastDate) => {
+    const c = detectStreakAtRisk(deps({ streaks: { learning: { count: 10, lastDate } } }))!;
+    expect(c).not.toBeNull();
+    const lower = c.reason.toLowerCase();
+    for (const term of LOSS_AVERSION_TERMS) {
+      expect(lower).not.toContain(term);
+    }
   });
 });

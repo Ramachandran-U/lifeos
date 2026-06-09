@@ -12,6 +12,7 @@ export { Skeleton } from './Skeleton';
 // Existing primitives — kept; refactor in a follow-up pass.
 export { Card } from './Card';
 export { Button } from './Button';
+export { Button3D } from './Button3D';
 export { Input } from './Input';
 export { Badge } from './Badge';
 export { ProgressBar } from './ProgressBar';

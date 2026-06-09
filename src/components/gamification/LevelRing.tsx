@@ -4,6 +4,7 @@ import Animated, { useAnimatedProps, useSharedValue, withTiming, Easing } from '
 import { useEffect } from 'react';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
+import { TIMING } from '@/theme/motion';
 import { Body, Caption } from '@/components/ui/Typography';
 import { xpProgressInLevel } from '@/utils/gamification';
 
@@ -25,7 +26,7 @@ export function LevelRing({ xp, size = 80, showLabel = true, ringColor }: Props)
   const progress = useSharedValue(0);
 
   useEffect(() => {
-    progress.value = withTiming(pct, { duration: 1200, easing: Easing.out(Easing.cubic) });
+    progress.value = withTiming(pct, { duration: TIMING.epic, easing: Easing.out(Easing.cubic) });
   }, [pct, progress]);
 
   const animatedProps = useAnimatedProps(() => ({

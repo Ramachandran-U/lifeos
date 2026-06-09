@@ -349,6 +349,32 @@ export interface DailyBriefingInput {
   topDomainYesterday: string | null; // domain that got the most time yesterday
 }
 
+// --- Daily Quests v2 (Aurora Alive R1) ---
+
+// The model PERSONALIZES template drafts — it may retitle and retarget, never
+// invent: metricKey must match a known template and targets are re-clamped by
+// clampDraftToTemplate (src/gamification/questEngine.ts) after parsing.
+export const DailyQuestGenSchema = z.object({
+  quests: z.array(z.object({
+    templateId: z.string().optional(),
+    title: z.string().min(1).max(64),
+    metricKey: z.string().min(1),
+    target: z.number().int().min(1).max(20),
+    xp: z.number().int().min(5).max(200),
+  })).min(1).max(5),
+});
+export type DailyQuestGenResult = z.infer<typeof DailyQuestGenSchema>;
+
+export interface DailyQuestGenInput {
+  /** Template drafts already selected for today — the model refines these. */
+  drafts: { templateId: string; title: string; metricKey: string; target: number; xp: number }[];
+  primaryDomains: string[];
+  topGoal: string | null;
+  liveStreaks: { key: string; count: number }[];
+  yesterdayCompletionPct: number; // 0..1
+  stagnantDomain: string | null;
+}
+
 // --- Monthly Money Review (finance) ---
 
 export const MonthlyMoneyReviewSchema = z.object({

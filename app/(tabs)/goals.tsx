@@ -26,6 +26,7 @@ import { getCommentCountsByUser } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { track, EVENTS } from '@/utils/telemetry';
+import { haptic } from '@/utils/haptics';
 import { isEnabled } from '@/config/flags';
 import { getRoutineBlocksByDate, createRoutineBlocks } from '@/db/queries/routine';
 import { getUserProfile } from '@/db/queries/userProfile';
@@ -306,6 +307,8 @@ export default function GoalsScreen() {
   const handleGoalRemove = () => {
     if (!detailGoal || !userId) return;
     const title = detailGoal.title;
+    // M0 haptic gap-fill: destructive action → warning, not success.
+    if (isEnabled('motionPolish')) haptic.warning();
     removeGoal(detailGoal.id, userId);
     track(EVENTS.goalRemoved, { goal_id: detailGoal.id, level: detailGoal.level });
     setDeletedGoals(getDeletedGoals(userId));

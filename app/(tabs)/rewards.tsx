@@ -22,10 +22,14 @@ import { Sparkline } from '@/components/gamification/Sparkline';
 import { LevelLadder } from '@/components/gamification/LevelLadder';
 import { BadgeTile } from '@/components/gamification/BadgeTile';
 import { StreakRow } from '@/components/gamification/StreakRow';
+import { FreezeBank } from '@/components/gamification/FreezeBank';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { QuestDetailSheet } from '@/components/gamification/QuestDetailSheet';
 import { DomainMiniCard } from '@/components/gamification/DomainMiniCard';
 import type { BadgeId } from '@/utils/gamification';
+import { useFlagStore } from '@/store/useFlagStore';
+import { useDailyQuests } from '@/hooks/useDailyQuests';
+import { toLegacyQuest } from '@/store/useQuestStore';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 
 export default function RewardsScreen() {
@@ -44,6 +48,10 @@ export default function RewardsScreen() {
   const xpEntries = useXpHistoryStore((s) => s.entries);
   const domainEntries = useDomainHistoryStore((s) => s.entries);
   const quests = useGameStore((s) => s.quests);
+  const streakFreezes = useGameStore((s) => s.streakFreezes);
+  const freezeProgressXP = useGameStore((s) => s.freezeProgressXP);
+  const streakProtection = useFlagStore((s) => s.isEnabled('streak_protection_v1'));
+  const dailyQuests = useDailyQuests();
   const [openQuest, setOpenQuest] = useState<Quest | null>(null);
 
   useFocusEffect(
@@ -240,6 +248,9 @@ export default function RewardsScreen() {
           {/* Streaks */}
           <SectionLabel>STREAKS</SectionLabel>
           <View style={{ gap: 12 }}>
+            {streakProtection && (
+              <FreezeBank freezes={streakFreezes} progressXP={freezeProgressXP} />
+            )}
             {(Object.keys(STREAK_META) as StreakKey[]).map((k) => {
               const s = streaks[k];
               return (
@@ -247,26 +258,50 @@ export default function RewardsScreen() {
                   key={k}
                   streakKey={k}
                   count={s?.count ?? 0}
-                  best={s?.count ?? 0}
+                  best={Math.max(s?.best ?? 0, s?.count ?? 0)}
                   graceUsed={s?.graceUsed ?? false}
                 />
               );
             })}
           </View>
 
-          {/* Quests */}
-          <SectionLabel>DAILY QUESTS</SectionLabel>
-          <View style={{ gap: 10 }}>
-            {quests.filter((q) => q.type === 'daily').map((q) => (
-              <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
-            ))}
-          </View>
-          <SectionLabel>WEEKLY QUEST</SectionLabel>
-          <View style={{ gap: 10 }}>
-            {quests.filter((q) => q.type === 'weekly').map((q) => (
-              <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
-            ))}
-          </View>
+          {/* Quests — v2 (DB-backed, claimable) when the flag is on; the
+              legacy in-memory trio otherwise. */}
+          {dailyQuests.enabled ? (
+            <>
+              <SectionLabel>DAILY QUESTS</SectionLabel>
+              <View style={{ gap: 10 }}>
+                {dailyQuests.quests
+                  .filter((q) => q.status !== 'rerolled')
+                  .map((q) => {
+                    const legacy = toLegacyQuest(q);
+                    return (
+                      <QuestCard
+                        key={q.id}
+                        quest={legacy}
+                        onPress={() => setOpenQuest(legacy)}
+                        onClaim={() => dailyQuests.claim(q.id)}
+                      />
+                    );
+                  })}
+              </View>
+            </>
+          ) : (
+            <>
+              <SectionLabel>DAILY QUESTS</SectionLabel>
+              <View style={{ gap: 10 }}>
+                {quests.filter((q) => q.type === 'daily').map((q) => (
+                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
+                ))}
+              </View>
+              <SectionLabel>WEEKLY QUEST</SectionLabel>
+              <View style={{ gap: 10 }}>
+                {quests.filter((q) => q.type === 'weekly').map((q) => (
+                  <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
+                ))}
+              </View>
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
 
@@ -275,6 +310,16 @@ export default function RewardsScreen() {
         visible={openQuest !== null}
         onClose={() => setOpenQuest(null)}
         onChanged={() => { if (userId) loadGame(userId); }}
+        onClaim={
+          dailyQuests.enabled && openQuest
+            ? () => { dailyQuests.claim(openQuest.id); setOpenQuest(null); }
+            : undefined
+        }
+        onReroll={
+          dailyQuests.enabled && openQuest && dailyQuests.canReroll
+            ? () => { dailyQuests.reroll(openQuest.id); setOpenQuest(null); }
+            : undefined
+        }
       />
     </View>
   );

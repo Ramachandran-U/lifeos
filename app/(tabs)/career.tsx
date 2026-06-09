@@ -21,6 +21,7 @@ import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { Badge } from '@/components/ui/Badge';
@@ -370,10 +371,11 @@ export default function CareerScreen() {
             )}
           </View>
 
-          <Button
+          <Button3D
             title="Analyse my career path"
             onPress={handleAnalyse}
             disabled={!currentRole.trim() || !targetRole.trim() || loading}
+            fullWidth
           />
           {error && (
             <Caption style={{ color: c.error, marginTop: spacing.sm }}>
@@ -511,11 +513,12 @@ export default function CareerScreen() {
               />
             </View>
 
-            <Button
+            <Button3D
               title="Generate strategy"
               loadingTitle="Designing strategy…"
               loading={loading}
               onPress={handleGenerateStrategy}
+              fullWidth
             />
           </Card>
         ) : (

@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { TIMING } from '@/theme/motion';
 import { Body, Caption } from '@/components/ui/Typography';
 
 export interface DiscoverArea {
@@ -72,7 +73,7 @@ export function DiscoverGrid({ onPick, areas }: Props) {
       {tiles.map(({ area, isFeature }, i) => (
         <Animated.View
           key={area.name}
-          entering={FadeIn.delay(i * 30).duration(300)}
+          entering={FadeIn.delay(i * 30).duration(TIMING.normal)}
           style={isFeature ? { width: featureSize, height: featureSize } : { width: cellSize, height: cellSize }}
         >
           <Pressable

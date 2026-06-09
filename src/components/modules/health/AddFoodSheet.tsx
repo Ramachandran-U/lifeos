@@ -594,7 +594,9 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
   );
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    // Native slide handles the exit animation; onRequestClose wires Esc (web)
+    // and the Android back button, matching every other sheet (cf. KB-04).
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <Pressable style={styles.backdrop} onPress={handleClose}>
         <Pressable style={styles.sheet} onPress={() => {}}>
           <ScrollView>

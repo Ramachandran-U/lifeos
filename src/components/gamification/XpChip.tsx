@@ -8,7 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
-import { EASING, useMotionScale } from '@/theme/motion';
+import { EASING, MOTION_BUDGET, useMotionScale } from '@/theme/motion';
 
 // XP chip with a number-roll on change — the old value slides up and fades,
 // the new value springs in from below. Mirrors the StreakFlame choreography.
@@ -39,15 +39,16 @@ export function XpChip({ amount, prefix = '+' }: { amount: number; prefix?: stri
     // Old number rises 20px and fades out.
     oldTranslateY.value = 0;
     oldOpacity.value = 1;
-    oldTranslateY.value = withTiming(-20, { duration: dur(220), easing: EASING.out });
-    oldOpacity.value = withTiming(0, { duration: dur(220), easing: EASING.out });
+    oldTranslateY.value = withTiming(-20, { duration: dur(MOTION_BUDGET.microFeedback), easing: EASING.out });
+    oldOpacity.value = withTiming(0, { duration: dur(MOTION_BUDGET.microFeedback), easing: EASING.out });
 
     // New number springs up from below after the old exits.
-    const swapDelay = dur(220);
+    // (swap must wait exactly as long as the old-number slide above).
+    const swapDelay = dur(MOTION_BUDGET.microFeedback);
     newTranslateY.value = 20;
     newOpacity.value = 0;
-    newTranslateY.value = withDelay(swapDelay, withTiming(0, { duration: dur(360), easing: EASING.bounce }));
-    newOpacity.value = withDelay(swapDelay, withTiming(1, { duration: dur(360), easing: EASING.bounce }));
+    newTranslateY.value = withDelay(swapDelay, withTiming(0, { duration: dur(MOTION_BUDGET.reveal), easing: EASING.bounce }));
+    newOpacity.value = withDelay(swapDelay, withTiming(1, { duration: dur(MOTION_BUDGET.reveal), easing: EASING.bounce }));
 
     const t = setTimeout(() => {
       setDisplayAmount(amount);

@@ -12,7 +12,7 @@ import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
 import { Body, Label, Caption } from '@/components/ui/Typography';
-import { EASING, useMotionScale } from '@/theme/motion';
+import { EASING, MOTION_BUDGET, TIMING, useMotionScale } from '@/theme/motion';
 import { useTypedText } from '@/hooks/useTypedText';
 
 interface DailyBriefingProps {
@@ -31,8 +31,8 @@ export function DailyBriefing({ text, ctaLabel, onCtaPress }: DailyBriefingProps
   useEffect(() => {
     if (motionScale === 0) return;
     sparkle.value = withSequence(
-      withTiming(1, { duration: 320, easing: EASING.out }),
-      withTiming(0, { duration: 400, easing: EASING.inOut }),
+      withTiming(1, { duration: TIMING.normal, easing: EASING.out }),
+      withTiming(0, { duration: MOTION_BUDGET.reveal, easing: EASING.inOut }),
     );
   }, [motionScale, sparkle, text]);
 

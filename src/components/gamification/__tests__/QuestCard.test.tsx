@@ -41,4 +41,37 @@ describe('QuestCard', () => {
     fireEvent.press(screen.getByText('Log 3 meals today'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  // quests_v2 claim affordance
+  it('renders a Claim pill (not the check) for a completed-unclaimed v2 quest', () => {
+    const onClaim = jest.fn();
+    render(
+      <QuestCard
+        quest={makeQuest({ progress: 3, total: 3, status: 'completed', metricKey: 'meals_logged' })}
+        onClaim={onClaim}
+      />,
+    );
+    const pill = screen.getByLabelText('Claim 30 XP for Log 3 meals today');
+    expect(pill).toBeTruthy();
+    expect(screen.queryByText('✓')).toBeNull();
+    fireEvent.press(pill);
+    expect(onClaim).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the check (no pill) once claimed', () => {
+    render(
+      <QuestCard
+        quest={makeQuest({ progress: 3, total: 3, status: 'claimed', metricKey: 'meals_logged' })}
+        onClaim={jest.fn()}
+      />,
+    );
+    expect(screen.getByText('✓')).toBeTruthy();
+    expect(screen.queryByLabelText(/Claim 30 XP/)).toBeNull();
+  });
+
+  it('never shows a Claim pill without an onClaim handler (legacy quests)', () => {
+    render(<QuestCard quest={makeQuest({ progress: 3, total: 3 })} />);
+    expect(screen.queryByLabelText(/Claim/)).toBeNull();
+    expect(screen.getByText('✓')).toBeTruthy();
+  });
 });

@@ -7,6 +7,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { radii } from '@/theme/radii';
+import { MOTION_BUDGET } from '@/theme/motion';
 import { Caption } from '@/components/ui/Typography';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { useRabbitHoleStore } from '@/store/useRabbitHoleStore';
@@ -108,7 +109,7 @@ export function RabbitHoleScreen({ seed, treeId, onExit }: Props) {
             <Pressable style={styles.backdrop} onPress={() => setSheetOpen(false)} accessibilityLabel="Close" />
             <Animated.View
               entering={SlideInDown.springify().damping(18).stiffness(180)}
-              exiting={SlideOutDown.duration(220)}
+              exiting={SlideOutDown.duration(MOTION_BUDGET.microFeedback)}
               style={styles.sheet}
             >
               <Pressable onPress={() => setSheetOpen(false)} style={styles.grab} accessibilityLabel="Close sheet">

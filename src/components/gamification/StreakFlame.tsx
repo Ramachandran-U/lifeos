@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
-import { EASING, useMotionScale } from '@/theme/motion';
+import { EASING, MOTION_BUDGET, useMotionScale } from '@/theme/motion';
 
 interface Props {
   count: number;
@@ -62,27 +62,28 @@ export function StreakFlame({ count, graceUsed = false, size = 'md' }: Props) {
 
     // 1) Flame inhale: scale 1 → 0.94 → 1
     flameScale.value = withSequence(
-      withTiming(0.94, { duration: 200 * (1 / motionScale), easing: EASING.inOut }),
-      withTiming(1, { duration: 420 * (1 / motionScale), easing: EASING.out }),
+      withTiming(0.94, { duration: MOTION_BUDGET.microFeedback * (1 / motionScale), easing: EASING.inOut }),
+      withTiming(1, { duration: MOTION_BUDGET.reveal * (1 / motionScale), easing: EASING.out }),
     );
 
     // 2) Old number slides up 32px + fades out
     oldTranslateY.value = 0;
     oldOpacity.value = 1;
-    oldTranslateY.value = withTiming(-32, { duration: 220 * (1 / motionScale), easing: EASING.out });
-    oldOpacity.value = withTiming(0, { duration: 220 * (1 / motionScale), easing: EASING.out });
+    oldTranslateY.value = withTiming(-32, { duration: MOTION_BUDGET.microFeedback * (1 / motionScale), easing: EASING.out });
+    oldOpacity.value = withTiming(0, { duration: MOTION_BUDGET.microFeedback * (1 / motionScale), easing: EASING.out });
 
     // 3) After old exits, swap display count and spring new in from below
-    const swapDelay = 220 * (1 / motionScale);
+    // (swap must wait exactly as long as the old-number slide above).
+    const swapDelay = MOTION_BUDGET.microFeedback * (1 / motionScale);
     newTranslateY.value = 32;
     newOpacity.value = 0;
     newTranslateY.value = withDelay(
       swapDelay,
-      withTiming(0, { duration: 360 * (1 / motionScale), easing: EASING.bounce }),
+      withTiming(0, { duration: MOTION_BUDGET.reveal * (1 / motionScale), easing: EASING.bounce }),
     );
     newOpacity.value = withDelay(
       swapDelay,
-      withTiming(1, { duration: 360 * (1 / motionScale), easing: EASING.bounce }),
+      withTiming(1, { duration: MOTION_BUDGET.reveal * (1 / motionScale), easing: EASING.bounce }),
     );
 
     // Update displayCount after old exits
@@ -99,12 +100,12 @@ export function StreakFlame({ count, graceUsed = false, size = 'md' }: Props) {
     setShowParticle(true);
     particleTranslateY.value = 0;
     particleOpacity.value = 1;
-    particleTranslateY.value = withTiming(-28, { duration: 900 * (1 / motionScale), easing: EASING.out });
-    particleOpacity.value = withTiming(0, { duration: 900 * (1 / motionScale), easing: EASING.out });
+    particleTranslateY.value = withTiming(-28, { duration: MOTION_BUDGET.shimmer * (1 / motionScale), easing: EASING.out }); // particle drift ≈ shimmer period
+    particleOpacity.value = withTiming(0, { duration: MOTION_BUDGET.shimmer * (1 / motionScale), easing: EASING.out }); // particle drift ≈ shimmer period
 
     const particleTimeout = setTimeout(() => {
       setShowParticle(false);
-    }, 900 * (1 / motionScale));
+    }, MOTION_BUDGET.shimmer * (1 / motionScale));
 
     return () => {
       clearTimeout(timeout);
