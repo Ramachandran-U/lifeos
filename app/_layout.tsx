@@ -18,6 +18,8 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { LevelUpOverlay } from '@/components/gamification/LevelUpOverlay';
 import { MilestoneOverlay } from '@/components/gamification/MilestoneOverlay';
 import { RewardOrchestrator } from '@/components/gamification/RewardOrchestrator';
+import { CelebrationHost } from '@/celebration/CelebrationHost';
+import { celebrate } from '@/celebration/useCelebrationStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useFlagStore } from '@/store/useFlagStore';
 import { useMotionScale } from '@/theme/motion';
@@ -132,6 +134,18 @@ export default function RootLayout() {
     return () => listener.subscription.unsubscribe();
   }, [setUser, setPrimaryDomains, markModuleActivated]);
 
+  // M2: identity overlays get the epic particle layer behind them. The host
+  // queues these (one at a time), matching the overlay priority below —
+  // milestone weather plays with the milestone, level-up weather follows once
+  // the milestone clears (its overlay becomes visible at that moment).
+  // celebrate() is a no-op while celebrationEngine is off.
+  useEffect(() => {
+    if (pendingMilestone) celebrate({ kind: 'milestone', count: pendingMilestone.tier });
+  }, [pendingMilestone]);
+  useEffect(() => {
+    if (!pendingMilestone && pendingLevelUp) celebrate({ kind: 'levelUp' });
+  }, [pendingMilestone, pendingLevelUp]);
+
   useEffect(() => {
     if (!fontsLoaded || !dbReady) return;
     SplashScreen.hideAsync();
@@ -183,6 +197,10 @@ export default function RootLayout() {
             </Stack>
           </ErrorBoundary>
         </View>
+        {/* M2: full-screen particle layer for standard/epic beats. Renders
+            null (and silently drains its queue) unless celebrationEngine is
+            on, motion scale > 0, and gamification isn't 'off'. */}
+        <CelebrationHost />
         <RewardOrchestrator />
         <AchievementToast />
         {/* Overlay priority: a streak milestone outranks a level-up (both can

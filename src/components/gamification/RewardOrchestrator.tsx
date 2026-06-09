@@ -19,6 +19,9 @@ import { CelebrationBurst } from '@/components/gamification/CelebrationBurst';
 import { useRewardQueueStore, type RewardBeat } from '@/store/useRewardQueueStore';
 import { MOTION_BUDGET, useMotionScale } from '@/theme/motion';
 import { usePreferencesStore } from '@/store/usePreferencesStore';
+import { isEnabled } from '@/config/flags';
+import { classifyTier } from '@/celebration/classify';
+import { celebrate } from '@/celebration/useCelebrationStore';
 
 // Mounted once at the root. Drains the reward queue with the Aurora
 // choreography — currently the XP chip beat. Badge toasts and level-up
@@ -41,6 +44,30 @@ function Beat({ beat }: { beat: RewardBeat }) {
   const c = useColors();
   const motionScale = useMotionScale();
   const complete = useRewardQueueStore((s) => s.complete);
+
+  // M2 (celebrationEngine): forward the beat to the celebration choke point.
+  // classify() decides the tier; micro beats are dropped there, so the chip's
+  // own 8-particle burst stays the entire celebration for routine XP. When
+  // the engine WILL render a standard/epic layer, suppress the inline burst
+  // below so particles never double up. streakSave is deliberately not
+  // forwarded — a freeze save is relief, not triumph (see chip comment).
+  const engineTier =
+    beat.type === 'xp'
+      ? classifyTier({ kind: 'xp', amount: beat.amount })
+      : beat.type === 'streak'
+        ? classifyTier({ kind: 'streak' })
+        : null;
+  const engineHandlesBurst =
+    isEnabled('celebrationEngine') && engineTier !== null && engineTier !== 'micro';
+  useEffect(() => {
+    if (beat.type === 'xp') {
+      celebrate({ kind: 'xp', amount: beat.amount, domain: beat.domain });
+    } else if (beat.type === 'streak') {
+      celebrate({ kind: 'streak', count: beat.count });
+    }
+    // Keyed by beat id — one forward per beat, mirroring the animation effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beat.id]);
 
   // Start above the rest position so the chip slides down into view on entry.
   const translateY = useSharedValue(-52);
@@ -100,12 +127,14 @@ function Beat({ beat }: { beat: RewardBeat }) {
     const burstSize  = beat.amount >= 50 ? 8  : 5;
     return (
       <View pointerEvents="none" style={styles.wrap}>
-        <CelebrationBurst
-          palette={[hue, c.xp, c.primaryLight]}
-          count={burstCount}
-          size={burstSize}
-          originTop={100}
-        />
+        {!engineHandlesBurst && (
+          <CelebrationBurst
+            palette={[hue, c.xp, c.primaryLight]}
+            count={burstCount}
+            size={burstSize}
+            originTop={100}
+          />
+        )}
         <Animated.View
           style={[
             styles.chip,
@@ -162,7 +191,9 @@ function Beat({ beat }: { beat: RewardBeat }) {
   // Streak beat — small flame label with burst.
   return (
     <View pointerEvents="none" style={styles.wrap}>
-      <CelebrationBurst palette={[c.streak, c.warning, c.xp]} count={10} size={6} originTop={100} />
+      {!engineHandlesBurst && (
+        <CelebrationBurst palette={[c.streak, c.warning, c.xp]} count={10} size={6} originTop={100} />
+      )}
       <Animated.View
         style={[
           styles.chip,
