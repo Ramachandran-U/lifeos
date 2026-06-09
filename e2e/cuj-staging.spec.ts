@@ -704,3 +704,155 @@ test.describe('CUJ 13 — Annual review renders all sections', () => {
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── CUJ 14: Blood report parses into rendered markers ─────────────────────────
+//
+// Human equivalent: "I upload my blood report and see my markers, flagged where
+// they're out of range." Sensitive health flow — must surface a real result.
+
+test.describe('CUJ 14 — Blood report parses and renders flagged markers', () => {
+  test('uploading a report renders parsed markers with a flag', async ({ page }) => {
+    await seedSupabaseSession(page);
+    await seedAuthedUser(page);
+    await routeAI(page, (body) =>
+      body.task === 'parseBloodReport'
+        ? { text: JSON.stringify({
+            markers: [
+              { marker: 'Vitamin D', value: 18, unit: 'ng/mL', referenceRange: '30-100', status: 'low' },
+              { marker: 'Haemoglobin', value: 14.2, unit: 'g/dL', referenceRange: '13.5-17.5', status: 'normal' },
+            ],
+            summary: 'Most markers are normal; Vitamin D is low.',
+            suggestions: ['Start a Vitamin D supplement and get morning sunlight.'],
+          }) }
+        : { text: '{}' },
+    );
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/(tabs)/health');
+    await expect(page.getByText('Health').first()).toBeVisible({ timeout: 15_000 });
+
+    // Open the blood-reports section and trigger a parse.
+    await page.getByText('BLOOD REPORTS').first().click();
+    await page.getByRole('button', { name: 'Upload Report' }).or(page.getByText('Upload Report')).first().click();
+
+    // Business outcome: a parsed marker renders, flagged out-of-range. Exact match —
+    // "Vitamin D" also appears in the summary + suggestions text.
+    await expect(page.getByText('Vitamin D', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('low').first()).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 15: Progressive onboarding (Day 3 — Health) ───────────────────────────
+//
+// Human equivalent: "On day 3 I fill in my basics, hit save, and it drops me into
+// the Health module ready to go." Pure form — no AI.
+
+test.describe('CUJ 15 — Onboarding day 3 saves vitals and opens Health', () => {
+  test('filling weight + goal and saving lands on Health with a weight log', async ({ page }) => {
+    await seedAuthedUser(page); // stage 100 → progressive-onboarding routes are allowed
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await page.goto('/(onboarding)/day3-health', { waitUntil: 'domcontentloaded' });
+
+    const weight = page.getByPlaceholder('72.5');
+    await expect(weight).toBeVisible({ timeout: 15_000 });
+    await weight.fill('72.5');
+    await page.getByText('Build strength').first().click();
+    await page.getByRole('button', { name: 'Save & open Health' }).or(page.getByText('Save & open Health')).first().click();
+
+    // Business outcome: lands on Health and the weight is logged.
+    await page.waitForURL(/health/, { timeout: 15_000 });
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const logs = JSON.parse(localStorage.getItem('lifeos_health_logs') ?? '[]') as Array<{ weight?: number }>;
+          return logs.some((l) => l.weight === 72.5);
+        } catch { return false; }
+      }), { timeout: 10_000 })
+      .toBe(true);
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── Dexie seed helper — finance transactions live in IndexedDB, not localStorage.
+// Seed AFTER the app has opened the Dexie DB (so the object store exists), by
+// opening it WITHOUT a version (no upgrade) and putting records. The caller then
+// reloads so the transaction store re-reads.
+async function seedFinanceTx(
+  page: Parameters<typeof seedAuthedUser>[0],
+  records: Array<Record<string, unknown>>,
+) {
+  await page.evaluate(async (recs) => {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const dbExists = async () =>
+      (await indexedDB.databases()).some((d) => d.name === 'lifeos_finance');
+    // Wait for the app's Dexie to create lifeos_finance + its stores.
+    for (let i = 0; i < 40 && !(await dbExists()); i++) await sleep(250);
+    const db: IDBDatabase | null = await new Promise((resolve) => {
+      const req = indexedDB.open('lifeos_finance'); // no version → current, no upgrade
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+    if (!db || !db.objectStoreNames.contains('transactions')) {
+      db?.close();
+      throw new Error('lifeos_finance.transactions not ready');
+    }
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('transactions', 'readwrite');
+      for (const r of recs) tx.objectStore('transactions').put(r);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, records);
+}
+
+// ── CUJ 16: Monthly money review (finance) ────────────────────────────────────
+//
+// Human equivalent: "With transactions logged, I open the Monthly Money Review
+// and get a real breakdown of where my money went."
+
+test.describe('CUJ 16 — Monthly money review renders from seeded transactions', () => {
+  // FIXME: the Dexie seed below puts a transaction into lifeos_finance.transactions
+  // without error, but after reload the finance transaction store still reads
+  // empty (Finance shows its no-transactions state), so the review entry point
+  // never appears. Needs investigation into the store's load path (timing/filter)
+  // or the Dexie version mapping. Helper + flow are kept as scaffolding.
+  test.fixme('with a transaction present, the review generates and shows its sections', async ({ page }) => {
+    await seedSupabaseSession(page);
+    await seedAuthedUser(page);
+    await routeAI(page, (body) =>
+      body.task === 'generateMoneyReview'
+        ? { text: JSON.stringify({
+            headline: 'This month: spent ₹500 across 1 transaction.',
+            wins: ['You logged your spending — the picture is clear.'],
+            leaks: ['₹500 at Swiggy across 1 payment.'],
+            oneAdjustment: 'Set a soft budget for food next month.',
+          }) }
+        : { text: '{}' },
+    );
+
+    const { pageErrors } = captureErrors(page);
+    // Open Finance so the app creates the Dexie DB + stores, then seed a tx.
+    await navigateTo(page, '/(tabs)/finance');
+    await expect(page.getByText('Finance').first()).toBeVisible({ timeout: 15_000 });
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    await seedFinanceTx(page, [{
+      id: 'cuj-tx-1', date: today, amount: 50000, direction: 'debit',
+      merchant: 'Swiggy', category: 'food', source: 'manual',
+      rawEmailId: 'cuj-1', confidence: 0.95, userCorrected: false,
+    }]);
+    // Reload so the transaction store picks up the seeded row.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Business outcome 1: the review entry point appears (only shows when txns exist).
+    await page.getByText('Monthly Money Review').click({ timeout: 15_000 });
+
+    // Business outcome 2: the review renders its sections.
+    await expect(page.getByText('Where your money went')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('WINS')).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+});
