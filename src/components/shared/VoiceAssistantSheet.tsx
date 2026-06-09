@@ -96,7 +96,11 @@ export function VoiceAssistantSheet({
 }: VoiceAssistantSheetProps) {
   const c = useColors();
   const [input, setInput] = useState('');
-  const resolvedVoice = (voiceProp ?? (getUser()?.preferredVoiceId ?? undefined)) as VoiceSessionOptions['voice'] | undefined;
+  // `preferredVoiceId` is a voice-feature column still mid-landing (migration +
+  // user-type update not yet committed), so read it via a narrow structural cast
+  // rather than touching the shared user type. Harmless once the field lands.
+  const storedUser = getUser() as { preferredVoiceId?: string | null } | null | undefined;
+  const resolvedVoice = (voiceProp ?? (storedUser?.preferredVoiceId ?? undefined)) as VoiceSessionOptions['voice'] | undefined;
   const voice = useVoice({ systemInstruction, tools, voice: resolvedVoice });
   // 50 ms step matches MOTION scene-06 chart for inner stagger.
   const stagger = useStaggerDelay();

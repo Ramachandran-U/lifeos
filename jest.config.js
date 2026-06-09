@@ -45,6 +45,7 @@ module.exports = {
     'src/db/**/*.ts',
     'src/store/**/*.ts',
     'src/components/**/*.{ts,tsx}',
+    'src/hooks/**/*.ts',
     'src/integrations/google/**/*.ts',
     'src/integrations/googleCalendar/**/*.ts',
     'src/integrations/googleFit/**/*.ts',
@@ -66,11 +67,10 @@ module.exports = {
     './src/explore/': { lines: 76, branches: 62, functions: 78 },
     './src/ai/agent/': { lines: 86, branches: 70, functions: 76 },
     './src/ai/prompts/': { lines: 90 }, // string constants — no branches/functions
-    // Reconciled at the #114 ↔ lifeosv1 merge (2026-06-04): both branches
-    // retuned these floors. Values below are set a few points under the MERGED
-    // tree's measured aggregate (verified via `npm test -- --coverage`), taking
-    // the more conservative side per key so the gate stays green on the union.
-    './src/ai/': { lines: 40, branches: 25, functions: 32 },
+    // Raised 2026-06-09: profileMerge / profileLearning / behaviourApply /
+    // routinePlanner / replanApply / historyContext / profileContext tests added.
+    // Measured aggregate (node project): ~68% lines, ~60% branches, ~66% functions.
+    './src/ai/': { lines: 63, branches: 54, functions: 60 },
     './src/utils/': { lines: 46, branches: 36, functions: 34 },
     // Lowered from 92/85/92 at the merge: #114's Gmail-bills code under
     // finance/db pulled the merged-tree aggregate down to ~80/74/69.
@@ -92,6 +92,9 @@ module.exports = {
     // is the actively-refactored UI surface. Per-subdir floors can layer on later
     // as most-specific keys once the 0%-today areas (profile, ambient) get specs.
     './src/components/': { lines: 27, branches: 27, functions: 22 },
+    // src/hooks — raised 2026-06-09: useDailyBriefing + 7 other hook suites.
+    // Measured aggregate (components project): ~33% lines, ~35% branches, ~28% functions.
+    './src/hooks/': { lines: 32, branches: 30, functions: 26 },
     './src/integrations/google/': { lines: 58, branches: 55, functions: 38 },
     // Raised 2026-06-04: the read path (listCalendarEvents) lifted this dir to
     // ~88/75/100 (lines/branches/functions); floor a few points under.
@@ -127,13 +130,11 @@ module.exports = {
       // ts-jest/CJS node suite must transform them (everything else in
       // node_modules stays ignored).
       transformIgnorePatterns: ['/node_modules/(?!@noble/)'],
-      testPathIgnorePatterns: [...IGNORE, '/app/', '/src/components/'],
-      // src/components is measured by the `components` project ONLY. The node
-      // suite never executes component files (it stubs react-native), so without
-      // this it would emit 0%-coverage maps for them that dilute the merged
-      // per-directory numbers. Symmetric to the components project ignoring the
-      // logic dirs (see that project's coveragePathIgnorePatterns below).
-      coveragePathIgnorePatterns: [...IGNORE, '/app/', '/src/components/'],
+      testPathIgnorePatterns: [...IGNORE, '/app/', '/src/components/', '/src/hooks/'],
+      // src/components and src/hooks are measured by the `components` project ONLY.
+      // The node suite stubs react-native so it can't run component or hook tests.
+      // Without this it would emit 0%-coverage maps that dilute per-directory numbers.
+      coveragePathIgnorePatterns: [...IGNORE, '/app/', '/src/components/', '/src/hooks/'],
     },
     {
       displayName: 'components',
@@ -147,8 +148,9 @@ module.exports = {
       // a project's setupFiles replaces — not merges with — the preset's).
       setupFiles: ['<rootDir>/jest.setup.winter.js', ...expoPreset.setupFiles],
       // Relative glob (not <rootDir>/…) — an absolute glob breaks on Windows
-      // where the path mixes \ and /. Matches src/components/**/*.test.tsx.
-      testMatch: ['**/src/components/**/*.test.tsx'],
+      // where the path mixes \ and /. Matches src/components/**/*.test.tsx and
+      // src/hooks/**/*.test.tsx (hooks need renderHook from the jest-expo env).
+      testMatch: ['**/src/components/**/*.test.tsx', '**/src/hooks/**/*.test.tsx'],
       // @/ alias merges with jest-expo's asset mocks. The node-suite RN stubs
       // are intentionally NOT here — the component suite uses the real
       // react-native via jest-expo. AsyncStorage IS stubbed (mirroring the node
@@ -172,7 +174,10 @@ module.exports = {
         ...IGNORE,
         '/src/sync/', '/src/db/', '/src/store/', '/src/ai/', '/src/utils/',
         '/src/finance/', '/src/explore/', '/src/cognition/', '/src/integrations/',
-        '/src/hooks/', '/workers/',
+        '/workers/',
+        // src/hooks IS measured here (hooks need jest-expo's renderHook env).
+        // The node project ignores hooks via testPathIgnorePatterns so they
+        // are instrumented by this project only, avoiding double-counting.
       ],
     },
   ],

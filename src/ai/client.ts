@@ -269,12 +269,19 @@ export async function callAIStream(
 
     let accumulated = '';
     let model = request.model ?? 'unknown';
-    let usage: {
+    type StreamUsage = {
       input_tokens: number;
       output_tokens: number;
       cache_read_input_tokens: number;
       cache_creation_input_tokens: number;
-    } | null = null;
+    };
+    // Held in a ref object rather than a bare `let`: TS control-flow analysis
+    // narrows a closure-assigned `let` to its `null` initializer at the read
+    // site (the parseLine assignment is invisible to it), which made the
+    // downstream `if (usage)` body resolve to `never`. A property read on a
+    // const object is reset to its declared type after the parseLine calls, so
+    // it narrows correctly.
+    const usageRef: { current: StreamUsage | null } = { current: null };
 
     const parseLine = (line: string) => {
       if (!line.startsWith('data: ')) return;
@@ -296,7 +303,7 @@ export async function callAIStream(
         const u = chunk.usage;
         if (u !== null && u !== undefined && typeof u === 'object') {
           const uo = u as Record<string, unknown>;
-          usage = {
+          usageRef.current = {
             input_tokens: typeof uo.input_tokens === 'number' ? uo.input_tokens : 0,
             output_tokens: typeof uo.output_tokens === 'number' ? uo.output_tokens : 0,
             cache_read_input_tokens:
@@ -335,8 +342,7 @@ export async function callAIStream(
       ...parseServerTiming(response.headers.get('Server-Timing')),
     };
 
-    // Snapshot into a const so TS can narrow without closure-escape widening.
-    const finalUsage = usage;
+    const finalUsage = usageRef.current;
     if (finalUsage) {
       recordUsage({ model, task: request.task ?? 'unknown', usage: finalUsage });
       track(EVENTS.aiCall, {
