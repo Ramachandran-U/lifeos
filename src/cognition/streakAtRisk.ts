@@ -92,10 +92,13 @@ export function detectStreakAtRisk(deps: StreakAtRiskDeps): StreakAtRiskCandidat
     const urgencyComponent = gap >= MAX_RECOVERABLE_GAP ? 30 : 12;
     const severity = Math.min(100, countComponent + urgencyComponent);
 
+    // Forward/momentum framing only — never loss-aversion ("resets if you skip",
+    // "keep it alive"). See docs/research/ui-ux-gamification-2026.md §11 (red line
+    // #1); guarded by the no-loss-aversion assertion in the test.
     const reason =
       gap >= MAX_RECOVERABLE_GAP
-        ? `Your ${state.count}-day ${streak} streak resets if you skip today`
-        : `Keep your ${state.count}-day ${streak} streak alive today`;
+        ? `Your ${state.count}-day ${streak} streak is going strong — one action today keeps it building`
+        : `Keep your ${state.count}-day ${streak} streak going — one action does it today`;
 
     candidates.push({ streak, count: state.count, daysSinceLastAdvance: gap, severity, reason });
   }

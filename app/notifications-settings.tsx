@@ -49,8 +49,8 @@ const TOGGLES: ToggleDef[] = [
   {
     id: 'streak_at_risk',
     icon: 'flame-outline',
-    title: 'Streak at risk',
-    detail: 'Evening alert if you’re about to break a streak by midnight.',
+    title: 'Streak reminder',
+    detail: 'A gentle evening nudge to keep a streak going, if one’s within reach today.',
     time: '8:00 PM',
   },
   {
