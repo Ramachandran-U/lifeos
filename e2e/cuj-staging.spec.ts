@@ -1038,3 +1038,68 @@ test.describe('CUJ 18 — Plan my next 7 days generates and persists a week of b
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── CUJ 19: Recategorise a transaction — the correction sticks in Dexie ────────
+//
+// Human equivalent: "Swiggy got tagged Food Delivery but it was a grocery run.
+// I retag it to Groceries and it stays that way." No AI — deterministic Dexie write.
+//
+// Tap a transaction → CategoryPickerModal ("RECATEGORISE") → tap a category chip
+// → updateTransactionCategory writes { category, userCorrected: true } to the
+// lifeos_finance.transactions store. We assert the persisted row, not just the UI.
+// Same Gmail-token seed as CUJ 16 so the Transactions tab renders the row.
+
+test.describe('CUJ 19 — Recategorising a transaction persists the correction', () => {
+  test('retagging a transaction writes the new category and marks it user-corrected', async ({ page }) => {
+    await seedAuthedUser(page); // no AI on this path → no seedSupabaseSession
+    await page.addInitScript(() => {
+      localStorage.setItem('lifeos_gmail_tokens', JSON.stringify({
+        access_token: 'e2e-fake-gmail', refresh_token: 'e2e-fake-refresh', expires_at: 9999999999,
+      }));
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/(tabs)/finance');
+    await expect(page.getByText('Finance').first()).toBeVisible({ timeout: 15_000 });
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    await seedFinanceTx(page, [{
+      id: 'cuj-cat-tx-1', date: today, amount: 50000, direction: 'debit',
+      merchant: 'Swiggy', category: 'food_delivery', source: 'manual',
+      rawEmailId: 'cuj-cat-1', confidence: 0.95, userCorrected: false,
+    }]);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Switch to the Transactions tab and open the seeded row.
+    await page.getByText('Transactions', { exact: true }).first().click();
+    const row = page.getByText('Swiggy', { exact: true });
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    await row.click();
+
+    // Recategorise: Food Delivery → Groceries.
+    await expect(page.getByText('RECATEGORISE')).toBeVisible({ timeout: 10_000 });
+    await page.getByText('Groceries', { exact: true }).click();
+
+    // Business outcome: the persisted Dexie row now reads groceries + user-corrected.
+    await expect
+      .poll(async () => page.evaluate(async (id) => {
+        const db: IDBDatabase | null = await new Promise((res) => {
+          const r = indexedDB.open('lifeos_finance');
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => res(null);
+        });
+        if (!db) return null;
+        const rec = await new Promise<{ category?: string; userCorrected?: boolean } | undefined>((res) => {
+          const tx = db.transaction('transactions', 'readonly');
+          const req = tx.objectStore('transactions').get(id);
+          req.onsuccess = () => res(req.result);
+          req.onerror = () => res(undefined);
+        });
+        db.close();
+        return rec ? { category: rec.category, userCorrected: rec.userCorrected } : null;
+      }, 'cuj-cat-tx-1'), { timeout: 10_000 })
+      .toEqual({ category: 'groceries', userCorrected: true });
+    expect(pageErrors).toEqual([]);
+  });
+});
