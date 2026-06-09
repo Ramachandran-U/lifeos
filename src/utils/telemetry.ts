@@ -97,6 +97,10 @@ export const EVENTS = {
   questRerolled: 'quest_rerolled',
   chestGranted: 'chest_granted',
   chestOpened: 'chest_opened',
+  companionNamed: 'companion_named',
+  companionTapped: 'companion_tapped',
+  comebackDetected: 'comeback_detected',
+  comebackClaimed: 'comeback_claimed',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

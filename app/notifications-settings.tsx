@@ -18,10 +18,12 @@ import {
   scheduleGoalTaskReminder,
   scheduleStreakAtRiskNotification,
   scheduleSocialOverdueNudge,
+  scheduleComebackGentleNotification,
   requestNotificationPermissions,
 } from '@/hooks/useNotifications';
+import { NOTIFICATION_PREFS_KEY } from '@/constants/notifications';
 
-type ToggleId = 'daily_routine' | 'goal_task_reminder' | 'streak_at_risk' | 'social_overdue';
+type ToggleId = 'daily_routine' | 'goal_task_reminder' | 'streak_at_risk' | 'social_overdue' | 'comeback_gentle';
 
 interface ToggleDef {
   id: ToggleId;
@@ -60,15 +62,25 @@ const TOGGLES: ToggleDef[] = [
     detail: 'Reminder to reach out if you haven’t messaged anyone this week.',
     time: '6:00 PM',
   },
+  {
+    id: 'comeback_gentle',
+    icon: 'leaf-outline',
+    title: 'Quiet return',
+    detail: 'If you step away for a few days, one soft hello that your plans are ready — never a countdown.',
+    time: '3 days after your last visit',
+  },
 ];
 
-const STORAGE_KEY = 'lifeos.notifications.prefs';
+const STORAGE_KEY = NOTIFICATION_PREFS_KEY;
 
 const DEFAULT_PREFS: Record<ToggleId, boolean> = {
   daily_routine: true,
   goal_task_reminder: true,
   streak_at_risk: true,
   social_overdue: true,
+  // R4: strictly opt-in — a re-engagement ping the user didn't ask for is
+  // exactly the dark pattern the compassion constraint forbids.
+  comeback_gentle: false,
 };
 
 // Storage is cross-platform: localStorage on web, AsyncStorage on native.
@@ -157,6 +169,8 @@ export default function NotificationsSettingsScreen() {
       await scheduleStreakAtRiskNotification().catch(() => {});
     } else if (id === 'social_overdue') {
       await scheduleSocialOverdueNudge().catch(() => {});
+    } else if (id === 'comeback_gentle') {
+      await scheduleComebackGentleNotification().catch(() => {});
     }
   }, [prefs, permission]);
 
@@ -182,7 +196,7 @@ export default function NotificationsSettingsScreen() {
           </View>
 
           <AuroraText variant="body" secondary style={styles.lede}>
-            LifeOS only ever sends you four kinds of nudges, all scheduled on your device. Turn off anything that doesn’t serve you.
+            LifeOS only ever sends you five kinds of nudges, all scheduled on your device. Turn off anything that doesn’t serve you.
           </AuroraText>
 
           {permission !== 'granted' && (

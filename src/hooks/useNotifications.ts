@@ -3,7 +3,13 @@ import { addDays, setHours, setMinutes, parseISO } from 'date-fns';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Platform } from 'react-native';
-import { STREAK_AT_RISK_NOTIFICATION } from '@/constants/notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  COMEBACK_GENTLE_NOTIFICATION,
+  NOTIFICATION_PREFS_KEY,
+  STREAK_AT_RISK_NOTIFICATION,
+} from '@/constants/notifications';
+import { useFlagStore } from '@/store/useFlagStore';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -157,6 +163,48 @@ export async function scheduleStreakAtRiskNotification() {
   });
 }
 
+/**
+ * Comeback nudge (R4, comeback_v1): ONE one-shot notification 3 days out,
+ * replaced on every app open — so it only ever fires after a genuine gap, and
+ * never repeats (no follow-ups, no escalation; the existing streak_at_risk
+ * daily covers urgency). Strictly opt-in: default OFF in notifications-settings.
+ */
+export const COMEBACK_GENTLE_DELAY_DAYS = 3;
+const COMEBACK_GENTLE_HOUR = 11; // late morning — never a guilt ping at night
+
+export async function scheduleComebackGentleNotification(now: Date = new Date()) {
+  const trigger = setMinutes(setHours(addDays(now, COMEBACK_GENTLE_DELAY_DAYS), COMEBACK_GENTLE_HOUR), 0);
+  await scheduleLocalNotification({
+    id: 'comeback_gentle',
+    title: COMEBACK_GENTLE_NOTIFICATION.title,
+    body: COMEBACK_GENTLE_NOTIFICATION.body,
+    trigger,
+  });
+}
+
+/**
+ * Called on every app open (Today focus): pushes the one-shot 3 more days out
+ * while the user keeps showing up. No-ops unless BOTH the comeback_v1 flag and
+ * the opt-in toggle are on. Never requests permission itself — the settings
+ * screen owns that consent moment.
+ */
+export async function rescheduleComebackGentleIfEnabled(now: Date = new Date()): Promise<void> {
+  try {
+    if (!useFlagStore.getState().isEnabled('comeback_v1')) return;
+    const raw =
+      Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.localStorage.getItem(NOTIFICATION_PREFS_KEY)
+        : await AsyncStorage.getItem(NOTIFICATION_PREFS_KEY);
+    const prefs = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    if (prefs.comeback_gentle !== true) return; // opt-in — absent means OFF
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    await scheduleComebackGentleNotification(now);
+  } catch {
+    // Best-effort — a scheduling failure must never affect app open.
+  }
+}
+
 export async function scheduleSocialOverdueNudge(overdueCount?: number) {
   await cancelNotification('social_overdue');
 
@@ -212,7 +260,7 @@ export async function refreshSocialOverdueBody(overdueCount: number): Promise<vo
 }
 
 export async function cancelAllCustomNotifications() {
-  const ids = ['goal_task_reminder', 'streak_at_risk', 'social_overdue', 'daily_routine'];
+  const ids = ['goal_task_reminder', 'streak_at_risk', 'social_overdue', 'daily_routine', 'comeback_gentle'];
   for (const id of ids) {
     await cancelNotification(id);
   }
@@ -237,7 +285,7 @@ export function useNotificationNavigation() {
         router.push('/(tabs)/goals');
       } else if (screen === 'social') {
         router.push('/(tabs)/social');
-      } else if (screen === 'daily_routine' || screen === 'today') {
+      } else if (screen === 'daily_routine' || screen === 'today' || screen === 'comeback_gentle') {
         router.push('/(tabs)');
       }
     });

@@ -69,6 +69,10 @@ const ALLOWED_EVENTS = new Set([
   'quest_rerolled',
   'chest_granted',
   'chest_opened',
+  'companion_named',
+  'companion_tapped',
+  'comeback_detected',
+  'comeback_claimed',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;

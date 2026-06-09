@@ -71,6 +71,12 @@ import { useFlagStore } from '@/store/useFlagStore';
 import { isEnabled as isFlagEnabled } from '@/config/flags';
 import { celebrate } from '@/celebration/useCelebrationStore';
 import { maybeGrantChest } from '@/gamification/chestGrants';
+import { CompanionAvatar } from '@/components/companion/CompanionAvatar';
+import { CompanionSheet } from '@/components/companion/CompanionSheet';
+import { useCompanionStore } from '@/store/useCompanionStore';
+import { ComebackSheet } from '@/components/shared/ComebackSheet';
+import { useComeback } from '@/hooks/useComeback';
+import { rescheduleComebackGentleIfEnabled } from '@/hooks/useNotifications';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { refreshInferredPreferences } from '@/ai/profileLearning';
 import { upsertUserProfile } from '@/db/queries/userProfile';
@@ -254,6 +260,10 @@ export default function TodayScreen() {
     // The helper is self-throttled via localStorage/AsyncStorage so repeated
     // focuses in the same day are no-ops.
     if (userId) maybeEmitAppOpened(getUser()?.installDate ?? null);
+    // R4: while the user keeps showing up, the opt-in comeback one-shot keeps
+    // sliding 3 days out — it only ever fires after a genuine gap. No-op
+    // unless comeback_v1 AND the settings toggle are on.
+    if (userId) void rescheduleComebackGentleIfEnabled();
     // Weekly profile learning — fire-and-forget; no-ops within the 7-day window.
     if (onboardingV2 && userId) {
       refreshInferredPreferences(userId).then((result) => {
@@ -367,6 +377,11 @@ export default function TodayScreen() {
   const completedCount = blocks.filter((b) => b.status === 'completed').length;
   const allComplete = blocks.length > 0 && completedCount === blocks.length;
 
+  // R4 (comeback_v1): 3–90 day gap → comeback chest + ease_back quest + the
+  // warm welcome sheet below. Detection runs once per mount; the hook reads
+  // the pre-session last-open day, so ordering vs maybeEmitAppOpened is safe.
+  const comeback = useComeback(userId);
+
   // P4-02: assemble the morning briefing input from the slices the Today
   // screen already has loaded. The hook generates 1-3 lines once per day and
   // caches them; we fall back to the static blocks-count line below if it's
@@ -436,6 +451,17 @@ export default function TodayScreen() {
   const densityScale = useDensityScale();
   const gamification = usePreferencesStore((s) => s.gamification);
   const styles = makeStyles(c, densityScale);
+
+  // R3 (companion_v1): companion presence in the header. Mood is derived,
+  // recomputed whenever the day's completion picture changes — never persisted.
+  const companionOn = useFlagStore((s) => s.isEnabled('companion_v1'));
+  const [companionOpen, setCompanionOpen] = useState(false);
+  const recomputeCompanion = useCompanionStore((s) => s.recompute);
+  useEffect(() => {
+    if (companionOn && userId && gamification !== 'off') {
+      void recomputeCompanion(userId);
+    }
+  }, [companionOn, userId, gamification, completedCount, blocks.length, recomputeCompanion]);
 
   const scrollY = useSharedValue(0);
   // The sticky collapsed band overlays the top of the screen. While the hero is
@@ -543,6 +569,10 @@ export default function TodayScreen() {
             >
               <Ionicons name="bug-outline" size={18} color={c.warning} />
             </Pressable>
+            {/* R3: companion presence — small, non-blocking, tap → sheet */}
+            {companionOn && gamification !== 'off' && (
+              <CompanionAvatar size={40} onPress={() => setCompanionOpen(true)} />
+            )}
             <View style={styles.headerCenter}>
               <Heading style={{ color: c.textPrimary }}>{greeting}, {name || 'there'}</Heading>
               <AuroraText variant="micro" muted style={{ marginTop: 2 }}>
@@ -1007,6 +1037,23 @@ export default function TodayScreen() {
         systemInstruction={voiceSystemInstruction}
         tools={voiceTools}
       />
+
+      {companionOn && gamification !== 'off' && userId && (
+        <CompanionSheet
+          visible={companionOpen}
+          onClose={() => setCompanionOpen(false)}
+          userId={userId}
+        />
+      )}
+
+      {comeback.days !== null && (
+        <ComebackSheet
+          visible={comeback.days !== null}
+          days={comeback.days}
+          onClaim={comeback.claim}
+          onClose={comeback.dismiss}
+        />
+      )}
 
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
       <DailySummarySheet
