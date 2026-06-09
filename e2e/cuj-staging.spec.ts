@@ -419,3 +419,198 @@ test.describe('CUJ 8 — Rabbit hole: consecutive "go deeper" nodes differ', () 
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── Shared AI-proxy router for the AI-dependent CUJs below ─────────────────────
+//
+// The Worker returns { text, functionCalls?, model, usage } for /claude. `pick`
+// decides the response per call from the request body (`task`) and the call
+// index (the coach agent loops: function-call turn, then final-answer turn).
+async function routeAI(
+  page: Parameters<typeof seedAuthedUser>[0],
+  pick: (body: { task?: string }, callIndex: number) => Record<string, unknown>,
+) {
+  let n = 0;
+  await page.route('**/claude', async (route) => {
+    let body: { task?: string } = {};
+    try { body = route.request().postDataJSON() as { task?: string }; } catch { /* keep {} */ }
+    const payload = pick(body ?? {}, n++);
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ model: 'mock', usage: { input_tokens: 0, output_tokens: 0 }, ...payload }),
+    });
+  });
+}
+
+// ── CUJ 9: AI coach — propose → confirm → real mutation ───────────────────────
+//
+// Human equivalent: "I ask 'what should I do next?', the coach proposes adding a
+// focus block, I confirm, and the block actually appears in my day."
+
+test.describe('CUJ 9 — Coach proposes an action and confirming commits it', () => {
+  test('confirming a proposed routine block creates it', async ({ page }) => {
+    await seedSupabaseSession(page); // AI auth guard
+    await seedAuthedUser(page, { blocks: TODAY_BLOCKS });
+    // Under EXPO_PUBLIC_USE_AI_MOCK (how CI builds the bundle) the coach returns a
+    // canned proposal titled "Focus session"; against a live target this route
+    // drives the same shape. Either way the journey is propose → confirm → commit.
+    await routeAI(page, (body, i) => {
+      if (body.task === 'what_next' && i === 0) {
+        return {
+          text: '',
+          functionCalls: [{
+            name: 'proposeCreateRoutineBlock',
+            args: { startTime: '14:00', endTime: '14:30', title: 'Focus session', module: 'goal' },
+          }],
+        };
+      }
+      return { text: 'Add a 30-minute focus block at 2pm — your highest-leverage move now.', functionCalls: [] };
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+
+    await page.getByText('What should I do next?').first().click();
+
+    // Business outcome 1: a proposal with a Confirm control appears.
+    await expect(page.getByText('Confirm', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await page.getByText('Confirm', { exact: true }).first().click();
+
+    // Business outcome 2: the proposed block is actually committed to the day.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const blocks = JSON.parse(localStorage.getItem('lifeos_routine_blocks') ?? '[]') as Array<{ title: string }>;
+          return blocks.some((b) => b.title === 'Focus session');
+        } catch { return false; }
+      }), { timeout: 10_000 })
+      .toBe(true);
+
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 10: Evening reflection → apply a tomorrow tweak → finish ───────────────
+//
+// Human equivalent: "I review my day, set my mood, the app suggests one tweak for
+// tomorrow, I apply it, and I land back on Today — reflection done."
+
+test.describe('CUJ 10 — Evening reflection completes and applies a tomorrow tweak', () => {
+  test('review → mood → apply tweak → finish returns to Today', async ({ page }) => {
+    await seedSupabaseSession(page);
+    await seedAuthedUser(page, { blocks: TODAY_BLOCKS });
+    await routeAI(page, (body) => {
+      if (body.task === 'suggestTomorrowTweak') {
+        return { text: JSON.stringify({
+          kind: 'add', blockId: null,
+          patch: { startTime: '08:00', endTime: '08:30', title: 'Morning stretch', module: 'health' },
+          rationale: 'Start tomorrow with a gentle stretch to ease in.',
+        }) };
+      }
+      if (body.task === 'generateTomorrowRoutine') {
+        return { text: JSON.stringify({
+          blocks: [{ startTime: '08:00', endTime: '08:30', title: 'Morning stretch', module: 'health' }],
+          briefing: 'A calm, recovery-leaning day.',
+        }) };
+      }
+      return { text: '{}' };
+    });
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await page.goto('/evening-reflect', { waitUntil: 'domcontentloaded' });
+
+    // Step 1 — review at least one block, then continue.
+    await expect(page.getByText('Morning run').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByText('Did it', { exact: true }).first().click();
+    await page.getByText('Continue', { exact: true }).click();
+
+    // Step 2 — pick a mood, then continue.
+    await page.getByText('Good', { exact: true }).click();
+    await page.getByText('Continue', { exact: true }).click();
+
+    // Step 3 — the AI tweak appears; apply it.
+    await expect(page.getByText('Apply', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByText('Apply', { exact: true }).click();
+
+    // Finish (button text becomes "Finish" once the tweak is applied/dismissed).
+    await page.getByText(/^Finish/, ).first().click();
+
+    // Business outcome: back on the Today surface, reflection recorded.
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 11: Discovery fast-start — paste → extract → confirm → onboarded ───────
+//
+// Human equivalent: "I paste my notes, the app extracts a profile, I confirm, and
+// I'm set up — goals and all — landing on Today."
+
+const MOCK_EXTRACTION = {
+  identity: { firstName: 'Sam', ageBand: '30-35', location: 'Bengaluru', seasonOfLife: 'Rebuilding.', confidence: 'medium' },
+  goals: [
+    { title: 'Ship a side project to 100 paying users', domain: 'career', horizon: '1y', why: 'Income beyond the day job.', quote: null, confidence: 'high' },
+    { title: 'Lose 8 kg and hold it', domain: 'health', horizon: '1y', why: 'Energy dropped.', quote: null, confidence: 'high' },
+  ],
+  health: { conditions: [], constraints: ['bad left knee'], currentHabits: ['evening walks'], energyPattern: 'Sharp 8–11am.', confidence: 'medium' },
+  finance: { currency: 'INR', monthlyIncomeBand: null, topGoals: ['emergency fund'], anxieties: ['job security'], confidence: 'medium' },
+  career: { role: 'Senior PM', seniority: 'senior', aspirations: ['found a company'], skillsLearning: ['writing'], confidence: 'high' },
+  relationships: { keyPeople: [{ firstName: 'Priya', role: 'partner', cadence: 'daily' }], socialEnergy: 'ambivert', confidence: 'medium' },
+  curiosity: { activeInterests: ['essay writing', 'chess'], dormantInterests: ['piano'], confidence: 'medium' },
+  values: ['honesty', 'craft'],
+  workingStyle: { peakHours: 'early morning', focusBlocks: '90-minute blocks', restNeeds: 'one offline day', confidence: 'medium' },
+  communication: { tone: 'direct', avoid: ['hype'], confidence: 'medium' },
+  struggles: [{ area: 'consistency', description: 'Falls off after two weeks.', quote: null }],
+  triedAlready: ['habit apps'],
+  asks: ['help me finish what I start'],
+};
+
+test.describe('CUJ 11 — Discovery fast-start extracts a profile and onboards', () => {
+  test('paste → extract → confirm lands on Today with the profile applied', async ({ page }) => {
+    await seedSupabaseSession(page);
+    await seedAuthedUser(page);
+    await routeAI(page, (body) =>
+      body.task === 'extractDiscoveryProfile'
+        ? { text: JSON.stringify(MOCK_EXTRACTION) }
+        : { text: '{}' },
+    );
+
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await page.goto('/(onboarding)/discovery-paste', { waitUntil: 'domcontentloaded' });
+
+    // Paste ≥400 chars (the screen's MIN_CHARS gate) and extract.
+    const blurb = 'I am a senior product manager in Bengaluru rebuilding after a hard year. '
+      + 'I want to ship a side project to 100 paying users, lose 8 kg and keep it off, and build a six-month '
+      + 'emergency fund because layoffs make me anxious. I have a bad knee so no high-impact running. I am '
+      + 'sharpest in the early morning and crash after lunch. I keep starting things and not finishing them, '
+      + 'and I want calm structure without hype or toxic positivity. My partner Priya and friend Arjun matter most.';
+    const paste = page.getByPlaceholder('Paste here…');
+    await expect(paste).toBeVisible({ timeout: 15_000 });
+    await paste.fill(blurb);
+    await page.getByText('Extract my profile', { exact: true }).click();
+
+    // Business outcome 1: the confirm screen shows an extracted goal.
+    await expect(page.getByText('Ship a side project to 100 paying users')).toBeVisible({ timeout: 15_000 });
+
+    // Business action: accept the extracted profile.
+    await page.getByText('Use this to set up LifeOS', { exact: true }).click();
+
+    // Business outcome 2: onboarded — left the discovery flow onto the app, not blank.
+    await page.waitForURL((url) => !url.pathname.includes('discovery'), { timeout: 15_000 });
+    const childCount = await assertNotBlank(page);
+    expect(childCount, 'app should render after discovery confirm').toBeGreaterThan(20);
+    // The extracted goal is now in the user's goals store.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const goals = JSON.parse(localStorage.getItem('lifeos_goals') ?? '[]') as Array<{ title: string }>;
+          return goals.some((g) => /side project to 100/i.test(g.title ?? ''));
+        } catch { return false; }
+      }), { timeout: 10_000 })
+      .toBe(true);
+    expect(pageErrors).toEqual([]);
+  });
+});
