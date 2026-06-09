@@ -506,6 +506,8 @@ export default function TodayScreen() {
               hitSlop={8}
               style={[styles.voiceBtn, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}
               testID="voice-open"
+              accessibilityRole="button"
+              accessibilityLabel="Voice assistant"
             >
               <Ionicons name="mic" size={20} color={c.primary} />
             </Pressable>
@@ -933,6 +935,8 @@ export default function TodayScreen() {
               onPress={() => setVoiceOpen(true)}
               hitSlop={6}
               style={{ marginLeft: spacing.sm, padding: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel="Voice assistant"
             >
               <Ionicons name="mic" size={16} color={c.primary} />
             </Pressable>

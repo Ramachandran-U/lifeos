@@ -1,9 +1,10 @@
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption, Label } from '@/components/ui/Typography';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { progressFraction, type Expedition, type ExpeditionProgress } from '@/explore/expeditions';
 
 interface Props {
@@ -25,7 +26,13 @@ export function ExpeditionProgressRow({ expeditions, onPress }: Props) {
           const frac = progressFraction(p, e.totalSteps);
           const pct = Math.round(frac * 100);
           return (
-            <Pressable key={e.id} onPress={() => onPress(e.id)} style={[styles.card, { borderColor: c.border, backgroundColor: c.card }]}>
+            <PressableScale
+              key={e.id}
+              onPress={() => onPress(e.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`${e.title}, ${pct}% complete`}
+              style={[styles.card, { borderColor: c.border, backgroundColor: c.card }]}
+            >
               <View style={styles.cardHeader}>
                 <Ionicons name="compass" size={18} color={c.polymath} />
                 <Caption style={{ color: c.polymath, fontFamily: fonts.heading }}>{pct}%</Caption>
@@ -37,7 +44,7 @@ export function ExpeditionProgressRow({ expeditions, onPress }: Props) {
               <Caption style={{ color: c.textMuted }}>
                 {p.completedSteps.length}/{e.totalSteps} steps
               </Caption>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>

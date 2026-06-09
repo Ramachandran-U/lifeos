@@ -159,7 +159,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
     onUncomplete?.(id);
   };
   const renderUndoAction = () => (
-    <Pressable onPress={handleUndo} style={styles.undoAction} accessibilityRole="button" accessibilityHint="Undo completion">
+    <Pressable onPress={handleUndo} style={styles.undoAction} accessibilityRole="button" accessibilityLabel="Undo" accessibilityHint="Undo completion">
       <Ionicons name="arrow-undo" size={18} color="#FFFFFF" />
       <Caption style={styles.undoText}>Undo</Caption>
     </Pressable>

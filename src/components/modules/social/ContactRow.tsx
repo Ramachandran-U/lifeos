@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption } from '@/components/ui/Typography';
+import { PressableScale } from '@/components/ui/PressableScale';
 import {
   RELATIONSHIP_META,
   computeOverdue,
@@ -31,14 +32,15 @@ export function ContactRow({ contact, onPress }: ContactRowProps) {
   const cadenceLabel = `${RELATIONSHIP_META[contact.relationshipType as keyof typeof RELATIONSHIP_META]?.label ?? contact.relationshipType} · every ${contact.preferredCadenceDays}d`;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [
+      accessibilityRole="button"
+      accessibilityLabel={`${contact.nickname?.trim() || contact.name}, ${cadenceLabel}`}
+      style={[
         styles.row,
         {
           backgroundColor: c.card,
           borderColor: overdue.isOverdue ? c.warning + '55' : c.border,
-          opacity: pressed ? 0.85 : 1,
         },
       ]}
     >
@@ -62,7 +64,7 @@ export function ContactRow({ contact, onPress }: ContactRowProps) {
         ) : null}
       </View>
       <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-    </Pressable>
+    </PressableScale>
   );
 }
 

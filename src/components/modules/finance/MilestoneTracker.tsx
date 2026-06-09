@@ -73,6 +73,8 @@ export function MilestoneTracker({ milestones, onComplete }: MilestoneTrackerPro
               <Pressable
                 onPress={() => handleComplete(m.id)}
                 style={styles.checkButton}
+                accessibilityRole="button"
+                accessibilityLabel="Mark milestone complete"
               >
                 <Ionicons name="checkmark-circle-outline" size={28} color={c.finance} />
               </Pressable>

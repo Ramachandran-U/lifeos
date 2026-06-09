@@ -213,7 +213,7 @@ export function GoalDetailSheet({
                     <Caption style={{ color: c.textMuted }}>{new Date(cm.createdAt).toLocaleString()}</Caption>
                     <Body style={{ color: c.textPrimary }}>{cm.body}</Body>
                   </View>
-                  <Pressable onPress={() => remove(cm.id)} hitSlop={8}>
+                  <Pressable onPress={() => remove(cm.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Delete comment">
                     <Ionicons name="trash-outline" size={16} color={c.error} />
                   </Pressable>
                 </View>
@@ -236,6 +236,8 @@ export function GoalDetailSheet({
               style={[styles.sendBtn, { backgroundColor: draft.trim() ? typeColor.color : c.surface }]}
               onPress={submit}
               disabled={!draft.trim()}
+              accessibilityRole="button"
+              accessibilityLabel="Send comment"
             >
               <Ionicons name="send" size={16} color={draft.trim() ? '#fff' : c.textMuted} />
             </Pressable>
@@ -268,7 +270,7 @@ export function GoalDetailSheet({
                   <Caption style={{ color: c.textSecondary, letterSpacing: 1, fontFamily: fonts.heading }}>
                     RECOVERY PLAN
                   </Caption>
-                  <Pressable onPress={() => setShowRecovery(false)} hitSlop={8}>
+                  <Pressable onPress={() => setShowRecovery(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close recovery plan">
                     <Ionicons name="close" size={16} color={c.textMuted} />
                   </Pressable>
                 </View>
