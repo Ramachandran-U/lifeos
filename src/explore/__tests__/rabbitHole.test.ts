@@ -57,6 +57,31 @@ describe('buildMockNode', () => {
     const n = buildMockNode({ parent: baseInput.parent, anchor: { title: 'A spark' }, direction: 'sideways' });
     expect(isConcreteNode(n)).toBe(true);
   });
+
+  it('varies title AND body by parent + depth so consecutive fallbacks differ (regression: same card at every depth)', () => {
+    const d1 = buildMockNode({ ...baseInput, direction: 'deeper', depth: 1 });
+    // Depth 2's parent IS the depth-1 node (same anchor). The old anchor-only
+    // mock returned an identical node here — going deeper showed the same card.
+    const d2 = buildMockNode({
+      parent: { title: d1.title, body: d1.body },
+      anchor: baseInput.anchor,
+      direction: 'deeper',
+      depth: 2,
+    });
+    expect(d2.title).not.toBe(d1.title);
+    expect(d2.body).not.toBe(d1.body);
+    expect(isConcreteNode(d1)).toBe(true);
+    expect(isConcreteNode(d2)).toBe(true);
+
+    // And a third hop stays distinct from the second.
+    const d3 = buildMockNode({
+      parent: { title: d2.title, body: d2.body },
+      anchor: baseInput.anchor,
+      direction: 'deeper',
+      depth: 3,
+    });
+    expect(d3.title).not.toBe(d2.title);
+  });
 });
 
 describe('generateRabbitHoleNode (mock mode)', () => {

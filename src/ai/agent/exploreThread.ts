@@ -82,6 +82,7 @@ export async function exploreThreadNode(input: ExploreThreadInput): Promise<Gene
     parent: input.parent,
     anchor: input.anchor,
     direction: input.direction,
+    depth: input.depth,
   });
 
   try {

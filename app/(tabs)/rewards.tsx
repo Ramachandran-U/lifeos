@@ -56,10 +56,16 @@ export default function RewardsScreen() {
   // Real daily-XP series for the 7-day chart (replaces the old mock). Pad a
   // short/empty series to >=2 points so a new user sees a flat baseline instead
   // of a broken sparkline. `xpEntries` is a dep so it recomputes after a record.
+  // Cumulative XP across the recent window, with a 0 baseline so a user with a
+  // single day of history (or who only just earned their first XP today) sees the
+  // line climb instead of a flat bar. Today's point updates the instant a task is
+  // completed (completeBlock snapshots XP), so the graph moves same-day rather
+  // than requiring two calendar days of day-over-day gains.
   const xpSpark = useMemo(() => {
-    const gains = xpDailyGains(7);
-    return gains.length >= 2 ? gains : [0, ...gains, 0];
-  }, [xpDailyGains, xpEntries]);
+    const series = xpEntries.slice(-7).map((e) => e.totalXP);
+    if (series.length === 0) return [0, 0];
+    return series.length >= 2 ? series : [0, series[0]];
+  }, [xpEntries]);
   const allBadgeIds = Object.keys(BADGE_META) as BadgeId[];
   const bestStreak = Math.max(0, ...Object.values(streaks).map((s) => s.count));
   // "Proud mirror" line — a warm sentence from real data, not a stat. Active
@@ -170,7 +176,7 @@ export default function RewardsScreen() {
           {/* Sparkline card */}
           <GlassCard accent={c.xp} style={styles.sparkCard}>
             <SectionLabel color={c.xp}>7-DAY XP</SectionLabel>
-            <Sparkline data={xpSpark} color={c.xp} width={280} height={60} />
+            <Sparkline data={xpSpark} color={c.xp} width={280} height={60} testID="rewards-xp-sparkline" />
           </GlassCard>
 
           {/* Ladder */}
@@ -187,8 +193,11 @@ export default function RewardsScreen() {
             {DOMAIN_META.map((dm) => {
               const score = domainScores[dm.key] ?? 0;
               const history = historyFor(dm.key);
-              // Empty/single-entry → a flat line at the current score (real, not mock).
-              const safeHistory = history.length >= 2 ? history : [score, score];
+              // With <2 days of history, plot from the starting score (15, the
+              // loadFromDB floor) up to the current score, so a domain that has
+              // already grown shows a climb on day one instead of a flat line.
+              // Real multi-day history takes over as soon as it accrues.
+              const safeHistory = history.length >= 2 ? history : [Math.min(15, score), score];
               return (
                 <View key={dm.key} style={styles.gridCell}>
                   <DomainMiniCard

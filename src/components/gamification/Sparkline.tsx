@@ -5,9 +5,11 @@ interface Props {
   color: string;
   width?: number;
   height?: number;
+  /** Optional hook for tests to locate a specific sparkline (e.g. the 7-day XP one). */
+  testID?: string;
 }
 
-export function Sparkline({ data, color, width = 80, height = 28 }: Props) {
+export function Sparkline({ data, color, width = 80, height = 28, testID }: Props) {
   if (!data || data.length < 2) return null;
   const max = Math.max(...data);
   const min = Math.min(...data);
@@ -19,7 +21,7 @@ export function Sparkline({ data, color, width = 80, height = 28 }: Props) {
   });
   const [lx, ly] = pts[pts.length - 1].split(',');
   return (
-    <Svg width={width} height={height}>
+    <Svg width={width} height={height} testID={testID}>
       <Polyline points={pts.join(' ')} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
       <Circle cx={parseFloat(lx)} cy={parseFloat(ly)} r={3} fill={color} />
     </Svg>

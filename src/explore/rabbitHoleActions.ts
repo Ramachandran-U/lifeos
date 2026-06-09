@@ -64,7 +64,7 @@ export interface RabbitHoleSeed {
 
 const now = (): string => new Date().toISOString();
 
-function buildGenParams(parent: { title: string; body: string }, anchor: RabbitHoleAnchor, direction: RabbitHoleDirection): RabbitHoleInput {
+function buildGenParams(parent: { title: string; body: string }, anchor: RabbitHoleAnchor, direction: RabbitHoleDirection, depth: number): RabbitHoleInput {
   return {
     parent: { title: parent.title, body: parent.body },
     anchor: {
@@ -73,13 +73,16 @@ function buildGenParams(parent: { title: string; body: string }, anchor: RabbitH
       adjacentField: anchor.adjacentField ?? undefined,
     },
     direction,
+    depth,
   };
 }
 
 /** Generate the next node via the existing (unchanged) AI path — agentic when
- * the flag is on and we have a user, else single-shot. Both never dead-end. */
-function generateNode(parent: { title: string; body: string }, anchor: RabbitHoleAnchor, direction: RabbitHoleDirection, userId: string | null): Promise<GeneratedNode> {
-  const params = buildGenParams(parent, anchor, direction);
+ * the flag is on and we have a user, else single-shot. Both never dead-end.
+ * `depth` is the hop depth of the node being generated (root child = 1); it
+ * grounds the curated fallback so deeper levels never repeat the same card. */
+function generateNode(parent: { title: string; body: string }, anchor: RabbitHoleAnchor, direction: RabbitHoleDirection, userId: string | null, depth: number): Promise<GeneratedNode> {
+  const params = buildGenParams(parent, anchor, direction, depth);
   return useFlagStore.getState().isEnabled('explore_agentic_thread') && userId
     ? exploreThreadNode({ ...params, userId })
     : generateRabbitHoleNode(params);
@@ -212,8 +215,9 @@ export async function advanceRabbitHole(direction: RabbitHoleDirection): Promise
   store.setAdvancing(true);
   try {
     const userId = useUserStore.getState().userId;
+    const childDepth = depthOf(cursorId, asLookup(nodeMap)) + 1;
     const cached = store.takePrefetch(cursorId, direction);
-    const gen = cached ?? (await generateNode(parent, anchor, direction, userId));
+    const gen = cached ?? (await generateNode(parent, anchor, direction, userId, childDepth));
     const child = nodeFromGenerated(gen, {
       id: nanoid(),
       parentId: cursorId,
@@ -362,11 +366,12 @@ export async function prefetchOtherFork(): Promise<void> {
   const node = nodeMap[cursorId];
   if (!node) return;
   const userId = useUserStore.getState().userId;
+  const childDepth = depthOf(cursorId, asLookup(nodeMap)) + 1;
   for (const fork of node.forks) {
     if (fork.childId != null) continue; // already realized
     if (store.prefetchCache[`${cursorId}:${fork.direction}`]) continue; // already cached
     try {
-      const gen = await generateNode(node, anchor, fork.direction, userId);
+      const gen = await generateNode(node, anchor, fork.direction, userId, childDepth);
       useRabbitHoleStore.getState().setPrefetch(cursorId, fork.direction, gen);
     } catch {
       /* best-effort: a miss just means we generate on tap */

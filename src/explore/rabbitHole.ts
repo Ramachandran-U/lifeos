@@ -30,6 +30,10 @@ export interface RabbitHoleInput {
   /** The original spark that started this thread — keeps wanderings tethered. */
   anchor: { title: string; seedInterest?: string; adjacentField?: string };
   direction: RabbitHoleDirection;
+  /** Hop depth of the node being generated (root = 0). Lets the curated fallback
+   *  vary by level so a run of AI misses never renders the same card twice, and
+   *  gives the live model an explicit "how deep am I" signal. */
+  depth?: number;
 }
 
 const isMock = () =>
@@ -52,22 +56,66 @@ export function isConcreteNode(n: GeneratedNode): boolean {
   return !FILLER_PATTERNS.some((re) => re.test(haystack));
 }
 
-/** Curated fallback so a "pull thread" tap never dead-ends. */
+// Depth-rotated framings so consecutive fallback nodes never read identically,
+// even when the live AI path repeatedly misses. (The bug this fixes: a static,
+// anchor-only mock rendered the SAME card at every depth — "go deeper" showed
+// the depth-1 result again.) Each frame supplies a distinct title + lead so both
+// the heading AND the body change hop-to-hop.
+const DEEPER_FRAMES: { title: (t: string) => string; lead: (t: string) => string }[] = [
+  { title: (t) => `The mechanism beneath ${t}`, lead: (t) => `Under "${t}" sits a smaller, more universal rule doing the real work` },
+  { title: (t) => `What actually drives ${t}`, lead: (t) => `Strip the surface off "${t}" and one driver is doing most of the lifting` },
+  { title: (t) => `The hidden constraint in ${t}`, lead: (t) => `Every version of "${t}" bends around one constraint people rarely name` },
+  { title: (t) => `The smallest rule behind ${t}`, lead: (t) => `The whole of "${t}" collapses to one rule small enough to carry anywhere` },
+  { title: (t) => `One level under ${t}`, lead: (t) => `Go one level under "${t}" and the moving parts get simpler, not noisier` },
+];
+const SIDEWAYS_FRAMES: { title: (t: string, a: string) => string; lead: (t: string, a: string) => string }[] = [
+  { title: (t, a) => `${t} meets ${a}`, lead: (t, a) => `The pattern that makes "${t}" hard to master shows up — sharper — in ${a}` },
+  { title: (t, a) => `${t}, seen through ${a}`, lead: (t, a) => `Look at "${t}" through ${a} and the parts that felt arbitrary start to line up` },
+  { title: (t, a) => `${a}'s version of ${t}`, lead: (t, a) => `${a} solved a problem shaped exactly like "${t}", just with different words` },
+  { title: (t, a) => `Where ${t} and ${a} rhyme`, lead: (t, a) => `"${t}" and ${a} rhyme structurally; borrowing one model across the gap clarifies both` },
+];
+
+/** Reduce a parent title to its core concept (strip our own framings) and bound
+ * its length, so chained fallbacks stay readable and don't nest prefixes. */
+function coreTopic(title: string): string {
+  let t = title
+    .trim()
+    .replace(/^(the mechanism beneath|what actually drives|the hidden constraint in|the smallest rule behind|one level under)\s+/i, '')
+    .replace(/^where\s+(.+?)\s+and\s+.+?\s+rhyme$/i, '$1')
+    .replace(/,?\s*seen through .*/i, '')
+    .replace(/\s+meets\s+.*/i, '')
+    .replace(/^.+?'s version of\s+/i, '')
+    .trim();
+  if (!t) t = title.trim();
+  return t.length > 42 ? `${t.slice(0, 41).trimEnd()}…` : t;
+}
+
+const cap = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+
+/**
+ * Curated fallback so a "pull thread" tap never dead-ends. Built from the PARENT
+ * node (which changes each hop) and a depth-rotated framing — NOT just the static
+ * anchor — so going deeper always yields a distinct card even on a run of AI
+ * misses. Stays tethered to the anchor in the body.
+ */
 export function buildMockNode(input: RabbitHoleInput): GeneratedNode {
-  const anchor = input.anchor.title;
-  const seed = input.anchor.seedInterest || anchor;
-  const adj = input.anchor.adjacentField || 'systems thinking';
+  const depth = Math.max(0, Math.floor(input.depth ?? 0));
+  const topic = coreTopic(input.parent.title || input.anchor.title);
+  const anchor = cap(input.anchor.title, 48);
+  const adj = cap(input.anchor.adjacentField || 'systems thinking', 36);
   if (input.direction === 'deeper') {
+    const f = DEEPER_FRAMES[depth % DEEPER_FRAMES.length];
     return {
-      title: `The mechanism beneath ${seed}`,
-      body: `Under every visible move in ${seed} there's a smaller, more universal rule doing the work. Naming that rule explicitly is often what separates a practitioner from a teacher — and once you see it, you can transfer it to fields that look nothing like ${seed}.`,
-      goDeeperHint: `the underlying invariant`,
-      goSidewaysHint: `where else this mechanism shows up`,
+      title: f.title(topic),
+      body: `${f.lead(topic)}. Naming it is often what separates a practitioner from a teacher — and once you see it here, you can carry it back toward ${anchor} and into fields that look nothing like it.`,
+      goDeeperHint: `the invariant inside ${topic}`,
+      goSidewaysHint: `where else this rule shows up`,
     };
   }
+  const f = SIDEWAYS_FRAMES[depth % SIDEWAYS_FRAMES.length];
   return {
-    title: `${seed} meets ${adj}`,
-    body: `The patterns that make ${seed} hard to master often show up — sharper, easier to study — in ${adj}. Borrowing one mental model across this gap is the quickest way to make both feel less mysterious.`,
+    title: f.title(topic, adj),
+    body: `${f.lead(topic, adj)}. Borrowing one model across that gap makes both clearer, without losing the thread back to ${anchor}.`,
     goDeeperHint: `the shared structural primitive`,
     goSidewaysHint: `a third field with the same shape`,
   };

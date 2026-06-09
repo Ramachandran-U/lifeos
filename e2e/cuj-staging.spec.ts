@@ -332,3 +332,90 @@ test.describe('CUJ 6 — Skip on priority-change sheet saves quietly', () => {
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── CUJ 7: Completing a task is reflected on the Rewards tab ───────────────────
+//
+// Human equivalent: "I finished my morning run — when I open Rewards, my XP went
+// up and the progress graph moved. It shouldn't say 0 with a flat line."
+//
+// Regression guard for the shipped bug where Rewards showed 0 / a flat XP graph
+// after completing a task. Navigation MUST be a client-side tab tap, not a
+// reload — a reload re-runs the seed and would reset XP to 0 (and mask the bug).
+
+test.describe('CUJ 7 — Rewards reflects a completed task (XP + non-flat graph)', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedAuthedUser(page, { blocks: [TODAY_BLOCKS[0]], gamification: { totalXP: 0 } });
+  });
+
+  test('after completing a block, Rewards shows the earned XP and a non-flat XP graph', async ({ page }) => {
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Morning run').first()).toBeVisible({ timeout: 10_000 });
+
+    await holdToComplete(page, 'cuj-health-1');
+    await expect(page.getByTestId('routine-block-cuj-health-1-completed')).toBeVisible({ timeout: 8_000 });
+    await page.waitForTimeout(400); // let the store write + XP snapshot settle
+
+    // Client-side tab navigation — a page.goto reload would re-run the seed and
+    // reset gamification to 0, hiding exactly the bug we're guarding.
+    await page.getByRole('tab', { name: /rewards/i }).or(page.getByText('Rewards', { exact: true })).first().click();
+
+    // Business outcome 1: the earned XP is on the Rewards hero (was "shows 0").
+    await expect(page.getByText(/\b10 \/ \d+ XP to Level/i)).toBeVisible({ timeout: 10_000 });
+
+    // Business outcome 2: the 7-DAY XP graph is NOT a flat horizontal line.
+    const points = await page.getByTestId('rewards-xp-sparkline').locator('polyline').getAttribute('points');
+    const ys = (points ?? '').trim().split(/\s+/).map((p) => parseFloat(p.split(',')[1])).filter((n) => !Number.isNaN(n));
+    expect(ys.length, 'XP sparkline should render at least two points').toBeGreaterThan(1);
+    expect(Math.max(...ys) - Math.min(...ys), 'XP sparkline must not be a flat line after earning XP').toBeGreaterThan(1);
+
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 8: Rabbit hole — going deeper yields new content each level ────────────
+//
+// Human equivalent: "I keep pulling the thread deeper and each step is a NEW
+// idea — not the same card over and over."
+//
+// Regression guard for the shipped bug where the curated fallback node was
+// derived only from the anchor, so every depth rendered an identical card. With
+// no Supabase session the live thread call throws and the generator falls back
+// to that curated node — exactly the path that was broken.
+
+test.describe('CUJ 8 — Rabbit hole: consecutive "go deeper" nodes differ', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedAuthedUser(page); // session only; no Supabase token → generator uses the curated fallback
+  });
+
+  test('two consecutive deeper nodes have different titles (not the same card)', async ({ page }) => {
+    const { pageErrors } = captureErrors(page);
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.waitForURL((url) => !url.pathname.includes('/(auth)/sign'), { timeout: 10_000 }).catch(() => {});
+    await page.goto(
+      '/rabbit-hole?seedTitle=The%20hidden%20grammar%20of%20chess&seedInterest=chess&seedAdjacent=linguistics',
+      { waitUntil: 'domcontentloaded' },
+    );
+
+    const titleEl = page.getByTestId('rabbit-hole-node-title');
+    await expect(titleEl).toBeVisible({ timeout: 15_000 });
+    const goDeeper = () => page.getByText('GO DEEPER', { exact: false }).first();
+
+    // Depth 1 (root seed) → 2
+    const t1 = (await titleEl.innerText()).trim();
+    await goDeeper().click();
+    await expect.poll(async () => (await titleEl.innerText()).trim(), { timeout: 12_000 }).not.toBe(t1);
+    const t2 = (await titleEl.innerText()).trim();
+
+    // Depth 2 → 3
+    await goDeeper().click();
+    await expect.poll(async () => (await titleEl.innerText()).trim(), { timeout: 12_000 }).not.toBe(t2);
+    const t3 = (await titleEl.innerText()).trim();
+
+    // The regression: depth-2 and depth-3 were byte-identical (anchor-only mock).
+    expect(t3, 'consecutive deeper nodes must differ — identical text is the depth bug').not.toBe(t2);
+    expect(t2.length, 'a generated node should have a real title').toBeGreaterThan(3);
+    expect(pageErrors).toEqual([]);
+  });
+});

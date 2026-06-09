@@ -38,7 +38,7 @@ export function RabbitHoleNodeCard({ node, onClimb, onMap }: Props) {
         <Caption style={{ color: c.polymath, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
           {node.arrivedVia == null ? '✦ START' : node.arrivedVia === 'deeper' ? '↓ DEEPER' : '↻ SIDEWAYS'}
         </Caption>
-        <Heading style={styles.title}>{node.title}</Heading>
+        <Heading style={styles.title} testID="rabbit-hole-node-title">{node.title}</Heading>
         <Body style={styles.body}>{node.body}</Body>
 
         <View style={styles.forks}>

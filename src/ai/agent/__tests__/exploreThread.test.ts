@@ -27,11 +27,12 @@ describe('parseAgentNode', () => {
     expect(parseAgentNode(wrapped, input).title).toBe(validNode.title);
   });
 
-  // The 'deeper' mock node anchors on the seed interest, e.g.
-  // "The mechanism beneath Systems thinking".
+  // The 'deeper' mock node now derives from the PARENT (so deeper levels differ),
+  // e.g. "The mechanism beneath Feedback loops", and keeps the anchor in the body.
   it('falls back to the curated mock node on unparseable text', () => {
     const out = parseAgentNode('I could not decide, sorry.', input);
-    expect(out.title).toContain('Systems thinking');
+    expect(out.title).toContain('Feedback loops'); // parent-derived, not anchor-derived
+    expect(out.body).toContain('Systems thinking'); // still tethered to the anchor
     expect(out.body.length).toBeGreaterThan(40);
   });
 
@@ -39,12 +40,12 @@ describe('parseAgentNode', () => {
     const filler = { ...validNode, body: 'Remember that everything is connected, so stay curious and keep going.' };
     const out = parseAgentNode(JSON.stringify(filler), input);
     expect(out.title).not.toBe(validNode.title);
-    expect(out.title).toContain('Systems thinking');
+    expect(out.title).toContain('Feedback loops');
   });
 
   it('falls back to the mock node when the schema is violated', () => {
     const out = parseAgentNode(JSON.stringify({ title: 'x' }), input);
     expect(out.title).not.toBe(validNode.title);
-    expect(out.title).toContain('Systems thinking');
+    expect(out.title).toContain('Feedback loops');
   });
 });
