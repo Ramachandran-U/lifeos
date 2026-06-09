@@ -614,3 +614,93 @@ test.describe('CUJ 11 — Discovery fast-start extracts a profile and onboards',
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── CUJ 12: Meal suggestions render, and logging one records a food entry ──────
+//
+// Human equivalent: "On Health I tap 'Suggest meals', get real ideas, and tapping
+// one logs it." Also guards the meal-ideas card surfacing its result at all.
+// Under the AI-mock build (CI) the ideas are the canned MOCK_MEAL_SUGGESTION.
+
+test.describe('CUJ 12 — Meal suggestions render and a meal can be logged', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedAuthedUser(page);
+  });
+
+  test('suggest meals shows ideas and logging one persists a food entry', async ({ page }) => {
+    // Mode-agnostic: a mock build returns the canned suggestion; otherwise this
+    // route supplies the same meal so the assertion holds either way.
+    await seedSupabaseSession(page);
+    await routeAI(page, (body) =>
+      body.task === 'suggestMeals'
+        ? { text: JSON.stringify({ meals: [
+            { name: 'Grilled Chicken Salad with Quinoa', calories: 480, protein: 38, carbs: 42, fat: 16, description: 'Greens, grilled chicken, quinoa, and an olive-oil dressing.' },
+          ] }) }
+        : { text: '{}' },
+    );
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/(tabs)/health');
+    await expect(page.getByText('Health').first()).toBeVisible({ timeout: 15_000 });
+
+    // The meal-ideas card lives inside the collapsible calorie section.
+    await page.getByText('CALORIE TRACKING').first().click();
+    await page.getByRole('button', { name: 'Suggest meals' }).or(page.getByText('Suggest meals')).first().click();
+
+    // Business outcome 1: a concrete meal idea renders (canned mock under CI build).
+    await expect(page.getByText('Grilled Chicken Salad with Quinoa')).toBeVisible({ timeout: 15_000 });
+
+    // Business action: log it to the default (lunch) slot.
+    await page.getByLabel('Log Grilled Chicken Salad with Quinoa to lunch').click();
+
+    // Business outcome 2: a food entry is persisted.
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const entries = JSON.parse(localStorage.getItem('lifeos_food_entries') ?? '[]') as Array<{ foodName?: string }>;
+          return entries.some((e) => e.foodName === 'Grilled Chicken Salad with Quinoa');
+        } catch { return false; }
+      }), { timeout: 10_000 })
+      .toBe(true);
+
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 13: Annual review generates and renders the year in review ─────────────
+//
+// Human equivalent: "I open 'Your journey so far' and see a real year-in-review —
+// a headline about me plus the win / growth / theme sections."
+
+test.describe('CUJ 13 — Annual review renders all sections', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedAuthedUser(page);
+  });
+
+  test('annual review auto-generates with a headline and all sections', async ({ page }) => {
+    // Mode-agnostic: a mock build returns the canned review; otherwise this route
+    // supplies a valid review so the sections + headline render either way.
+    await seedSupabaseSession(page);
+    await routeAI(page, (body) =>
+      body.task === 'generateAnnualReview'
+        ? { text: JSON.stringify({
+            headline: 'E2E User grew this year — steady progress across the board.',
+            domains: [{ domain: 'Health', summary: '45h invested across the year.' }],
+            biggestWin: 'You kept a 3-day streak alive.',
+            growthArea: 'Spread your time more evenly next year.',
+            themeForNextYear: 'Build on the momentum.',
+          }) }
+        : { text: '{}' },
+    );
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await page.goto('/annual-review', { waitUntil: 'domcontentloaded' });
+
+    // Auto-generates on mount; the stable section labels prove it rendered.
+    await expect(page.getByText('BIGGEST WIN')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('GROWTH AREA')).toBeVisible();
+    await expect(page.getByText('THEME FOR NEXT YEAR')).toBeVisible();
+    // The headline is about the seeded user.
+    await expect(page.getByText(/E2E User/).first()).toBeVisible();
+
+    expect(pageErrors).toEqual([]);
+  });
+});
