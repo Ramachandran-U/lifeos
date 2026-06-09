@@ -1,10 +1,12 @@
 # LifeOS — Gamified-Learning & UI/UX Upgrade Playbook
 
-> **Status:** Research synthesis · **Date:** 2026-06-09 · **Branch:** `feat/design-enhancements`
-> **Method:** Deep-research harness — 5 search angles → 25 sources fetched → 116 claims extracted → 25 adversarially verified (3-vote, kill on 2/3 refute). **23 confirmed, 2 killed, 13 findings after synthesis.**
+> **Status:** Research synthesis (2 passes) · **Date:** 2026-06-09 · **Branch:** `feat/design-enhancements`
+> **Method:** Deep-research harness, adversarial 3-vote verification (kill on 2/3 refute).
+> - **Pass 1** (UI/UX, 3D, motion, gamification mechanics): 25 sources → 116 claims → 25 verified → **23 confirmed, 2 killed, 13 findings**.
+> - **Pass 2** (Voice UX + dark patterns — §10–§11): 23 sources → 103 claims → 25 verified → **23 confirmed, 2 killed, 14 findings**.
 > **Confidence legend:** 🟢 high (primary vendor/peer-reviewed) · 🟡 medium (secondary or statistically fragile) · 🔴 refuted (do not rely on).
 >
-> **Two known gaps** (research engine ran out of budget before covering them — see [§8 Open Questions](#8-open-questions--gaps-to-close)): **(1) Voice/Gemini-Live UX** has zero verified findings; **(2) gamification dark-patterns** has evidence on what *works* but not a sourced catalogue of what to *avoid*. Treat the streak/loss-aversion design as unresearched.
+> **Both original gaps are now closed:** Voice/Gemini-Live UX → **§10**; gamification dark patterns → **§11**. Remaining open items (web parity, latency, an audit of existing streak copy) are in [§9](#9-open-questions--gaps-to-close).
 
 ---
 
@@ -24,6 +26,16 @@ The headline: **a best-in-class upgrade is mostly achievable on the stack you al
 | 8 | **Reserve Skia for one bespoke canvas visual** (e.g. mastery constellation / particle celebration), lazy-loaded on web | M | 🟢 | Skia (scoped) |
 | 9 | **Evaluate Rive for a single flagship mascot/celebration** only — not general motion | M | 🟢 | Rive (scoped) |
 | 10 | **Validate every motion/shadow recommendation on the react-native-web build** before shipping (biggest open risk) | S | 🟢 | None |
+
+**Pass-2 additions (full detail in §10–§11):**
+
+| # | Change | Effort | Confidence | New dep? |
+|---|--------|--------|-----------|----------|
+| 11 | **Deploy voice as a voice-*augmented* layer** (one input among many), never voice-only; rank rollout: hands-free logging → evening reflection → coaching. **Never** for data-dense review | S–M | 🟢 | capture/UI libs |
+| 12 | **Always pair voice with a non-voice path + live captions** (ASR degrades in noise/across accents; accessibility hard requirement) | S–M | 🟢 | None |
+| 13 | **Make every voice surface interruptible (barge-in) with a tap-to-talk toggle** — unbounded barge-in backfired for Duolingo | M | 🟢 | None |
+| 14 | **Eliminate the 4 gamification red lines** — streak-guilt/loss-aversion, pay-to-restore, social-pyramid pressure, grinding (§11) | M | 🟢 | None |
+| 15 | **Reframe XP/badges as *informational*, not controlling** (overjustification effect) — protect the intrinsically-driven Explore/Polymath engine especially | M | 🟢 | None |
 
 ---
 
@@ -164,8 +176,8 @@ Li, Hew & Du (2024) meta-analysis (35 interventions, ~2,500 participants):
 - *Before:* static toast.
 - *After:* **expressive**-tier motion (gated, rare): scale-in with `slow-01` (400ms) expressive easing, engine-color particle burst (transform/opacity, <100 nodes on Android), haptic. Everything else in the app stays **productive**.
 
-**D. Text input → voice-input affordance** *(design only — see voice gap below)*
-- A mic affordance that visualizes assistant state (idle → listening → thinking → speaking) via an animated waveform/orb. **Interaction pattern unresearched — do not finalize until §8 voice research is done.**
+**D. Text input → voice-input affordance** *(now backed by §10)*
+- A mic affordance that visualizes assistant state (idle → listening → thinking → speaking) via an animated waveform driven by `expo-audio` metering (web needs a non-metering pulse fallback). **Always** paired with the typed path and live captions; interruptible with a tap-to-talk toggle. See **§10** for the full interaction spec and feasibility.
 
 ---
 
@@ -177,22 +189,128 @@ Li, Hew & Du (2024) meta-analysis (35 interventions, ~2,500 participants):
 - **Don't lean on badge inflation** as the motivational engine — competence effect is marginal; relatedness/autonomy carry the weight.
 - **Don't ship Carbon durations verbatim** — they're a conservative *starting scale*; brand-tune for "bold & expressive."
 - **Don't over-promise behavior change** from streaks/XP — the behavioral effect size is the weakest and least stable.
+- 🔴 **Don't claim "voice only works for simple single-answer queries"** — **REFUTED (0-3)**. The real constraint is data *density*, not task complexity; voice handles complex conversation fine, just not dense comparison/review.
+- 🔴 **Don't cite a flat ASR-accuracy figure for impaired users** (e.g. "58.5%") — **REFUTED (1-2)**. Success is gated by the user's *combined* speech + cognitive ability (with compensation between them), not a single number.
+- **Don't use voice as the sole input for any consequential action** — confirm consequential actions, and always offer a typed/tap equivalent.
+- **Don't ship the 4 gamification red lines** (§11): streak-guilt/loss-aversion, pay-to-restore, social-pyramid pressure, grinding.
+- **Don't frame XP/badges/streaks as something the user will "lose"** — sunk-cost framing is a psychological dark pattern; treat accumulated progress as permanently banked.
 
 ---
 
 ## 9. Open questions / gaps to close
 
-These were **not answered** by the research run and need dedicated follow-up before the related design work:
+The two original gaps (voice, dark patterns) are **now closed** in §10–§11. These remain open and need follow-up — several are **LifeOS-internal audits** the research can't answer:
 
-1. **🔴 VOICE (Gemini Live) — entirely unresearched.** No verified claims addressed where voice adds genuine value vs. novelty, conversational-state/barge-in/error-recovery/accessibility patterns, or the highest-value LifeOS surfaces (daily briefing, reflection, coaching, hands-free logging). **Sketch D above is provisional.** → *Run a dedicated voice-UX research pass.*
-2. **Gamification dark patterns — not catalogued.** We have evidence on what *works*, not a sourced list of what to *avoid* (manipulative streak guilt, pay-to-restore, addictive loops). **Fill this before designing streak loss-aversion mechanics.**
-3. **Web parity (biggest technical risk).** Do Reanimated 4.x layout transitions + `boxShadow` (inset/spreadDistance) render correctly at 60fps on react-native-web / Cloudflare Pages, or need fallbacks? → *Empirical test required.*
-4. **Reference-app actual motion values.** No measured durations/easings/spring configs from Duolingo / Headspace / Brilliant — current guidance is principles + Carbon-derived scale only.
-5. **Is Skia/Rive actually justified for LifeOS's celebration visuals?** Does the node count for constellation/particle/mascot moments exceed the ~100 Android / ~500 iOS Reanimated budget? → *Prototype on transform/opacity first.*
+1. **Web parity (biggest technical risk).** Do Reanimated 4.x layout transitions + `boxShadow` (inset/spreadDistance) render correctly at 60fps on react-native-web / Cloudflare Pages, or need fallbacks? → *Empirical test required.* (Button3D's rim technique is already web-verified.)
+2. **Gemini Live barge-in + tap-to-talk on web.** Does the existing voice path support interruptibility AND a tap-to-talk toggle on react-native-web, or will web need a degraded turn-taking mode (Web SpeechRecognition browser gaps + absent web metering)? → *Empirical test.*
+3. **Gemini Live production latency.** Does the current round-trip sit within the ~sub-second human-conversation threshold for natural turn-taking on mobile data? No LifeOS-specific measurement exists. → *Measure.*
+4. **Audit existing streak/XP copy against the red lines (§11).** Which of the 5 streaks (workout/learning/foodTracking/journaling/social) use loss-aversion "don't break the chain" framing? Do any unlocks/XP gates constitute grinding or sunk-cost framing? → *Internal copy/UX audit.*
+5. **Is any streak-restore/badge/XP mechanic monetized (pay-to-restore)?** Highest-severity red line; needs an explicit product-side yes/no.
+6. **Reference-app actual motion values.** No measured durations/easings/spring configs from Duolingo / Headspace / Brilliant — current guidance is principles + Carbon-derived scale only.
+7. **Is Skia/Rive actually justified for LifeOS's celebration visuals?** Does the node count for constellation/particle/mascot moments exceed the ~100 Android / ~500 iOS Reanimated budget? → *Prototype on transform/opacity first.*
 
 ---
 
-## 10. Sources
+## 10. Voice / conversational UX (Pass 2, Part A)
+
+> Framing: LifeOS already owns the realtime transport (Gemini Live `voiceClient.ts` — the one sanctioned voice path per CLAUDE.md). These are **UX, placement, and feasibility** findings for the layer *above* it. The supplementary capture/UI libraries below must not bypass `voiceClient.ts`.
+
+### 🟢 Voice value map — deploy by task type, not everywhere
+Spoken output is **linear, transient, and overloads working memory** — a stable cognitive constraint that persists even with 2025 LLM voice. So voice wins for hands-free/linear/conversational tasks and **loses for data-dense review/comparison/precise editing** (each item must be held in working memory to compare; no random-access re-read).
+
+| Task | Voice fit | Why |
+|------|-----------|-----|
+| Hands-free logging (health/food/finance) | ✅ Strong | Linear capture, hands/eyes busy |
+| Evening reflection / journaling | ✅ Strong | Conversational, open-ended |
+| Daily briefing (TTS summary) | ✅ Good | Short, linear, glanceable-as-audio |
+| "What should I do next?" coaching | ✅ Good | Dialogue, single next action |
+| Explore/Polymath learning practice | ✅ Good (see RCT) | Conversational reps |
+| Finance analytics / multi-goal compare / routine diff-preview / precise edits | ❌ Render **visually** | Data-dense; voice only as a nav adjunct |
+
+- Source: [NN/g — Intelligent assistant usability](https://www.nngroup.com/articles/intelligent-assistant-usability/) (n=17), [MDPI 2024 VUI review](https://www.mdpi.com/2078-2489/15/9/579). **Effort: S** (a placement rule, not a build).
+- 🔴 The sibling claim "voice only works for simple single-answer queries" was **REFUTED (0-3)** — the constraint is data *density*, not complexity.
+
+### 🟢 Real-time conversational voice produces *measurable* learning gains
+The strongest single piece of evidence for the **Explore/Polymath** surface: an RCT (n=567, 30 days, Duolingo Video Call / GPT-4o) found ≥2 daily voice conversations beat a lessons control on speaking proficiency — **+43.7% greater pre→post improvement** (Estimate 2.00, 95% CI 0.65–3.35, **p=.004**, Versant). Gains occurred **even with no real-time corrective feedback** — feedback was deferred to an end-of-call transcript.
+- **Maps to LifeOS:** build voice roleplay/practice as conversational reps + a **post-session transcript with tips**; don't block on live in-conversation correction.
+- **Caveats:** first-party vendor whitepaper (not peer-reviewed); 13.7% attrition (skewed to voice arm); both groups stayed at A1 CEFR (small absolute gain); ≥2-calls/day self-selects motivated users; doesn't isolate full-duplex as *the* causal mechanism.
+- Source: [Duolingo DRR-25-06](https://duolingo-papers.s3.amazonaws.com/reports/Duolingo_whitepaper_language_video_call_improves_speaking_2025.pdf)
+
+### 🟢 Pattern decision guide — voice-augmented, interruptible, confirm-consequential
+- **Voice-augmented, not voice-first** — voice is one input among many; never the sole path.
+- **Turn-taking is the #1 frustration.** Assistants that respond during natural pauses or fail to yield when the user speaks feel "rude." **Barge-in/interruptibility + accurate endpointing are mandatory** for the full-duplex path. Tune carefully: too-early interrupts, too-late feels sluggish.
+- **Offer a per-surface toggle: full-duplex barge-in ↔ tap-to-talk.** Real-product evidence: Duolingo moved Video Call *toward* tap-to-speak after users complained the AI interrupted constantly. **Effort: M.**
+- **Confirm consequential actions** (vs. just-do-it), and always offer a typed/tap equivalent.
+- Sources: [NN/g](https://www.nngroup.com/articles/intelligent-assistant-usability/), [LiveKit — turn detection](https://docs.livekit.io/agents/build/turns/)
+
+### 🟢 Accessibility — pair voice with a non-voice path (hard requirement)
+Voice is an accessibility **win** for some (motor/vision) and a **barrier** for others (dysarthria, certain accents, deaf/HoH, noisy/public contexts). ASR degrades materially in noise and across accents/dialects (JAMIA Open 2024: median WER **33% White vs 50% Black** patients, p=0.016; **86%** for utterances <5 words). Success for impaired users is gated by **combined** residual speech + cognitive ability (with compensation between them).
+- **Requirements:** every voice surface offers an equivalent typed/tap path; render **live captions/transcripts** for all spoken output (accessibility *and* trust); never voice-only for a consequential action. Precedent: Apple "Type to Siri."
+- 🔴 Do **not** cite a flat impaired-user accuracy figure ("58.5%") — **REFUTED (1-2)**.
+- Sources: [JAMIA Open / PMC11631515](https://pmc.ncbi.nlm.nih.gov/articles/PMC11631515/), [Masina et al. JMIR 2020 / PMC7547392](https://pmc.ncbi.nlm.nih.gov/articles/PMC7547392/). **Effort: S–M.**
+
+### 🟢 Assistant-state visualizer — feasible from Expo primitives
+The idle → listening → thinking → speaking visualizer (waveform/orb/pulse) that builds trust can be driven on **iOS/Android** from `expo-audio`'s real-time `metering` (enable `isMeteringEnabled`); map dB→amplitude (`amplitude = 10^(dB/20)`) to animate a 60fps waveform via `react-native-reanimated`.
+- **Web caveat:** metering is frequently `undefined` on react-native-web (MediaRecorder lacks per-frame levels) → ship a **non-metering fallback** (generic pulse / typing indicator). **Effort: M.**
+- Source: [Expo Audio docs](https://docs.expo.dev/versions/latest/sdk/audio/)
+
+### 🟢 RN/Expo UI-layer feasibility — confirmed for one codebase
+- `expo-audio`: explicit mic-permission APIs (`requestRecordingPermissionsAsync` / `getRecordingPermissionsAsync`); supported Android/iOS/tvOS/Web.
+- `expo-speech-recognition` (jamsch): wraps iOS `SFSpeechRecognizer`, Android `SpeechRecognizer`, Web `SpeechRecognition` from one codebase; `interimResults` + `continuous` enable **live-caption** rendering.
+- **Caveats:** web mic needs HTTPS (✓ Cloudflare Pages); needs a custom dev build (not Expo Go); min iOS 16.4; no continuous mode on Android ≤12; Web SpeechRecognition has browser gaps (Chrome-on-iOS, Firefox/Brave desktop).
+- Sources: [Expo Audio](https://docs.expo.dev/versions/latest/sdk/audio/), [expo-speech-recognition](https://github.com/jamsch/expo-speech-recognition)
+
+### Ranked LifeOS surface rollout
+1. **Hands-free logging** (health/food/finance) — strongest fit, linear capture.
+2. **Evening reflection / journaling** — conversational, already a screen (`evening-reflect`).
+3. **"What should I do next?" coaching** — dialogue → single next action.
+4. **Daily briefing** — TTS summary, keep it short.
+5. **Explore/Polymath practice** — roleplay reps + post-session transcript (the RCT-backed one).
+
+> **Do NOT** voice-enable data-dense review (finance analytics, multi-goal compare, routine diff-preview, precise edits) — render those visually.
+
+---
+
+## 11. Ethical gamification & dark patterns (Pass 2, Part B)
+
+### 🟢 The line is *intentionality*
+A **dark game design pattern** is one used *intentionally* to cause experiences against the user's best interest, likely without consent — intentionality separates a dark pattern from mere bad design. **LifeOS principle: for every gamification mechanic, be able to state whose interest it serves.** (Deterding 2020 critiques the intent criterion as hard to operationalize — note, but the framing still guides design.)
+- Sources: [Zagal, Björk & Lewis, FDG 2013](http://www.fdg2013.org/program/papers/paper06_zagal_etal.pdf), [Nyström 2021](https://www.diva-portal.org/smash/get/diva2:1518853/FULLTEXT01.pdf)
+
+### 🟢 LifeOS's existing mechanics sit inside the danger zones
+Taxonomy: **time / money / social-capital** (Zagal 2013) + a 4th **psychological** category (Niknejad et al. 2024). LifeOS's current gamification maps directly onto dark-pattern families — audit each against this map:
+
+| LifeOS mechanic | Dark-pattern family it can become |
+|-----------------|-----------------------------------|
+| Streaks (workout/learning/foodTracking/journaling/social), daily login | **Temporal** — "Playing by Appointment", "Daily Rewards", "Grinding" |
+| XP (total + weekly), badges | **Psychological** — "Variable Rewards", "Badges/Endowed Progress" |
+| Long streaks / badge collections / XP totals | **Psychological** — "Invested/Endowed Value", "Complete the Collection" (= sunk-cost) |
+
+- Sources: [Zagal 2013](http://www.fdg2013.org/program/papers/paper06_zagal_etal.pdf), [Niknejad et al. 2024 (arXiv)](https://arxiv.org/html/2412.05039v1)
+
+### 🔴 Red-lines checklist — never ship these; ship the substitute
+| # | Red line (NEVER) | Why harmful | Humane substitute for LifeOS |
+|---|------------------|-------------|------------------------------|
+| 1 | **Streak coercion / loss-aversion guilt** ("you broke your streak", daily-login penalty) | "Playing by Appointment" coerces daily return by penalizing absence | Auto, non-monetized **freeze/grace days**; **"comeback"** framing; forgiveness on missed days; celebrate **cumulative effort**, not an unbroken chain |
+| 2 | **Pay-to-restore** (monetized streak rescue) | Monetizes manufactured loss-aversion — highest-severity | Restoration is free/automatic, or simply not needed (progress is banked) |
+| 3 | **Social-pyramid / coercive social pressure** (progress depends on recruiting/pressuring contacts; shame/comparison) | Entraps recruited users via out-of-game obligation, not intrinsic interest | Social features **opt-in**, serving **relatedness** (shared encouragement, optional accountability) without obligation/guilt |
+| 4 | **Grinding** (gate value behind repetitive busywork; padding to inflate completion) | Coerces time-spend for its own sake; worst for new users who can't judge the cost | Surface the genuinely-highest-value next action; reach outcomes in the fewest meaningful steps; transparent time cost |
+
+- Sources: [Zagal 2013](http://www.fdg2013.org/program/papers/paper06_zagal_etal.pdf), [Niknejad 2024](https://arxiv.org/html/2412.05039v1)
+
+### 🟢 The load-bearing "why": the overjustification effect
+Controlling extrinsic rewards (the family that **includes points and badges**) are perceived as controlling and **decrease intrinsic motivation for already-interesting tasks**; once rewards stop, users tend to reduce/stop the activity. **Competence-based rewards raise intrinsic motivation only when paired with autonomy.**
+- **Maps to LifeOS:** wire gamification to **autonomy + relatedness**, not competence/points in isolation; reward **effort/mastery** and self-chosen goals; make XP/badges **informational** ("you practiced 5 days"), not coercive; use unexpected/informational rewards + verbal affirmation over expected controlling ones; **protect the Explore/Polymath engine** (intrinsically curiosity-driven) from controlling reward overlays especially. **Effort: M** (reframe existing XP/badge copy + reward schedule).
+- **Contested:** the effect's *magnitude* is debated (Cameron & Pierce 1994 vs. Deci/Koestner/Ryan 1999); its *existence* for already-interesting tasks with controlling rewards is consensus — recommendations rest only on the consensus-scoped version.
+- Sources: [Springer 2024 (SDT)](https://link.springer.com/article/10.1007/s11528-024-00968-9), [Ryan & Deci 2000 — SDT](https://selfdeterminationtheory.org/SDT/documents/2000_RyanDeci_SDT.pdf), [Nyström 2021](https://www.diva-portal.org/smash/get/diva2:1518853/FULLTEXT01.pdf)
+
+### 🟢 Audit against all 7 darkness domains, not just "is it addictive"
+A systematic review (Nyström 2021, n=28) maps gamification darkness into 7 domains — **Motivation, Addiction, Competition/collaboration, Manipulation, Data integrity, Surveillance/privacy, Ethics/exploitation** — with **Ethics & exploitation the largest** (13/28). As a "Digital Life Architect" asking users for continual self-work, LifeOS must guard against turning life-improvement into **self-surveillance and unpaid productivity-grind**.
+- Source: [Nyström 2021](https://www.diva-portal.org/smash/get/diva2:1518853/FULLTEXT01.pdf) (2021 — foundational structural taxonomy, slightly predates the 2023–2026 window)
+
+---
+
+## 12. Sources
 
 **Primary (vendor / peer-reviewed — high confidence):**
 - [React Native — shadow props](https://reactnative.dev/docs/shadow-props) · [BoxShadowValue](https://reactnative.dev/docs/boxshadowvalue)
@@ -203,6 +321,14 @@ These were **not answered** by the research run and need dedicated follow-up bef
 - [Sailer & Homner 2020 — gamification meta-analysis](https://link.springer.com/article/10.1007/s10648-019-09498-w)
 - [Li, Hew & Du 2024 — gamification & intrinsic motivation meta-analysis](https://link.springer.com/article/10.1007/s11423-023-10337-7)
 
+*Pass 2 (voice + dark patterns):*
+- [NN/g — Intelligent assistant usability](https://www.nngroup.com/articles/intelligent-assistant-usability/) (n=17) · [MDPI 2024 — VUI systematic review](https://www.mdpi.com/2078-2489/15/9/579)
+- [Duolingo DRR-25-06 — Video Call speaking-gains RCT](https://duolingo-papers.s3.amazonaws.com/reports/Duolingo_whitepaper_language_video_call_improves_speaking_2025.pdf) *(first-party whitepaper)*
+- [JAMIA Open 2024 — ASR accuracy disparity / PMC11631515](https://pmc.ncbi.nlm.nih.gov/articles/PMC11631515/) · [Masina et al. JMIR 2020 / PMC7547392](https://pmc.ncbi.nlm.nih.gov/articles/PMC7547392/)
+- [Expo Audio docs](https://docs.expo.dev/versions/latest/sdk/audio/) · [expo-speech-recognition](https://github.com/jamsch/expo-speech-recognition)
+- [Zagal, Björk & Lewis — Dark Patterns, FDG 2013](http://www.fdg2013.org/program/papers/paper06_zagal_etal.pdf) · [Niknejad et al. 2024 — "Level Up or Game Over" (arXiv)](https://arxiv.org/html/2412.05039v1)
+- [Nyström 2021 — "Exploring the Darkness of Gamification"](https://www.diva-portal.org/smash/get/diva2:1518853/FULLTEXT01.pdf) · [Springer 2024 — SDT / overjustification](https://link.springer.com/article/10.1007/s11528-024-00968-9) · [Ryan & Deci 2000 — SDT](https://selfdeterminationtheory.org/SDT/documents/2000_RyanDeci_SDT.pdf)
+
 **Secondary / blog (directionally sound — weaker):**
 - [NN/g — Skeleton screens](https://www.nngroup.com/articles/skeleton-screens/)
 - [screensdesign — Brilliant teardown](https://screensdesign.com/showcase/brilliant-learn-by-doing) · [Brilliant — Why Brilliant](https://brilliant.org/help/why-brilliant) · [60fps.design — Brilliant](https://60fps.design/apps/brilliant)
@@ -210,4 +336,4 @@ These were **not answered** by the research run and need dedicated follow-up bef
 - [Duolingo micro-interactions](https://medium.com/@Bundu/little-touches-big-impact-the-micro-interactions-on-duolingo-d8377876f682)
 - [Lottie vs Rive](https://www.callstack.com/blog/lottie-vs-rive-optimizing-mobile-app-animation) · [RN animation stress-testing 2023→2025](https://medium.com/@islamrustamov/how-react-native-improved-from-2023-to-2025-animation-stress-testing-and-a-little-bit-of-flutter-edd44297b815)
 - [Motion design tokens](https://medium.com/@ogonzal87/animation-motion-design-tokens-8cf67ffa36e9) · [Skeleton loading @60fps in Reanimated](https://medium.com/@varunkukade999/skeleton-loading-from-scratch-powering-reanimated-v3-60-fps-43e4c518f87d)
-- Voice (unverified, for the follow-up pass): [Duolingo video call](https://duoplanet.com/duolingo-video-call/) · [Reflection.app](https://www.reflection.app/) · [full-duplex dialogue systems](https://medium.com/@brijeshrn/from-turn-taking-to-synchronous-dialogue-building-and-measuring-true-full-duplex-systems-794a07f3e59f) · [Voice UI design](https://www.eleken.co/blog-posts/voice-ui-design)
+- *Pass 2:* [LiveKit — turn detection for voice agents](https://docs.livekit.io/agents/build/turns/) · [AssemblyAI — low-latency voice AI](https://www.assemblyai.com/blog/low-latency-voice-ai) · [Sayna — handling barge-in](https://sayna.ai/blog/handling-barge-in-what-happens-when-users-interrupt-your-ai-mid-sentence) · [NN/g — visibility of system status](https://www.nngroup.com/articles/visibility-system-status/) · [Finch app review](https://calmevo.com/finch-app-review/) · [Duolingo streaks & anxiety in kids](https://screenwiseapp.com/guides/duolingo-streaks-and-anxiety-in-kids)
