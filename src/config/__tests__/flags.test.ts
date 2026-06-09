@@ -15,8 +15,14 @@ describe('feature flags', () => {
     process.env = { ...envSnapshot };
   });
 
-  it('keeps every flag off by default', () => {
-    (Object.keys(DEFAULT_FLAGS) as FeatureFlag[]).forEach((k) => {
+  it('has correct defaults — only priorityAdjust is on by default', () => {
+    // priorityAdjust ships enabled so the routing sheet works out of the box.
+    // All other flags are off until explicitly enabled via env or override.
+    expect(isEnabled('priorityAdjust')).toBe(true);
+    const otherFlags = (Object.keys(DEFAULT_FLAGS) as FeatureFlag[]).filter(
+      (k) => k !== 'priorityAdjust',
+    );
+    otherFlags.forEach((k) => {
       expect(isEnabled(k)).toBe(false);
     });
   });
