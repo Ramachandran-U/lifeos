@@ -9,7 +9,7 @@ import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { NarrationToggle } from '@/components/shared/NarrationToggle';
 import { OnboardingIntroSection } from '@/components/shared/OnboardingIntroSection';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -163,10 +163,11 @@ export default function Day1CareerScreen() {
             )}
 
             {!analysis && !loading && (
-              <Button
+              <Button3D
                 title="Analyse my skill gaps"
                 onPress={handleAnalyse}
                 disabled={!currentRole.trim() || !targetRole.trim()}
+                fullWidth
               />
             )}
 
@@ -194,10 +195,11 @@ export default function Day1CareerScreen() {
                 </Card>
               ))}
 
-              <Button
+              <Button3D
                 title="Start building these skills"
                 onPress={handleContinue}
                 style={styles.continueButton}
+                fullWidth
               />
             </Animated.View>
           )}

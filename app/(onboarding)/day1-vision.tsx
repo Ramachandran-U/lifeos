@@ -9,7 +9,7 @@ import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { NarrationToggle } from '@/components/shared/NarrationToggle';
 import { OnboardingIntroSection } from '@/components/shared/OnboardingIntroSection';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -106,10 +106,11 @@ export default function Day1VisionScreen() {
             />
 
             {!hierarchy && !loading && (
-              <Button
+              <Button3D
                 title="Build my plan"
                 onPress={handleBuildPlan}
                 disabled={!vision.trim()}
+                fullWidth
               />
             )}
 
@@ -166,10 +167,11 @@ export default function Day1VisionScreen() {
                 ))}
               </Card>
 
-              <Button
+              <Button3D
                 title="This looks right"
                 onPress={handleConfirm}
                 style={styles.confirmButton}
+                fullWidth
               />
             </Animated.View>
           )}
