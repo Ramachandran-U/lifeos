@@ -408,8 +408,24 @@ export default function CareerScreen() {
           <Heading style={[s.pathTitle, { color: c.textPrimary }]}>
             {currentRole} → {targetRole}
           </Heading>
-          <ProgressBar value={15} color={c.career} />
-          <Caption style={{ color: c.textSecondary }}>15% of the way there</Caption>
+          {(() => {
+            // Real progress from the skill-gap analysis: how far current levels
+            // are toward required levels, aggregated across gaps. Replaces a
+            // hardcoded 15% placeholder that showed every user the same fake number.
+            const LEVEL_VALUE: Record<string, number> = { none: 0, beginner: 25, intermediate: 50, advanced: 75, expert: 100 };
+            const gaps = analysis?.gaps ?? [];
+            const have = gaps.reduce((sum, g) => sum + (LEVEL_VALUE[g.currentLevel] ?? 0), 0);
+            const need = gaps.reduce((sum, g) => sum + (LEVEL_VALUE[g.requiredLevel] ?? 100), 0);
+            const pct = need > 0 ? Math.round((have / need) * 100) : 0;
+            return (
+              <>
+                <ProgressBar value={pct} color={c.career} />
+                <Caption style={{ color: c.textSecondary }}>
+                  {gaps.length > 0 ? `${pct}% of the way there` : 'Add your current skills to track progress'}
+                </Caption>
+              </>
+            );
+          })()}
         </Card>
       </Animated.View>
 
