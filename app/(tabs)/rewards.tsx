@@ -20,6 +20,10 @@ import { LevelRing } from '@/components/gamification/LevelRing';
 import { XpBar } from '@/components/gamification/XpBar';
 import { Sparkline } from '@/components/gamification/Sparkline';
 import { LevelLadder } from '@/components/gamification/LevelLadder';
+import { ProgressPath } from '@/components/gamification/ProgressPath';
+import { XpHistoryChart } from '@/components/charts/XpHistoryChart';
+import { isEnabled as isCompileFlagEnabled } from '@/config/flags';
+import { getXpDailyTotals } from '@/db/queries/xpEvents';
 import { BadgeTile } from '@/components/gamification/BadgeTile';
 import { StreakRow } from '@/components/gamification/StreakRow';
 import { FreezeBank } from '@/components/gamification/FreezeBank';
@@ -56,6 +60,8 @@ export default function RewardsScreen() {
   const freezeProgressXP = useGameStore((s) => s.freezeProgressXP);
   const streakProtection = useFlagStore((s) => s.isEnabled('streak_protection_v1'));
   const variableRewards = useFlagStore((s) => s.isEnabled('variable_rewards_v1'));
+  const progressMap = useFlagStore((s) => s.isEnabled('progress_map_v1'));
+  const animatedCharts = isCompileFlagEnabled('animatedCharts');
   const gamificationPref = usePreferencesStore((s) => s.gamification);
   const pendingChests = useChestStore((s) => s.pending);
   const refreshChests = useChestStore((s) => s.refresh);
@@ -91,6 +97,12 @@ export default function RewardsScreen() {
     if (series.length === 0) return [0, 0];
     return series.length >= 2 ? series : [0, series[0]];
   }, [xpEntries]);
+  // M4: per-day earned XP straight from the xp_events ledger (zero-filled).
+  // xpEntries is a dep so the series refreshes when today's snapshot moves.
+  const xpDailyTotals = useMemo(
+    () => (animatedCharts && userId ? getXpDailyTotals(userId, 7) : []),
+    [animatedCharts, userId, xpEntries],
+  );
   const allBadgeIds = Object.keys(BADGE_META) as BadgeId[];
   const bestStreak = Math.max(0, ...Object.values(streaks).map((s) => s.count));
   // "Proud mirror" line — a warm sentence from real data, not a stat. Active
@@ -219,17 +231,40 @@ export default function RewardsScreen() {
             </GlassCard>
           )}
 
-          {/* Sparkline card */}
+          {/* Sparkline card — M4: animated ledger bars when animatedCharts is
+              on (XpHistoryChart self-degrades to a Sparkline off-native); the
+              legacy cumulative Sparkline is the flag-off path, unchanged. */}
           <GlassCard accent={c.xp} style={styles.sparkCard}>
             <SectionLabel color={c.xp}>7-DAY XP</SectionLabel>
-            <Sparkline data={xpSpark} color={c.xp} width={280} height={60} testID="rewards-xp-sparkline" />
+            {animatedCharts ? (
+              <XpHistoryChart data={xpDailyTotals} testID="rewards-xp-sparkline" />
+            ) : (
+              <Sparkline data={xpSpark} color={c.xp} width={280} height={60} testID="rewards-xp-sparkline" />
+            )}
           </GlassCard>
 
-          {/* Ladder */}
-          <SectionLabel>LEVEL LADDER</SectionLabel>
-          <GlassCard style={styles.ladderWrap}>
-            <LevelLadder currentLevel={prog.level} />
-          </GlassCard>
+          {/* The journey — R5: winding progress path replaces the ladder card
+              behind progress_map_v1; the ladder remains the flag-off path. */}
+          {progressMap ? (
+            <>
+              <SectionLabel>YOUR JOURNEY</SectionLabel>
+              <GlassCard style={styles.ladderWrap}>
+                <ProgressPath
+                  currentLevel={prog.level}
+                  levelPct={prog.pct}
+                  streaks={streaks}
+                  badgeCount={badges.length}
+                />
+              </GlassCard>
+            </>
+          ) : (
+            <>
+              <SectionLabel>LEVEL LADDER</SectionLabel>
+              <GlassCard style={styles.ladderWrap}>
+                <LevelLadder currentLevel={prog.level} />
+              </GlassCard>
+            </>
+          )}
 
           {/* ── The Journey: one continuous scroll, no tabs ── */}
 

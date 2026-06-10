@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { isEnabled } from '@/config/flags';
+import { playSfx, type SfxName } from '@/sound/soundEngine';
 import { classifyTier } from './classify';
-import type { CelebrationEvent, CelebrationInput } from './types';
+import type { CelebrationEvent, CelebrationInput, CelebrationTier } from './types';
 
 /**
  * Celebration queue (M2). Mirrors useRewardQueueStore's tiny FIFO: one beat
@@ -33,6 +34,10 @@ export const useCelebrationStore = create<CelebrationState>((set, get) => ({
     if (!isEnabled('celebrationEngine')) return;
     const tier = classifyTier(input);
     if (tier === 'micro') return;
+    // M5: sound rides the same classification (double opt-in inside playSfx —
+    // soundEffects flag AND the user's soundEnabled preference, default off).
+    const sfx = sfxFor(input, tier);
+    if (sfx) playSfx(sfx);
     const event: CelebrationEvent = { ...input, tier, id: nextId() };
     const { active, queue } = get();
     if (!active) {
@@ -48,6 +53,16 @@ export const useCelebrationStore = create<CelebrationState>((set, get) => ({
     set({ active: next ?? null, queue: rest });
   },
 }));
+
+/** tier×kind → micro-sound. Standard beats share the chime; epic beats split
+ *  by character (identity fanfare vs the day-complete sweep). */
+function sfxFor(input: CelebrationInput, tier: CelebrationTier): SfxName | null {
+  if (tier === 'standard') return 'chime';
+  if (tier === 'epic') {
+    return input.kind === 'levelUp' || input.kind === 'milestone' ? 'fanfare' : 'sweep';
+  }
+  return null;
+}
 
 /** Convenience for non-React call sites (stores, effects). */
 export function celebrate(input: CelebrationInput): void {

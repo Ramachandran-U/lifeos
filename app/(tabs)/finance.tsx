@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { isEnabled as isCompileFlagEnabled } from '@/config/flags';
+import { FinanceBreakdownChart } from '@/components/charts/FinanceBreakdownChart';
 import { View, ScrollView, StyleSheet, Pressable, Platform, Modal, TextInput } from 'react-native';
 import {
   ACTIVE_CURRENCY,
@@ -805,8 +807,25 @@ function OverviewTab({
         </Animated.View>
       )}
 
-      {/* Top categories */}
-      {topCategories.length > 0 && (
+      {/* Top categories — M4 (animatedCharts): donut + legend via
+          FinanceBreakdownChart (Skia on native, proportional-bar legend on
+          web). Flag off keeps the legacy pressable rows, unchanged. */}
+      {topCategories.length > 0 && isCompileFlagEnabled('animatedCharts') && (
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+          <Card style={styles.catCard}>
+            <Label color={c.finance}>TOP CATEGORIES</Label>
+            <FinanceBreakdownChart
+              slices={topCategories.map(([cat, amt]) => ({
+                label: prettyCategory(cat as TransactionCategory),
+                value: amt,
+                color: CATEGORY_COLORS[cat as TransactionCategory] ?? c.textSecondary,
+              }))}
+              formatValue={(v) => formatInr(v)}
+            />
+          </Card>
+        </Animated.View>
+      )}
+      {topCategories.length > 0 && !isCompileFlagEnabled('animatedCharts') && (
         <Animated.View entering={FadeInDown.delay(150).duration(400)}>
           <Card style={styles.catCard}>
             <Label color={c.finance}>TOP CATEGORIES</Label>

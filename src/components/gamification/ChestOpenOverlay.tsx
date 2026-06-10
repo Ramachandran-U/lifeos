@@ -16,6 +16,7 @@ import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
 import { MOTION_BUDGET, EASING, useMotionScale } from '@/theme/motion';
 import { haptic } from '@/utils/haptics';
+import { playSfx } from '@/sound/soundEngine';
 import { CelebrationBurst } from './CelebrationBurst';
 import { cosmeticById } from '@/constants/cosmetics';
 import type { ChestContents } from '@/gamification/lootTable';
@@ -68,6 +69,7 @@ export function ChestOpenOverlay({ visible, onOpen, onClose }: Props) {
         return;
       }
       haptic.heavy();
+      playSfx('sparkle'); // M5 — double opt-in gated inside the engine
       setContents(rolled);
     }, anticipationMs);
     return () => clearTimeout(t);
