@@ -84,6 +84,39 @@ export function getXpSince(userId: string, fromDayLocal: string): number {
 }
 
 /**
+ * Per-local-day XP totals for the last `days` days (today inclusive), zero-
+ * filled so charts get a continuous series. Reads the xp_events ledger — the
+ * source of truth the M4 XpHistoryChart plots.
+ */
+export function getXpDailyTotals(
+  userId: string,
+  days: number,
+  today: Date = new Date(),
+): { day: string; xp: number }[] {
+  const from = new Date(today);
+  from.setDate(today.getDate() - (days - 1));
+  const fromDay = localDayISO(from);
+
+  const events: { dayLocal: string; amount: number }[] = isWeb
+    ? webGetXpEventsSince(userId, fromDay)
+    : (db.select().from(xpEvents)
+        .where(and(eq(xpEvents.userId, userId), gte(xpEvents.dayLocal, fromDay)))
+        .all() as unknown as { dayLocal: string; amount: number }[]);
+
+  const byDay = new Map<string, number>();
+  for (const e of events) byDay.set(e.dayLocal, (byDay.get(e.dayLocal) ?? 0) + e.amount);
+
+  const series: { day: string; xp: number }[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(from);
+    d.setDate(from.getDate() + i);
+    const day = localDayISO(d);
+    series.push({ day, xp: byDay.get(day) ?? 0 });
+  }
+  return series;
+}
+
+/**
  * XP earned this calendar week (Monday-start, device-local) — the derived
  * replacement for the legacy never-reset `weeklyXP` counter.
  */

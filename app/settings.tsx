@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { useThemeStore } from '@/store/useThemeStore';
+import { usePreferencesStore } from '@/store/usePreferencesStore';
 import { useTelemetryStore } from '@/store/useTelemetryStore';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
@@ -52,6 +53,8 @@ export default function SettingsScreen() {
   const c = useColors();
   const themeMode = useThemeStore((s) => s.mode);
   const setThemeMode = useThemeStore((s) => s.setMode);
+  const soundEnabled = usePreferencesStore((s) => s.soundEnabled);
+  const setSoundEnabled = usePreferencesStore((s) => s.setSoundEnabled);
   const telemetryEnabled = useTelemetryStore((s) => s.enabled);
   const setTelemetryEnabled = useTelemetryStore((s) => s.setEnabled);
   const { userId, name, reset } = useUserStore();
@@ -310,6 +313,20 @@ export default function SettingsScreen() {
               onValueChange={(val) => setThemeMode(val ? 'light' : 'dark')}
               trackColor={{ false: c.border, true: c.primary + '80' }}
               thumbColor={themeMode === 'light' ? c.primary : c.textMuted}
+            />
+          </View>
+          {/* M5 (soundEffects): celebration micro-sounds, strictly opt-in.
+              Respects the iOS mute switch and never ducks other audio. */}
+          <View style={styles.switchRow}>
+            <View style={styles.switchLabelCol}>
+              <Body style={styles.switchLabel}>Celebration sounds</Body>
+              <Caption>Tiny chimes on reward moments. Always silent when your phone is on mute.</Caption>
+            </View>
+            <Switch
+              value={soundEnabled}
+              onValueChange={setSoundEnabled}
+              trackColor={{ false: c.border, true: c.primary + '80' }}
+              thumbColor={soundEnabled ? c.primary : c.textMuted}
             />
           </View>
         </Card>

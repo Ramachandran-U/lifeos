@@ -12,6 +12,8 @@ export interface PreferencesState {
   motionIntensity: MotionIntensity;
   gamification: GamificationVisibility;
   narrationEnabled: boolean;
+  /** M5 (soundEffects flag): celebration micro-sounds. Default OFF — opt-in. */
+  soundEnabled: boolean;
 
   setTheme: (m: ThemeMode) => void;
   toggleTheme: () => void;
@@ -20,6 +22,7 @@ export interface PreferencesState {
   setGamification: (g: GamificationVisibility) => void;
   setNarrationEnabled: (v: boolean) => void;
   toggleNarration: () => void;
+  setSoundEnabled: (v: boolean) => void;
 }
 
 const STORAGE_KEY = 'lifeos_preferences_v1';
@@ -31,6 +34,7 @@ interface PersistedShape {
   motionIntensity?: MotionIntensity;
   gamification?: GamificationVisibility;
   narrationEnabled?: boolean;
+  soundEnabled?: boolean;
 }
 
 function loadPersisted(): PersistedShape {
@@ -60,8 +64,8 @@ const initial = loadPersisted();
 
 export const usePreferencesStore = create<PreferencesState>((set, get) => {
   const snapshot = () => {
-    const { theme, density, motionIntensity, gamification, narrationEnabled } = get();
-    return { theme, density, motionIntensity, gamification, narrationEnabled };
+    const { theme, density, motionIntensity, gamification, narrationEnabled, soundEnabled } = get();
+    return { theme, density, motionIntensity, gamification, narrationEnabled, soundEnabled };
   };
 
   return {
@@ -70,6 +74,7 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
     motionIntensity: initial.motionIntensity ?? 'normal',
     gamification: initial.gamification ?? 'full',
     narrationEnabled: initial.narrationEnabled ?? true,
+    soundEnabled: initial.soundEnabled ?? false,
 
     setTheme: (theme) => {
       set({ theme });
@@ -93,5 +98,9 @@ export const usePreferencesStore = create<PreferencesState>((set, get) => {
       persist(snapshot());
     },
     toggleNarration: () => get().setNarrationEnabled(!get().narrationEnabled),
+    setSoundEnabled: (soundEnabled) => {
+      set({ soundEnabled });
+      persist(snapshot());
+    },
   };
 });

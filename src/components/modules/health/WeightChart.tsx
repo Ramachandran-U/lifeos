@@ -4,6 +4,8 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { Body, Caption, Label } from '@/components/ui/Typography';
+import { isEnabled } from '@/config/flags';
+import { TrendChart } from '@/components/charts/TrendChart';
 
 interface WeightEntry {
   date: string;
@@ -30,6 +32,27 @@ export function WeightChart({ entries }: WeightChartProps) {
   const min = Math.min(...entries.map((e) => e.weight));
   const max = Math.max(...entries.map((e) => e.weight));
   const range = max - min || 1;
+
+  // M4 (animatedCharts): the Skia trend line with press tooltip replaces the
+  // static 7-bar strip. TrendChart degrades to a Sparkline on web/Expo Go, so
+  // this branch is safe on every platform; flag off keeps the legacy bars.
+  if (isEnabled('animatedCharts') && entries.length >= 2) {
+    const series = entries.slice(0, 30).reverse().map((e) => e.weight);
+    return (
+      <Card>
+        <View style={styles.header}>
+          <Label>Weight</Label>
+          <Body style={styles.latest}>{latest.weight} kg</Body>
+        </View>
+        <TrendChart
+          values={series}
+          hue={c.health}
+          formatValue={(v) => `${Math.round(v * 10) / 10} kg`}
+          testID="weight-trend-chart"
+        />
+      </Card>
+    );
+  }
 
   return (
     <Card>

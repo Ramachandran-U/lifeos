@@ -48,9 +48,9 @@ export function beginSkiaLoad(): void {
   void (async () => {
     const ok = await ensureSkia();
     if (!ok) throw new Error('skia unavailable');
-    // ONE dynamic import for both renderers — see skiaRenderers.ts for why
-    // splitting this into two imports regresses the boot bundle.
-    const mod = await import('./skiaRenderers');
+    // ONE dynamic import, shared with lazyCharts — see src/skia/bundle.ts for
+    // why every Skia consumer must enter through the same module.
+    const mod = await import('@/skia/bundle');
     renderers = { SkiaConfetti: mod.SkiaConfetti, SkiaBurst: mod.SkiaBurst };
     state = 'ready';
   })()
