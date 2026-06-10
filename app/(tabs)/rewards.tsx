@@ -60,11 +60,8 @@ export default function RewardsScreen() {
   const freezeProgressXP = useGameStore((s) => s.freezeProgressXP);
   const streakProtection = useFlagStore((s) => s.isEnabled('streak_protection_v1'));
   const variableRewards = useFlagStore((s) => s.isEnabled('variable_rewards_v1'));
-<<<<<<< HEAD
   const progressMap = useFlagStore((s) => s.isEnabled('progress_map_v1'));
   const animatedCharts = isCompileFlagEnabled('animatedCharts');
-=======
->>>>>>> origin/lifeosv1
   const gamificationPref = usePreferencesStore((s) => s.gamification);
   const pendingChests = useChestStore((s) => s.pending);
   const refreshChests = useChestStore((s) => s.refresh);
