@@ -1,5 +1,12 @@
 # Cluster 3: Ink + Signal color recommit
 
+> **Ratified amendments (founder, 2026-06-10 — cross-spec resolutions, see 00-INDEX.md):**
+> R3: this spec's deletion of `DOMAIN_GRADIENTS` + the `gradientColors` prop governs — all progress fills are solid domain hue on `c.track` (supersedes 04's gradient fills).
+> R4: this spec's per-mode `*Text` tokens govern hero numerals in both themes (supersedes 04 AC15's `#140828` literal).
+> R9: a 4px domain rail is legal only on a screen's single hero, where the hue also carries ink or the CTA; everywhere else uses the R3 glyph mark.
+> R10: GlassCard's `accent` prop removal stands — 02's FirstWinCard renders neutral.
+> R11: 04's ban on `—` placeholder vitals supersedes this spec's ModuleHeader stat placeholder — the Health header stat slot is omitted until a real BMI exists.
+
 All claims verified against the repo. Writing the hardened spec now.
 
 # COLOR SYSTEM RECOMMIT — "Ink + Signal"

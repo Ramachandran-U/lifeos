@@ -1,5 +1,13 @@
 # Cluster 4: One hero per screen — module tabs de-sludge
 
+> **Ratified amendments (founder, 2026-06-10 — cross-spec resolutions, see 00-INDEX.md):**
+> R3: progress fills are solid domain hue on `c.track` — this spec's `DOMAIN_GRADIENTS.social`/`career` references are superseded by 03's deletion.
+> R4: AC15's light-mode hero-numeral hex (`#140828`) is superseded — numerals render in `c.{domain}Text` in both modes per 03 §A.5.
+> R5: this spec's Explore zero-state rule governs (02's `THIS WEEK` StarterLine treatment is superseded on this tab).
+> R6: this spec's Health streaks zero-suppression governs on the Health tab (02's rule survives flag-off legacy only).
+> R9: the 4px domain rail on heroes is legal only on a screen's single hero, where the hue also carries ink or the CTA.
+> R11: this spec's ban on `—` placeholder vitals wins — the Health ModuleHeader stat slot is omitted until a real BMI exists.
+
 All paths, line numbers, tokens, and store APIs are now verified against the repo. Three load-bearing discoveries: the repo has **no ESLint config** (the spec's ESLint enforcement is unenforceable as written), `usePreferencesStore` **does not persist on native** (the snooze decision was broken), and a dozen child-card CAPS eyebrows survive the spec's sweep. Producing the hardened spec.
 
 # Module Screen Hierarchy — Implementation-Grade Spec (HARDENED)

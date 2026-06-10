@@ -1,5 +1,12 @@
 # Cluster 1: Today first-viewport recomposition
 
+> **Ratified amendments (founder, 2026-06-10 — cross-spec resolutions, see 00-INDEX.md):**
+> R1: NextMoveHero backgrounds read `c[\`${module}Dim\`]` (the `*Light`→`*Dim` rename in 03 supersedes every `*Light` reference here).
+> R2: the voice button's string-concat tints (`c.primary + '22'`/`'55'`) are replaced by a `primaryDim` fill + `border` hairline — no `+ 'XX'` construction ships.
+> R7: with `today_answer_first_v1` on, this spec's deletion of the header XP bar (Acceptance #12) governs; 02's caption applies only while the flag is off.
+> R8: `TodayHeader.tsx` and `NextMoveHero.tsx` enter Guard D's allowlist via the founder-approved `manifesto-change` batch (approved 2026-06-10, executed in Wave 3).
+> R12: this spec's fallback-flip takes the next unused persist-key version at flip time (v5 if 02 already took v4).
+
 # TODAY SCREEN FIRST-VIEWPORT — Implementation-Grade Spec (HARDENED)
 **Cluster:** Next Move on Today · broken greeting · install banner · first-2-seconds answer
 **Repo:** `lifeos-w3` (all paths relative). Constraint honored throughout: **the hex radar does not move, shrink, or get demoted — it stays the opening hero of Today: the first content card in the scroll, at `size={340}`, fully visible in the first viewport (enforced by Acceptance #11). The only thing above it is 104px of screen chrome (`TodayHeader`), the same chrome class the cluster brief's option (a) already sanctioned; nothing card-like ever renders between the header and the radar (Acceptance #6).**

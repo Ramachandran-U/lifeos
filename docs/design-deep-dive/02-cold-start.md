@@ -1,5 +1,14 @@
 # Cluster 2: Cold-start & motivation surfaces
 
+> **Ratified amendments (founder, 2026-06-10 — cross-spec resolutions, see 00-INDEX.md):**
+> R1: the firstWin preset paletteKey `primaryLight` becomes `primaryDim`.
+> R5: Explore's week stat at zero — 04's rule governs (card deleted, `THIS WEEK` banned); AC-7's Explore assertion is amended accordingly; the day-1 invitation lives in Explore's EmptyState hero.
+> R6: Health streaks zero state — 04's row-level zero-suppression governs on the Health tab; this spec's three-state rule survives only in the flag-off legacy tree.
+> R7: the Today-header XP caption (`Your first block fills this bar.`) applies only while `today_answer_first_v1` is off.
+> R8: `FirstWinCard.tsx` enters Guard D's allowlist via the founder-approved `manifesto-change` batch (approved 2026-06-10, executed in Wave 3).
+> R10: FirstWinCard renders a neutral GlassCard (03 removes the `accent` prop) with the `FIRST WIN` label inked in `c.xp`.
+> R12: this spec takes `lifeos_flags_v3` → `lifeos_flags_v4` at landing.
+
 All paths, line numbers, tokens, and APIs are now verified against the repo. Producing the hardened spec.
 
 # Cold-Start Experience — Implementation Spec (HARDENED)
