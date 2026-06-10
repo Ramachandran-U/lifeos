@@ -28,7 +28,10 @@ async function load(): Promise<boolean> {
     // module throws on import — probed by the dynamic import in lazySkia.
     return true;
   }
-  const { LoadSkiaWeb } = await import('@shopify/react-native-skia/lib/module/web');
+  // Import the loader FILE, not the package's web barrel — the barrel also
+  // exports WithSkiaWeb, and any module overlap with the renderers chunk gets
+  // hoisted into a boot-loaded __common chunk (see skiaRenderers.ts).
+  const { LoadSkiaWeb } = await import('@shopify/react-native-skia/lib/module/web/LoadSkiaWeb');
   await LoadSkiaWeb({ locateFile: (file: string) => `/${file}` });
   return true;
 }

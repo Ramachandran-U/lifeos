@@ -48,11 +48,10 @@ export function beginSkiaLoad(): void {
   void (async () => {
     const ok = await ensureSkia();
     if (!ok) throw new Error('skia unavailable');
-    const [confetti, burst] = await Promise.all([
-      import('./SkiaConfetti'),
-      import('./SkiaBurst'),
-    ]);
-    renderers = { SkiaConfetti: confetti.SkiaConfetti, SkiaBurst: burst.SkiaBurst };
+    // ONE dynamic import for both renderers — see skiaRenderers.ts for why
+    // splitting this into two imports regresses the boot bundle.
+    const mod = await import('./skiaRenderers');
+    renderers = { SkiaConfetti: mod.SkiaConfetti, SkiaBurst: mod.SkiaBurst };
     state = 'ready';
   })()
     .catch(() => {
