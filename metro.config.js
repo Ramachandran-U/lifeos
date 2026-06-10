@@ -9,6 +9,11 @@ const config = getDefaultConfig(__dirname);
 // web cold-bundle fails to resolve the wasm import.
 if (!config.resolver.assetExts.includes('wasm')) config.resolver.assetExts.push('wasm');
 
+// Rive state-machine assets (`assets/rive/*.riv`) load via require() on
+// native; Metro needs `.riv` registered as an asset extension (same precedent
+// as `.wasm` above) or the companion asset fails to resolve at bundle time.
+if (!config.resolver.assetExts.includes('riv')) config.resolver.assetExts.push('riv');
+
 // Exclude the web-export output dir (`dist/`) from Metro's file map so the
 // watcher doesn't crawl/crash on it during local web dev (`expo start --web`
 // after a `web:export`). The node_modules negative-lookahead keeps package
