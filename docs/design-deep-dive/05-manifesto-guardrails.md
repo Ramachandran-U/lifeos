@@ -1,5 +1,10 @@
 # Cluster 5: Manifesto codification + anti-dilution machinery
 
+> **Ratified amendments (founder, 2026-06-10 — cross-spec resolutions, see 00-INDEX.md):**
+> R1: the manifesto P3 "Compliant looks like" body and Guard B's failure message say `*Dim` (not `*Light`) — APPLIED in the Wave 0 landing (PR #170); the five locked sentences are unaffected.
+> R8: Guard D allowlist growth for `TodayHeader.tsx`, `NextMoveHero.tsx`, `FirstWinCard.tsx` is founder-approved (2026-06-10) as a single `manifesto-change` batch, to be executed in Wave 3 — the ratchet is never bypassed silently.
+> R9: manifesto P3's "4px domain bar" is scoped to a screen's single hero (where the hue also carries ink or the CTA) — APPLIED in the Wave 0 landing (PR #170).
+
 # Cluster 5 — Make the Philosophy Enforceable
 **Design dossier · LifeOS · Ink + Signal program · 2026-06-10 (hardened by dilution audit, same date)**
 Repo: `c:\personal\Project X\lifeos-w3` (all paths below relative to it unless prefixed `c:\`)
