@@ -172,7 +172,18 @@ For UI work without hitting the proxy, set `EXPO_PUBLIC_USE_AI_MOCK=true` (or `U
 ## Design System
 
 ### Philosophy
-**Bold & Expressive** — think Duolingo meets Headspace. High contrast. Strong typography. Colour as a communication tool. Celebration-worthy moments. The app should feel alive. The current refined token set is documented in `docs/aurora-refined-v2/`.
+**Answer First, Celebrate Loud, Rest Quiet** — the canonical manifesto is
+`docs/DESIGN_MANIFESTO.md`; read it before any UI work. The visual language is
+**Ink + Signal**: true-black resting base, zero decorative washes, domain hues
+at full saturation used structurally (never as atmosphere tint), type-led
+hierarchy, and loud flag-gated celebration that always ends. The five locked
+rules — never open a screen on a visualization; never three equal cards where
+one hero belongs; never tint for atmosphere; never let glow idle; never a
+border/label-cap/card where a headline would do — are enforced in CI by the
+compliance ratchets in `src/theme/__tests__/*Compliance.test.ts` plus
+`manifestoLock.test.ts`. Weakening a guard regex or growing an allowlist
+requires a founder-approved PR labelled `manifesto-change`.
+(`docs/aurora-refined-v2/` is superseded — historical reference only.)
 
 ### Typography
 - **Display font**: `Nunito` (rounded, friendly, strong) — headings, module titles, gamification numbers
