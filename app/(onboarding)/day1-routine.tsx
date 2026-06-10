@@ -12,7 +12,7 @@ import { spacing } from '@/theme/spacing';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
 import { NarrationToggle } from '@/components/shared/NarrationToggle';
 import { OnboardingIntroSection } from '@/components/shared/OnboardingIntroSection';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { WheelTimePicker } from '@/components/ui/WheelTimePicker';
@@ -326,11 +326,12 @@ export default function Day1RoutineScreen() {
         )}
 
         {!routine && !loading && (
-          <Button
+          <Button3D
             title="Generate my routine"
             onPress={handleGenerate}
             disabled={!!scheduleError}
             style={styles.generateButton}
+            fullWidth
           />
         )}
 
@@ -375,10 +376,11 @@ export default function Day1RoutineScreen() {
               onDragActiveChange={setDragActive}
             />
 
-            <Button
+            <Button3D
               title="Save my routine"
               onPress={handleSave}
               style={styles.saveButton}
+              fullWidth
             />
           </Animated.View>
         )}
