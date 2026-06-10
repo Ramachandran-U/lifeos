@@ -68,6 +68,9 @@ import { getRoutineBlocksByDate, updateRoutineBlockStatus, setRoutineBlockCalend
 import { cloneRoutineToDate } from '@/utils/starterRoutine';
 import { subDays } from 'date-fns';
 import { useFlagStore } from '@/store/useFlagStore';
+import { isEnabled as isFlagEnabled } from '@/config/flags';
+import { celebrate } from '@/celebration/useCelebrationStore';
+import { maybeGrantChest } from '@/gamification/chestGrants';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { refreshInferredPreferences } from '@/ai/profileLearning';
 import { upsertUserProfile } from '@/db/queries/userProfile';
@@ -405,7 +408,18 @@ export default function TodayScreen() {
   useEffect(() => {
     if (allComplete && celebratedRef.current !== today) {
       celebratedRef.current = today;
-      setShowConfetti(true);
+      // M2: the celebration engine owns the day-complete epic when its flag is
+      // on (Skia confetti via CelebrationHost); the legacy local Confetti is
+      // the flag-off path. Never both.
+      if (isFlagEnabled('celebrationEngine')) {
+        celebrate({ kind: 'dayComplete' });
+      } else {
+        setShowConfetti(true);
+      }
+      // R2: finishing every block is the canonical peak beat — drop a chest.
+      // No-op while variable_rewards_v1 is off; ≤1/day capped inside; the
+      // celebratedRef once-per-day guard keeps it from re-firing on toggles.
+      if (userId) maybeGrantChest(userId, 'peak_beat');
     }
     // Note: we used to reset celebratedRef to null on !allComplete so an undo +
     // re-complete would re-celebrate. That re-fires the burst on every toggle

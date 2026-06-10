@@ -95,6 +95,8 @@ export const EVENTS = {
   questCompleted: 'quest_completed',
   questClaimed: 'quest_claimed',
   questRerolled: 'quest_rerolled',
+  chestGranted: 'chest_granted',
+  chestOpened: 'chest_opened',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

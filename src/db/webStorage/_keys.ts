@@ -34,3 +34,4 @@ export const RABBIT_HOLE_TREES_KEY = 'lifeos_rabbit_hole_trees';
 export const CONSTELLATION_EDGES_KEY = 'lifeos_constellation_edges';
 export const XP_EVENTS_KEY = 'lifeos_xp_events';
 export const QUESTS_KEY = 'lifeos_quests_v2';
+export const CHESTS_KEY = 'lifeos_chests';

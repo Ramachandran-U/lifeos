@@ -218,6 +218,29 @@ export const quests = sqliteTable('quests', {
   deletedAt: text('deleted_at'),
 });
 
+// --- Chests (variable_rewards_v1) ---
+// Variable-reward chest drops on PEAK moments (all-blocks-complete, streak
+// milestones ≥30, all-quests-claimed sweep, comeback), capped at one grant per
+// local day. ETHICS BY CONSTRUCTION: chests only ever ADD (xp / freeze /
+// cosmetic — see src/gamification/lootTable.ts); there are no timers, no
+// expiry, no purchase path, and an unopened chest waits indefinitely. The
+// roll is sealed at grant time: `seed` is stored on the row, so the claim
+// roll is reproducible and provably untouched by when the user opens it.
+export const chests = sqliteTable('chests', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  source: text('source').notNull(), // 'peak_beat' | 'milestone' | 'quest_sweep' | 'comeback'
+  status: text('status').notNull().default('pending'), // 'pending' | 'opened'
+  seed: text('seed').notNull(), // PRNG key fixed at grant; claim roll = rngFromKey(seed)
+  contents: text('contents'), // JSON ChestContents — null until claimed
+  dayLocal: text('day_local').notNull(), // grant day (device-local) — backs the ≤1/day cap
+  grantedAt: text('granted_at').notNull(),
+  claimedAt: text('claimed_at'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+  deletedAt: text('deleted_at'),
+});
+
 // --- XP Events (append-only ledger) ---
 // Every XP grant is appended here via grantXP (useGameStore) in addition to
 // bumping the gamification counters. Rows are immutable; amounts are always

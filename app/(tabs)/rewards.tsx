@@ -23,11 +23,15 @@ import { LevelLadder } from '@/components/gamification/LevelLadder';
 import { BadgeTile } from '@/components/gamification/BadgeTile';
 import { StreakRow } from '@/components/gamification/StreakRow';
 import { FreezeBank } from '@/components/gamification/FreezeBank';
+import { ChestCard } from '@/components/gamification/ChestCard';
+import { ChestOpenOverlay } from '@/components/gamification/ChestOpenOverlay';
 import { QuestCard } from '@/components/gamification/QuestCard';
 import { QuestDetailSheet } from '@/components/gamification/QuestDetailSheet';
 import { DomainMiniCard } from '@/components/gamification/DomainMiniCard';
 import type { BadgeId } from '@/utils/gamification';
 import { useFlagStore } from '@/store/useFlagStore';
+import { useChestStore } from '@/store/useChestStore';
+import { usePreferencesStore } from '@/store/usePreferencesStore';
 import { useDailyQuests } from '@/hooks/useDailyQuests';
 import { toLegacyQuest } from '@/store/useQuestStore';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -51,13 +55,26 @@ export default function RewardsScreen() {
   const streakFreezes = useGameStore((s) => s.streakFreezes);
   const freezeProgressXP = useGameStore((s) => s.freezeProgressXP);
   const streakProtection = useFlagStore((s) => s.isEnabled('streak_protection_v1'));
+  const variableRewards = useFlagStore((s) => s.isEnabled('variable_rewards_v1'));
+  const gamificationPref = usePreferencesStore((s) => s.gamification);
+  const pendingChests = useChestStore((s) => s.pending);
+  const refreshChests = useChestStore((s) => s.refresh);
+  const openChest = useChestStore((s) => s.open);
   const dailyQuests = useDailyQuests();
   const [openQuest, setOpenQuest] = useState<Quest | null>(null);
+  // The chest currently in the reveal overlay (full theatre). 'minimal'
+  // gamification opens inline from the row instead — no overlay.
+  const [revealChestId, setRevealChestId] = useState<string | null>(null);
+  const showChests =
+    variableRewards && gamificationPref !== 'off' && pendingChests.length > 0;
 
   useFocusEffect(
     useCallback(() => {
-      if (userId) loadGame(userId);
-    }, [userId, loadGame]),
+      if (userId) {
+        loadGame(userId);
+        refreshChests(userId);
+      }
+    }, [userId, loadGame, refreshChests]),
   );
 
   const prog = useMemo(() => xpProgressInLevel(totalXP), [totalXP]);
@@ -162,6 +179,27 @@ export default function RewardsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Chests (variable_rewards_v1) — pending drops wait patiently; no
+              timers, no expiry. 'minimal' = plain claim row, no theatre. */}
+          {showChests && (
+            <View style={styles.chestStrip}>
+              {pendingChests.map((chest) => (
+                <ChestCard
+                  key={chest.id}
+                  chest={chest}
+                  minimal={gamificationPref === 'minimal'}
+                  onOpen={(id) => {
+                    if (gamificationPref === 'minimal') {
+                      if (userId) openChest(userId, id);
+                    } else {
+                      setRevealChestId(id);
+                    }
+                  }}
+                />
+              ))}
+            </View>
+          )}
 
           {/* Quiet Comeback — warm, no guilt; nothing reset while you were away */}
           {comebackDays && (
@@ -321,6 +359,13 @@ export default function RewardsScreen() {
             : undefined
         }
       />
+
+      {/* Chest reveal — the roll fires at the burst beat inside the overlay */}
+      <ChestOpenOverlay
+        visible={revealChestId !== null}
+        onOpen={() => (userId && revealChestId ? openChest(userId, revealChestId) : null)}
+        onClose={() => setRevealChestId(null)}
+      />
     </View>
   );
 }
@@ -349,6 +394,7 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     xpBig: { fontFamily: fonts.heading, fontSize: 36, color: c.textPrimary, lineHeight: 40 },
     statsRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
     sparkCard: { borderRadius: 20, borderWidth: 1, padding: 16 },
+    chestStrip: { gap: spacing.sm },
     sectionLabel: {
       fontFamily: fonts.heading,
       fontSize: 13,

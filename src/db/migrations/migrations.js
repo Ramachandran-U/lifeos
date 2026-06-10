@@ -10,6 +10,7 @@ import m0005 from './0005_memory_facts.sql';
 import m0006 from './0006_rabbit_hole_trees.sql';
 import m0007 from './0007_xp_events_streak_protection.sql';
 import m0008 from './0008_quests.sql';
+import m0009 from './0009_chests.sql';
 
   export default {
     journal,
@@ -22,7 +23,8 @@ import m0008 from './0008_quests.sql';
       m0005,
       m0006,
       m0007,
-      m0008
+      m0008,
+      m0009
     }
   }
   
