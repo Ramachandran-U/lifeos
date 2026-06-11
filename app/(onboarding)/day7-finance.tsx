@@ -17,7 +17,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -128,7 +128,7 @@ export default function Day7FinanceScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AuroraBackground />
+      <InkCanvas />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

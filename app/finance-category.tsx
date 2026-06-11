@@ -9,7 +9,7 @@ import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useTransactionStore } from '@/finance/store/useTransactionStore';
 import { categoryRollup, type AnalyticsTx } from '@/finance/analytics';
 import { totalConsumptionSpend } from '@/finance/categoryGroups';
@@ -54,7 +54,7 @@ export default function FinanceCategoryScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={styles.topRow}>
           <Pressable

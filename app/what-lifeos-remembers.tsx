@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
@@ -132,7 +132,7 @@ export default function WhatLifeOSRemembersScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      <AuroraBackground />
+      <InkCanvas />
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <Body style={{ color: c.textSecondary }}>← Back</Body>

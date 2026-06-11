@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -74,7 +74,7 @@ export default function WelcomeIntentScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AuroraBackground />
+      <InkCanvas />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Animated.Text entering={FadeIn.duration(800)} style={styles.logo}>
           LifeOS

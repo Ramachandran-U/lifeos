@@ -54,7 +54,8 @@ export default defineConfig({
       testIgnore: [
         '**/smoke.spec.ts',
         '**/auth.setup.ts',
-        '**/ambient.spec.ts',
+        // ambient.spec runs HERE since the Ink + Signal rewrite — it seeds its
+        // own state via seedAuthedUser (no real session needed).
         // Session/admin-dependent specs belong ONLY to the `authenticated`
         // project (storageState + service-role env). Running them here too —
         // without a session — was the root cause of the red CI builds.
@@ -122,7 +123,6 @@ export default defineConfig({
       // Authenticated tests — depend on setup, reuse stored session.
       name: 'authenticated',
       testMatch: [
-        '**/ambient.spec.ts',
         '**/auth-signout.spec.ts',
         '**/auth-routing.spec.ts',
         '**/onboarding-fresh.spec.ts',

@@ -10,7 +10,7 @@ import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useUserStore } from '@/store/useUserStore';
@@ -89,7 +89,7 @@ export default function SocialScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.scroll}

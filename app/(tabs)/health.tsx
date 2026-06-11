@@ -14,7 +14,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Button } from '@/components/ui/Button';
 import { Body, Label, Caption } from '@/components/ui/Typography';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { CalorieRing } from '@/components/modules/health/CalorieRing';
 import { FoodEntryRow } from '@/components/modules/health/FoodEntryRow';
@@ -368,7 +368,7 @@ export default function HealthScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
         <ModuleHeader title="Health" domain="health" color={c.health} />

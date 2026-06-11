@@ -7,7 +7,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button3D } from '@/components/ui/Button3D';
 import { Body } from '@/components/ui/Typography';
-import { AuroraAnimatedBackground } from '@/components/shared/AuroraAnimatedBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <AuroraAnimatedBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Animated.Text entering={FadeIn.duration(800)} style={[styles.logo, { color: c.primary }]}>

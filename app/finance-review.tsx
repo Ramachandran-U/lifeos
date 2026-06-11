@@ -12,7 +12,7 @@ import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { LoadingDots } from '@/components/ui/LoadingDots';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useTransactionStore } from '@/finance/store/useTransactionStore';
 import { useMoneyReviewStore, currentMonthKey } from '@/finance/store/useMoneyReviewStore';
 import { buildMoneyReviewInput } from '@/finance/moneyReview';
@@ -75,7 +75,7 @@ export default function FinanceReviewScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={styles.topRow}>
           <Pressable

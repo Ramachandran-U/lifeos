@@ -6,6 +6,7 @@
 > R9: a 4px domain rail is legal only on a screen's single hero, where the hue also carries ink or the CTA; everywhere else uses the R3 glyph mark.
 > R10: GlassCard's `accent` prop removal stands — 02's FirstWinCard renders neutral.
 > R11: 04's ban on `—` placeholder vitals supersedes this spec's ModuleHeader stat placeholder — the Health header stat slot is omitted until a real BMI exists.
+> **Amendment (founder-flagged, 2026-06-11, W1 execution):** criterion 3 banned-string grep is verified EXCLUDING src/theme/__tests__/ — Wave 0 Guard C (per spec 05, ratified) must name the wash family in its regex forever so a future re-creation + import stays a red build; the two specs collide at the string level and the stricter, enforcement-keeping rule wins. Also: AMBIENT.auroraDrift had gained one post-spec consumer (CompanionFallback resting breath) — re-pointed to AMBIENT.fieldDrift before token deletion.
 
 All claims verified against the repo. Writing the hardened spec now.
 

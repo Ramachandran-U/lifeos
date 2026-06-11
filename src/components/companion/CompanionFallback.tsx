@@ -44,7 +44,9 @@ export function CompanionFallback({ mood, size = 44, equipped = [] }: Props) {
       breath.value = 1;
       return;
     }
-    const period = mood === 'resting' ? AMBIENT.auroraDrift : AMBIENT.breath;
+    // Resting breathes slower than awake; fieldDrift (6s) is the slowest
+    // surviving ambient period (the aurora drift token died with the wash).
+    const period = mood === 'resting' ? AMBIENT.fieldDrift : AMBIENT.breath;
     breath.value = withRepeat(
       withSequence(
         withTiming(1.06, { duration: period / 2, easing: EASING.inOut }),

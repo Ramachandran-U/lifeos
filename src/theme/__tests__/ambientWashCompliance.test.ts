@@ -42,48 +42,9 @@ const IDLE_WASH_IMPORT =
   /from ['"](?:@\/components\/shared\/AuroraBackground|@\/components\/shared\/AuroraAnimatedBackground|@\/components\/ui\/AuroraGlow|\.{1,2}\/ambient\/(?:GradientMesh|presets))['"]/;
 
 const ALLOWLIST = new Set<string>([
-  'app/(auth)/sign-in.tsx',
-  'app/(auth)/sign-up.tsx',
-  'app/(auth)/welcome.tsx',
-  'app/(onboarding)/day1-career.tsx',
-  'app/(onboarding)/day1-routine.tsx',
-  'app/(onboarding)/day1-vision.tsx',
-  'app/(onboarding)/day14-polymath.tsx',
-  'app/(onboarding)/day3-health.tsx',
-  'app/(onboarding)/day7-finance.tsx',
-  'app/(onboarding)/day7-social.tsx',
-  'app/(onboarding)/discovery-chat.tsx',
-  'app/(onboarding)/discovery-confirm.tsx',
-  'app/(onboarding)/discovery-intro.tsx',
-  'app/(onboarding)/discovery-paste.tsx',
-  'app/(tabs)/career.tsx',
-  'app/(tabs)/explore.tsx',
-  'app/(tabs)/finance.tsx',
-  'app/(tabs)/goals.tsx',
-  'app/(tabs)/health.tsx',
-  'app/(tabs)/index.tsx',
-  'app/(tabs)/rewards.tsx',
-  'app/(tabs)/social.tsx',
-  'app/activity.tsx',
-  'app/annual-review.tsx',
-  'app/chat.tsx',
-  'app/contact/[id].tsx',
-  'app/data-residency.tsx',
-  'app/edit-priorities.tsx',
-  'app/evening-reflect.tsx',
-  'app/expedition-detail.tsx',
-  'app/finance-category.tsx',
-  'app/finance-merchant.tsx',
-  'app/finance-review.tsx',
-  'app/how-it-works.tsx',
-  'app/monthly-insight.tsx',
-  'app/notifications-settings.tsx',
-  'app/terms-privacy.tsx',
-  'app/welcome-intent.tsx',
-  'app/what-lifeos-knows.tsx',
-  'app/what-lifeos-remembers.tsx',
-  'src/components/modules/polymath/RabbitHoleScreen.tsx',
-  'src/components/shared/AuroraBackground.tsx',
+  // ratchet -42 (Ink + Signal W1 PR-2, 2026-06-11): the wash is dead - all
+  // 42 seeded entries removed. The regex stays armed forever: any future
+  // re-creation + import of the wash family is a red build.
 ]);
 
 function* walk(dir: string): Generator<string> {

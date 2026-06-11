@@ -11,7 +11,7 @@ import { Body, Caption, Heading } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { LoadingDots } from '@/components/ui/LoadingDots';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useUserStore } from '@/store/useUserStore';
 import { getUserProfile } from '@/db/queries/userProfile';
 import { generateMonthlyInsightReport } from '@/ai/functions';
@@ -54,7 +54,7 @@ export default function MonthlyInsightScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()} hitSlop={12}>

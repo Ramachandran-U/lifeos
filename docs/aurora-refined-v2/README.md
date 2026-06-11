@@ -1,3 +1,5 @@
+> **SUPERSEDED by Ink + Signal (see COLOR_RECOMMIT spec). Color/wash guidance in this folder no longer applies; motion scenes remain valid.**
+
 # Aurora Refined v2 · handover
 
 Surgical refinement pass for LifeOS. **This is not a redesign.** Layouts, palette,

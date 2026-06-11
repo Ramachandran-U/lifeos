@@ -8,7 +8,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
-import { AuroraAnimatedBackground } from '@/components/shared/AuroraAnimatedBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
 import { ensureLocalUserFromAuth, setWebSession } from '@/db/queries/users';
@@ -104,7 +104,7 @@ export default function SignUpScreen() {
 
   return (
     <View style={styles.container}>
-      <AuroraAnimatedBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.flex}>
       <KeyboardAvoidingView
         style={styles.flex}

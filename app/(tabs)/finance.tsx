@@ -25,7 +25,7 @@ import { Button3D } from '@/components/ui/Button3D';
 import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { RotatingPlaceholder } from '@/components/ui/RotatingPlaceholder';
 import { FinanceGoalCard } from '@/components/modules/finance/FinanceGoalCard';
@@ -504,7 +504,7 @@ export default function FinanceScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
         <ModuleHeader title="Finance" domain="finance" color={c.finance} />

@@ -11,7 +11,7 @@ import { spacing } from '@/theme/spacing';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { getExpedition, getExpeditionProgress, saveExpeditionProgress } from '@/db/queries/expeditions';
@@ -61,7 +61,7 @@ export default function ExpeditionDetailScreen() {
   if (!expedition || !progress) {
     return (
       <SafeAreaView style={styles.container}>
-        <AuroraBackground />
+        <InkCanvas />
         <Body style={[styles.empty, { color: c.textMuted }]}>Expedition not found.</Body>
         <Button title="Back" onPress={() => router.back()} />
       </SafeAreaView>
@@ -73,7 +73,7 @@ export default function ExpeditionDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AuroraBackground />
+      <InkCanvas />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <Ionicons name="chevron-back" size={22} color={c.textSecondary} />

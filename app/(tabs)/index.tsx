@@ -29,7 +29,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useAmbientEventStore } from '@/components/shared/ambient/useAmbientEventStore';
 import { WeeklyBalanceCard } from '@/components/shared/WeeklyBalanceCard';
 import { Confetti } from '@/components/shared/Confetti';
@@ -510,7 +510,7 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.root}>
-      <AuroraBackground scrollY={scrollY} allBlocksDone={allComplete} />
+      <InkCanvas scrollY={scrollY} allBlocksDone={allComplete} />
       <SafeAreaView style={styles.container}>
 
         <Animated.ScrollView

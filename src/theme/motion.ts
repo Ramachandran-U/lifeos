@@ -51,12 +51,11 @@ export const INTERACTION = {
   holdRelease:          200,  // arc rewind after an aborted hold
 } as const;
 
-// Idle/ambient loop periods — Aurora guardrail: idle loops never run faster
-// than 3s. These are baselines; ambient components may add per-instance jitter.
+// Ambient loop periods (EVENT-triggered surfaces only — "rest quiet" means
+// nothing idles; guardrail: ambient loops never run faster than 3s).
 export const AMBIENT = {
-  breath:      4000,  // live-block / companion breathing sine
-  fieldDrift:  6000,  // particle field rise baseline
-  auroraDrift: 8000,  // aurora blob drift baseline (longest visible period)
+  breath:     4000,  // live-block / companion breathing sine
+  fieldDrift: 6000,  // particle field rise baseline (also the resting-companion breath)
 } as const;
 
 // Aurora Refined motion tokens — see DESIGN_DOC.md / ds-motion.jsx.

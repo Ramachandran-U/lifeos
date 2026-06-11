@@ -81,8 +81,8 @@ const ALLOWLIST = new Set<string>([
   'src/components/modules/social/ContactsImportCard.tsx',
   'src/components/shared/AdaptationCard.tsx',
   'src/components/shared/AddToHomeScreenPrompt.tsx',
-  'src/components/shared/AuroraAnimatedBackground.tsx',
-  'src/components/shared/AuroraBackground.tsx',
+  // ratchet −5 (Ink + Signal W1 PR-2): the wash files died; useAmbientState
+  // re-tokenized — entries removed, never to return.
   'src/components/shared/CoachActionsCard.tsx',
   'src/components/shared/DailyBriefing.tsx',
   'src/components/shared/DailySummarySheet.tsx',
@@ -97,9 +97,6 @@ const ALLOWLIST = new Set<string>([
   'src/components/shared/VoiceAssistantSheet.tsx',
   'src/components/shared/WhatNextCard.tsx',
   'src/components/shared/YesterdayLogSheet.tsx',
-  'src/components/shared/ambient/GradientMesh.tsx',
-  'src/components/shared/ambient/presets.ts',
-  'src/components/shared/ambient/useAmbientState.ts',
   'src/components/ui/AuroraGlow.tsx',
   'src/components/ui/Button.tsx',
   'src/finance/categoryGroups.ts',
