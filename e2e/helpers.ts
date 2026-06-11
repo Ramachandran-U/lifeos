@@ -42,6 +42,26 @@ export interface SeedGameState {
   totalXP?: number;
   /** Per-domain scores 0–100. Defaults to realistic mid-game values. */
   domainScores?: Partial<Record<string, number>>;
+  /**
+   * Streak map override. When provided it REPLACES the default mid-game
+   * streaks (workout 3 / learning 5 / foodTracking 2 / social 1) — e.g. the
+   * cold-start suite seeds all-zero streaks. Additive: callers that omit it
+   * are unchanged.
+   */
+  streaks?: Record<
+    string,
+    { count: number; lastDate: string | null; graceUsed: boolean; best?: number }
+  >;
+}
+
+/** Persisted shape of usePreferencesStore (localStorage 'lifeos_preferences_v1'). */
+export interface SeedPreferences {
+  theme?: 'dark' | 'light';
+  density?: 'compact' | 'cozy' | 'spacious';
+  motionIntensity?: 'off' | 'subtle' | 'normal' | 'bold';
+  gamification?: 'full' | 'minimal' | 'off';
+  narrationEnabled?: boolean;
+  soundEnabled?: boolean;
 }
 
 export interface SeedOptions {
@@ -54,6 +74,18 @@ export interface SeedOptions {
   goals?: SeedGoal[];
   /** Gamification state. Defaults to zeroed-out XP and mid-game domain scores. */
   gamification?: SeedGameState;
+  /**
+   * Optional usePreferencesStore seed ('lifeos_preferences_v1'), e.g.
+   * { gamification: 'off' } for the gamification-off persona. Default: unset
+   * (store defaults apply). Additive — existing callers unchanged.
+   */
+  preferences?: SeedPreferences;
+  /**
+   * Seed an empty user-profile row ('lifeos_user_profiles') so the
+   * firstBlockCompletedAt stamp guard on Today is live (it requires an
+   * existing profile). Default false — existing callers unchanged.
+   */
+  profile?: boolean;
 }
 
 export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
@@ -138,7 +170,7 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
         id: userId + '-game',
         userId,
         domainScores: JSON.stringify(scores),
-        streaks: JSON.stringify({
+        streaks: JSON.stringify(options.gamification?.streaks ?? {
           workout:      { count: 3, lastDate: yesterdayDate, graceUsed: false },
           learning:     { count: 5, lastDate: yesterdayDate, graceUsed: false },
           foodTracking: { count: 2, lastDate: yesterdayDate, graceUsed: false },
@@ -152,6 +184,47 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
         updatedAt: nowIso,
       };
       localStorage.setItem('lifeos_gamification', JSON.stringify([gamif]));
+
+      // Optional usePreferencesStore seed (e.g. gamification 'off' persona).
+      if (options.preferences) {
+        localStorage.setItem('lifeos_preferences_v1', JSON.stringify(options.preferences));
+      }
+
+      // Optional empty user-profile row so the first-block stamp guard is live
+      // (web store returns the object as-is; only the native path Zod-parses).
+      if (options.profile) {
+        localStorage.setItem('lifeos_user_profiles', JSON.stringify([
+          {
+            userId,
+            profile: {
+              version: 1,
+              identity: { firstName: 'E2E', ageBand: null, seasonOfLife: null },
+              vision: { statement: null, horizon: null, topGoals: [] },
+              schedule: { wakeTime: null, sleepTime: null, workStartTime: null, workEndTime: null, fixedBlocks: [] },
+              chronotype: null,
+              primaryDomains: [],
+              habits: { current: [], aspirational: [] },
+              constraints: [],
+              struggles: [],
+              values: [],
+              communication: { tone: null, avoid: [] },
+              confidence: {
+                identity: 0, vision: 0, schedule: 0, chronotype: 0,
+                habits: 0, constraints: 0, primaryDomains: 0, overall: 0,
+              },
+              inferredPreferences: {
+                preferredBlockMinutes: null,
+                productiveHours: [],
+                droppedHabits: [],
+                preferredRestDays: [],
+              },
+              source: 'form',
+              lastUpdated: nowIso,
+              firstBlockCompletedAt: null,
+            },
+          },
+        ]));
+      }
     },
     { user: USER, userId: USER_ID, options },
   );

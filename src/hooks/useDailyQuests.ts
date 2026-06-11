@@ -36,12 +36,19 @@ export interface DailyQuestsApi {
 function buildCtx(userId: string, primaryDomains: string[], liveStreakKeys: string[]): QuestSelectionCtx {
   // Yesterday's plan-completion ratio scales difficulty (default 0.5 on no data).
   let yesterdayCompletionPct = 0.5;
+  // Day-1 detection (cold_start_v1): zero blocks yesterday AND zero lifetime
+  // XP → the engine clamps to exactly 3 quests with a pinned first-block slot.
+  let isFirstDay = false;
   try {
     const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
     const blocks = getRoutineBlocksByDate(yesterday) as { status: string }[];
     if (blocks.length > 0) {
       yesterdayCompletionPct = blocks.filter((b) => b.status === 'completed').length / blocks.length;
     }
+    isFirstDay =
+      blocks.length === 0 &&
+      useGameStore.getState().totalXP === 0 &&
+      useFlagStore.getState().isEnabled('cold_start_v1');
   } catch { /* keep default */ }
 
   // Stagnation insights are per-domain — scan for any non-expired active one.
@@ -60,7 +67,7 @@ function buildCtx(userId: string, primaryDomains: string[], liveStreakKeys: stri
     }
   } catch { /* cognition layer optional — quests work without it */ }
 
-  return { primaryDomains, liveStreakKeys, stagnantDomain, yesterdayCompletionPct };
+  return { primaryDomains, liveStreakKeys, stagnantDomain, yesterdayCompletionPct, isFirstDay };
 }
 
 export function useDailyQuests(): DailyQuestsApi {

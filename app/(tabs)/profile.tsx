@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -30,6 +30,8 @@ import { signOutEverything } from '@/utils/signOut';
 import { formatDuration } from '@/utils/duration';
 import { isEnabled } from '@/config/flags';
 import { AvatarEditSheet } from '@/components/modules/profile/AvatarEditSheet';
+import { StarterLine } from '@/components/shared/StarterLine';
+import { STARTER_COPY } from '@/constants/starterCopy';
 
 const MODULE_LABELS: Record<string, string> = {
   today: 'Today',
@@ -187,6 +189,7 @@ export default function ProfileScreen() {
   const setGamification = usePreferencesStore((s) => s.setGamification);
   const totalXP = useGameStore((s) => s.totalXP);
   const streaks = useGameStore((s) => s.streaks);
+  const loadGame = useGameStore((s) => s.loadFromDB);
 
   const [range, setRange] = useState<UsageRange>('day');
   const [stats, setStats] = useState<UsageStats | null>(null);
@@ -203,6 +206,13 @@ export default function ProfileScreen() {
   );
 
   const user = useMemo(() => getUser(), []);
+
+  // The game store hydrates only via loadFromDB (no persist middleware) —
+  // Today and Rewards already call it on mount. Without this, a direct
+  // /profile load reads default zeros and the USAGE card lies about XP.
+  useEffect(() => {
+    if (user?.id) loadGame(user.id);
+  }, [user?.id, loadGame]);
   const memberSince = user?.installDate
     ? (() => {
         try {
@@ -223,6 +233,12 @@ export default function ProfileScreen() {
   const longestStreak = useMemo(() => {
     return Object.values(streaks).reduce((max, s) => (s.count > max ? s.count : max), 0);
   }, [streaks]);
+
+  const coldStart = useFlagStore((s) => s.isEnabled('cold_start_v1'));
+  // §3.4: a zero is never data — until the first stat exists, the USAGE card
+  // renders the action that creates it instead of a wall of display-type 0s.
+  const usageEmpty = (stats?.totalMinutes ?? 0) === 0 && totalXP === 0 && longestStreak === 0;
+  const showUsageStarter = usageEmpty && coldStart;
 
   const handleLogout = async () => {
     await signOutEverything();
@@ -263,6 +279,7 @@ export default function ProfileScreen() {
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
             <Label style={{ color: c.textMuted, letterSpacing: 1.5 }}>USAGE</Label>
+            {!showUsageStarter && (
             <View style={[styles.segment, { borderColor: c.border }]}>
               {(['day', 'week'] as UsageRange[]).map((r) => {
                 const active = range === r;
@@ -287,21 +304,42 @@ export default function ProfileScreen() {
                 );
               })}
             </View>
+            )}
           </View>
 
+          {showUsageStarter ? (
+            // §3.4: one starter line in place of the stats row, the dead
+            // segmented control, and the sparkline. No CTA — Profile is a
+            // settings surface; Rewards and Today carry the action.
+            <StarterLine>{STARTER_COPY.profileUsage}</StarterLine>
+          ) : (
+          <>
           <View style={styles.statsRow}>
             <View style={styles.statBlock}>
-              <Heading style={[styles.statValue, { color: c.textPrimary }]}>
-                {formatDuration(stats?.totalMinutes ?? 0)}
-              </Heading>
+              {/* §3.4: a never-nonzero slot renders an em-dash, not "0 min". */}
+              {coldStart && (stats?.totalMinutes ?? 0) === 0 ? (
+                <Heading style={[styles.statValue, { color: c.textSecondary }]}>—</Heading>
+              ) : (
+                <Heading style={[styles.statValue, { color: c.textPrimary }]}>
+                  {formatDuration(stats?.totalMinutes ?? 0)}
+                </Heading>
+              )}
               <Caption style={{ color: c.textMuted }}>active</Caption>
             </View>
             <View style={styles.statBlock}>
-              <Heading style={[styles.statValue, { color: c.xp }]}>{totalXP}</Heading>
+              {coldStart && totalXP === 0 ? (
+                <Heading style={[styles.statValue, { color: c.textSecondary }]}>—</Heading>
+              ) : (
+                <Heading style={[styles.statValue, { color: c.xp }]}>{totalXP}</Heading>
+              )}
               <Caption style={{ color: c.textMuted }}>total XP</Caption>
             </View>
             <View style={styles.statBlock}>
-              <Heading style={[styles.statValue, { color: c.streak }]}>{longestStreak}</Heading>
+              {coldStart && longestStreak === 0 ? (
+                <Heading style={[styles.statValue, { color: c.textSecondary }]}>—</Heading>
+              ) : (
+                <Heading style={[styles.statValue, { color: c.streak }]}>{longestStreak}</Heading>
+              )}
               <Caption style={{ color: c.textMuted }}>longest streak</Caption>
             </View>
           </View>
@@ -318,10 +356,8 @@ export default function ProfileScreen() {
                 </Caption>
               </View>
             </View>
-          ) : (
-            <Caption style={{ color: c.textMuted, marginTop: spacing.md }}>
-              No activity tracked yet — open a tab to get started.
-            </Caption>
+          ) : null}
+          </>
           )}
 
           {topModules.length > 0 && (

@@ -59,7 +59,7 @@ export const useCelebrationStore = create<CelebrationState>((set, get) => ({
 function sfxFor(input: CelebrationInput, tier: CelebrationTier): SfxName | null {
   if (tier === 'standard') return 'chime';
   if (tier === 'epic') {
-    return input.kind === 'levelUp' || input.kind === 'milestone' ? 'fanfare' : 'sweep';
+    return input.kind === 'levelUp' || input.kind === 'milestone' || input.kind === 'firstWin' ? 'fanfare' : 'sweep';
   }
   return null;
 }

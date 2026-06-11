@@ -78,7 +78,7 @@ export function Confetti({ onDone }: Props) {
   if (reduceMotion) return null;
 
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill} testID="legacy-confetti">
       {Array.from({ length: COUNT }).map((_, i) => (
         <Particle
           key={i}

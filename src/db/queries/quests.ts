@@ -24,7 +24,10 @@ export function insertQuest(
   userId: string,
   dayLocal: string,
   draft: QuestDraft,
-  source: 'template' | 'ai' = 'template',
+  // 'pinned' = the day-1 constructed first quest (cold_start_v1). The AI
+  // personalization pass filters on source === 'template', so pinned rows are
+  // excluded from retitle/retarget by construction.
+  source: 'template' | 'ai' | 'pinned' = 'template',
 ): string {
   const id = nanoid();
   const now = new Date().toISOString();

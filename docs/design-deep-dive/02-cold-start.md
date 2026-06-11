@@ -8,8 +8,15 @@
 > R8: `FirstWinCard.tsx` enters Guard D's allowlist via the founder-approved `manifesto-change` batch (approved 2026-06-10, executed in Wave 3).
 > R10: FirstWinCard renders a neutral GlassCard (03 removes the `accent` prop) with the `FIRST WIN` label inked in `c.xp`.
 > R12: this spec takes `lifeos_flags_v3` → `lifeos_flags_v4` at landing.
-
-All paths, line numbers, tokens, and APIs are now verified against the repo. Producing the hardened spec.
+> **Amendment (founder-flagged, 2026-06-12, W3 PR-A execution):**
+> (a) AC-3's draft[0] additionally carries `source: 'pinned'` — the §3.3(d) insertion marker must travel engine→store, so the pinned shape is `{ templateId, target: 1, xp: 10, title, metricKey, module, source: 'pinned' }`.
+> (b) §6 F3's file list gains `src/store/useQuestStore.ts` (one line: `insertQuest(..., draft.source ?? 'template')` so the marker survives insertion).
+> (c) Two additive testIDs beyond the spec: `legacy-confetti` on `src/components/shared/Confetti.tsx` (makes AC-5's "no legacy-Confetti node" mechanically assertable) and `health-streaks-card` on the Health streaks card (scopes AC-7's no-zero-numeral assertion).
+> (d) FreezeBank's zero branch is unconditional, not flag-gated — §3.5 deletes the "No streak shields banked" string outright; the surface is unreachable in every AC-9 suite (`streak_protection_v1` defaults off).
+> (e) §3.4's "never been nonzero" is implemented as "currently zero, under the flag": exact for the monotonic stats (totalXP, longestStreak); for range-scoped active-minutes an earned same-range zero also renders `—`. AC-6's checked behavior is exact as written.
+> (f) AC-4's integration assertion runs against the real webStorage profile stamp + real celebration queue at the store layer (the Today screen is not mountable in either jest project); the on-screen wiring is covered by the AC-5 e2e.
+> (g) `app/(tabs)/profile.tsx` now calls `useGameStore.loadFromDB` on mount (the pattern Rewards already uses): the game store has no persist middleware, so a direct `/profile` load read default zeros — a pre-existing staleness the starter logic would have surfaced as a false starter line for established accounts.
+> (h) `e2e/cold-start.spec.ts` uses case-sensitive regex locators for the AC-2 banned section labels (Playwright's default string matching is case-insensitive substring and would self-trip on FirstWinCard's lowercase "badges and streaks" body copy).
 
 # Cold-Start Experience — Implementation Spec (HARDENED)
 **Cluster:** Rewards zeros · Profile zeros · day-1 emptiness · zero-state radar meaning

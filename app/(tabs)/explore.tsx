@@ -43,6 +43,8 @@ import { isEnabled } from '@/config/flags';
 import { useFlagStore } from '@/store/useFlagStore';
 import { SparkHeroCard } from '@/components/modules/polymath/SparkHeroCard';
 import { ChasingNowCard } from '@/components/modules/polymath/ChasingNowCard';
+import { StarterLine } from '@/components/shared/StarterLine';
+import { STARTER_COPY } from '@/constants/starterCopy';
 import { generateChasingNow, type ChasingSignal, type ChasingThread } from '@/explore/chasing';
 import { FrontierCard } from '@/components/modules/polymath/FrontierCard';
 import { generateFrontier, type Frontier } from '@/explore/frontier';
@@ -170,6 +172,7 @@ export default function ExploreScreen() {
   const [frontier, setFrontier] = useState<Frontier | null>(null);
   const frontierEnabled = useFlagStore((s) => s.isEnabled('explore_frontier'));
   const exploreChasing = useFlagStore((s) => s.isEnabled('explore_chasing'));
+  const coldStartExplore = useFlagStore((s) => s.isEnabled('cold_start_v1'));
 
   // ─── §12.2: Your Maps history ───────────────────────────────────────────
   const [rabbitHoleTrees, setRabbitHoleTrees] = useState<RabbitHoleTreeRow[]>([]);
@@ -601,8 +604,15 @@ export default function ExploreScreen() {
             {/* Neutral card — domain identity is the R2 eyebrow ink. */}
             <Card style={styles.summary}>
               <Label color={c.polymathText}>THIS WEEK</Label>
-              <Heading style={styles.summaryNumber}>{totalMinutesWeek} min</Heading>
-              <Caption>across {interests.length} interest{interests.length === 1 ? '' : 's'}</Caption>
+              {coldStartExplore && totalMinutesWeek === 0 ? (
+                // §3.6: a zero week is an invitation, not a stat.
+                <StarterLine>{STARTER_COPY.exploreWeek}</StarterLine>
+              ) : (
+                <>
+                  <Heading style={styles.summaryNumber}>{totalMinutesWeek} min</Heading>
+                  <Caption>across {interests.length} interest{interests.length === 1 ? '' : 's'}</Caption>
+                </>
+              )}
             </Card>
           </Animated.View>
 

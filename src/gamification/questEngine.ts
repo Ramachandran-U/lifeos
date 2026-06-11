@@ -1,4 +1,5 @@
 import { rngFromKey, pickWeighted } from '@/utils/seededRandom';
+import { STARTER_COPY } from '@/constants/starterCopy';
 
 /**
  * Daily quest engine (quests_v2) — pure + seeded.
@@ -74,6 +75,13 @@ export interface QuestDraft {
   metricKey: QuestMetricKey;
   target: number;
   xp: number;
+  /**
+   * 'pinned' marks the day-1 constructed first quest (cold_start_v1) so the
+   * store inserts it with source 'pinned' — which the AI personalization
+   * pass's `source === 'template'` filter already excludes with zero new
+   * filter code. Procedural drafts never carry this field.
+   */
+  source?: 'pinned';
 }
 
 export interface QuestSelectionCtx {
@@ -87,6 +95,12 @@ export interface QuestSelectionCtx {
   yesterdayCompletionPct?: number;
   /** Templates to avoid (e.g. the one being rerolled). */
   excludeTemplateIds?: string[];
+  /**
+   * Day-1 clamp (cold_start_v1): exactly 3 quests, slot 1 pinned to a
+   * target-1 first-block quest. Set by buildCtx when yesterday had zero
+   * routine blocks AND totalXP === 0.
+   */
+  isFirstDay?: boolean;
 }
 
 function targetFor(template: QuestTemplate, completion: number, rng: () => number): number {
@@ -112,13 +126,37 @@ export function selectDailyQuests(ctx: QuestSelectionCtx, seedKey: string): Ques
   const completion = Math.min(1, Math.max(0, ctx.yesterdayCompletionPct ?? 0.5));
   const exclude = new Set(ctx.excludeTemplateIds ?? []);
 
-  const count = 3 + Math.floor(rng() * 3); // 3..5
+  // Day 1 is exactly 3 quests — never 3–5 (cold-start spec §3.3). The
+  // non-first-day branch consumes the SAME rng draws as before the clamp
+  // landed, so existing seeds stay byte-identical.
+  const count = ctx.isFirstDay ? 3 : 3 + Math.floor(rng() * 3); // 3..5
   const picked: QuestDraft[] = [];
   const usedTemplates = new Set<string>();
   const usedMetrics = new Set<QuestMetricKey>();
 
+  if (ctx.isFirstDay) {
+    // Slot 1 is CONSTRUCTED directly — bypassing targetFor, because target 1
+    // sits below t_blocks_small's [2,5] range, which stays untouched for
+    // normal days. Marking template + metric as used keeps the remaining two
+    // procedural picks from double-ticking blocks_completed.
+    const template = QUEST_TEMPLATES.find((t) => t.id === 't_blocks_small');
+    if (template && !exclude.has(template.id)) {
+      picked.push({
+        templateId: template.id,
+        title: STARTER_COPY.firstQuestTitle,
+        module: template.module,
+        metricKey: template.metricKey,
+        target: 1,
+        xp: xpFor(template, 1), // = 10
+        source: 'pinned',
+      });
+      usedTemplates.add(template.id);
+      usedMetrics.add(template.metricKey);
+    }
+  }
+
   // Re-weight after every pick so exclusions hold without a fixed order bias.
-  for (let i = 0; i < count; i++) {
+  for (let i = picked.length; i < count; i++) {
     const candidates = QUEST_TEMPLATES.filter(
       (t) => !usedTemplates.has(t.id) && !usedMetrics.has(t.metricKey) && !exclude.has(t.id),
     );

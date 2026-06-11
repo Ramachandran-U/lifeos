@@ -70,6 +70,8 @@ const ALLOWLIST = new Set<string>([
   'app/notifications-settings.tsx',
   'app/what-lifeos-knows.tsx',
   'app/what-lifeos-remembers.tsx',
+  // founder-approved manifesto-change batch (resolution 8, approved 2026-06-10): hero metadata caps in the W3 first-win hero.
+  'src/components/gamification/FirstWinCard.tsx',
   'src/components/gamification/ProgressPath.tsx',
   'src/components/gamification/QuestDetailSheet.tsx',
   'src/components/modules/career/CareerStrategyView.tsx',

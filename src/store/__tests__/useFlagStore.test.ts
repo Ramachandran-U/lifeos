@@ -67,6 +67,19 @@ describe('FALLBACK_FLAGS baseline', () => {
     expect(flags.sync_engine_enabled).toBe(false);
     expect(flags.agent_what_next).toBe(false);
   });
+
+  it('cold_start_v1 defaults ON in the fallback baseline (AC-11)', () => {
+    const { useFlagStore } = loadStore(undefined);
+    expect(useFlagStore.getState().flags.cold_start_v1).toBe(true);
+    expect(useFlagStore.getState().isEnabled('cold_start_v1')).toBe(true);
+  });
+});
+
+describe('persist key (AC-11)', () => {
+  it('the store persists under lifeos_flags_v4 — bumped when cold_start_v1 landed default-on', () => {
+    const { useFlagStore } = loadStore(undefined);
+    expect(useFlagStore.persist.getOptions().name).toBe('lifeos_flags_v4');
+  });
 });
 
 describe('isEnabled / getFlag', () => {
