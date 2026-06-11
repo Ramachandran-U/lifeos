@@ -1,18 +1,38 @@
-import { useColors, DOMAIN_GRADIENTS } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 
 export type GoalType = 'career' | 'health' | 'finance' | 'social' | 'learning' | 'personal' | string;
 
+export interface GoalTypeColor {
+  /** The full-saturation hue — color AS a surface (fills, solid progress, R1/R3). */
+  hue: string;
+  /** The per-mode text form — color ON a surface (labels, status words, R2). */
+  text: string;
+  /** The only legal tinted container for this domain. */
+  dim: string;
+  label: string;
+  /** @deprecated legacy alias of `hue` — swept to hue/text/dim in the W2 structural pass. */
+  color: string;
+  /** @deprecated legacy alias of `dim` — swept in the W2 structural pass. */
+  light: string;
+}
+
+// Ink + Signal (Cluster 3 §A.2): this hook owns goal-type palette semantics.
+// Goal type 'personal' maps to the GOAL domain — violet is the brand/AI
+// signal and is banned from domain content (violet policy §A.4).
 export function useGoalTypeColor() {
   const c = useColors();
-  return (goalType: string): { color: string; light: string; label: string; gradient: readonly [string, string] } => {
+  const make = (hue: string, text: string, dim: string, label: string): GoalTypeColor => ({
+    hue, text, dim, label, color: hue, light: dim,
+  });
+  return (goalType: string): GoalTypeColor => {
     switch (goalType) {
-      case 'career':   return { color: c.career,   light: c.careerLight,   label: 'Career',   gradient: DOMAIN_GRADIENTS.career };
-      case 'health':   return { color: c.health,   light: c.healthLight,   label: 'Health',   gradient: DOMAIN_GRADIENTS.health };
-      case 'finance':  return { color: c.finance,  light: c.financeLight,  label: 'Finance',  gradient: DOMAIN_GRADIENTS.finance };
-      case 'social':   return { color: c.social,   light: c.socialLight,   label: 'Social',   gradient: DOMAIN_GRADIENTS.social };
-      case 'learning': return { color: c.polymath, light: c.polymathLight, label: 'Learning', gradient: DOMAIN_GRADIENTS.polymath };
+      case 'career':   return make(c.career,   c.careerText,   c.careerDim,   'Career');
+      case 'health':   return make(c.health,   c.healthText,   c.healthDim,   'Health');
+      case 'finance':  return make(c.finance,  c.financeText,  c.financeDim,  'Finance');
+      case 'social':   return make(c.social,   c.socialText,   c.socialDim,   'Social');
+      case 'learning': return make(c.polymath, c.polymathText, c.polymathDim, 'Learning');
       case 'personal':
-      default:         return { color: c.primary,  light: c.primaryLight,  label: 'Personal', gradient: DOMAIN_GRADIENTS.primary };
+      default:         return make(c.goal,     c.goalText,     c.goalDim,     'Personal');
     }
   };
 }

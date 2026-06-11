@@ -14,12 +14,12 @@ interface BadgeProps {
 export function Badge({ label, icon, variant = 'default' }: BadgeProps) {
   const c = useColors();
   const variantColors: Record<BadgeVariant, { bg: string; text: string }> = {
-    goal: { bg: c.goalLight, text: c.goal },
-    health: { bg: c.healthLight, text: c.health },
-    finance: { bg: c.financeLight, text: c.finance },
-    career: { bg: c.careerLight, text: c.career },
-    social: { bg: c.socialLight, text: c.social },
-    polymath: { bg: c.polymathLight, text: c.polymath },
+    goal: { bg: c.goalDim, text: c.goal },
+    health: { bg: c.healthDim, text: c.health },
+    finance: { bg: c.financeDim, text: c.finance },
+    career: { bg: c.careerDim, text: c.career },
+    social: { bg: c.socialDim, text: c.social },
+    polymath: { bg: c.polymathDim, text: c.polymath },
     default: { bg: c.surface, text: c.textSecondary },
   };
   const v = variantColors[variant];

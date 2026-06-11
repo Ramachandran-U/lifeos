@@ -591,7 +591,7 @@ export default function CareerScreen() {
               </View>
               <View style={s.savedCardActions}>
                 <Pressable
-                  style={[s.iconBtn, { backgroundColor: c.careerLight ?? c.primaryLight }]}
+                  style={[s.iconBtn, { backgroundColor: c.careerDim ?? c.primaryDim }]}
                   onPress={() => loadPath(path)}
                   hitSlop={8}
                 >

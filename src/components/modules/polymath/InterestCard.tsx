@@ -79,7 +79,7 @@ export function InterestCard({
           style={[
             styles.pill,
             {
-              backgroundColor: protectedOn ? c.polymathLight : c.surface,
+              backgroundColor: protectedOn ? c.polymathDim : c.surface,
               borderColor: protectedOn ? c.polymath : c.border,
             },
           ]}
@@ -168,6 +168,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: 999,
-    backgroundColor: colors.polymathLight,
+    backgroundColor: colors.polymathDim,
   },
 });

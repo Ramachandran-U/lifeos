@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { useColors, DOMAIN_GRADIENTS } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Card } from '@/components/ui/Card';
@@ -37,7 +37,7 @@ export function SocialScoreCard({ score, totalContacts, overdueCount }: SocialSc
       </View>
       {score !== null ? (
         <View style={styles.progress}>
-          <ProgressBar value={score} color={c.social} gradientColors={DOMAIN_GRADIENTS.social} />
+          <ProgressBar value={score} color={c.social} />
         </View>
       ) : null}
       <Caption style={{ color: c.textSecondary, marginTop: spacing.xs }}>{subtitle}</Caption>

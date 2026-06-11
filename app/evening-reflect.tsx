@@ -332,7 +332,7 @@ export default function EveningReflectScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
           <View style={styles.eyebrowRow}>
-            <Label color={c.primaryLight} style={styles.eyebrow}>EVENING REFLECT</Label>
+            <Label color={c.primaryDim} style={styles.eyebrow}>EVENING REFLECT</Label>
             <Pressable
               onPress={() => router.push('/feedback')}
               hitSlop={8}
@@ -409,7 +409,7 @@ export default function EveningReflectScreen() {
                     ]}
                   >
                     <Body style={styles.moodEmoji}>{m.emoji}</Body>
-                    <Caption style={{ color: selected ? c.primaryLight : c.textMuted }}>{m.label}</Caption>
+                    <Caption style={{ color: selected ? c.primaryDim : c.textMuted }}>{m.label}</Caption>
                   </Pressable>
                 );
               })}
@@ -472,8 +472,8 @@ export default function EveningReflectScreen() {
             {tweak && !tweakLoading && (
               <Card style={[styles.tweakCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
                 <View style={styles.tweakHeader}>
-                  <Ionicons name="sparkles" size={18} color={c.primaryLight} />
-                  <Label color={c.primaryLight}>SUGGESTED TWEAK</Label>
+                  <Ionicons name="sparkles" size={18} color={c.primaryDim} />
+                  <Label color={c.primaryDim}>SUGGESTED TWEAK</Label>
                 </View>
                 <Body style={styles.tweakRationale}>{tweak.rationale}</Body>
                 <View style={[styles.tweakPatch, { backgroundColor: c.surface, borderColor: c.border }]}>

@@ -37,11 +37,14 @@ export function Button({
 }: ButtonProps) {
   const c = useColors();
 
+  // Ink + Signal §A.3: filled controls take onPrimary ink (white literals
+  // failed AA on the new fills); secondary is neutral — violet is the brand
+  // signal, not a button chrome (violet policy §A.4).
   const variantStyles: Record<ButtonVariant, { bg: string; text: string; border?: string }> = {
-    primary: { bg: c.primary, text: '#FFFFFF' },
-    secondary: { bg: 'transparent', text: c.primary, border: c.primary },
+    primary: { bg: c.primary, text: c.onPrimary },
+    secondary: { bg: 'transparent', text: c.textPrimary, border: c.border },
     ghost: { bg: 'transparent', text: c.textSecondary },
-    danger: { bg: c.error, text: '#FFFFFF' },
+    danger: { bg: c.error, text: c.onPrimary },
   };
   const v = variantStyles[variant];
   const isInteractive = !disabled && !loading;

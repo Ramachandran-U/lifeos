@@ -1,19 +1,18 @@
 import { View, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
-import { useColors, DOMAIN_GRADIENTS } from '@/theme/colors';
+import { useColors } from '@/theme/colors';
 import { MOTION_BUDGET } from '@/theme/motion';
 
 interface Props {
   pct: number;
   color: string;
-  /** Two-stop gradient [from, to]. Defaults to the XP gradient token. */
-  gradientColors?: readonly [string, string];
   height?: number;
 }
 
-export function XpBar({ pct, color, gradientColors = DOMAIN_GRADIENTS.xp, height = 8 }: Props) {
+// Ink + Signal: a SOLID hue fill on the neutral `track` token — the XP
+// gradient died with the domain gradient table (Manifesto P3).
+export function XpBar({ pct, color, height = 8 }: Props) {
   const c = useColors();
   const w = useSharedValue(0);
 
@@ -29,23 +28,14 @@ export function XpBar({ pct, color, gradientColors = DOMAIN_GRADIENTS.xp, height
   }));
 
   return (
-    <View style={[styles.track, { backgroundColor: c.border, height, borderRadius: height / 2 }]}>
+    <View style={[styles.track, { backgroundColor: c.track, height, borderRadius: height / 2 }]}>
       <Animated.View
         style={[
           styles.fill,
-          { height, borderRadius: height / 2, backgroundColor: gradientColors ? 'transparent' : color },
+          { height, borderRadius: height / 2, backgroundColor: color },
           animStyle,
         ]}
-      >
-        {gradientColors && (
-          <LinearGradient
-            colors={gradientColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
-      </Animated.View>
+      />
     </View>
   );
 }

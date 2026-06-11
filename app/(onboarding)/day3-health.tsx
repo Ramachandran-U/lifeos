@@ -150,7 +150,7 @@ export default function Day3HealthScreen() {
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: active ? c.healthLight : c.surface,
+                          backgroundColor: active ? c.healthDim : c.surface,
                           borderColor: active ? c.health : c.border,
                         },
                       ]}
@@ -173,7 +173,7 @@ export default function Day3HealthScreen() {
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: active ? c.healthLight : c.surface,
+                          backgroundColor: active ? c.healthDim : c.surface,
                           borderColor: active ? c.health : c.border,
                         },
                       ]}
@@ -195,7 +195,7 @@ export default function Day3HealthScreen() {
                       onPress={() => setSex(s.value)}
                       style={[
                         styles.chip,
-                        { backgroundColor: active ? c.healthLight : c.surface, borderColor: active ? c.health : c.border },
+                        { backgroundColor: active ? c.healthDim : c.surface, borderColor: active ? c.health : c.border },
                       ]}
                     >
                       <Body style={{ color: active ? c.health : c.textSecondary }}>{s.label}</Body>
@@ -215,7 +215,7 @@ export default function Day3HealthScreen() {
                       onPress={() => setActivityLevel(a.value)}
                       style={[
                         styles.chip,
-                        { backgroundColor: active ? c.healthLight : c.surface, borderColor: active ? c.health : c.border },
+                        { backgroundColor: active ? c.healthDim : c.surface, borderColor: active ? c.health : c.border },
                       ]}
                     >
                       <Body style={{ color: active ? c.health : c.textSecondary }}>{a.label}</Body>

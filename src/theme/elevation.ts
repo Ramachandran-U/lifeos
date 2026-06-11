@@ -1,9 +1,11 @@
 import { ViewStyle, Platform } from 'react-native';
 import { useThemeStore } from '@/store/useThemeStore';
 
-// Aurora elevation — 4 levels. Dark mode uses translucency + glow, light mode
-// uses soft cast shadows. Consumers should call `useElevation(level)` and spread
-// the returned style; never write a raw boxShadow / shadowColor.
+// Ink elevation — 4 levels of neutral ink, zero hue cast (Cluster 3 §A.7).
+// Dark mode steps through the solid ink scale; light mode uses soft cast
+// shadows. The existing black shadows stay — they are depth, not glow.
+// Consumers call `useElevation(level)` and spread the returned style; never
+// write a raw boxShadow / shadowColor.
 
 export type Elevation = 'z0' | 'z1' | 'z2' | 'z3';
 
@@ -24,12 +26,12 @@ interface ElevationStyle {
 const darkLevels: Record<Elevation, ElevationStyle> = {
   z0: {},
   z1: {
-    backgroundColor: 'rgba(255,255,255,0.045)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#101014', // solid — matches `card`
+    borderColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
   },
   z2: {
-    backgroundColor: 'rgba(26,16,40,0.92)',
+    backgroundColor: '#0E0E12', // matches `surface`
     borderColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
     shadowColor: '#000',
@@ -40,7 +42,7 @@ const darkLevels: Record<Elevation, ElevationStyle> = {
     boxShadow: '0 -20px 60px rgba(0,0,0,0.5)',
   },
   z3: {
-    backgroundColor: 'rgba(26,16,40,0.94)',
+    backgroundColor: '#17171C', // matches `surfaceAlt`
     borderColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     shadowColor: '#000',
@@ -48,7 +50,7 @@ const darkLevels: Record<Elevation, ElevationStyle> = {
     shadowOpacity: 0.45,
     shadowRadius: 32,
     elevation: 18,
-    boxShadow: '0 16px 40px rgba(8,4,16,0.5)',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
   },
 };
 
@@ -56,36 +58,36 @@ const lightLevels: Record<Elevation, ElevationStyle> = {
   z0: {},
   z1: {
     backgroundColor: '#FFFFFF',
-    borderColor: 'rgba(20,8,40,0.10)',
+    borderColor: 'rgba(11,11,13,0.10)',
     borderWidth: 1,
-    shadowColor: '#140828',
+    shadowColor: '#0B0B0D',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
-    boxShadow: '0 1px 4px rgba(20,8,40,0.05)',
+    boxShadow: '0 1px 4px rgba(11,11,13,0.05)',
   },
   z2: {
     backgroundColor: '#FFFFFF',
-    borderColor: 'rgba(20,8,40,0.10)',
+    borderColor: 'rgba(11,11,13,0.10)',
     borderWidth: 1,
-    shadowColor: '#140828',
+    shadowColor: '#0B0B0D',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
     elevation: 8,
-    boxShadow: '0 8px 24px rgba(20,8,40,0.12)',
+    boxShadow: '0 8px 24px rgba(11,11,13,0.12)',
   },
   z3: {
     backgroundColor: '#FFFFFF',
-    borderColor: 'rgba(20,8,40,0.10)',
+    borderColor: 'rgba(11,11,13,0.10)',
     borderWidth: 1,
-    shadowColor: '#140828',
+    shadowColor: '#0B0B0D',
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.10,
     shadowRadius: 40,
     elevation: 16,
-    boxShadow: '0 16px 40px rgba(20,8,40,0.10)',
+    boxShadow: '0 16px 40px rgba(11,11,13,0.10)',
   },
 };
 

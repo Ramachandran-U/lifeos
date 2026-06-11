@@ -53,7 +53,7 @@ export function LevelUpOverlay({ level, userName, onClose }: Props) {
           ]}
         >
           <View style={[styles.levelBadge, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}>
-            <Text style={[styles.levelNum, { color: c.primaryLight }]}>{level}</Text>
+            <Text style={[styles.levelNum, { color: c.primaryDim }]}>{level}</Text>
           </View>
           <View style={styles.copy}>
             <Text style={[styles.kicker, { color: c.textMuted }]}>LEVEL UP ✨</Text>

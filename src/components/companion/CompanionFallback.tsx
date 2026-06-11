@@ -57,7 +57,7 @@ export function CompanionFallback({ mood, size = 44, equipped = [] }: Props) {
 
   const breathStyle = useAnimatedStyle(() => ({ transform: [{ scale: breath.value }] }));
 
-  const ring = mood === 'concerned' ? c.warning : mood === 'thriving' ? c.success : c.primaryLight;
+  const ring = mood === 'concerned' ? c.warning : mood === 'thriving' ? c.success : c.primaryDim;
   const badge = equipped.map((id) => cosmeticById(id)?.emoji).filter(Boolean)[0];
 
   return (

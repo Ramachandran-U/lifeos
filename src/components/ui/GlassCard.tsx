@@ -5,21 +5,17 @@ import {
   ViewStyle,
   StyleProp,
   StyleSheet,
-  Platform,
   Pressable,
   GestureResponderEvent,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
-import { useColors } from '@/theme/colors';
-import { useThemeStore } from '@/store/useThemeStore';
 import { radii } from '@/theme/radii';
 import { spacing } from '@/theme/spacing';
 import { useElevation, type Elevation } from '@/theme/elevation';
 import { usePressScale } from '@/hooks/usePressScale';
 
 interface GlassCardProps extends ViewProps {
-  accent?: string;        // Domain hue — adds left border + top-left glow
+  accent?: string;        // Domain hue — left border (corner glow died in Ink + Signal)
   padding?: keyof typeof spacing | number;
   radius?: keyof typeof radii | number;
   elevation?: Elevation;  // z1 default — content card
@@ -28,9 +24,10 @@ interface GlassCardProps extends ViewProps {
   children?: ReactNode;
 }
 
-// Aurora signature container. Translucent over the screen gradient (dark) or
-// a soft white surface (light). Optional `accent` adds the domain-tinted left
-// border + corner glow that identifies a card's owning domain.
+// Ink container — a solid ink surface (elevation token) with a hairline
+// border. Blur and accent corner glow died in the Ink + Signal recommit
+// (Cluster 3 §A.7). The `accent` left border survives until the W2 structural
+// pass removes the prop (R3 glyphs replace edge accents).
 export function GlassCard({
   accent,
   padding = 'md',
@@ -41,10 +38,7 @@ export function GlassCard({
   children,
   ...rest
 }: GlassCardProps) {
-  const c = useColors();
   const elev = useElevation(elevation);
-  const mode = useThemeStore((s) => s.mode);
-  const isWeb = Platform.OS === 'web';
   const padValue = typeof padding === 'number' ? padding : spacing[padding];
   const radiusValue = typeof radius === 'number' ? radius : radii[radius];
   // Cards compress gently (0.98) vs. a control's 0.97 — proportional to size.
@@ -63,41 +57,11 @@ export function GlassCard({
         styles.base,
         elev,
         { borderRadius: radiusValue, padding: padValue },
-        // Subtle backdrop-filter on web only.
-        isWeb
-          ? ({ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as ViewStyle)
-          : null,
         accentBorder,
         style,
       ]}
       {...rest}
     >
-      {/* Native frosted-glass backdrop — clipped by the base's rounded overflow.
-          z0 (ground) stays unblurred; web uses backdropFilter above instead. */}
-      {!isWeb && elevation !== 'z0' ? (
-        <BlurView
-          intensity={24}
-          tint={mode === 'light' ? 'light' : 'dark'}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
-      ) : null}
-      {accent ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.accentGlow,
-            // Soft radial — web does this with a CSS gradient; native shows
-            // a faint flat tint at the top-left.
-            Platform.OS === 'web'
-              ? ({
-                  background: `radial-gradient(ellipse at top left, ${accent}14, transparent 65%)`,
-                } as unknown as ViewStyle)
-              : { backgroundColor: accent + '08' },
-            { borderTopLeftRadius: radiusValue, borderTopRightRadius: radiusValue },
-          ]}
-        />
-      ) : null}
       <View style={styles.content}>{children}</View>
     </View>
   );
@@ -110,7 +74,7 @@ export function GlassCard({
         onPressOut={press.onPressOut}
         accessibilityRole="button"
       >
-        {/* Aurora Refined v2: spring scale press feedback instead of opacity dip. */}
+        {/* Spring scale press feedback instead of opacity dip. */}
         <Animated.View style={[{ borderRadius: radiusValue }, press.animatedStyle]}>
           {inner}
         </Animated.View>
@@ -124,13 +88,6 @@ const styles = StyleSheet.create({
   base: {
     overflow: 'hidden',
     position: 'relative',
-  },
-  accentGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 70,
   },
   content: {
     position: 'relative',

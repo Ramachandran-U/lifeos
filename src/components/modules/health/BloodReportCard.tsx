@@ -16,9 +16,9 @@ export function BloodReportCard({ result, date }: BloodReportCardProps) {
   const c = useColors();
   const styles = makeStyles(c);
   const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    normal: { bg: c.healthLight, text: c.health },
+    normal: { bg: c.healthDim, text: c.health },
     high: { bg: '#FFE8E8', text: c.error },
-    low: { bg: c.financeLight, text: c.warning },
+    low: { bg: c.financeDim, text: c.warning },
   };
   return (
     <Card moduleColor={c.health}>

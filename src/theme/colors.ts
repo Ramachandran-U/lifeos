@@ -1,8 +1,17 @@
 import { useThemeStore } from '@/store/useThemeStore';
 
-// ─── Aurora Glass palette ────────────────────────────────────────────────────
-// Per DESIGN_DOC.md — refined violet-to-black with calibrated domain hues.
-// Domains keep hue *and* shape/glyph for color-blind robustness.
+// ─── Ink + Signal palette ────────────────────────────────────────────────────
+// Per docs/DESIGN_MANIFESTO.md and the Cluster 3 spec
+// (docs/design-deep-dive/03-color-system.md): true-black ink as the resting
+// state, six full-saturation domain hues as the ONLY chroma, violet restricted
+// to the brand/AI signal (policy §A.4 — five surfaces). The neutral scale
+// carries zero hue. Every value below is contrast-locked by
+// src/theme/__tests__/contrast.test.ts — changing a pinned hex or threshold
+// requires founder sign-off in the PR description.
+//
+// Rule of use: color ON a surface → `*Text` token; color AS a surface → the
+// base hue token. `*Dim` tokens are the only legal tinted fills — the
+// `token + 'XX'` alpha-suffix pattern is banned (atmosphereTintCompliance).
 
 export const DOMAIN_GLYPHS = {
   goal:     '◆',
@@ -13,93 +22,110 @@ export const DOMAIN_GLYPHS = {
   polymath: '✦',
 } as const;
 
-const MODULE = {
-  // Aurora domain hues — calibrated at equal perceived lightness
-  goal:          '#C9A0FF',
-  goalLight:     '#2A1E4A',
-  health:        '#7EE0B8',
-  healthLight:   '#0F2A22',
-  finance:       '#F4C16A',
-  financeLight:  '#2A2014',
-  career:        '#7FB8FF',
-  careerLight:   '#0F1E38',
-  social:        '#FF99C5',
-  socialLight:   '#2A1420',
-  polymath:      '#FFD66B',
-  polymathLight: '#2A2014',
-  // Semantic
-  success: '#31E0A3',
-  warning: '#FFC23A',
-  error:   '#FF5577',
-  // Gamification
-  xp:     '#C5B3FF',
-  streak: '#FF8C3C',
-  badge:  '#C5B3FF',
-  // Brand
-  primary:      '#A584FF',
-  primaryLight: '#C5B3FF',
-  // Near-black ink for content sitting on a bright accent fill (FAB icons,
-  // on-accent labels). Fixed across themes since domain hues are bright in both.
-  inkOnColor:   '#1A0612',
+// Domain hues — full saturation, fixed across both themes (text-capable in
+// dark mode by construction; light mode reads them through `*Text`).
+const DOMAIN_HUES = {
+  goal:     '#FF7733',
+  health:   '#00D68F',
+  finance:  '#FFB300',
+  career:   '#4D9FFF',
+  social:   '#FF5C97',
+  polymath: '#1FC8FF',
+  // Near-black ink for content sitting on a bright accent fill (R1 blocks,
+  // FAB icons, on-accent labels). Fixed across themes since domain hues are
+  // bright in both.
+  inkOnColor: '#0B0B0D',
 } as const;
 
-// Two-stop left→right gradient per domain — used by ProgressBar, XpBar, etc.
-// End stop is ~25% lighter than the domain hue; same in both themes since
-// domain hues are fixed accent colours.
-export const DOMAIN_GRADIENTS = {
-  goal:     ['#C9A0FF', '#E4CBFF'] as const,
-  health:   ['#7EE0B8', '#AEEFD8'] as const,
-  finance:  ['#F4C16A', '#FAD89A'] as const,
-  career:   ['#7FB8FF', '#AECFFF'] as const,
-  social:   ['#FF99C5', '#FFB8D9'] as const,
-  polymath: ['#FFD66B', '#FFE49A'] as const,
-  primary:  ['#A584FF', '#C5B3FF'] as const,
-  xp:       ['#C5B3FF', '#DDD4FF'] as const,
-} as const;
-
-// ─── Dark palette (Aurora Glass — primary) ───────────────────────────────────
+// ─── Dark palette (Ink — primary) ────────────────────────────────────────────
 
 export const darkColors = {
-  ...MODULE,
-  background:    '#0A0612',
-  surface:       '#120A1E',
-  surfaceAlt:    '#1A1028',
-  card:          'rgba(255,255,255,0.04)',
-  border:        'rgba(255,255,255,0.08)',
-  textPrimary:   '#F4EFFF',
-  textSecondary: 'rgba(244,239,255,0.62)',
-  textMuted:     'rgba(244,239,255,0.38)',
+  ...DOMAIN_HUES,
+  // Surfaces — neutral ink scale, zero hue cast.
+  background:    '#000000',
+  surface:       '#0E0E12',
+  surfaceAlt:    '#17171C',
+  card:          '#101014',
+  border:        'rgba(255,255,255,0.10)',
+  track:         'rgba(255,255,255,0.08)', // progress/XP bar track — the only legal use
+  textPrimary:   '#F7F8F8',
+  textSecondary: 'rgba(247,248,248,0.72)',
+  textMuted:     'rgba(247,248,248,0.58)',
+  // Domain hue as TEXT (dark: the hue itself — all clear 4.5:1 on bg + card).
+  goalText:     '#FF7733',
+  healthText:   '#00D68F',
+  financeText:  '#FFB300',
+  careerText:   '#4D9FFF',
+  socialText:   '#FF5C97',
+  polymathText: '#1FC8FF',
+  // Dim containers — hue at 14% over black; the only legal tinted fills.
+  goalDim:     '#241107',
+  healthDim:   '#001E14',
+  financeDim:  '#241900',
+  careerDim:   '#0B1624',
+  socialDim:   '#240D15',
+  polymathDim: '#041C24',
+  primaryDim:  '#131124',
+  // Semantic
+  success: '#00D68F',
+  warning: '#FFC53D',
+  error:   '#FF6166',
+  // Gamification (violet on xp only — policy V5; badges are gold, not violet)
+  xp:     '#9D8CFF',
+  streak: '#FF8C3C',
+  badge:  '#FFB300',
+  // Brand violet ("Signal") — the one brand accent; see violet policy §A.4.
+  primary:   '#8B7CFF',
+  onPrimary: '#0B0B0D', // label ink for primary/danger filled controls
   // Sidebar
-  sidebarBg:     '#120A1E',
-  sidebarBorder: 'rgba(255,255,255,0.08)',
-  overlay:       'rgba(0,0,0,0.65)',
+  sidebarBg:     '#0E0E12',
+  sidebarBorder: 'rgba(255,255,255,0.10)',
+  overlay:       'rgba(0,0,0,0.72)',
 } as const;
 
-// ─── Light palette ────────────────────────────────────────────────────────────
+// ─── Light palette (kept, re-derived neutral) ────────────────────────────────
 
 export const lightColors = {
-  ...MODULE,
-  // Domain "Light" tints overridden for legibility on a light background —
-  // the dark-mode tints (#2A1E4A etc.) are unreadable here.
-  goalLight:     '#F1E9FF',
-  healthLight:   '#DFF7EC',
-  financeLight:  '#FFF1D6',
-  careerLight:   '#E1ECFF',
-  socialLight:   '#FFE3EE',
-  polymathLight: '#FFF1D6',
-  primaryLight:  '#E8DEFF',
-  background:    '#F7F4FC',
+  ...DOMAIN_HUES,
+  background:    '#F6F7F8',
   surface:       '#FFFFFF',
-  surfaceAlt:    '#F0EAFA',
+  surfaceAlt:    '#ECEDEF',
   card:          '#FFFFFF',
-  border:        'rgba(20,8,40,0.14)',
-  textPrimary:   '#140828',
-  textSecondary: 'rgba(20,8,40,0.72)',
-  textMuted:     'rgba(20,8,40,0.52)',
+  border:        'rgba(11,11,13,0.12)',
+  track:         'rgba(11,11,13,0.08)',
+  textPrimary:   '#0B0B0D',
+  textSecondary: 'rgba(11,11,13,0.72)',
+  textMuted:     'rgba(11,11,13,0.60)',
+  // Domain hue as TEXT (light: darkened for ≥4.5:1 on white + own dim).
+  goalText:     '#B83A00',
+  healthText:   '#00734D',
+  financeText:  '#8A5800',
+  careerText:   '#0B5FD9',
+  socialText:   '#C81E5C',
+  polymathText: '#00708F',
+  // Dim containers (light).
+  goalDim:     '#FFEDE3',
+  healthDim:   '#DFF8EE',
+  financeDim:  '#FFF3D6',
+  careerDim:   '#E3EEFF',
+  socialDim:   '#FFE4EE',
+  polymathDim: '#DFF6FD',
+  primaryDim:  '#E9E6FF',
+  // Semantic
+  success: '#047857',
+  warning: '#8A5800',
+  error:   '#C2243B',
+  // Gamification (light text forms; badge FILLS stay #FFB300 + inkOnColor in both modes)
+  xp:     '#5B4FE8',
+  streak: '#C2410C',
+  badge:  '#8A5800',
+  // Brand
+  primary:   '#5B4FE8',
+  onPrimary: '#FFFFFF',
   // Sidebar
   sidebarBg:     '#FFFFFF',
-  sidebarBorder: 'rgba(20,8,40,0.14)',
-  overlay:       'rgba(20,8,40,0.45)',
+  sidebarBorder: 'rgba(11,11,13,0.12)',
+  overlay:       'rgba(11,11,13,0.45)',
 } as const;
 
 export type AppColors = { [K in keyof typeof darkColors]: string };

@@ -107,7 +107,7 @@ export function YouTubeImportCard({
       </Caption>
 
       {!connected ? (
-        <Pressable onPress={handleConnect} style={[styles.btn, { backgroundColor: c.polymathLight }]}>
+        <Pressable onPress={handleConnect} style={[styles.btn, { backgroundColor: c.polymathDim }]}>
           <Ionicons name="link" size={15} color={c.polymath} />
           <Label color={c.polymath}>Connect YouTube</Label>
         </Pressable>
@@ -115,7 +115,7 @@ export function YouTubeImportCard({
         <Pressable
           onPress={handleImport}
           disabled={phase === 'loading'}
-          style={[styles.btn, { backgroundColor: c.polymathLight }]}
+          style={[styles.btn, { backgroundColor: c.polymathDim }]}
         >
           {phase === 'loading' ? (
             <LoadingDots />

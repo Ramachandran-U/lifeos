@@ -49,7 +49,7 @@ export function GoalCard({
       <Body style={[styles.title, isPrimary && styles.primaryTitle, { color: c.textPrimary }]}>
         {title}
       </Body>
-      <ProgressBar value={progress} color={typeColor.color} gradientColors={typeColor.gradient} height={isPrimary ? 8 : 6} />
+      <ProgressBar value={progress} color={typeColor.color} height={isPrimary ? 8 : 6} />
       <View style={styles.footer}>
         <Caption style={{ color: c.textSecondary }}>{progressLabel}</Caption>
         {commentCount > 0 && (

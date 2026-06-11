@@ -35,7 +35,7 @@ export function RoutineDiffPreview({ existing, plan, loading, onConfirm, onCance
 
   return (
     <View style={styles.container}>
-      <Label color={c.primaryLight} style={styles.eyebrow}>PROPOSED CHANGES TO TODAY</Label>
+      <Label color={c.primaryDim} style={styles.eyebrow}>PROPOSED CHANGES TO TODAY</Label>
       <Heading style={styles.title}>
         {totalChanges === 0 ? 'No changes needed' : `${totalChanges} change${totalChanges === 1 ? '' : 's'}`}
       </Heading>

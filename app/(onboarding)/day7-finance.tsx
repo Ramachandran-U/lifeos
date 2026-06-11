@@ -158,7 +158,7 @@ export default function Day7FinanceScreen() {
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: active ? c.financeLight : c.surface,
+                          backgroundColor: active ? c.financeDim : c.surface,
                           borderColor: active ? c.finance : c.border,
                         },
                       ]}
@@ -189,7 +189,7 @@ export default function Day7FinanceScreen() {
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: active ? c.financeLight : c.surface,
+                          backgroundColor: active ? c.financeDim : c.surface,
                           borderColor: active ? c.finance : c.border,
                         },
                       ]}
@@ -220,7 +220,7 @@ export default function Day7FinanceScreen() {
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: active ? c.financeLight : c.surface,
+                          backgroundColor: active ? c.financeDim : c.surface,
                           borderColor: active ? c.finance : c.border,
                         },
                       ]}
