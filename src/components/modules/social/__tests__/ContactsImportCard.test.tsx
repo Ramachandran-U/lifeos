@@ -73,3 +73,42 @@ describe('ContactsImportCard', () => {
     expect(onImported).toHaveBeenCalled();
   });
 });
+
+describe("ContactsImportCard presentation='row' (Ink + Signal §3.0.3, W4)", () => {
+  it('renders the disconnected ConnectRow with the committed copy', () => {
+    connectedMock.mockReturnValue(false);
+    render(
+      <ContactsImportCard
+        presentation="row"
+        userId="u1"
+        existingNames={[]}
+        onImported={jest.fn()}
+      />,
+    );
+    expect(screen.getByTestId('connect-row-contacts')).toBeTruthy();
+    expect(screen.getByText('Connect Google Contacts')).toBeTruthy();
+    expect(screen.getByText('Names and birthdays stay on this device')).toBeTruthy();
+    expect(screen.getByText('Connect')).toBeTruthy();
+    // The promo-card pitch never renders in row mode.
+    expect(screen.queryByText('IMPORT FROM GOOGLE CONTACTS')).toBeNull();
+  });
+
+  it('renders the connected ConnectRow and keeps the review modal as the press flow', async () => {
+    connectedMock.mockReturnValue(true);
+    fetchMock.mockResolvedValue([{ name: 'Alex Rivera', birthday: '1990-06-04', email: 'a@x.com' }]);
+    render(
+      <ContactsImportCard
+        presentation="row"
+        userId="u1"
+        existingNames={[]}
+        onImported={jest.fn()}
+      />,
+    );
+    expect(screen.getByText('Import contacts')).toBeTruthy();
+    expect(screen.getByText('You choose who gets added')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('connect-row-contacts'));
+    await waitFor(() => expect(screen.getByText('CHOOSE WHO TO ADD')).toBeTruthy());
+    expect(screen.getByText('Alex Rivera')).toBeTruthy();
+  });
+});

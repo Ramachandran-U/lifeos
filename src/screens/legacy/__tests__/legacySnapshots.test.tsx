@@ -21,6 +21,12 @@
  *    renders it. The Health sweep (MealSuggestionsCard / BloodReportCard /
  *    FitDashboard) only touches surfaces that are collapsed or disconnected
  *    in the zero-data baseline — no Health snapshot churn.
+ *  - 2026-06-12 (W4 screens batch B, Career + Social): NO churn. The
+ *    UpcomingBirthdaysCard re-skin (§3.4 item 2) and the CareerStrategyView
+ *    six-label §3.0.7 sweep are unconditional and shared with legacy, but
+ *    neither component renders in the zero-data baselines (birthdays need
+ *    contacts; the strategy view needs a generated strategy) — verified by
+ *    these snapshots passing un-regenerated in the batch B PR.
  *
  * Mock seams follow the established component-test conventions
  * (TodayHeader.test.tsx, ContactsImportCard.test.tsx): expo-router hooks and

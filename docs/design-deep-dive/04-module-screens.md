@@ -20,6 +20,13 @@
 > (i) The connected Fit row's press target is Sync, leaving no home for "Disconnect" — not surfaced in the flag-on Health tree (legacy keeps it). Filed as PARKED_ITEMS 13.2; must land before flag graduation.
 > (j) DiscoverGrid + interest-suggestions fetch are legacy-only; the recomposed Explore cast is exactly §3.2 items 1–9.
 > (k) The Energy row's `Log` action expands an inline 1–5 numeral pill picker (the emoji scale is banned by §3.0.5; the spec named the action, not the input).
+> **Amendment (founder-flagged, 2026-06-13, W4 batch B — Career + Social):**
+> (l) CareerStrategyView's six §3.0.7 labels were swept in this PR (W2 had only recolored them); Guard D entry shrank. The dynamic `PHASE {n}` / slot / priority caps and `12-WEEK EXECUTION PLAN` sit OUTSIDE the committed kill table and were left byte-exact — `12-WEEK EXECUTION PLAN` now shouts directly under the sentence-case `12-week plan` SectionTitle and needs a dossier ruling before graduation.
+> (m) `ReconnectHero` gained `onAdd` (the empty-state CTA had no committed handler); `onSnooze` is optional — the `useHeroSnoozeStore.snooze('social')` call lives inside the hero, the screen reacts via subscription.
+> (n) The legacy caps eyebrows did not move into `CareerSetupSheet` (Guard D bans caps in new files; allowlist may not grow): sentence-case segment headlines carry the hierarchy; the analyse button gained `loading`/`Analysing…` (the legacy screen-level loading block has no home in the sheet).
+> (o) SavePathModal's raw `duration(250)` snapped to `TIMING.normal` per the motion ratchet's ±20% rule.
+> (p) R9 scope call: the social in-cadence quiet line renders WITHOUT the 4px rail (no ink/CTA in the hue there); the rail lives on the overdue state; CareerPathHero carries it in all three states (each carries career ink or a CTA).
+> (q) Spec-silent position calls: `Edit path` = the `Skill gaps` SectionTitle trailing action; the career hero re-enters keyed by data state; the social FAB gained a11y role/label. Copy nits kept byte-exact and flagged: `1 days ago` / `1 people in your orbit` at n=1.
 
 All paths, line numbers, tokens, and store APIs are now verified against the repo. Three load-bearing discoveries: the repo has **no ESLint config** (the spec's ESLint enforcement is unenforceable as written), `usePreferencesStore` **does not persist on native** (the snooze decision was broken), and a dozen child-card CAPS eyebrows survive the spec's sweep. Producing the hardened spec.
 
