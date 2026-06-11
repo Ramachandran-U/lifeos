@@ -10,7 +10,7 @@ import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
-import { AuroraAnimatedBackground } from '@/components/shared/AuroraAnimatedBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { ensureLocalUserFromAuth, getUserByEmail, setWebSession } from '@/db/queries/users';
 import { useUserStore } from '@/store/useUserStore';
 import { signInWithEmail, signInWithApple, startGoogleSupabaseOAuth } from '@/integrations/supabase/auth';
@@ -99,7 +99,7 @@ export default function SignInScreen() {
 
   return (
     <View style={styles.container}>
-      <AuroraAnimatedBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.flex}>
       <KeyboardAvoidingView
         style={styles.flex}

@@ -1,4 +1,4 @@
-jest.mock('@/components/shared/AuroraBackground', () => ({ AuroraBackground: () => null }));
+jest.mock('@/components/shared/InkCanvas', () => ({ InkCanvas: () => null }));
 
 import { render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

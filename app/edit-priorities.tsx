@@ -10,7 +10,7 @@ import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Button } from '@/components/ui/Button';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { Card } from '@/components/ui/Card';
 import { useUserStore, type DomainId } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
@@ -302,7 +302,7 @@ export default function EditPrioritiesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>

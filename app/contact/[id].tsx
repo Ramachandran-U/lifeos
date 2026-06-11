@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { LoadingDots } from '@/components/ui/LoadingDots';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import {
   computeOverdue,
   getContact,
@@ -82,7 +82,7 @@ export default function ContactDetailScreen() {
   if (!contact) {
     return (
       <View style={[styles.root, { backgroundColor: c.background }]}>
-        <AuroraBackground />
+        <InkCanvas />
         <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Caption style={{ color: c.textMuted }}>Contact not found.</Caption>
           <Pressable onPress={() => router.back()} style={{ marginTop: spacing.md }}>
@@ -160,7 +160,7 @@ export default function ContactDetailScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: c.background }]}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.topRow}>

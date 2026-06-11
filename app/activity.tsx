@@ -13,7 +13,7 @@ import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Card } from '@/components/ui/Card';
 import { LoadingDots } from '@/components/ui/LoadingDots';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useActivityFeed } from '@/hooks/useActivityFeed';
 import { prettifyKey, snapshotTitle, type ActivityItem } from '@/sync/activityFeed';
 import type { HistoryEntry } from '@/sync/history';
@@ -130,7 +130,7 @@ export default function ActivityScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={styles.topRow}>
           <Pressable onPress={() => (inTimeline ? closeTimeline() : router.back())} hitSlop={12}>

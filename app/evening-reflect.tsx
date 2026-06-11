@@ -12,7 +12,7 @@ import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { getRoutineBlocksByDate, updateRoutineBlock } from '@/db/queries/routine';
 import { cloneRoutineToDate } from '@/utils/starterRoutine';
 import { upsertReflection, getReflectionByDate, type BlockReview } from '@/db/queries/reflections';
@@ -328,7 +328,7 @@ export default function EveningReflectScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AuroraBackground />
+      <InkCanvas />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
           <View style={styles.eyebrowRow}>

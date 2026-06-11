@@ -1,121 +1,95 @@
 import { test, expect } from '@playwright/test';
+import { seedAuthedUser, type SeedBlock } from './helpers';
 
-// Ambient background E2E tests — requires authenticated session.
-// Run: SMOKE_BASE_URL=https://... npx playwright test --project=authenticated -g ambient
+// Ink canvas E2E (Ink + Signal, Cluster 3 §B) — the wash is dead; the resting
+// base is true-black ink with nothing moving, and ambient layers are EVENT
+// language only. Self-seeding (chromium project): no real session required.
+// Run: npx playwright test --project=chromium -g "ink canvas"
 
-test.describe('ambient backgrounds', () => {
-  test('Today screen renders ambient layers', async ({ page }) => {
-    const baseURL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
-    await page.goto(baseURL, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(3000);
+const BLOCK = (id: string, status?: string): SeedBlock => ({
+  id,
+  startTime: '09:00',
+  endTime: '09:45',
+  title: `Block ${id}`,
+  module: 'health',
+  ...(status ? { status } : {}),
+});
 
-    // The aurora background container should be present
-    const auroraBg = page.locator('[data-testid="aurora-bg"]');
-    await expect(auroraBg).toBeVisible({ timeout: 10000 });
+test.describe('ink canvas', () => {
+  test('1. the wash is gone: aurora-bg and ambient-mesh resolve to nothing, ink-canvas renders', async ({ page }) => {
+    await seedAuthedUser(page);
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
 
-    // The gradient mesh layer should render (always on)
-    const mesh = page.locator('[data-testid="ambient-mesh"]');
-    await expect(mesh).toBeVisible();
-
-    // Mesh should have rendered content. On web the mesh is a single div
-    // whose backgroundImage stacks multiple radial-gradients (see
-    // src/components/shared/ambient/GradientMesh.tsx: WebGradientMesh). On
-    // native, three separate orb divs render. Assert the web semantic
-    // since this runner is always Chromium.
-    const gradientDiv = mesh.locator('div').filter({
-      has: page.locator(':scope'),
-    }).first();
-    await expect(gradientDiv).toBeVisible();
-    const meshChildCount = await mesh.locator('div').count();
-    expect(meshChildCount).toBeGreaterThanOrEqual(1);
-
-    // The sweep container should be present (even if not active)
-    const sweep = page.locator('[data-testid="ambient-sweep"]');
-    await expect(sweep).toBeVisible();
-
-    // Screenshot the Today screen with ambient
-    await page.screenshot({
-      path: 'smoke-output/ambient-today-authenticated.png',
-      fullPage: false,
-    });
+    expect(await page.locator('[data-testid="aurora-bg"]').count()).toBe(0);
+    expect(await page.locator('[data-testid="ambient-mesh"]').count()).toBe(0);
+    await expect(page.locator('[data-testid="ink-canvas"]').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('ambient layers have animated children (not empty)', async ({ page }) => {
-    const baseURL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
-    await page.goto(baseURL, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(3000);
+  test('2. ink-canvas is true black with zero gradient imagery', async ({ page }) => {
+    await seedAuthedUser(page);
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
 
-    // On web, ambient "orbs" are CSS radial-gradients on a single div, not
-    // separate orb elements (see GradientMesh.tsx → WebGradientMesh). Count
-    // divs whose backgroundImage actually contains at least one
-    // radial-gradient — that's the web equivalent of "the mesh rendered".
-    const ambientLayers = await page.evaluate(() => {
-      const bg = document.querySelector('[data-testid="aurora-bg"]');
-      if (!bg) return { found: false, gradientLayers: 0, totalGradients: 0 };
-      const allDivs = bg.querySelectorAll('div');
-      let gradientLayers = 0;
-      let totalGradients = 0;
-      for (const el of Array.from(allDivs)) {
-        const bi = getComputedStyle(el).backgroundImage;
-        if (bi && bi.includes('radial-gradient')) {
-          gradientLayers++;
-          totalGradients += (bi.match(/radial-gradient/g) ?? []).length;
-        }
+    const info = await page.evaluate(() => {
+      const canvas = document.querySelector('[data-testid="ink-canvas"]');
+      if (!canvas) return null;
+      const bg = getComputedStyle(canvas as HTMLElement).backgroundColor;
+      let gradientChildren = 0;
+      for (const el of Array.from(canvas.querySelectorAll('*'))) {
+        if (getComputedStyle(el as HTMLElement).backgroundImage !== 'none') gradientChildren++;
       }
-      return { found: true, gradientLayers, totalGradients };
+      return { bg, gradientChildren };
     });
 
-    expect(ambientLayers.found).toBe(true);
-    // At least one div carries the mesh gradient(s), and the mesh stacks
-    // ≥3 radial-gradient functions (one per preset stop — DEFAULT_MESH_STOPS
-    // in AuroraBackground.tsx defines exactly 3).
-    expect(ambientLayers.gradientLayers).toBeGreaterThanOrEqual(1);
-    expect(ambientLayers.totalGradients).toBeGreaterThanOrEqual(3);
+    expect(info).not.toBeNull();
+    expect(info!.bg).toBe('rgb(0, 0, 0)');
+    expect(info!.gradientChildren).toBe(0);
   });
 
-  test('time-of-day web gradient contains expected colors', async ({ page }) => {
-    const baseURL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
-    await page.goto(baseURL, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(3000);
+  test('3. particles are EARNED: absent while blocks are incomplete, present once the day completes', async ({ page }) => {
+    // Incomplete day → no particle layer.
+    await seedAuthedUser(page, { blocks: [BLOCK('e2e-amb-1'), BLOCK('e2e-amb-2')] });
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    expect(await page.locator('[data-testid="ambient-particles"]').count()).toBe(0);
 
-    const bgInfo = await page.evaluate(() => {
-      const bg = document.querySelector('[data-testid="aurora-bg"]');
-      if (!bg) return { found: false, gradient: '' };
-      // Find the div with backgroundImage (web gradient layer)
-      const allDivs = bg.querySelectorAll('div');
-      for (const el of Array.from(allDivs)) {
-        const bi = (el as HTMLElement).style.backgroundImage;
-        if (bi && bi.includes('radial-gradient')) {
-          return { found: true, gradient: bi.substring(0, 300) };
+    // All blocks completed → the earned particle state renders.
+    await seedAuthedUser(page, {
+      blocks: [BLOCK('e2e-amb-1', 'completed'), BLOCK('e2e-amb-2', 'completed')],
+    });
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2500);
+    expect(await page.locator('[data-testid="ambient-particles"]').count()).toBeGreaterThan(0);
+  });
+
+  test('4. the sweep container idles present and visually silent', async ({ page }) => {
+    await seedAuthedUser(page);
+    await page.goto('/', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+
+    const sweep = page.locator('[data-testid="ambient-sweep"]').first();
+    await expect(sweep).toBeAttached();
+    // Idle = the sweep band exists (EnergySweep's frozen behavior keeps it
+    // mounted) but renders NOTHING visible: every painted (non-transparent
+    // background) descendant has EFFECTIVE opacity 0 — own opacity multiplied
+    // up the ancestor chain. "Rest quiet" asserted at the pixel contract.
+    const maxPaintedOpacity = await sweep.evaluate((root) => {
+      let max = 0;
+      for (const el of Array.from(root.querySelectorAll('*'))) {
+        const style = getComputedStyle(el as HTMLElement);
+        const bg = style.backgroundColor;
+        if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') continue;
+        let effective = 1;
+        let node: Element | null = el;
+        while (node && node !== root.parentElement) {
+          effective *= parseFloat(getComputedStyle(node as HTMLElement).opacity || '1');
+          node = node.parentElement;
         }
+        max = Math.max(max, effective);
       }
-      return { found: false, gradient: '' };
+      return max;
     });
-
-    expect(bgInfo.found).toBe(true);
-    // Should contain violet (165,132,255) which is present in all presets
-    expect(bgInfo.gradient).toContain('165');
-    expect(bgInfo.gradient).toContain('132');
-    expect(bgInfo.gradient).toContain('255');
-  });
-
-  test('screenshots ambient at different scroll positions', async ({ page }) => {
-    const baseURL = process.env.SMOKE_BASE_URL ?? 'http://localhost:8081';
-    await page.goto(baseURL, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(3000);
-
-    await page.screenshot({
-      path: 'smoke-output/ambient-top.png',
-      fullPage: false,
-    });
-
-    // Scroll down to test parallax
-    await page.evaluate(() => window.scrollBy(0, 400));
-    await page.waitForTimeout(1000);
-
-    await page.screenshot({
-      path: 'smoke-output/ambient-scrolled.png',
-      fullPage: false,
-    });
+    expect(maxPaintedOpacity).toBe(0);
   });
 });

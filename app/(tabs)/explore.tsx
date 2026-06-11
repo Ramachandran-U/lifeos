@@ -11,7 +11,7 @@ import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { InterestCard } from '@/components/modules/polymath/InterestCard';
 import { AddInterestSheet } from '@/components/modules/polymath/AddInterestSheet';
 import { LogExplorationSheet } from '@/components/modules/polymath/LogExplorationSheet';
@@ -563,7 +563,7 @@ export default function ExploreScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
           <ModuleHeader title="Explore" domain="polymath" color={c.polymath} />

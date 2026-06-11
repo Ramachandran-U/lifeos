@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { NarrationToggle } from '@/components/shared/NarrationToggle';
 import { OnboardingIntroSection } from '@/components/shared/OnboardingIntroSection';
 import { Button3D } from '@/components/ui/Button3D';
@@ -275,7 +275,7 @@ export default function Day1RoutineScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AuroraBackground />
+      <InkCanvas />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scroll}

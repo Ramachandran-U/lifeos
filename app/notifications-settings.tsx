@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
@@ -176,7 +176,7 @@ export default function NotificationsSettingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.headerRow}>

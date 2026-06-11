@@ -9,7 +9,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { radii } from '@/theme/radii';
 import { MOTION_BUDGET } from '@/theme/motion';
 import { Caption } from '@/components/ui/Typography';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useRabbitHoleStore } from '@/store/useRabbitHoleStore';
 import { loadOrCreateThread, loadThreadById, renameActiveThread, type RabbitHoleSeed } from '@/explore/rabbitHoleActions';
 import {
@@ -79,7 +79,7 @@ export function RabbitHoleScreen({ seed, treeId, onExit }: Props) {
 
   return (
     <View style={styles.root}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
           <Pressable onPress={onExit} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">

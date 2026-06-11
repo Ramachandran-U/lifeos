@@ -10,7 +10,7 @@ import { spacing } from '@/theme/spacing';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Body, Caption } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { GoalCard } from '@/components/modules/goals/GoalCard';
 import { AddGoalSheet } from '@/components/modules/goals/AddGoalSheet';
 import { TrajectoryCard } from '@/components/modules/goals/TrajectoryCard';
@@ -463,7 +463,7 @@ export default function GoalsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
         <ModuleHeader title="Goals" domain="goal" color={c.goal} />

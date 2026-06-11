@@ -9,7 +9,7 @@ import { radii } from '@/theme/radii';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useGameStore } from '@/store/useGameStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useDomainHistoryStore } from '@/store/useDomainHistoryStore';
@@ -168,7 +168,7 @@ export default function RewardsScreen() {
 
   return (
     <View style={styles.root}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Hero */}

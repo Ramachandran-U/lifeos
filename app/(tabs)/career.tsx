@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Body, Label, Caption, Heading } from '@/components/ui/Typography';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { InkCanvas } from '@/components/shared/InkCanvas';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { SkillGapChart } from '@/components/modules/career/SkillGapChart';
 import { LearningResourceCard } from '@/components/modules/career/LearningResourceCard';
@@ -664,7 +664,7 @@ export default function CareerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.background }}>
-      <AuroraBackground />
+      <InkCanvas />
       <SafeAreaView style={s.container}>
       <ScrollView style={s.flex} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <ModuleHeader title="Career" domain="career" color={c.career} />
