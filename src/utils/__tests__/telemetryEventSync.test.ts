@@ -25,3 +25,22 @@ describe('goal telemetry events stay in sync with the worker allowlist', () => {
     expect(workerSrc).toContain(`'${evt}'`);
   });
 });
+
+// W3 Today recomposition (01-today-hero.md Acceptance #13): the NextMoveHero
+// events exist as literals on the client AND on the Worker allowlist — the
+// Worker deploys before any cohort flip, so a missing entry 400s silently.
+describe('next-move telemetry events stay in sync with the worker allowlist', () => {
+  it.each(['next_move_shown', 'next_move_completed'])(
+    'client EVENTS declares the literal %s',
+    (evt) => {
+      expect(clientSrc).toContain(`'${evt}'`);
+    },
+  );
+
+  it.each(['next_move_shown', 'next_move_completed'])(
+    'worker ALLOWED_EVENTS includes %s',
+    (evt) => {
+      expect(workerSrc).toContain(`'${evt}'`);
+    },
+  );
+});

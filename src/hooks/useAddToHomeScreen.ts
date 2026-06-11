@@ -3,6 +3,52 @@ import { Platform } from 'react-native';
 import { resolveA2HS, type A2HSVariant } from './addToHomeScreen';
 
 const DISMISS_KEY = 'lifeos_a2hs_dismissed';
+const SHOWN_COUNT_KEY = 'lifeos_a2hs_shown_count';
+const LAST_SHOWN_KEY = 'lifeos_a2hs_last_shown';
+const OFFER_SPACING_MS = 7 * 24 * 60 * 60 * 1000;
+const OFFER_CAP = 3;
+
+/**
+ * install_prompt_v2 trigger discipline (§3.3): may the event-triggered
+ * InstallSheet auto-open right now? False when permanently dismissed, after
+ * 3 lifetime shows, or within 7 days of the last show. The Profile row's
+ * manual open bypasses this gate by design.
+ */
+export function shouldOfferInstall(): boolean {
+  try {
+    if (localStorage.getItem(DISMISS_KEY) === '1') return false;
+    const count = Number(localStorage.getItem(SHOWN_COUNT_KEY) ?? '0');
+    if (count >= OFFER_CAP) return false;
+    const last = Number(localStorage.getItem(LAST_SHOWN_KEY) ?? '0');
+    if (last > 0 && Date.now() - last < OFFER_SPACING_MS) return false;
+    return true;
+  } catch {
+    // Storage blocked (private mode) — never auto-offer.
+    return false;
+  }
+}
+
+/**
+ * Record the outcome of an InstallSheet offer. 'declined' (Not now / Got it /
+ * the ✕) increments the shown count and stamps the spacing window; the third
+ * decline becomes the permanent dismissal. 'accepted' (Install tap, or the
+ * browser's `appinstalled` event) dismisses permanently — never auto-shown
+ * again.
+ */
+export function recordInstallOffer(outcome: 'accepted' | 'declined'): void {
+  try {
+    if (outcome === 'accepted') {
+      localStorage.setItem(DISMISS_KEY, '1');
+      return;
+    }
+    const count = Number(localStorage.getItem(SHOWN_COUNT_KEY) ?? '0') + 1;
+    localStorage.setItem(SHOWN_COUNT_KEY, String(count));
+    localStorage.setItem(LAST_SHOWN_KEY, String(Date.now()));
+    if (count >= OFFER_CAP) localStorage.setItem(DISMISS_KEY, '1');
+  } catch {
+    /* ignore — the offer caps just won't persist */
+  }
+}
 
 /** The Chromium-only `beforeinstallprompt` event (not in the standard DOM lib). */
 interface BeforeInstallPromptEvent extends Event {
@@ -20,6 +66,8 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
   });
   window.addEventListener('appinstalled', () => {
     deferredInstall = null;
+    // Installed for real — the install offer retires permanently (§3.3).
+    recordInstallOffer('accepted');
   });
 }
 

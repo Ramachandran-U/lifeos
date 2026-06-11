@@ -32,6 +32,8 @@ import { isEnabled } from '@/config/flags';
 import { AvatarEditSheet } from '@/components/modules/profile/AvatarEditSheet';
 import { StarterLine } from '@/components/shared/StarterLine';
 import { STARTER_COPY } from '@/constants/starterCopy';
+import { InstallSheet } from '@/components/shared/InstallSheet';
+import { useAddToHomeScreen } from '@/hooks/useAddToHomeScreen';
 
 const MODULE_LABELS: Record<string, string> = {
   today: 'Today',
@@ -194,6 +196,12 @@ export default function ProfileScreen() {
   const [range, setRange] = useState<UsageRange>('day');
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  // install_prompt_v2 (W3 §3.3) — the permanent quiet install path. The row
+  // shows only on installable web browsers; the manual open bypasses the
+  // auto-offer gates (shouldOfferInstall) by design.
+  const installV2 = useFlagStore((s) => s.isEnabled('install_prompt_v2'));
+  const { variant: installVariant } = useAddToHomeScreen();
+  const [installSheetOpen, setInstallSheetOpen] = useState(false);
 
   const refresh = useCallback(() => {
     setStats(getUsageStats(range));
@@ -567,6 +575,14 @@ export default function ProfileScreen() {
             c={c}
             onPress={() => router.push('/how-it-works')}
           />
+          {installV2 && installVariant !== null && (
+            <Row
+              icon="phone-portrait-outline"
+              label="Install LifeOS"
+              c={c}
+              onPress={() => setInstallSheetOpen(true)}
+            />
+          )}
           <Row
             icon="chatbubble-ellipses-outline"
             label="Send feedback"
@@ -599,6 +615,12 @@ export default function ProfileScreen() {
 
       {avatarGenEnabled && (
         <AvatarEditSheet visible={avatarSheetOpen} onClose={() => setAvatarSheetOpen(false)} />
+      )}
+
+      {/* Manual install path — opens regardless of dismissal state; outcomes
+          are only recorded when a button inside the sheet is pressed. */}
+      {installV2 && (
+        <InstallSheet visible={installSheetOpen} onClose={() => setInstallSheetOpen(false)} />
       )}
     </SafeAreaView>
   );

@@ -21,6 +21,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useSyncStore } from '@/store/useSyncStore';
+import { useFlagStore } from '@/store/useFlagStore';
 import { updateGoalStatus, getDeletedGoals, restoreGoal } from '@/db/queries/goals';
 import { getCommentCountsByUser } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
@@ -50,6 +51,10 @@ export default function GoalsScreen() {
   const { userId, primaryDomains } = useUserStore();
   const { goals, loadGoals, removeGoal, snoozeGoal, resumeGoal, reactivateDue } = useGoalStore();
   const completeGoalNode = useGameStore((s) => s.completeGoalNode);
+  // W3 answer-first: the same flag that mounts NextMoveHero on Today hides
+  // this tab's inline card — the card moves, it does not fork (§3.2). The
+  // JSX + styles are deleted outright at fallback-flip.
+  const answerFirst = useFlagStore((s) => s.isEnabled('today_answer_first_v1'));
   // Re-read when the sync engine applies a remote pull (P1 Increment 3), so a
   // goal synced from another device repaints without a manual reload.
   const syncTick = useSyncStore((s) => s.appliedTick);
@@ -495,8 +500,10 @@ export default function GoalsScreen() {
           <TrajectoryCard lifeGoal={lifeGoal} goals={goals} />
         )}
 
-        {/* YOUR NEXT MOVE — first active daily task */}
-        {dailyTasks.length > 0 && (
+        {/* YOUR NEXT MOVE — first active daily task. Renders only while
+            today_answer_first_v1 is off: flag-on, Today's NextMoveHero is the
+            single answer surface. */}
+        {!answerFirst && dailyTasks.length > 0 && (
           <View style={[styles.nextMoveCard, { backgroundColor: c.goalDim, borderColor: c.border }]}>
             <View style={styles.nextMoveHeader}>
               <Ionicons name="flash" size={14} color={c.goalText} />

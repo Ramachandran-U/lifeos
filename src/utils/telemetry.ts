@@ -101,6 +101,10 @@ export const EVENTS = {
   companionTapped: 'companion_tapped',
   comebackDetected: 'comeback_detected',
   comebackClaimed: 'comeback_claimed',
+  // Ink + Signal W3 Today recomposition — the deterministic NextMoveHero.
+  // Deploy the Worker allowlist with these names BEFORE any cohort flip.
+  nextMoveShown: 'next_move_shown',
+  nextMoveCompleted: 'next_move_completed',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

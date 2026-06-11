@@ -11,6 +11,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { EASING, MOTION_BUDGET } from '@/theme/motion';
+import { TABULAR_NUMS, textVariants } from '@/theme/typography';
+import { Text as AuroraText } from '@/components/ui/Text';
 import { DOMAIN_META } from '@/constants/gamification';
 import type { DomainKey, ColorKey } from '@/constants/gamification';
 import { DOMAIN_ICONS } from '@/theme/domainIcons';
@@ -27,9 +29,15 @@ interface Props {
   activeDomain?: DomainKey | null;
   onDomainPress?: (key: DomainKey) => void;
   pulseKey?: DomainKey;
+  /**
+   * Center state readout (§3.4.1) — type only: no disc, no blur, no
+   * background shape of any kind. The caller owns the copy for every state;
+   * an empty hub is a spec violation.
+   */
+  hub?: { topline: string; subline: string; onPress?: () => void };
 }
 
-export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, onDomainPress, pulseKey }: Props) {
+export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, onDomainPress, pulseKey, hub }: Props) {
   const c = useColors();
   const cx = size / 2;
   const cy = size / 2;
@@ -167,12 +175,15 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
           />
         ))}
         {DOMAIN_META.map((d) => {
+          // Spokes clear the hub readout — inner endpoint inset to 0.18·maxR
+          // (structural geometry, not decoration; §3.4.2).
+          const inner = pt(d.angleDeg, maxR * 0.18);
           const outer = pt(d.angleDeg, maxR);
           return (
             <Line
               key={d.key}
-              x1={cx}
-              y1={cy}
+              x1={inner.x}
+              y1={inner.y}
               x2={outer.x}
               y2={outer.y}
               stroke={c.border}
@@ -224,8 +235,9 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
 
       {DOMAIN_META.map((d) => {
         const label = pt(d.angleDeg, maxR * 1.12);
-        const isActive = activeDomain === d.key;
-        const iconColor = d.key === 'career' ? c.textPrimary : c[d.colorKey];
+        // Full-signal vertices (§3.4.4): color is meaning — it does not idle
+        // at 75%, and no domain is special-cased away from its own hue.
+        const iconColor = c[d.colorKey];
         const Icon = DOMAIN_ICONS[d.colorKey as keyof typeof DOMAIN_ICONS] ?? DOMAIN_ICONS.goal;
         return (
           <Pressable
@@ -237,7 +249,7 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
               {
                 left: label.x - ICON_SIZE / 2,
                 top: label.y - ICON_SIZE / 2,
-                opacity: isActive ? 1 : 0.75,
+                opacity: 1,
               },
             ]}
           >
@@ -245,6 +257,30 @@ export function HexRadar({ scores, yesterdayScores, size = 340, activeDomain, on
           </Pressable>
         );
       })}
+
+      {hub && (
+        <View style={[StyleSheet.absoluteFill, styles.hubCenter]} pointerEvents="box-none">
+          <Pressable
+            testID="radar-hub"
+            onPress={hub.onPress}
+            disabled={!hub.onPress}
+            hitSlop={12}
+            style={styles.hub}
+            accessibilityRole={hub.onPress ? 'button' : undefined}
+          >
+            <AuroraText variant="h3" style={TABULAR_NUMS}>
+              {hub.topline}
+            </AuroraText>
+            {/* Type-only hub metadata: the micro token via style so this
+                file stays off Guard D's allowlist (R8 sanctions exactly
+                TodayHeader + NextMoveHero); the caps copy itself lives in
+                the allowlisted Today screen. */}
+            <AuroraText style={textVariants.micro} secondary>
+              {hub.subline}
+            </AuroraText>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -256,5 +292,14 @@ const styles = StyleSheet.create({
     height: ICON_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  hubCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hub: {
+    width: 120,
+    alignItems: 'center',
+    gap: 2,
   },
 });

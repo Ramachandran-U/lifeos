@@ -71,6 +71,11 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // this fixes a broken first-run, it is not a retention experiment. The
   // Worker /v1/config row is the kill switch.
   cold_start_v1: true,
+  // Answer-first Today: TodayHeader deck, NextMoveHero (moves off Goals),
+  // radar hub + full-signal vertices, composition reorder. Off = legacy Today.
+  today_answer_first_v1: false,
+  // Event-triggered InstallSheet + Profile row; off = legacy top-of-flow banner.
+  install_prompt_v2: false,
 };
 
 interface FlagState {

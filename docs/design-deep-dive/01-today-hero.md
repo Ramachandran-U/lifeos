@@ -6,6 +6,16 @@
 > R7: with `today_answer_first_v1` on, this spec's deletion of the header XP bar (Acceptance #12) governs; 02's caption applies only while the flag is off.
 > R8: `TodayHeader.tsx` and `NextMoveHero.tsx` enter Guard D's allowlist via the founder-approved `manifesto-change` batch (approved 2026-06-10, executed in Wave 3).
 > R12: this spec's fallback-flip takes the next unused persist-key version at flip time (v5 if 02 already took v4).
+> **Amendment (founder-flagged, 2026-06-13, W3 PR-B execution):**
+> (a) §3.4.1: the hub subline reads the micro token via `style={textVariants.micro}` (not the `variant` prop) so `HexRadar.tsx` stays outside Guard D's allowlist; the resolution-8 batch remains exactly +2 (TodayHeader, NextMoveHero — FirstWinCard landed with PR-A).
+> (b) Acceptance #4/#14 unit files are `.test.tsx` (the jest components-project discovery pattern excludes `.test.ts` under src/hooks/); content unchanged.
+> (c) §3.3: the event-triggered InstallSheet instance is mounted only on Today; the Profile row mounts its own manual-open instance (a sheet cannot be opened cross-screen) — gates bypassed, outcomes recorded only on button press.
+> (d) §3.5: the flag-on branch does not render the legacy "No routine yet" EmptyState — the hero's plan state is the screen's one answer; the legacy branch is unchanged.
+> (e) §3.2: the keyed content swap ships entering-only — on react-native-web, a reanimated `exiting` clone lingers as a hidden DOM node, duplicating `next-move-primary` once per completion; entering-only reads as the same cross-fade.
+> (f) Acceptance #3's e2e encoding is case-sensitive (`getByText('INSTALL LIFEOS', { exact: true })`) — Playwright's default match is case-insensitive and would self-trip on the spec-required Profile row label "Install LifeOS".
+> (g) Acceptance #5's flag-on anchor is the Goals ModuleHeader, not a seeded daily-task title — flag-on, a parentless daily goal renders nowhere on Goals (its only surface was the card this flag removes).
+> (h) e2e flag forcing: the boot `fetchFlags({ force: true })` overwrites seeded persisted flags when `EXPO_PUBLIC_AI_PROXY_URL` is empty — the spec both seeds `lifeos_flags_v4` and stubs `**/v1/config**`, and the served build must carry a non-empty proxy URL.
+> (i) Standing product question for the founder (not blocking, flag is default-off): after the 3-decline permanent dismiss, the legacy hook nulls the install variant, which also hides the Profile row — spec-literal, but in tension with "permanent quiet path". Revisit at the flip call.
 
 # TODAY SCREEN FIRST-VIEWPORT — Implementation-Grade Spec (HARDENED)
 **Cluster:** Next Move on Today · broken greeting · install banner · first-2-seconds answer
