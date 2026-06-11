@@ -5,6 +5,7 @@ import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Body, Label, Caption } from '@/components/ui/Typography';
+import { SectionTitle } from '@/components/ui/SectionTitle';
 import type { BloodReportResult } from '@/ai/types';
 
 interface BloodReportCardProps {
@@ -23,10 +24,9 @@ export function BloodReportCard({ result, date }: BloodReportCardProps) {
   return (
     // Neutral card — domain identity is the R2 eyebrow; status pills carry semantics.
     <Card>
-      <View style={styles.header}>
-        <Label color={c.healthText}>BLOOD REPORT</Label>
-        <Caption>{date}</Caption>
-      </View>
+      {/* Ink + Signal §3.0.7: the BLOOD REPORT caps eyebrow died in the W4
+          Health sweep (2026-06-12) — sentence-case SectionTitle instead. */}
+      <SectionTitle trailing={<Caption>{date}</Caption>}>Latest report</SectionTitle>
 
       <Body style={styles.summary}>{result.summary}</Body>
 
@@ -62,11 +62,6 @@ export function BloodReportCard({ result, date }: BloodReportCardProps) {
 }
 
 const makeStyles = (colors: AppColors) => StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   summary: {
     color: colors.textSecondary,
     marginTop: spacing.sm,

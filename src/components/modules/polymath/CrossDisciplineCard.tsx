@@ -4,7 +4,7 @@ import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Card } from '@/components/ui/Card';
-import { Body, Caption, Label } from '@/components/ui/Typography';
+import { Body, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import type { CrossDisciplineLink } from '@/ai/types';
 
@@ -23,7 +23,9 @@ export function CrossDisciplineCard({ link, loading, pairLabel, onRefresh, onDis
     // Neutral card — domain identity is the R2 eyebrow ink.
     <Card>
       <View style={styles.header}>
-        <Label color={c.polymathText}>CROSS-DISCIPLINE</Label>
+        {/* Ink + Signal §3.0.7: CROSS-DISCIPLINE caps eyebrow died in the W4
+            Explore sweep (2026-06-12) — sentence case in bodyMedium instead. */}
+        <Body style={[styles.eyebrowText, { color: c.polymath }]}>Cross-discipline</Body>
         <View style={styles.actions}>
           <Pressable onPress={onRefresh} hitSlop={8}>
             <Ionicons name="refresh" size={16} color={c.textMuted} />
@@ -63,6 +65,7 @@ export function CrossDisciplineCard({ link, loading, pairLabel, onRefresh, onDis
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  eyebrowText: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm },
   actions: { flexDirection: 'row', gap: spacing.sm },
   headline: { fontFamily: fonts.heading, fontSize: fontSizes.lg, marginTop: spacing.xs },
   description: { marginTop: spacing.xs },

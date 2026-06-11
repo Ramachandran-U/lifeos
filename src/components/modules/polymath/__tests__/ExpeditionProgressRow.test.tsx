@@ -29,12 +29,12 @@ const makeProgress = (expeditionId: string, completed: number[]): ExpeditionProg
 });
 
 describe('ExpeditionProgressRow', () => {
-  it('renders null (no section header) when there are no expeditions', () => {
-    render(<ExpeditionProgressRow expeditions={[]} onPress={() => {}} />);
-    expect(screen.queryByText('ACTIVE EXPEDITIONS')).toBeNull();
+  it('renders null when there are no expeditions', () => {
+    const tree = render(<ExpeditionProgressRow expeditions={[]} onPress={() => {}} />);
+    expect(tree.toJSON()).toBeNull();
   });
 
-  it('renders the title, percent and step count for an expedition', () => {
+  it('renders the title, percent and step count for an expedition — no caps eyebrow (§3.0.7)', () => {
     render(
       <ExpeditionProgressRow
         expeditions={[
@@ -43,7 +43,9 @@ describe('ExpeditionProgressRow', () => {
         onPress={() => {}}
       />,
     );
-    expect(screen.getByText('ACTIVE EXPEDITIONS')).toBeTruthy();
+    // The internal ACTIVE EXPEDITIONS label died in the W4 sweep — the screen
+    // renders the `Expeditions` SectionTitle above this row instead.
+    expect(screen.queryByText('ACTIVE EXPEDITIONS')).toBeNull();
     expect(screen.getByText('Origins of jazz')).toBeTruthy();
     // 2 of 4 steps completed → 50%
     expect(screen.getByText('50%')).toBeTruthy();

@@ -104,7 +104,9 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
       <Card style={styles.heroCard}>
         <View style={styles.heroRow}>
           <View style={{ flex: 1 }}>
-            <Label style={{ color: c.textMuted }}>TODAY</Label>
+            {/* Ink + Signal §3.0.7: TODAY caps eyebrow died in the W4 Health
+                sweep (2026-06-12) — sentence-case Caption instead. */}
+            <Caption style={{ color: c.textMuted }}>Today</Caption>
             <View style={styles.heroValue}>
               <Body style={styles.heroSteps}>{today.steps.toLocaleString()}</Body>
               <Caption style={{ color: c.textMuted }}>/ {STEP_GOAL.toLocaleString()} steps</Caption>

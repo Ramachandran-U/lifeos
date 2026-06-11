@@ -54,3 +54,37 @@ describe('YouTubeImportCard', () => {
     expect(onImport).toHaveBeenCalledWith([expect.objectContaining({ name: 'Physics' })]);
   });
 });
+
+describe("YouTubeImportCard presentation='row' (Ink + Signal §3.0.3, W4)", () => {
+  it('renders the disconnected ConnectRow with the committed copy', () => {
+    connectedMock.mockReturnValue(false);
+    render(
+      <YouTubeImportCard presentation="row" existingInterestNames={[]} onImport={jest.fn()} />,
+    );
+    expect(screen.getByTestId('connect-row-youtube')).toBeTruthy();
+    expect(screen.getByText('Connect YouTube')).toBeTruthy();
+    expect(screen.getByText('Turns subscriptions into interests · read-only')).toBeTruthy();
+    expect(screen.getByText('Connect')).toBeTruthy();
+    // The promo-card pitch never renders in row mode.
+    expect(screen.queryByText('IMPORT FROM YOUTUBE')).toBeNull();
+  });
+
+  it('renders the connected ConnectRow and keeps the review modal as the press flow', async () => {
+    connectedMock.mockReturnValue(true);
+    channelsMock.mockResolvedValue([{ name: 'Veritasium', description: 'science' }]);
+    extractMock.mockResolvedValue({
+      interests: [
+        { name: 'Physics', category: 'science', weeklyMinutesTarget: 60, why: 'You follow Veritasium' },
+      ],
+    });
+    render(
+      <YouTubeImportCard presentation="row" existingInterestNames={[]} onImport={jest.fn()} />,
+    );
+    expect(screen.getByText('Import from YouTube')).toBeTruthy();
+    expect(screen.getByText('You choose what gets added')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('connect-row-youtube'));
+    await waitFor(() => expect(screen.getByText('REVIEW INTERESTS')).toBeTruthy());
+    expect(screen.getByText('Physics')).toBeTruthy();
+  });
+});

@@ -1,5 +1,7 @@
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import { SparkHeroCard } from '@/components/modules/polymath/SparkHeroCard';
+import { darkColors } from '@/theme/colors';
 import type { Spark } from '@/explore/spark';
 
 const makeSpark = (overrides: Partial<Spark> = {}): Spark => ({
@@ -17,20 +19,36 @@ const makeSpark = (overrides: Partial<Spark> = {}): Spark => ({
   ...overrides,
 });
 
-describe('SparkHeroCard', () => {
+describe('SparkHeroCard (W4 restyle — Ink + Signal §3.2)', () => {
   it('renders the spark title, body and thread starter', () => {
     render(<SparkHeroCard spark={makeSpark()} onAction={() => {}} />);
-    expect(screen.getByText("TODAY'S SPARK")).toBeTruthy();
     expect(screen.getByText('The math hidden in seashells')).toBeTruthy();
     expect(screen.getByText('What other natural forms follow the same spiral law?')).toBeTruthy();
   });
 
-  it('shows the four action buttons while the spark is new', () => {
+  it('carries no caps eyebrows — TODAY\'S SPARK and PULL THE THREAD are dead (§3.0.7)', () => {
+    render(<SparkHeroCard spark={makeSpark()} onAction={() => {}} />);
+    expect(screen.queryByText("TODAY'S SPARK")).toBeNull();
+    expect(screen.queryByText('PULL THE THREAD')).toBeNull();
+  });
+
+  it('wears the 4px polymath left border on the background — no Card chrome', () => {
+    const tree = render(<SparkHeroCard spark={makeSpark()} onAction={() => {}} />);
+    const json = tree.toJSON() as { props: { style: StyleProp<ViewStyle> } };
+    const style = StyleSheet.flatten(json.props.style);
+    expect(style.borderLeftWidth).toBe(4);
+    expect(style.borderLeftColor).toBe(darkColors.polymath);
+    expect(style.backgroundColor).toBeUndefined();
+  });
+
+  it('shows the four action buttons while the spark is new, with Pull thread as the filled primary', () => {
     render(<SparkHeroCard spark={makeSpark({ status: 'new' })} onAction={() => {}} />);
     expect(screen.getByText('Save')).toBeTruthy();
-    expect(screen.getByText('Pull thread')).toBeTruthy();
     expect(screen.getByText('Expedition')).toBeTruthy();
     expect(screen.getByText('Skip')).toBeTruthy();
+    const pull = screen.getByText('Pull thread');
+    // Filled polymath pill with inkOnColor label (§3.2 restyle).
+    expect(StyleSheet.flatten(pull.props.style).color).toBe(darkColors.inkOnColor);
   });
 
   it('fires onAction with the chosen action key', () => {
@@ -38,6 +56,13 @@ describe('SparkHeroCard', () => {
     render(<SparkHeroCard spark={makeSpark()} onAction={onAction} />);
     fireEvent.press(screen.getByText('Save'));
     expect(onAction).toHaveBeenCalledWith('save');
+  });
+
+  it('fires pull_thread from the primary pill', () => {
+    const onAction = jest.fn();
+    render(<SparkHeroCard spark={makeSpark()} onAction={onAction} />);
+    fireEvent.press(screen.getByText('Pull thread'));
+    expect(onAction).toHaveBeenCalledWith('pull_thread');
   });
 
   it('hides actions and shows the saved confirmation once acted on', () => {
