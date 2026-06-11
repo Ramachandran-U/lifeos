@@ -22,7 +22,7 @@ const STANDARD_BURST: CelebrationPreset = {
   renderer: 'burst',
   particleCount: 18,
   durationMs: MOTION_BUDGET.hero,
-  paletteKeys: ['xp', 'primaryLight'],
+  paletteKeys: ['xp', 'primaryDim'],
 };
 
 const EPIC_FALL: CelebrationPreset = {
@@ -36,7 +36,7 @@ const EPIC_CANNON: CelebrationPreset = {
   renderer: 'confettiCannon',
   particleCount: 90,
   durationMs: MOTION_BUDGET.celebrationFall,
-  paletteKeys: ['xp', 'primaryLight', 'streak'],
+  paletteKeys: ['xp', 'primaryDim', 'streak'],
 };
 
 /** Per-kind overrides on top of the tier defaults. */
@@ -45,7 +45,7 @@ const KIND_PRESETS: Partial<Record<CelebrationKind, Partial<Record<CelebrationTi
     standard: { ...STANDARD_BURST, paletteKeys: ['streak', 'warning', 'xp'] },
   },
   badge: {
-    standard: { ...STANDARD_BURST, paletteKeys: ['badge', 'xp', 'primaryLight'] },
+    standard: { ...STANDARD_BURST, paletteKeys: ['badge', 'xp', 'primaryDim'] },
   },
   // Day-complete keeps the gentle full-screen fall the legacy Confetti
   // established; the punchier cannon is reserved for identity beats.

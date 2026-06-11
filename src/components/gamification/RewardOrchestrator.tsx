@@ -129,7 +129,7 @@ function Beat({ beat }: { beat: RewardBeat }) {
       <View pointerEvents="none" style={styles.wrap}>
         {!engineHandlesBurst && (
           <CelebrationBurst
-            palette={[hue, c.xp, c.primaryLight]}
+            palette={[hue, c.xp, c.primaryDim]}
             count={burstCount}
             size={burstSize}
             originTop={100}

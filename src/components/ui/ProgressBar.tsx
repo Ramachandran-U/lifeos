@@ -5,7 +5,6 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { useColors } from '@/theme/colors';
 import { TIMING } from '@/theme/motion';
@@ -13,13 +12,12 @@ import { TIMING } from '@/theme/motion';
 interface ProgressBarProps {
   value: number;
   color?: string;
-  /** Two-stop gradient [from, to] rendered left→right over the fill. When
-   *  omitted the bar uses `color` as a solid fill (backwards-compatible). */
-  gradientColors?: readonly [string, string];
   height?: number;
 }
 
-export function ProgressBar({ value, color, gradientColors, height = 8 }: ProgressBarProps) {
+// Ink + Signal: progress is a SOLID hue fill on the neutral `track` token —
+// gradients are deleted (Manifesto P3: color is meaning, never decoration).
+export function ProgressBar({ value, color, height = 8 }: ProgressBarProps) {
   const c = useColors();
   const fill = color ?? c.primary;
   const progress = useSharedValue(0);
@@ -36,27 +34,14 @@ export function ProgressBar({ value, color, gradientColors, height = 8 }: Progre
   }));
 
   return (
-    <View style={[styles.track, { height, borderRadius: height / 2, backgroundColor: c.surface }]}>
+    <View style={[styles.track, { height, borderRadius: height / 2, backgroundColor: c.track }]}>
       <Animated.View
         style={[
           styles.fill,
-          {
-            borderRadius: height / 2,
-            // When gradient is present, the LinearGradient child provides the colour.
-            backgroundColor: gradientColors ? 'transparent' : fill,
-          },
+          { borderRadius: height / 2, backgroundColor: fill },
           fillStyle,
         ]}
-      >
-        {gradientColors && (
-          <LinearGradient
-            colors={gradientColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
-      </Animated.View>
+      />
     </View>
   );
 }

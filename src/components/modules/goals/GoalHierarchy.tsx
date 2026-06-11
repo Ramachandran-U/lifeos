@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useColors, DOMAIN_GRADIENTS, type AppColors } from '@/theme/colors';
+import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption } from '@/components/ui/Typography';
@@ -55,7 +55,7 @@ function HierarchyLevel({ node, depth, onToggleComplete }: {
         <View style={styles.nodeContent}>
           <Body style={[styles.nodeTitle, isCompleted && styles.completedTitle]}>{node.title}</Body>
           {hasChildren && (
-            <ProgressBar value={progress} color={c.goal} gradientColors={DOMAIN_GRADIENTS.goal} height={4} />
+            <ProgressBar value={progress} color={c.goal} height={4} />
           )}
         </View>
         <Caption>{node.level}</Caption>

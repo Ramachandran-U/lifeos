@@ -159,7 +159,7 @@ export default function Day14PolymathScreen() {
                           style={[
                             styles.chip,
                             {
-                              backgroundColor: active ? c.polymathLight : c.surface,
+                              backgroundColor: active ? c.polymathDim : c.surface,
                               borderColor: active ? c.polymath : c.border,
                             },
                           ]}
@@ -181,7 +181,7 @@ export default function Day14PolymathScreen() {
                           style={[
                             styles.chip,
                             {
-                              backgroundColor: active ? c.polymathLight : c.surface,
+                              backgroundColor: active ? c.polymathDim : c.surface,
                               borderColor: active ? c.polymath : c.border,
                             },
                           ]}
@@ -202,7 +202,7 @@ export default function Day14PolymathScreen() {
                   styles.addRow,
                   {
                     borderColor: pressed ? c.polymath : c.border,
-                    backgroundColor: pressed ? c.polymathLight : 'transparent',
+                    backgroundColor: pressed ? c.polymathDim : 'transparent',
                   },
                 ]}
               >

@@ -93,7 +93,7 @@ export function ChestOpenOverlay({ visible, onOpen, onClose }: Props) {
       style={[styles.scrim, { backgroundColor: c.background + 'E6' }]}
     >
       {revealed && !reduceMotion && (
-        <CelebrationBurst palette={[c.xp, c.primaryLight, c.streak]} count={16} size={8} originTop={220} />
+        <CelebrationBurst palette={[c.xp, c.primaryDim, c.streak]} count={16} size={8} originTop={220} />
       )}
 
       {!revealed ? (

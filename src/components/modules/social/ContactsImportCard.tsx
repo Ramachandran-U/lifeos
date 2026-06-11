@@ -122,7 +122,7 @@ export function ContactsImportCard({
       </Caption>
 
       {!connected ? (
-        <Pressable onPress={handleConnect} style={[styles.btn, { backgroundColor: c.socialLight ?? c.surface }]}>
+        <Pressable onPress={handleConnect} style={[styles.btn, { backgroundColor: c.socialDim ?? c.surface }]}>
           <Ionicons name="link" size={15} color={c.social} />
           <Label color={c.social}>Connect Google Contacts</Label>
         </Pressable>
@@ -130,7 +130,7 @@ export function ContactsImportCard({
         <Pressable
           onPress={handleImport}
           disabled={phase === 'loading'}
-          style={[styles.btn, { backgroundColor: c.socialLight ?? c.surface }]}
+          style={[styles.btn, { backgroundColor: c.socialDim ?? c.surface }]}
         >
           {phase === 'loading' ? (
             <LoadingDots />

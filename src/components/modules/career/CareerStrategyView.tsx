@@ -161,7 +161,7 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
           const accepted = acceptedIds.has(acceptId);
           return (
             <View key={i} style={[s.weekRow, { borderColor: c.border }]}>
-              <View style={[s.weekNum, { backgroundColor: c.careerLight ?? c.primaryLight }]}>
+              <View style={[s.weekNum, { backgroundColor: c.careerDim ?? c.primaryDim }]}>
                 <Caption style={{ color: c.career, fontFamily: fonts.heading }}>W{w.week}</Caption>
               </View>
               <View style={s.weekBody}>
@@ -172,7 +172,7 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
                 onPress={() => onAcceptWeek(i)}
                 disabled={accepted}
                 hitSlop={6}
-                style={[s.acceptPill, { backgroundColor: accepted ? c.surface : c.careerLight ?? c.primaryLight }]}
+                style={[s.acceptPill, { backgroundColor: accepted ? c.surface : c.careerDim ?? c.primaryDim }]}
               >
                 <Ionicons name={accepted ? 'checkmark' : 'add'} size={14} color={accepted ? c.success : c.career} />
               </Pressable>

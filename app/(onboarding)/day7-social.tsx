@@ -194,7 +194,7 @@ export default function Day7SocialScreen() {
                           style={[
                             styles.chip,
                             {
-                              backgroundColor: active ? c.socialLight : c.surface,
+                              backgroundColor: active ? c.socialDim : c.surface,
                               borderColor: active ? c.social : c.border,
                             },
                           ]}
@@ -215,7 +215,7 @@ export default function Day7SocialScreen() {
                 styles.addRow,
                 {
                   borderColor: pressed ? c.social : c.border,
-                  backgroundColor: pressed ? c.socialLight : 'transparent',
+                  backgroundColor: pressed ? c.socialDim : 'transparent',
                 },
               ]}
             >

@@ -219,7 +219,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
             </View>
             {xp !== undefined && (
               <View style={[styles.tag, { backgroundColor: c.primary + '1F', borderColor: c.primary + '33' }]}>
-                <Caption style={[styles.tagText, { color: c.primaryLight }]}>+{xp} XP</Caption>
+                <Caption style={[styles.tagText, { color: c.primaryDim }]}>+{xp} XP</Caption>
               </View>
             )}
           </View>

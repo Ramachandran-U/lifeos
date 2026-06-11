@@ -98,7 +98,7 @@ export function ProgressPath({ currentLevel, levelPct, streaks, badgeCount }: Pr
               cy={yAt(i)}
               r={i === 0 ? 17 : 13}
               fill={i === 0 ? c.primary : c.card}
-              stroke={i === 0 ? c.primaryLight : c.border}
+              stroke={i === 0 ? c.primaryDim : c.border}
               strokeWidth={2}
             />
           ))}
@@ -132,7 +132,7 @@ export function ProgressPath({ currentLevel, levelPct, streaks, badgeCount }: Pr
                 </Text>
               ) : null}
               {i === 0 && (
-                <Text style={[styles.youChip, { color: c.primaryLight }]}>YOU ARE HERE</Text>
+                <Text style={[styles.youChip, { color: c.primaryDim }]}>YOU ARE HERE</Text>
               )}
             </View>
           );

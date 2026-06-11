@@ -712,7 +712,7 @@ export default function ExploreScreen() {
             <Label>YOUR INTERESTS</Label>
             <Pressable
               onPress={() => setShowAdd(true)}
-              style={[styles.addBtn, { backgroundColor: c.polymathLight }]}
+              style={[styles.addBtn, { backgroundColor: c.polymathDim }]}
             >
               <Ionicons name="add" size={18} color={c.polymath} />
               <Label color={c.polymath}>Add</Label>

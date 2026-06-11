@@ -1,7 +1,4 @@
-import { View, ViewProps, ViewStyle, StyleProp, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { useColors } from '@/theme/colors';
-import { useThemeStore } from '@/store/useThemeStore';
+import { View, ViewProps, ViewStyle, StyleProp } from 'react-native';
 import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
 import { useElevation } from '@/theme/elevation';
@@ -11,63 +8,27 @@ interface CardProps extends ViewProps {
   style?: StyleProp<ViewStyle>;
 }
 
-// Aurora Refined card — translucent glass over the screen gradient (dark) or
-// soft cast shadow (light). Existing call sites that pass `moduleColor` get
-// the domain-tinted left border + faint corner glow that identifies the
-// owning domain (Principle 3).
+// Ink card — a solid ink surface (elevation z1) with a hairline border.
+// Blur and corner glow died in the Ink + Signal recommit (Cluster 3 §A.7):
+// solid `card` needs no glass. The `moduleColor` left border survives until
+// the W2 structural pass removes the prop (R3 glyphs replace edge accents).
 export function Card({ moduleColor, style, children, ...props }: CardProps) {
-  const c = useColors();
   const elev = useElevation('z1');
-  const mode = useThemeStore((s) => s.mode);
-  const isWeb = Platform.OS === 'web';
 
   return (
     <View
       style={[
         {
-          // Translucent glass — uses elevation token's backgroundColor on dark,
-          // solid surface on light.
           ...elev,
           borderRadius: radii.card,
           padding: spacing.md,
           overflow: 'hidden',
         },
-        // Web-only backdrop-filter for the frosted-glass effect.
-        isWeb
-          ? ({ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as ViewStyle)
-          : null,
         moduleColor ? { borderLeftWidth: 3, borderLeftColor: moduleColor } : undefined,
         style,
       ]}
       {...props}
     >
-      {/* Native frosted-glass backdrop — clipped by the parent's rounded overflow.
-          Web uses backdropFilter above instead. */}
-      {!isWeb ? (
-        <BlurView
-          intensity={24}
-          tint={mode === 'light' ? 'light' : 'dark'}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
-      ) : null}
-      {moduleColor && isWeb ? (
-        <View
-          pointerEvents="none"
-          style={[
-            {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 70,
-              borderTopLeftRadius: radii.card,
-              borderTopRightRadius: radii.card,
-            },
-            { background: `radial-gradient(ellipse at top left, ${moduleColor}22, transparent 70%)` } as unknown as ViewStyle,
-          ]}
-        />
-      ) : null}
       <View style={{ position: 'relative' }}>{children}</View>
     </View>
   );
