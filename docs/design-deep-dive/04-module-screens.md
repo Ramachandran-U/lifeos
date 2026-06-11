@@ -7,6 +7,12 @@
 > R6: this spec's Health streaks zero-suppression governs on the Health tab (02's rule survives flag-off legacy only).
 > R9: the 4px domain rail on heroes is legal only on a screen's single hero, where the hue also carries ink or the CTA.
 > R11: this spec's ban on `—` placeholder vitals wins — the Health ModuleHeader stat slot is omitted until a real BMI exists.
+> **Amendment (founder-flagged, 2026-06-13, W4 foundation execution):**
+> (a) §3.0.1's `*.legacy.tsx` siblings would become expo-router ROUTES (every file under `app/` is a route; Metro excludes only `__tests__/`). The legacy trees live at `src/screens/legacy/XScreen.legacy.tsx` (named exports `XScreenLegacy`); the route files are thin default-export wrappers. Guard A/D/motion allowlist entries followed the extraction 1:1 — renames, not growth.
+> (b) §3.0.3 names error rendering but no prop: `error?: string` added to `ConnectRowProps` (Caption in `c.error` under the row). ConnectRow is also barrel-exported, and its icon renders in `accent` (spec committed name+size only).
+> (c) jest wiring (required for the mandated test paths to execute): the node project's `testPathIgnorePatterns` `/app/` entry now exempts `app/(tabs)/__tests__/`, and the components project's `testMatch` gained `src/screens/**/*.test.tsx` — without these, hierarchyGuards and the legacy snapshots are silently undiscovered.
+> (d) hierarchyGuards' §3.0.7 file list is seeded with 13 of 14 files — `UpcomingBirthdaysCard.tsx` still carries its emoji until the Social PR's re-skin lands (append-as-you-sweep, documented in the test header); Finance's hero is inline so `app/(tabs)/finance.tsx` stands in for it in HERO_FILES; hero files arm via existsSync as each screen PR creates them.
+> (e) The spec's SectionTitle comment literal (`never "SKILL GAPS"`) would trip Guard D in a non-allowlisted file — reworded without the caps literal.
 
 All paths, line numbers, tokens, and store APIs are now verified against the repo. Three load-bearing discoveries: the repo has **no ESLint config** (the spec's ESLint enforcement is unenforceable as written), `usePreferencesStore` **does not persist on native** (the snooze decision was broken), and a dozen child-card CAPS eyebrows survive the spec's sweep. Producing the hardened spec.
 

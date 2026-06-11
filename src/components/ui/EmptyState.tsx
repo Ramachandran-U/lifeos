@@ -12,6 +12,8 @@ interface EmptyStateProps {
   caption?: string;
   /** Domain hue for the icon bubble + CTA. Defaults to the brand primary. */
   accent?: string;
+  /** Privacy/trust clause rendered above the CTA (Ink + Signal §3.0.4). */
+  trustNote?: string;
   cta?: { label: string; onPress: () => void; loading?: boolean };
   style?: StyleProp<ViewStyle>;
 }
@@ -19,7 +21,7 @@ interface EmptyStateProps {
 // The single empty-state pattern across the app: an accent-tinted icon bubble,
 // a heading, an optional caption, and an optional call-to-action. Replaces the
 // ad-hoc icon+text blocks each screen used to hand-roll.
-export function EmptyState({ icon, title, caption, accent, cta, style }: EmptyStateProps) {
+export function EmptyState({ icon, title, caption, accent, trustNote, cta, style }: EmptyStateProps) {
   const c = useColors();
   const hue = accent ?? c.primary;
   return (
@@ -30,6 +32,12 @@ export function EmptyState({ icon, title, caption, accent, cta, style }: EmptySt
       </View>
       <Heading style={styles.title}>{title}</Heading>
       {caption ? <Caption style={[styles.caption, { color: c.textMuted }]}>{caption}</Caption> : null}
+      {trustNote ? (
+        <View style={styles.trustRow}>
+          <Ionicons name="lock-closed-outline" size={14} color={c.textMuted} />
+          <Caption style={[styles.caption, { color: c.textMuted }]}>{trustNote}</Caption>
+        </View>
+      ) : null}
       {cta ? (
         <Button
           title={cta.label}
@@ -60,5 +68,12 @@ const styles = StyleSheet.create({
   },
   title: { textAlign: 'center' },
   caption: { textAlign: 'center' },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
   cta: { alignSelf: 'stretch', marginTop: spacing.sm },
 });

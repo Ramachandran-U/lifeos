@@ -20,4 +20,24 @@ describe('EmptyState', () => {
     fireEvent.press(screen.getByText('Add goal'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
+
+  it('renders the trustNote above the CTA when provided (Ink + Signal §3.0.4)', () => {
+    render(
+      <EmptyState
+        icon="mail-outline"
+        title="Connect your inbox"
+        trustNote="Only transaction emails are scanned — nothing is uploaded."
+        cta={{ label: 'Connect Gmail', onPress: jest.fn() }}
+      />,
+    );
+    expect(
+      screen.getByText('Only transaction emails are scanned — nothing is uploaded.'),
+    ).toBeTruthy();
+    expect(screen.getByText('Connect Gmail')).toBeTruthy();
+  });
+
+  it('omits the trustNote row when not provided', () => {
+    render(<EmptyState icon="mail-outline" title="Connect your inbox" />);
+    expect(screen.queryByText(/scanned/)).toBeNull();
+  });
 });

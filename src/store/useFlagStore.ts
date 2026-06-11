@@ -67,6 +67,13 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   companion_v1: false,         // W4: companion mood/reactions (product layer)
   comeback_v1: false,          // W4: comeback chest + recovery quest + gentle nudge
   progress_map_v1: false,      // W5: ProgressPath replaces LevelLadder on Rewards
+  // Module-screen hierarchy v1: hero-first recomposition of Health / Explore /
+  // Career / Social / Finance tabs + ConnectRow collapse + SectionTitle swap.
+  // Default OFF; cohort rollout from the Worker /v1/config; kill switch = flip off.
+  // Default-false addition -> no persist-key bump: isEnabled is
+  // Boolean(get().flags[key]), so a persisted flags object that predates this
+  // key returns undefined -> false, identical to the fallback.
+  module_hierarchy_v1: false,
   // Cold-start program: zero-state replacement + first-win arc. Default ON —
   // this fixes a broken first-run, it is not a retention experiment. The
   // Worker /v1/config row is the kill switch.

@@ -44,7 +44,6 @@ const ALLOWLIST = new Set<string>([
   'app/(onboarding)/day1-routine.tsx',
   'app/(onboarding)/discovery-chat.tsx',
   'app/(tabs)/goals.tsx',
-  'app/(tabs)/health.tsx',
   'app/(tabs)/index.tsx',
   'app/(tabs)/profile.tsx',
   'app/+html.tsx',
@@ -90,6 +89,10 @@ const ALLOWLIST = new Set<string>([
   'src/components/ui/AuroraGlow.tsx',
   'src/finance/categoryGroups.ts',
   'src/finance/display.ts',
+  // W4 foundation (2026-06-12): entry follows the legacy extraction
+  // (app/(tabs)/health.tsx -> src/screens/legacy/HealthScreen.legacy.tsx);
+  // not growth - the route file is now a clean wrapper.
+  'src/screens/legacy/HealthScreen.legacy.tsx',
 ]);
 
 function* walk(dir: string): Generator<string> {

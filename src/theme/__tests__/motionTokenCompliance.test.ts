@@ -38,13 +38,17 @@ const ALLOWLIST = new Set<string>([
   'app/(onboarding)/discovery-confirm.tsx',
   'app/(onboarding)/discovery-intro.tsx',
   'app/(onboarding)/discovery-paste.tsx',
-  'app/(tabs)/career.tsx',
-  'app/(tabs)/explore.tsx',
-  'app/(tabs)/finance.tsx',
   'app/(tabs)/goals.tsx',
-  'app/(tabs)/health.tsx',
   'app/(tabs)/index.tsx',
-  'app/(tabs)/social.tsx',
+  // W4 foundation (2026-06-12): entries follow the legacy extraction
+  // (app/(tabs)/{career,explore,finance,health,social}.tsx ->
+  // src/screens/legacy/*.legacy.tsx); not growth - the route files are now
+  // clean wrappers and their five entries here were renamed 1:1.
+  'src/screens/legacy/CareerScreen.legacy.tsx',
+  'src/screens/legacy/ExploreScreen.legacy.tsx',
+  'src/screens/legacy/FinanceScreen.legacy.tsx',
+  'src/screens/legacy/HealthScreen.legacy.tsx',
+  'src/screens/legacy/SocialScreen.legacy.tsx',
   'app/activity.tsx',
   'app/annual-review.tsx',
   'app/contact/[id].tsx',
