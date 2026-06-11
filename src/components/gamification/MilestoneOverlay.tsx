@@ -77,11 +77,12 @@ export function MilestoneOverlay({ milestone, onClose }: Props) {
           accessibilityLabel={`${milestone.tier}-day ${meta.label} streak milestone. Tap to dismiss.`}
           style={[
             styles.banner,
-            { backgroundColor: c.surface, borderColor: c.streak + '55' },
+            // Moment banner — solid streak border, no concat tint.
+            { backgroundColor: c.surface, borderColor: c.streak },
             glow as object,
           ]}
         >
-          <View style={[styles.tierBadge, { backgroundColor: c.streak + '22', borderColor: c.streak + '55' }]}>
+          <View style={[styles.tierBadge, { backgroundColor: c.surfaceAlt, borderColor: c.streak }]}>
             <Text style={[styles.tierNum, { color: c.streak }]}>{milestone.tier}</Text>
           </View>
           <View style={styles.copy}>

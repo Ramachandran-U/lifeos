@@ -72,7 +72,8 @@ export default function FinanceMerchantScreen() {
           <Heading style={[styles.title, { color: c.textPrimary }]} numberOfLines={2}>{name}</Heading>
 
           <Animated.View entering={FadeInDown.duration(300)}>
-            <Card moduleColor={accent} style={styles.summaryCard}>
+            {/* Neutral card — the category-accent label above is the identity mark. */}
+            <Card style={styles.summaryCard}>
               <Heading style={{ color: c.textPrimary, fontSize: fontSizes.xxxl }}>{formatInr(total)}</Heading>
               <Caption style={{ color: c.textMuted }}>
                 {count} payment{count === 1 ? '' : 's'} · {prettyCategory(topCategory)}

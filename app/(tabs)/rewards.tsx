@@ -215,8 +215,9 @@ export default function RewardsScreen() {
 
           {/* Quiet Comeback — warm, no guilt; nothing reset while you were away */}
           {comebackDays && (
-            <GlassCard accent={c.primary} style={styles.sparkCard}>
-              <AuroraText variant="h3">Welcome back 👋</AuroraText>
+            // Neutral card — the comeback headline carries the XP ink (V5: rewards surface).
+            <GlassCard style={styles.sparkCard}>
+              <AuroraText variant="h3" color={c.xp}>Welcome back 👋</AuroraText>
               <AuroraText variant="body" muted style={{ marginTop: 6 }}>
                 {`It's been ${comebackDays} days — and none of it reset. You're still Level ${prog.level} with ${totalXP.toLocaleString()} XP. Pick up right where you left off.`}
               </AuroraText>
@@ -225,7 +226,7 @@ export default function RewardsScreen() {
 
           {/* "This week you…" — the proud recap, real data only, hidden when quiet */}
           {weekRecap && (
-            <GlassCard accent={c.xp} style={styles.sparkCard}>
+            <GlassCard style={styles.sparkCard}>
               <SectionLabel color={c.xp}>THIS WEEK</SectionLabel>
               <AuroraText variant="bodyLg" style={{ marginTop: 6 }}>{weekRecap}</AuroraText>
             </GlassCard>
@@ -234,7 +235,7 @@ export default function RewardsScreen() {
           {/* Sparkline card — M4: animated ledger bars when animatedCharts is
               on (XpHistoryChart self-degrades to a Sparkline off-native); the
               legacy cumulative Sparkline is the flag-off path, unchanged. */}
-          <GlassCard accent={c.xp} style={styles.sparkCard}>
+          <GlassCard style={styles.sparkCard}>
             <SectionLabel color={c.xp}>7-DAY XP</SectionLabel>
             {animatedCharts ? (
               <XpHistoryChart data={xpDailyTotals} testID="rewards-xp-sparkline" />
@@ -297,8 +298,9 @@ export default function RewardsScreen() {
             <>
               <SectionLabel color={c.badge}>ALMOST THERE</SectionLabel>
               {almostThere.map((it) => (
-                <GlassCard key={it.label} accent={c.badge} style={styles.sparkCard}>
-                  <AuroraText variant="body">{it.label}</AuroraText>
+                // Neutral card — the badge label carries the badge ink (R2).
+                <GlassCard key={it.label} style={styles.sparkCard}>
+                  <AuroraText variant="body" color={c.badge}>{it.label}</AuroraText>
                   <View style={{ marginTop: 8 }}>
                     <XpBar pct={it.pct} color={c.badge} height={8} />
                   </View>

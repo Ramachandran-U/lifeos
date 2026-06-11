@@ -33,15 +33,14 @@ export function QuestCard({ quest, onPress, compact = false, onClaim }: Props) {
           styles.card,
           {
             backgroundColor: c.card,
-            borderColor: color + '33',
-            borderLeftColor: color,
+            borderColor: c.border,
             padding: compact ? 14 : 16,
           },
           press.animatedStyle,
         ]}
       >
         <View style={styles.row}>
-        <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
+        <View style={[styles.iconBox, { backgroundColor: c.surfaceAlt }]}>
           <Text style={{ fontSize: 18 }}>{meta.emoji}</Text>
         </View>
         <View style={styles.body}>
@@ -72,7 +71,7 @@ export function QuestCard({ quest, onPress, compact = false, onClaim }: Props) {
             accessibilityLabel={`Claim ${quest.xp} XP for ${quest.title}`}
             style={[styles.claimPill, { backgroundColor: color }]}
           >
-            <Text style={styles.claimText}>Claim +{quest.xp}</Text>
+            <Text style={[styles.claimText, { color: c.inkOnColor }]}>Claim +{quest.xp}</Text>
           </Pressable>
         ) : (
           <View
@@ -84,7 +83,7 @@ export function QuestCard({ quest, onPress, compact = false, onClaim }: Props) {
               },
             ]}
           >
-            {(done || claimed) && <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>✓</Text>}
+            {(done || claimed) && <Text style={{ color: c.inkOnColor, fontSize: 14, fontWeight: '700' }}>✓</Text>}
           </View>
         )}
       </View>
@@ -97,7 +96,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
     borderWidth: 1,
-    borderLeftWidth: 3,
   },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   iconBox: {
@@ -125,7 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 2,
   },
-  claimText: { color: '#FFF', fontFamily: fonts.heading, fontSize: fontSizes.xs },
+  claimText: { fontFamily: fonts.heading, fontSize: fontSizes.xs },
 });
 
 // Suppress unused import warnings when spacing is not used directly

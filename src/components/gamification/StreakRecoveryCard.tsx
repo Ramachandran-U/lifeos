@@ -37,7 +37,7 @@ export function StreakRecoveryCard({ streakKey, lostCount, onRestore, onDismiss 
     <Animated.View
       entering={FadeInDown.duration(MOTION_BUDGET.reveal)}
       exiting={FadeOutUp.duration(MOTION_BUDGET.microFeedback)}
-      style={[styles.card, { backgroundColor: c.card, borderColor: c.border, borderLeftColor: accent }]}
+      style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
     >
       <Text style={[styles.title, { color: c.textPrimary }]}>
         {meta.emoji} Your {lostCount}-day {meta.label} streak took a break
@@ -50,8 +50,9 @@ export function StreakRecoveryCard({ streakKey, lostCount, onRestore, onDismiss 
           onPress={handleRestore}
           accessibilityRole="button"
           accessibilityLabel={`Restore ${meta.label} streak`}
-          style={[styles.cta, { backgroundColor: accent + '22', borderColor: accent + '66' }]}
+          style={[styles.cta, { backgroundColor: 'transparent', borderColor: c.border }]}
         >
+          {/* R2 — the streak's own ink carries the action; chrome neutral. */}
           <Text style={[styles.ctaText, { color: accent }]}>Bring it back</Text>
         </Pressable>
         <Pressable
@@ -71,7 +72,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderLeftWidth: 3,
     padding: spacing.md,
     gap: spacing.xs,
     marginHorizontal: spacing.md,

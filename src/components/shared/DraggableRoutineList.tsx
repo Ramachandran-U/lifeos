@@ -154,7 +154,8 @@ function DragRow({ index, count, block, color, activeIndex, dragY, onReorder, on
   return (
     <Animated.View style={[styles.card, { height: ROW_HEIGHT - CARD_GAP }, animatedStyle]}>
       <GestureDetector gesture={pan}>
-        <View style={[styles.cardInner, { borderLeftColor: color, backgroundColor: c.card }]}>
+        {/* Neutral row — the module caption below carries the domain ink. */}
+        <View style={[styles.cardInner, { backgroundColor: c.card }]}>
           <Ionicons name="reorder-three" size={20} color={c.textMuted} style={styles.handle} />
           <View style={styles.cardContent}>
             <Body style={styles.cardTitle} numberOfLines={1}>{block.title}</Body>
@@ -198,7 +199,6 @@ const makeStyles = (c: AppColors) => StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: c.border,
-    borderLeftWidth: 4,
   },
   handle: { opacity: 0.7 },
   cardContent: { flex: 1, gap: spacing.xs },

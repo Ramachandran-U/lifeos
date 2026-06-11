@@ -50,10 +50,11 @@ export function InterestCard({
   const protectedOn = !!interest.timeProtected;
 
   return (
-    <Card moduleColor={c.polymath} style={styles.card}>
+    // Neutral card — the category icon in polymath ink is the R3 mark.
+    <Card style={styles.card}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Ionicons name={iconName} size={20} color={c.polymath} />
+          <Ionicons name={iconName} size={20} color={c.polymathText} />
           <Body style={styles.title}>{interest.name}</Body>
         </View>
         <Pressable onPress={onDelete} hitSlop={8}>
@@ -87,9 +88,9 @@ export function InterestCard({
           <Ionicons
             name={protectedOn ? 'lock-closed' : 'lock-open'}
             size={12}
-            color={protectedOn ? c.polymath : c.textMuted}
+            color={protectedOn ? c.polymathText : c.textMuted}
           />
-          <Caption style={{ color: protectedOn ? c.polymath : c.textSecondary }}>
+          <Caption style={{ color: protectedOn ? c.polymathText : c.textSecondary }}>
             {protectedOn ? 'Protected' : 'Protect time'}
           </Caption>
         </Pressable>
@@ -101,8 +102,8 @@ export function InterestCard({
       <View style={styles.progressRow}>
         <Label>{weeklyActual} / {interest.weeklyMinutesTarget} min this week</Label>
         <Pressable onPress={onLog} style={styles.logButton}>
-          <Ionicons name="add" size={16} color={c.polymath} />
-          <Label color={c.polymath}>Log</Label>
+          <Ionicons name="add" size={16} color={c.polymathText} />
+          <Label color={c.polymathText}>Log</Label>
         </Pressable>
       </View>
     </Card>

@@ -44,7 +44,7 @@ export function RabbitHoleMapNode({ title, kind, arrivedVia, x, y, width, height
   const onPath = cursor || kind === 'path';
 
   const borderColor = onPath ? c.polymath : c.border;
-  const backgroundColor = ghost ? 'transparent' : onPath ? c.polymath + '14' : c.card;
+  const backgroundColor = ghost ? 'transparent' : onPath ? c.polymathDim : c.card;
 
   // Ripple ring: expands and fades out repeatedly while this tile is the cursor.
   const ringScale = useSharedValue(1);

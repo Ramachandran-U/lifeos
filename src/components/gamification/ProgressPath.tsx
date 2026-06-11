@@ -57,12 +57,12 @@ export function ProgressPath({ currentLevel, levelPct, streaks, badgeCount }: Pr
       {(earnedTiers.length > 0 || badgeCount > 0) && (
         <View style={styles.landmarks}>
           {earnedTiers.map((tier) => (
-            <View key={tier} style={[styles.landmark, { backgroundColor: c.card, borderColor: c.streak + '55' }]}>
+            <View key={tier} style={[styles.landmark, { backgroundColor: c.card, borderColor: c.border }]}>
               <Text style={[styles.landmarkText, { color: c.streak }]}>{`🔥 ${tier}-day`}</Text>
             </View>
           ))}
           {badgeCount > 0 && (
-            <View style={[styles.landmark, { backgroundColor: c.card, borderColor: c.badge + '55' }]}>
+            <View style={[styles.landmark, { backgroundColor: c.card, borderColor: c.border }]}>
               <Text style={[styles.landmarkText, { color: c.badge }]}>{`★ ${badgeCount} badge${badgeCount > 1 ? 's' : ''}`}</Text>
             </View>
           )}

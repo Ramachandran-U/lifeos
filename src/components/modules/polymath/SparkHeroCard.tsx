@@ -31,10 +31,11 @@ export function SparkHeroCard({ spark, onAction }: Props) {
   };
 
   return (
-    <Card style={[styles.card, { borderLeftWidth: 4, borderLeftColor: c.polymath }]}>
+    // Neutral card — the polymath ink lives in the eyebrow (R2).
+    <Card style={styles.card}>
       <View style={styles.eyebrowRow}>
-        <Ionicons name="sparkles" size={16} color={c.polymath} />
-        <Label color={c.polymath}>TODAY'S SPARK</Label>
+        <Ionicons name="sparkles" size={16} color={c.polymathText} />
+        <Label color={c.polymathText}>TODAY'S SPARK</Label>
       </View>
       <Heading style={styles.title}>{spark.title}</Heading>
       <Body style={styles.body}>{spark.body}</Body>
@@ -44,15 +45,15 @@ export function SparkHeroCard({ spark, onAction }: Props) {
       </View>
       {spark.seedInterest ? (
         <Caption style={{ color: c.textMuted }}>
-          From <Caption style={{ fontFamily: fonts.heading, color: c.polymath }}>{spark.seedInterest}</Caption>
+          From <Caption style={{ fontFamily: fonts.heading, color: c.polymathText }}>{spark.seedInterest}</Caption>
           {spark.adjacentField ? ` → ${spark.adjacentField}` : ''}
         </Caption>
       ) : null}
       {!acted && (
         <View style={styles.actions}>
           {ACTIONS.map((a) => (
-            <Pressable key={a.key} onPress={() => handleAction(a.key)} style={[styles.actionBtn, { borderColor: a.key === 'dismiss' ? c.border : c.polymath }]}>
-              <Ionicons name={a.icon as keyof typeof Ionicons.glyphMap} size={16} color={a.key === 'dismiss' ? c.textMuted : c.polymath} />
+            <Pressable key={a.key} onPress={() => handleAction(a.key)} style={[styles.actionBtn, { borderColor: c.border }]}>
+              <Ionicons name={a.icon as keyof typeof Ionicons.glyphMap} size={16} color={a.key === 'dismiss' ? c.textMuted : c.polymathText} />
               <Caption style={{ color: a.key === 'dismiss' ? c.textMuted : c.textPrimary, fontFamily: fonts.heading }}>{a.label}</Caption>
             </Pressable>
           ))}

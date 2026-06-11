@@ -95,7 +95,9 @@ export default function SocialScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
+          {/* R1 block — full-bleed, outside the padded inner container. */}
           <ModuleHeader title="Social" domain="social" color={c.social} />
+          <View style={styles.scrollInner}>
 
           <Caption style={{ color: c.textMuted, marginBottom: spacing.md }}>
             Stay close to people who matter. Names stay on this device.
@@ -166,6 +168,7 @@ export default function SocialScreen() {
           ) : null}
 
           <View style={{ height: spacing.xxl }} />
+          </View>
         </ScrollView>
 
         <Pressable
@@ -197,8 +200,10 @@ export default function SocialScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: {
-    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl,
+  },
+  scrollInner: {
+    paddingHorizontal: spacing.lg,
   },
   section: { marginTop: spacing.lg, gap: spacing.sm },
   list: { gap: spacing.xs },

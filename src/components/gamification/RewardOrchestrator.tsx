@@ -139,8 +139,9 @@ function Beat({ beat }: { beat: RewardBeat }) {
           style={[
             styles.chip,
             {
-              backgroundColor: hue + '1A',
-              borderColor: hue + '80',
+              // Moment chip — solid hue border + hue-driven glow (no concat tints).
+              backgroundColor: c.surface,
+              borderColor: hue,
               shadowColor: hue,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.55,
@@ -169,8 +170,8 @@ function Beat({ beat }: { beat: RewardBeat }) {
           style={[
             styles.chip,
             {
-              backgroundColor: c.success + '1A',
-              borderColor: c.success + '80',
+              backgroundColor: c.surface,
+              borderColor: c.success,
               shadowColor: c.success,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.5,
@@ -198,8 +199,8 @@ function Beat({ beat }: { beat: RewardBeat }) {
         style={[
           styles.chip,
           {
-            backgroundColor: c.streak + '1A',
-            borderColor: c.streak + '80',
+            backgroundColor: c.surface,
+            borderColor: c.streak,
             shadowColor: c.streak,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.5,

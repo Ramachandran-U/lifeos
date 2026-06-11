@@ -16,6 +16,7 @@ interface DomainChipProps {
 export function DomainChip({ domain, value, dim = false }: DomainChipProps) {
   const c = useColors();
   const hue = (c as Record<string, string>)[domain] ?? c.primary;
+  const hueDim = (c as Record<string, string>)[`${domain}Dim`] ?? c.surfaceAlt;
   return (
     <View
       accessibilityRole="text"
@@ -23,8 +24,9 @@ export function DomainChip({ domain, value, dim = false }: DomainChipProps) {
       style={[
         styles.chip,
         {
-          backgroundColor: dim ? c.surfaceAlt : hue + '1A',
-          borderColor: dim ? c.border : hue + '44',
+          // Active chips use the domain's named Dim container; chrome stays neutral.
+          backgroundColor: dim ? c.surfaceAlt : hueDim,
+          borderColor: c.border,
         },
       ]}
     >

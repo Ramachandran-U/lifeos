@@ -20,9 +20,10 @@ export function CrossDisciplineCard({ link, loading, pairLabel, onRefresh, onDis
   const c = useColors();
 
   return (
-    <Card moduleColor={c.polymath}>
+    // Neutral card — domain identity is the R2 eyebrow ink.
+    <Card>
       <View style={styles.header}>
-        <Label color={c.polymath}>CROSS-DISCIPLINE</Label>
+        <Label color={c.polymathText}>CROSS-DISCIPLINE</Label>
         <View style={styles.actions}>
           <Pressable onPress={onRefresh} hitSlop={8}>
             <Ionicons name="refresh" size={16} color={c.textMuted} />
@@ -47,7 +48,7 @@ export function CrossDisciplineCard({ link, loading, pairLabel, onRefresh, onDis
           ) : null}
           <Body style={[styles.description, { color: c.textSecondary }]}>{link.description}</Body>
           <View style={[styles.starter, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <Ionicons name="bulb" size={16} color={c.polymath} />
+            <Ionicons name="bulb" size={16} color={c.polymathText} />
             <Body style={{ color: c.textPrimary, flex: 1 }}>{link.starterAction}</Body>
           </View>
         </>

@@ -566,7 +566,9 @@ export default function ExploreScreen() {
       <InkCanvas />
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
+          {/* R1 block — full-bleed, outside the padded inner container. */}
           <ModuleHeader title="Explore" domain="polymath" color={c.polymath} />
+          <View style={styles.contentInner}>
 
           {/* ─── Explore redesign: Chasing now (live questions) ─── */}
           {exploreChasing && chasingThreads && chasingThreads.length > 0 && (
@@ -596,8 +598,9 @@ export default function ExploreScreen() {
           <ConstellationView input={constellationInput} />
 
           <Animated.View entering={FadeInDown.duration(400)}>
-            <Card moduleColor={c.polymath} style={styles.summary}>
-              <Label color={c.polymath}>THIS WEEK</Label>
+            {/* Neutral card — domain identity is the R2 eyebrow ink. */}
+            <Card style={styles.summary}>
+              <Label color={c.polymathText}>THIS WEEK</Label>
               <Heading style={styles.summaryNumber}>{totalMinutesWeek} min</Heading>
               <Caption>across {interests.length} interest{interests.length === 1 ? '' : 's'}</Caption>
             </Card>
@@ -629,7 +632,7 @@ export default function ExploreScreen() {
                   <Ionicons
                     name="refresh"
                     size={16}
-                    color={suggestionsLoading ? c.textMuted : c.polymath}
+                    color={suggestionsLoading ? c.textMuted : c.polymathText}
                   />
                 </Pressable>
               </View>
@@ -674,7 +677,8 @@ export default function ExploreScreen() {
                         router.push({ pathname: '/rabbit-hole', params: { treeId: row.id } });
                       }}
                     >
-                      <Card moduleColor={c.polymath} style={styles.mapCard}>
+                      {/* Neutral card — the polymath-hued map silhouette is the R3 mark. */}
+                      <Card style={styles.mapCard}>
                         <View style={styles.mapCardRow}>
                           <MapSilhouette treeJson={row.treeJson} color={c.polymath} />
                           <View style={styles.mapCardInfo}>
@@ -693,7 +697,7 @@ export default function ExploreScreen() {
                                 hitSlop={8}
                                 disabled={isSuggesting}
                               >
-                                <Caption style={{ color: isSuggesting ? c.textMuted : c.polymath, marginTop: 2 }}>
+                                <Caption style={{ color: isSuggesting ? c.textMuted : c.polymathText, marginTop: 2 }}>
                                   {isSuggesting ? 'Naming…' : 'Suggest name →'}
                                 </Caption>
                               </Pressable>
@@ -714,8 +718,8 @@ export default function ExploreScreen() {
               onPress={() => setShowAdd(true)}
               style={[styles.addBtn, { backgroundColor: c.polymathDim }]}
             >
-              <Ionicons name="add" size={18} color={c.polymath} />
-              <Label color={c.polymath}>Add</Label>
+              <Ionicons name="add" size={18} color={c.polymathText} />
+              <Label color={c.polymathText}>Add</Label>
             </Pressable>
           </View>
 
@@ -740,6 +744,7 @@ export default function ExploreScreen() {
               </Animated.View>
             ))
           )}
+          </View>
         </ScrollView>
 
         <AddInterestSheet
@@ -770,8 +775,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,
+    gap: spacing.md,
+  },
+  contentInner: {
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
   summary: {

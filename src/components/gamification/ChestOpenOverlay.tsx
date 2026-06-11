@@ -90,7 +90,7 @@ export function ChestOpenOverlay({ visible, onOpen, onClose }: Props) {
     <Animated.View
       entering={FadeIn.duration(MOTION_BUDGET.microFeedback)}
       exiting={FadeOut.duration(MOTION_BUDGET.microFeedback)}
-      style={[styles.scrim, { backgroundColor: c.background + 'E6' }]}
+      style={[styles.scrim, { backgroundColor: c.overlay }]}
     >
       {revealed && !reduceMotion && (
         <CelebrationBurst palette={[c.xp, c.primaryDim, c.streak]} count={16} size={8} originTop={220} />
@@ -101,7 +101,7 @@ export function ChestOpenOverlay({ visible, onOpen, onClose }: Props) {
       ) : (
         <Animated.View
           entering={reduceMotion ? undefined : FadeInDown.duration(MOTION_BUDGET.reveal)}
-          style={[styles.revealCard, { backgroundColor: c.surface, borderColor: c.xp + '55' }]}
+          style={[styles.revealCard, { backgroundColor: c.surface, borderColor: c.border }]}
         >
           <Text style={styles.revealGlyph}>{drop!.emoji}</Text>
           <Text style={[styles.revealTitle, { color: c.textPrimary }]}>{drop!.title}</Text>

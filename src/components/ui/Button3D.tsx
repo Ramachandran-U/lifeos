@@ -108,8 +108,9 @@ export function Button3D({
 
   const faceColor = c[TONE_TO_TOKEN[tone]];
   const rimColor = darken(faceColor, 0.28);
-  // Bright accent fills carry near-black ink per Aurora (`inkOnColor`).
-  const labelColor = c.inkOnColor;
+  // Domain hues are bright in both modes → inkOnColor; brand/danger fills are
+  // per-mode → onPrimary (light primary is too dark for near-black ink).
+  const labelColor = tone === 'primary' || tone === 'danger' ? c.onPrimary : c.inkOnColor;
 
   // 0 = at rest (face lifted, rim showing), 1 = fully pressed (face covers rim).
   const pressed = useSharedValue(0);

@@ -34,7 +34,8 @@ export function WhatNextCard() {
   };
 
   return (
-    <Card moduleColor={c.primary} style={styles.card}>
+    // V4 — AI-speaking surface: violet eyebrow + icon; card neutral.
+    <Card style={styles.card}>
       <View style={styles.header}>
         <Ionicons name="sparkles-outline" size={16} color={c.primary} />
         <Label color={c.primary}>WHAT NOW</Label>
@@ -84,15 +85,15 @@ export function WhatNextCard() {
             styles.btn,
             styles.btnPrimary,
             {
-              backgroundColor: pressed ? c.primary + 'cc' : c.primary,
-              opacity: status === 'loading' ? 0.7 : 1,
+              backgroundColor: c.primary,
+              opacity: status === 'loading' ? 0.7 : pressed ? 0.85 : 1,
             },
           ]}
         >
           {status === 'loading' ? (
             <LoadingDots />
           ) : (
-            <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+            <Body style={{ color: c.onPrimary, fontFamily: fonts.heading }}>
               {status === 'done' || status === 'error' ? 'Ask again' : 'What should I do next?'}
             </Body>
           )}

@@ -389,7 +389,7 @@ function ConnectionRow({
           borderRadius: 999,
           borderWidth: 1,
           borderColor: connected ? c.success : c.border,
-          backgroundColor: connected ? c.success + '22' : 'transparent',
+          backgroundColor: 'transparent',
         }}
       >
         <Caption style={{ color: connected ? c.success : c.textMuted, fontFamily: fonts.bodyMedium }}>

@@ -160,12 +160,12 @@ export function WheelTimePicker({ label, options, selected, onSelect, formatValu
           })}
         </ScrollView>
 
-        {/* Center selection hairlines */}
+        {/* Center selection hairlines — active selection is data: solid border, neutral fill. */}
         <View pointerEvents="none" style={[styles.centerBand, {
           top: CENTER_INDEX * ITEM_HEIGHT,
           height: ITEM_HEIGHT,
-          borderColor: c.primary + '55',
-          backgroundColor: c.primary + '0F',
+          borderColor: c.primary,
+          backgroundColor: c.surfaceAlt,
         }]} />
       </View>
     </View>

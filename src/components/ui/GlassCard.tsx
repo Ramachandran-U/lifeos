@@ -15,7 +15,6 @@ import { useElevation, type Elevation } from '@/theme/elevation';
 import { usePressScale } from '@/hooks/usePressScale';
 
 interface GlassCardProps extends ViewProps {
-  accent?: string;        // Domain hue — left border (corner glow died in Ink + Signal)
   padding?: keyof typeof spacing | number;
   radius?: keyof typeof radii | number;
   elevation?: Elevation;  // z1 default — content card
@@ -25,11 +24,10 @@ interface GlassCardProps extends ViewProps {
 }
 
 // Ink container — a solid ink surface (elevation token) with a hairline
-// border. Blur and accent corner glow died in the Ink + Signal recommit
-// (Cluster 3 §A.7). The `accent` left border survives until the W2 structural
-// pass removes the prop (R3 glyphs replace edge accents).
+// border. Blur, corner glow, and the hue left-border prop all died in the
+// Ink + Signal recommit (Cluster 3 §A.7, §C): containers are neutral; domain
+// identity is an R3 glyph (DomainGlyph) inside the content, never an edge.
 export function GlassCard({
-  accent,
   padding = 'md',
   radius = 'card',
   elevation = 'z1',
@@ -44,20 +42,12 @@ export function GlassCard({
   // Cards compress gently (0.98) vs. a control's 0.97 — proportional to size.
   const press = usePressScale(0.98);
 
-  const accentBorder: ViewStyle | undefined = accent
-    ? {
-        borderLeftWidth: 3,
-        borderLeftColor: accent,
-      }
-    : undefined;
-
   const inner = (
     <View
       style={[
         styles.base,
         elev,
         { borderRadius: radiusValue, padding: padValue },
-        accentBorder,
         style,
       ]}
       {...rest}

@@ -47,10 +47,11 @@ export function DomainBalanceBar({
   const denom = Math.max(1, total);
 
   return (
-    <Card moduleColor={c.primary} style={styles.card}>
+    // Neutral card — cross-domain summary; the six hues live in the bar segments.
+    <Card style={styles.card}>
       <View style={styles.header}>
         <View>
-          <Label color={c.primary}>{title}</Label>
+          <Label>{title}</Label>
           <Caption style={{ color: c.textMuted }}>{subtitle}</Caption>
         </View>
         <Body style={[styles.total, { color: c.textPrimary }]}>{fmtMin(total)}</Body>

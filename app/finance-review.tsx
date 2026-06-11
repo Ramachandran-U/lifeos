@@ -107,13 +107,13 @@ export default function FinanceReviewScreen() {
               )}
 
               <Animated.View entering={FadeInDown.delay(stagger(0, 80)).duration(300)}>
-                <Card moduleColor={c.finance}>
+                <Card>
                   <Body style={[styles.headline, { color: c.textPrimary }]}>{report.headline}</Body>
                 </Card>
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(stagger(1, 80)).duration(300)}>
-                <Card moduleColor={c.success}>
+                <Card>
                   <SectionLabel color={c.success}>WINS</SectionLabel>
                   <View style={styles.list}>
                     {report.wins.map((w, i) => (
@@ -124,7 +124,7 @@ export default function FinanceReviewScreen() {
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(stagger(2, 80)).duration(300)}>
-                <Card moduleColor={c.warning}>
+                <Card>
                   <SectionLabel color={c.warning}>WHERE IT WENT</SectionLabel>
                   <View style={styles.list}>
                     {report.leaks.map((l, i) => (
@@ -135,21 +135,22 @@ export default function FinanceReviewScreen() {
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(stagger(3, 80)).duration(300)}>
-                <Card moduleColor={c.primary}>
+                {/* V4 — the AI's recommendation: violet eyebrow, card neutral. */}
+                <Card>
                   <SectionLabel color={c.primary}>ONE ADJUSTMENT</SectionLabel>
                   <Body style={[styles.adjustment, { color: c.textPrimary }]}>{report.oneAdjustment}</Body>
                 </Card>
               </Animated.View>
             </>
           ) : error ? (
-            <Card moduleColor={c.error} style={styles.loadCard}>
+            <Card style={styles.loadCard}>
               <Ionicons name="alert-circle-outline" size={28} color={c.error} />
               <Body style={{ color: c.textPrimary, textAlign: 'center', marginTop: spacing.sm }}>
                 Couldn't build your review
               </Body>
               <Caption style={{ color: c.textMuted, textAlign: 'center', marginTop: spacing.xs }}>{error}</Caption>
               <Pressable onPress={() => generate({ force: true })} style={[styles.retryBtn, { backgroundColor: c.finance }]}>
-                <Body style={{ color: '#fff', fontFamily: fonts.heading }}>Try again</Body>
+                <Body style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Try again</Body>
               </Pressable>
             </Card>
           ) : transactions.length === 0 ? (

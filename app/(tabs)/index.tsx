@@ -552,7 +552,7 @@ export default function TodayScreen() {
             <Pressable
               onPress={() => setVoiceOpen(true)}
               hitSlop={8}
-              style={[styles.voiceBtn, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}
+              style={[styles.voiceBtn, { backgroundColor: c.primaryDim, borderColor: c.border }]}
               testID="voice-open"
               accessibilityRole="button"
               accessibilityLabel="Voice assistant"
@@ -562,7 +562,7 @@ export default function TodayScreen() {
             <Pressable
               onPress={() => router.push('/feedback')}
               hitSlop={8}
-              style={[styles.feedbackBtn, { backgroundColor: c.warning + '1A', borderColor: c.warning + '55' }]}
+              style={[styles.feedbackBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
               testID="feedback-open"
               accessibilityRole="button"
               accessibilityLabel="Send feedback"
@@ -613,8 +613,9 @@ export default function TodayScreen() {
                       style={[
                         styles.streakTile,
                         {
-                          backgroundColor: active ? color + '1F' : c.surfaceAlt,
-                          borderColor: active ? color + '44' : c.border,
+                          backgroundColor: c.surfaceAlt,
+                          // Active state is data — the border carries the solid hue.
+                          borderColor: active ? color : c.border,
                         },
                       ]}
                     >
@@ -670,13 +671,14 @@ export default function TodayScreen() {
 
           {allComplete && (
             <Animated.View entering={FadeInDown.duration(400)}>
-              <GlassCard accent={c.success} onPress={() => setShowSummary(true)} style={styles.reflectCard}>
+              <GlassCard onPress={() => setShowSummary(true)} style={styles.reflectCard}>
                 <View style={styles.reflectRow}>
-                  <View style={[styles.wrapBadge, { backgroundColor: c.success + '22', borderColor: c.success + '55' }]}>
+                  <View style={[styles.wrapBadge, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                     <Ionicons name="sparkles" size={18} color={c.success} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <AuroraText variant="bodyLg">Every block done</AuroraText>
+                    {/* R2 — the completion state renders in success ink; card neutral. */}
+                    <AuroraText variant="bodyLg" color={c.success}>Every block done</AuroraText>
                     <AuroraText variant="caption" muted style={{ marginTop: 2 }}>
                       Tap for your daily summary
                     </AuroraText>
@@ -690,13 +692,13 @@ export default function TodayScreen() {
           {blocks.length > 0 && new Date().getHours() >= 18 && !hasReflectedToday && (
             <Animated.View entering={FadeInDown.delay(180).duration(400)}>
               <GlassCard
-                accent={c.polymath}
                 onPress={() => router.push('/evening-reflect')}
                 style={styles.reflectCard}
               >
                 <View style={styles.reflectRow}>
-                  <View style={[styles.wrapBadge, { backgroundColor: c.polymath + '22', borderColor: c.polymath + '55' }]}>
-                    <AuroraText variant="h3" color={c.polymath}>✦</AuroraText>
+                  {/* R3 — the polymath mark identifies the domain; card neutral. */}
+                  <View style={[styles.wrapBadge, { backgroundColor: c.polymathDim, borderColor: c.border }]}>
+                    <AuroraText variant="h3" color={c.polymathText}>✦</AuroraText>
                   </View>
                   <View style={{ flex: 1 }}>
                     <AuroraText variant="bodyLg">Wrap up the day</AuroraText>
@@ -711,10 +713,11 @@ export default function TodayScreen() {
           )}
           {hasReflectedToday && (
             <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-              <GlassCard accent={c.success} style={styles.reflectCard}>
+              <GlassCard style={styles.reflectCard}>
                 <View style={styles.reflectRow}>
                   <Ionicons name="checkmark-circle" size={22} color={c.success} />
-                  <AuroraText variant="body" secondary style={{ flex: 1 }}>
+                  {/* R2 — the logged status renders in success ink; card neutral. */}
+                  <AuroraText variant="body" color={c.success} style={{ flex: 1 }}>
                     Reflection logged. Tomorrow is ready.
                   </AuroraText>
                 </View>
@@ -833,7 +836,8 @@ export default function TodayScreen() {
 
           {weeklyInsight && (
             <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-              <GlassCard accent={c.primary} style={styles.insightCard}>
+              {/* V4 — AI-speaking surface: violet eyebrow + identity mark; card neutral. */}
+              <GlassCard style={styles.insightCard}>
                 <View style={styles.insightHeader}>
                   <Ionicons name="analytics-outline" size={14} color={c.primary} />
                   <SectionLabel color={c.primary}>WEEKLY INSIGHT</SectionLabel>
@@ -845,7 +849,8 @@ export default function TodayScreen() {
 
           {blocks.length > 0 && primaryDomains.length > 0 && activatedModules.length === 0 && (
             <Animated.View entering={FadeInDown.delay(250).duration(400)}>
-              <Card style={[styles.insightCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
+              {/* V4 — the planner speaking: violet eyebrow only; rail removed, card neutral. */}
+              <Card style={styles.insightCard}>
                 <View style={styles.insightHeader}>
                   <Ionicons name="sparkles" size={18} color={c.primary} />
                   <Label color={c.primary}>YOUR STARTER DAY</Label>

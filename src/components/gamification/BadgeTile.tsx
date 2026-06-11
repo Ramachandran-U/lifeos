@@ -26,7 +26,8 @@ export function BadgeTile({ badgeId, earned, onPress }: Props) {
         styles.tile,
         {
           backgroundColor: c.card,
-          borderColor: earned ? accent + '55' : c.border,
+          // Earned state is data — solid tier-accent border.
+          borderColor: earned ? accent : c.border,
           opacity: earned ? (pressed ? 0.9 : 1) : 0.5,
         },
       ]}
@@ -38,8 +39,8 @@ export function BadgeTile({ badgeId, earned, onPress }: Props) {
         style={[
           styles.circle,
           {
-            backgroundColor: earned ? accent + '22' : c.border + '44',
-            borderColor: earned ? accent + '66' : c.border,
+            backgroundColor: c.surfaceAlt,
+            borderColor: earned ? accent : c.border,
           },
         ]}
       >

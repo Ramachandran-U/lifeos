@@ -23,7 +23,7 @@ export default function Root({ children }: PropsWithChildren) {
 
         {/* PWA */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0D0D0D" />
+        <meta name="theme-color" content="#000000" />
 
         {/* iOS Safari — Add to Home Screen */}
         <meta name="mobile-web-app-capable" content="yes" />
@@ -37,9 +37,9 @@ export default function Root({ children }: PropsWithChildren) {
 
         <ScrollViewStyleReset />
 
-        {/* Force dark background to avoid white flash on cold load */}
+        {/* Force the ink ground pre-hydration to avoid a flash on cold load */}
         <style dangerouslySetInnerHTML={{ __html: `
-          html, body, #root { background-color: #0D0D0D; height: 100%; }
+          html, body, #root { background-color: #000000; height: 100%; }
           body { overscroll-behavior-y: none; }
         ` }} />
 

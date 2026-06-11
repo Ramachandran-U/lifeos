@@ -5,6 +5,7 @@ import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
+import { DomainGlyph } from '@/components/ui/DomainGlyph';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Body, Label, Caption } from '@/components/ui/Typography';
 import { usePressScale } from '@/hooks/usePressScale';
@@ -38,18 +39,21 @@ export function GoalCard({
     : `${Math.round(progress)}% complete`;
 
   const content = (
-    <Card moduleColor={typeColor.color} style={isPrimary ? styles.primaryCard : styles.card}>
+    // Neutral card — domain identity is the R3 glyph + R2 label ink, not an edge.
+    <Card style={isPrimary ? styles.primaryCard : styles.card}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Label color={typeColor.color}>{typeColor.label.toUpperCase()}</Label>
+          <DomainGlyph domain={typeColor.domain} size={14} color={typeColor.text} />
+          <Label color={typeColor.text}>{typeColor.label.toUpperCase()}</Label>
           <Caption style={{ color: c.textMuted }}>· {level}</Caption>
         </View>
-        <Caption style={{ color: c.textSecondary }}>{status}</Caption>
+        {/* R2 — status is data: domain ink while active, neutral otherwise. */}
+        <Caption style={{ color: status === 'active' ? typeColor.text : c.textMuted }}>{status}</Caption>
       </View>
       <Body style={[styles.title, isPrimary && styles.primaryTitle, { color: c.textPrimary }]}>
         {title}
       </Body>
-      <ProgressBar value={progress} color={typeColor.color} height={isPrimary ? 8 : 6} />
+      <ProgressBar value={progress} color={typeColor.hue} height={isPrimary ? 8 : 6} />
       <View style={styles.footer}>
         <Caption style={{ color: c.textSecondary }}>{progressLabel}</Caption>
         {commentCount > 0 && (

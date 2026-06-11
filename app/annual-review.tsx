@@ -142,7 +142,7 @@ export default function AnnualReviewScreen() {
           ) : report ? (
             <>
               <Animated.View entering={FadeInDown.delay(stagger(0, 70)).duration(300)}>
-                <Card moduleColor={c.primary}>
+                <Card>
                   <Body style={[styles.headline, { color: c.textPrimary }]}>{report.headline}</Body>
                 </Card>
               </Animated.View>
@@ -157,22 +157,22 @@ export default function AnnualReviewScreen() {
               ))}
 
               <Animated.View entering={FadeInDown.delay(stagger(report.domains.length + 1, 70)).duration(300)}>
-                <Card moduleColor={c.success}>
+                <Card>
                   <SectionLabel color={c.success}>BIGGEST WIN</SectionLabel>
                   <Body style={{ color: c.textPrimary, marginTop: spacing.xs }}>{report.biggestWin}</Body>
                 </Card>
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(stagger(report.domains.length + 2, 70)).duration(300)}>
-                <Card moduleColor={c.warning}>
+                <Card>
                   <SectionLabel color={c.warning}>GROWTH AREA</SectionLabel>
                   <Body style={{ color: c.textPrimary, marginTop: spacing.xs }}>{report.growthArea}</Body>
                 </Card>
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(stagger(report.domains.length + 3, 70)).duration(300)}>
-                <Card moduleColor={c.polymath}>
-                  <SectionLabel color={c.polymath}>THEME FOR NEXT YEAR</SectionLabel>
+                <Card>
+                  <SectionLabel color={c.polymathText}>THEME FOR NEXT YEAR</SectionLabel>
                   <Body style={[styles.theme, { color: c.textPrimary }]}>{report.themeForNextYear}</Body>
                 </Card>
               </Animated.View>

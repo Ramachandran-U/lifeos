@@ -51,7 +51,7 @@ export function ChestCard({ chest, onOpen, minimal = false }: Props) {
       onPress={handleOpen}
       accessibilityRole="button"
       accessibilityLabel="Open reward chest"
-      style={[styles.card, { backgroundColor: c.card, borderColor: c.xp + '55' }]}
+      style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}
     >
       <Text style={styles.glyph}>🎁</Text>
       <View style={styles.copy}>
@@ -60,7 +60,7 @@ export function ChestCard({ chest, onOpen, minimal = false }: Props) {
           {SOURCE_COPY[chest.source] ?? 'You earned this'} · open whenever you like
         </Text>
       </View>
-      <View style={[styles.cta, { backgroundColor: c.xp + '1A', borderColor: c.xp + '66' }]}>
+      <View style={[styles.cta, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
         <Text style={[styles.ctaText, { color: c.xp }]}>Open</Text>
       </View>
     </Pressable>

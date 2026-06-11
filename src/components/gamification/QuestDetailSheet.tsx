@@ -107,7 +107,7 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged, onClaim, 
           <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
             <Animated.View entering={FadeIn.delay(120 + stagger(0, 50)).duration(TIMING.normal)}>
               <View style={styles.header}>
-                <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
+                <View style={[styles.iconBox, { backgroundColor: c.surfaceAlt }]}>
                   <Body style={{ fontSize: 20 }}>{meta.emoji}</Body>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -141,11 +141,12 @@ export function QuestDetailSheet({ quest, visible, onClose, onChanged, onClaim, 
                   accessibilityLabel={`Claim ${quest.xp} XP`}
                   style={[styles.goBtn, { backgroundColor: color }]}
                 >
-                  <Body style={{ color: '#fff', fontFamily: fonts.heading }}>Claim +{quest.xp} XP</Body>
-                  <Ionicons name="sparkles" size={16} color="#fff" />
+                  <Body style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Claim +{quest.xp} XP</Body>
+                  <Ionicons name="sparkles" size={16} color={c.inkOnColor} />
                 </Pressable>
               ) : done || claimed ? (
-                <View style={[styles.doneBanner, { backgroundColor: color + '18', borderColor: color + '55' }]}>
+                // Done state is data — solid hue border, neutral fill.
+                <View style={[styles.doneBanner, { backgroundColor: c.surfaceAlt, borderColor: color }]}>
                   <Ionicons name="checkmark-circle" size={18} color={color} />
                   <Body style={{ color: c.textPrimary }}>
                     {claimed ? 'Claimed — nice work!' : 'Quest complete — nice work!'}

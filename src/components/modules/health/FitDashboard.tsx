@@ -194,7 +194,8 @@ export function FitDashboard({ days, workouts }: FitDashboardProps) {
               <Caption style={{ color: c.textMuted }}>avg per night</Caption>
             </View>
             <View style={styles.stageCol}>
-              <StageBar label="Deep" minutes={avgDeep} totalMinutes={sleepTotalForPct} color={c.primary} />
+              {/* Violet is banned from domain content (§A.4) — deep sleep reads in career blue. */}
+              <StageBar label="Deep" minutes={avgDeep} totalMinutes={sleepTotalForPct} color={c.career} />
               <StageBar label="REM" minutes={avgRem} totalMinutes={sleepTotalForPct} color={c.polymath} />
               <StageBar label="Light" minutes={avgLight} totalMinutes={sleepTotalForPct} color={c.health} />
             </View>

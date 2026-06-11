@@ -83,7 +83,7 @@ export default function MonthlyInsightScreen() {
           ) : report ? (
             <>
               <Animated.View entering={FadeInDown.duration(300)}>
-                <Card moduleColor={c.success}>
+                <Card>
                   <SectionLabel color={c.success}>WINS</SectionLabel>
                   <View style={styles.list}>
                     {report.wins.map((w, i) => (
@@ -94,7 +94,8 @@ export default function MonthlyInsightScreen() {
               </Animated.View>
 
               <Animated.View entering={FadeInDown.delay(80).duration(300)}>
-                <Card moduleColor={c.primary}>
+                {/* V4 — the AI's pattern read: violet eyebrow, card neutral. */}
+                <Card>
                   <SectionLabel color={c.primary}>PATTERNS</SectionLabel>
                   <View style={styles.list}>
                     {report.patterns.map((p, i) => (
@@ -106,7 +107,7 @@ export default function MonthlyInsightScreen() {
 
               {report.slipping.length > 0 ? (
                 <Animated.View entering={FadeInDown.delay(160).duration(300)}>
-                  <Card moduleColor={c.warning}>
+                  <Card>
                     <SectionLabel color={c.warning}>SLIPPING</SectionLabel>
                     <View style={styles.list}>
                       {report.slipping.map((s, i) => (
@@ -118,8 +119,8 @@ export default function MonthlyInsightScreen() {
               ) : null}
 
               <Animated.View entering={FadeInDown.delay(240).duration(300)}>
-                <Card moduleColor={c.polymath}>
-                  <SectionLabel color={c.polymath}>ONE ADJUSTMENT</SectionLabel>
+                <Card>
+                  <SectionLabel color={c.polymathText}>ONE ADJUSTMENT</SectionLabel>
                   <Body style={[styles.adjustment, { color: c.textPrimary }]}>{report.oneAdjustment}</Body>
                 </Card>
               </Animated.View>

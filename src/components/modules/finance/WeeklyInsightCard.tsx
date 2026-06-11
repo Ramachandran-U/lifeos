@@ -49,7 +49,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.financeDim + '30',
+    backgroundColor: colors.financeDim,
     alignItems: 'center',
     justifyContent: 'center',
   },

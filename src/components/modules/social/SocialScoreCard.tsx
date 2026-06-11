@@ -23,12 +23,13 @@ export function SocialScoreCard({ score, totalContacts, overdueCount }: SocialSc
       : `${overdueCount} contact${overdueCount === 1 ? '' : 's'} overdue · ${totalContacts - overdueCount} in cadence`;
 
   return (
-    <Card moduleColor={c.social}>
+    // Neutral card — the pink lives in the score numeral (R2), not the edge.
+    <Card>
       <View style={styles.headerRow}>
         <View>
           <Caption style={{ color: c.textMuted }}>Social health</Caption>
           <View style={styles.scoreRow}>
-            <Body style={[styles.score, { color: c.textPrimary }]}>{display}</Body>
+            <Body style={[styles.score, { color: c.socialText }]}>{display}</Body>
             {score !== null ? (
               <Body style={[styles.scoreSuffix, { color: c.textMuted }]}> /100</Body>
             ) : null}

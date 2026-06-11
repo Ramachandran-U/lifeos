@@ -48,7 +48,7 @@ export function ConstellationView({ input }: Props) {
             <Caption style={{ fontFamily: fonts.heading, color: c.polymath }}>{synapses}</Caption> synapses
           </Caption>
           <Caption style={{ color: c.textMuted }}>
-            depth <Caption style={{ fontFamily: fonts.heading, color: c.polymath }}>{stats.depth}</Caption> · breadth <Caption style={{ fontFamily: fonts.heading, color: c.polymath }}>{stats.breadth}</Caption>
+            depth <Caption style={{ fontFamily: fonts.heading, color: c.polymathText }}>{stats.depth}</Caption> · breadth <Caption style={{ fontFamily: fonts.heading, color: c.polymathText }}>{stats.breadth}</Caption>
           </Caption>
         </View>
       </View>
@@ -57,7 +57,9 @@ export function ConstellationView({ input }: Props) {
           const icon = TYPE_ICON[n.type] ?? 'ellipse-outline';
           const opacity = 0.4 + Math.min(n.salience, 3) * 0.2;
           return (
-            <View key={n.id} style={[styles.node, { borderColor: c.polymath + Math.round(opacity * 255).toString(16).padStart(2, '0'), backgroundColor: c.polymath + '11' }]}>
+            // Salience is encoded in the glyph's element opacity (data, like a
+            // chart); the chrome stays neutral — no alpha-tinted hues.
+            <View key={n.id} style={[styles.node, { borderColor: c.border, backgroundColor: c.surfaceAlt }]}>
               <Ionicons name={icon} size={14} color={c.polymath} style={{ opacity }} />
               <Caption style={{ color: c.textPrimary, fontSize: 11 }} numberOfLines={1}>{n.label}</Caption>
             </View>

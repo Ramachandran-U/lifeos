@@ -41,15 +41,6 @@ describe('Card', () => {
     expect(screen.getByText('Inside card')).toBeTruthy();
   });
 
-  it('renders children with a moduleColor border applied', () => {
-    render(
-      <Card moduleColor="#5B4FE8">
-        <Text>Tinted card</Text>
-      </Card>,
-    );
-    expect(screen.getByText('Tinted card')).toBeTruthy();
-  });
-
   it('forwards a testID via ViewProps', () => {
     render(
       <Card testID="my-card">
@@ -149,15 +140,30 @@ describe('StreakCounter', () => {
 });
 
 // ── ModuleHeader ─────────────────────────────────────────────────────────────
+// The R1 block: a solid full-bleed hue surface — `color` is the surface fill,
+// content renders in inkOnColor (Ink + Signal, Cluster 3 §C).
 describe('ModuleHeader', () => {
   it('renders its title with a domain glyph', () => {
-    render(<ModuleHeader title="Health" color="#34D399" domain="health" />);
+    render(<ModuleHeader title="Health" color="#00D68F" domain="health" />);
     expect(screen.getByText('Health')).toBeTruthy();
   });
 
   it('renders its title with an Ionicons fallback', () => {
-    render(<ModuleHeader title="Settings" color="#5B4FE8" icon="settings-outline" />);
+    render(<ModuleHeader title="Settings" color="#FFB300" icon="settings-outline" />);
     expect(screen.getByText('Settings')).toBeTruthy();
+  });
+
+  it('renders the optional right-aligned stat slot', () => {
+    render(
+      <ModuleHeader title="Health" color="#00D68F" domain="health" stat={{ value: '22.4', label: 'BMI' }} />,
+    );
+    expect(screen.getByText('22.4')).toBeTruthy();
+    expect(screen.getByText('BMI')).toBeTruthy();
+  });
+
+  it('omits the stat slot when no stat is passed', () => {
+    render(<ModuleHeader title="Health" color="#00D68F" domain="health" />);
+    expect(screen.queryByText('BMI')).toBeNull();
   });
 });
 

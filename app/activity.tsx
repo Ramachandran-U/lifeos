@@ -321,7 +321,7 @@ function TimelineView({
                       onPress={() => onRestore(entry)}
                       style={({ pressed }) => [
                         styles.restoreBtn,
-                        { borderColor: c.primary, backgroundColor: pressed ? c.primary + '22' : 'transparent' },
+                        { borderColor: c.primary, backgroundColor: pressed ? c.primaryDim : 'transparent' },
                       ]}
                     >
                       <Label color={c.primary}>RESTORE</Label>

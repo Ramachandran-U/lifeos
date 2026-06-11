@@ -122,7 +122,8 @@ export function DomainNudgeCard({ userId, tomorrow }: Props) {
   const accent = meta ? c[meta.colorKey] : c.primary;
 
   return (
-    <Card style={[styles.card, { borderLeftWidth: 4, borderLeftColor: accent }]}>
+    // Neutral card — the domain ink lives in the eyebrow + inline domain name (R2).
+    <Card style={styles.card}>
       <View style={styles.header}>
         <Ionicons name="pulse-outline" size={18} color={accent} />
         <Label color={accent}>GROWTH NUDGE</Label>
@@ -138,7 +139,7 @@ export function DomainNudgeCard({ userId, tomorrow }: Props) {
               key={i}
               onPress={() => !done && handleAccept(i)}
               disabled={done}
-              style={[styles.chip, { borderColor: done ? c.success : accent, backgroundColor: done ? c.success + '1F' : 'transparent' }]}
+              style={[styles.chip, { borderColor: done ? c.success : c.border, backgroundColor: done ? c.surfaceAlt : 'transparent' }]}
             >
               <Ionicons name={done ? 'checkmark-circle' : 'add-circle-outline'} size={16} color={done ? c.success : accent} />
               <Caption style={{ color: done ? c.success : c.textPrimary, fontFamily: fonts.heading, flex: 1 }}>{s.title}</Caption>

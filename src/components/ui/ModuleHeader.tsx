@@ -1,30 +1,46 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts, fontSizes } from '@/theme/typography';
+import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
-import { Heading } from './Typography';
+import { Text } from './Text';
 import { DomainGlyph, type DomainKey } from './DomainGlyph';
 
 interface ModuleHeaderProps {
   title: string;
+  /** The solid domain hue — rendered as the R1 block surface. */
   color: string;
-  /** Preferred: renders the canonical Lucide domain icon. */
+  /** Preferred: renders the canonical domain glyph in inkOnColor. */
   domain?: DomainKey;
   /** Fallback for non-domain headers — an Ionicons glyph name. */
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Optional right-aligned stat (e.g. live BMI). Omit until real data exists. */
+  stat?: { value: string; label: string };
 }
 
-export function ModuleHeader({ title, color, domain, icon }: ModuleHeaderProps) {
+// The R1 block (Ink + Signal, Cluster 3 §C): one solid, full-bleed domain-hue
+// surface per module screen. Content on it uses inkOnColor only — the hue IS
+// the surface, never a tint. Call sites hoist this OUT of their padded
+// content container so the block spans the full viewport width
+// (negative-margin compensation is banned).
+export function ModuleHeader({ title, color, domain, icon, stat }: ModuleHeaderProps) {
+  const c = useColors();
+
   return (
-    <View style={styles.container}>
-      <View style={[styles.iconCircle, { backgroundColor: color + '20' }]}>
+    <View testID="module-header" style={[styles.container, { backgroundColor: color }]}>
+      <View style={styles.titleRow}>
         {domain ? (
-          <DomainGlyph domain={domain} size={24} color={color} strokeWidth={2.25} />
+          <DomainGlyph domain={domain} size={28} color={c.inkOnColor} strokeWidth={2.25} />
         ) : icon ? (
-          <Ionicons name={icon} size={24} color={color} />
+          <Ionicons name={icon} size={28} color={c.inkOnColor} />
         ) : null}
+        <Text variant="h1" style={{ color: c.inkOnColor }}>{title}</Text>
       </View>
-      <Heading style={styles.title}>{title}</Heading>
+      {stat ? (
+        <View style={styles.stat}>
+          <Text variant="display" numeric style={{ color: c.inkOnColor }}>{stat.value}</Text>
+          <Text variant="caption" style={{ color: c.inkOnColor }}>{stat.label}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -33,18 +49,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
+    justifyContent: 'space-between',
+    borderRadius: 0,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
   },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.sm,
+    flexShrink: 1,
   },
-  title: {
-    fontFamily: fonts.heading,
-    fontSize: fontSizes.xxl,
+  stat: {
+    alignItems: 'flex-end',
   },
 });

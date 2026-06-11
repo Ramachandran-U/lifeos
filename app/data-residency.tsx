@@ -72,24 +72,24 @@ export default function DataResidencyScreen() {
 
           {/* On device */}
           <Section
-            color={c.health}
+            color={c.healthText}
             eyebrow="01 · ON DEVICE ONLY"
             title="Lives in SQLite on this phone"
             rows={LOCAL_ONLY}
             badge="Local"
-            badgeColor={c.health}
+            badgeColor={c.healthText}
             c={c}
             delay={120}
           />
 
           {/* AI calls */}
           <Section
-            color={c.career}
+            color={c.careerText}
             eyebrow="02 · SENT WHEN YOU ASK"
             title="Outbound only on AI requests"
             rows={AI_SENT}
             badge="On request"
-            badgeColor={c.career}
+            badgeColor={c.careerText}
             c={c}
             delay={240}
           />
@@ -127,7 +127,8 @@ interface SectionProps {
 function Section({ eyebrow, title, rows, color, badge, badgeColor, c, delay }: SectionProps) {
   return (
     <Animated.View entering={FadeInDown.delay(delay).duration(420)}>
-      <GlassCard accent={color} style={styles.section}>
+      {/* Neutral card — the eyebrow carries the section's ink (R2). */}
+      <GlassCard style={styles.section}>
         <SectionLabel color={color}>{eyebrow}</SectionLabel>
         <AuroraText variant="h3" style={{ marginTop: 2 }}>{title}</AuroraText>
         <View style={styles.rowList}>
@@ -139,14 +140,14 @@ function Section({ eyebrow, title, rows, color, badge, badgeColor, c, delay }: S
                 i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
               ]}
             >
-              <View style={[styles.rowIcon, { backgroundColor: color + '14', borderColor: color + '33' }]}>
+              <View style={[styles.rowIcon, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                 <Ionicons name={r.icon} size={18} color={color} />
               </View>
               <View style={{ flex: 1 }}>
                 <AuroraText variant="bodyLg">{r.title}</AuroraText>
                 <AuroraText variant="caption" muted style={{ marginTop: 2 }}>{r.detail}</AuroraText>
               </View>
-              <View style={[styles.badge, { backgroundColor: badgeColor + '1A', borderColor: badgeColor + '44' }]}>
+              <View style={[styles.badge, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                 <AuroraText variant="micro" color={badgeColor}>{badge.toUpperCase()}</AuroraText>
               </View>
             </View>

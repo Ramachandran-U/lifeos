@@ -115,7 +115,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: 2,
   },
   xpBadge: {
-    backgroundColor: colors.xp + '30',
+    backgroundColor: colors.surfaceAlt,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: 8,

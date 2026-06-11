@@ -347,6 +347,7 @@ export default function FinanceScreen() {
         <SafeAreaView style={styles.container}>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
             <ModuleHeader title="Finance" domain="finance" color={c.finance} />
+            <View style={styles.scrollInner}>
             <Heading style={styles.setupTitle}>What are you saving for?</Heading>
             <View style={styles.typeGrid}>
               {GOAL_TYPES.map((t) => (
@@ -372,6 +373,7 @@ export default function FinanceScreen() {
             {selectedType !== '' && (
               <Button3D title="Continue" onPress={() => setSetupStep('details')} style={styles.continueBtn} fullWidth />
             )}
+            </View>
           </ScrollView>
         </SafeAreaView>
       );
@@ -382,6 +384,7 @@ export default function FinanceScreen() {
         <SafeAreaView style={styles.container}>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
             <ModuleHeader title="Finance" domain="finance" color={c.finance} />
+            <View style={styles.scrollInner}>
             <Heading style={styles.setupTitle}>Your financial details</Heading>
 
             <Label>Target amount ({getCurrency().symbol})</Label>
@@ -479,6 +482,7 @@ export default function FinanceScreen() {
               </Body>
             )}
             <Button3D title="Generate my plan" onPress={handleGeneratePlan} style={styles.continueBtn} fullWidth />
+            </View>
           </ScrollView>
         </SafeAreaView>
       );
@@ -507,7 +511,9 @@ export default function FinanceScreen() {
       <InkCanvas />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
+        {/* R1 block — full-bleed, outside the padded inner container. */}
         <ModuleHeader title="Finance" domain="finance" color={c.finance} />
+        <View style={styles.scrollInner}>
 
         {/* Tab switcher */}
         <View style={styles.tabBar}>
@@ -577,6 +583,7 @@ export default function FinanceScreen() {
             transactions={transactions}
           />
         )}
+        </View>
       </ScrollView>
 
       {/* Category edit modal */}
@@ -682,8 +689,8 @@ function OverviewTab({
     return (
       <Animated.View entering={FadeInDown.duration(400)}>
         <Card style={styles.connectCard}>
-          <View style={[styles.connectIcon, { backgroundColor: c.finance + '20' }]}>
-            <Ionicons name="mail-outline" size={28} color={c.finance} />
+          <View style={[styles.connectIcon, { backgroundColor: c.financeDim }]}>
+            <Ionicons name="mail-outline" size={28} color={c.financeText} />
           </View>
           <Body style={styles.connectTitle}>Connect your inbox</Body>
           <Caption style={styles.connectBody}>
@@ -869,8 +876,8 @@ function OverviewTab({
         <Animated.View entering={FadeInDown.delay(170).duration(400)}>
           <Pressable onPress={() => router.push('/finance-review')}>
             <Card style={StyleSheet.flatten([styles.reviewCta, { borderColor: c.border }])}>
-              <View style={[styles.reviewIcon, { backgroundColor: c.finance + '20' }]}>
-                <Ionicons name="sparkles-outline" size={18} color={c.finance} />
+              <View style={[styles.reviewIcon, { backgroundColor: c.financeDim }]}>
+                <Ionicons name="sparkles-outline" size={18} color={c.financeText} />
               </View>
               <View style={{ flex: 1 }}>
                 <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>Monthly Money Review</Body>
@@ -1024,7 +1031,7 @@ function TransactionsTab({
                 <View
                   style={[
                     styles.txBadge,
-                    { backgroundColor: (CATEGORY_COLORS[t.category as TransactionCategory] ?? c.textSecondary) + '22' },
+                    { backgroundColor: c.surfaceAlt },
                   ]}
                 >
                   <Ionicons
@@ -1230,8 +1237,9 @@ function CategoryPickerModal({
                   style={[
                     modalStyles.catChip,
                     {
+                      // Active category is data — solid hue border, neutral fill.
                       borderColor: isActive ? col : c.border,
-                      backgroundColor: isActive ? col + '22' : c.surface,
+                      backgroundColor: isActive ? c.surfaceAlt : c.surface,
                     },
                   ]}
                   onPress={() => onPick(cat)}
@@ -1294,8 +1302,11 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     container: { flex: 1, backgroundColor: c.background },
     flex: { flex: 1 },
     scroll: {
-      paddingHorizontal: spacing.xl,
       paddingBottom: spacing.xxxl,
+      gap: spacing.md,
+    },
+    scrollInner: {
+      paddingHorizontal: spacing.xl,
       gap: spacing.md,
     },
     // Tabs
@@ -1314,7 +1325,7 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       borderRadius: 10,
     },
     tabPillActive: {
-      backgroundColor: c.finance + '22',
+      backgroundColor: c.financeDim,
     },
     tabLabel: {
       color: c.textSecondary,
@@ -1339,9 +1350,9 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     typeCardSelected: {
       borderColor: c.finance,
-      backgroundColor: c.finance + '15',
+      backgroundColor: c.financeDim,
     },
-    typeTextSelected: { color: c.finance },
+    typeTextSelected: { color: c.financeText },
     continueBtn: { marginTop: spacing.lg },
     inputRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
     amountInputRow: {
@@ -1374,8 +1385,8 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
     },
-    chipSelected: { borderColor: c.finance, backgroundColor: c.finance + '15' },
-    chipTextSelected: { color: c.finance },
+    chipSelected: { borderColor: c.finance, backgroundColor: c.financeDim },
+    chipTextSelected: { color: c.financeText },
     labelSpaced: { marginTop: spacing.md },
     riskRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
     riskCard: {
@@ -1388,9 +1399,9 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       alignItems: 'center',
       gap: 2,
     },
-    riskCardSelected: { borderColor: c.finance, backgroundColor: c.finance + '15' },
+    riskCardSelected: { borderColor: c.finance, backgroundColor: c.financeDim },
     riskLabel: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm },
-    riskLabelSelected: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm, color: c.finance },
+    riskLabelSelected: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm, color: c.financeText },
     // Empty goals state
     emptyState: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.md },
     emptyIcon: {
@@ -1510,10 +1521,10 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       backgroundColor: c.card,
     },
     filterChipActive: {
-      backgroundColor: c.finance + '22',
+      backgroundColor: c.financeDim,
       borderColor: c.finance,
     },
-    filterTextActive: { color: c.finance, fontWeight: '700' },
+    filterTextActive: { color: c.financeText, fontWeight: '700' },
     dateGroup: { gap: spacing.xs },
     txRow: {
       flexDirection: 'row',

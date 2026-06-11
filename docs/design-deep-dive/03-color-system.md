@@ -7,6 +7,12 @@
 > R10: GlassCard's `accent` prop removal stands — 02's FirstWinCard renders neutral.
 > R11: 04's ban on `—` placeholder vitals supersedes this spec's ModuleHeader stat placeholder — the Health header stat slot is omitted until a real BMI exists.
 > **Amendment (founder-flagged, 2026-06-11, W1 execution):** criterion 3 banned-string grep is verified EXCLUDING src/theme/__tests__/ — Wave 0 Guard C (per spec 05, ratified) must name the wash family in its regex forever so a future re-creation + import stays a red build; the two specs collide at the string level and the stricter, enforcement-keeping rule wins. Also: AMBIENT.auroraDrift had gained one post-spec consumer (CompanionFallback resting breath) — re-pointed to AMBIENT.fieldDrift before token deletion.
+> **Amendment (founder-flagged, 2026-06-12, W2 execution):**
+> (a) Criterion 9's "exactly 2 violet elements" is enforced at component granularity in `e2e/ink-structural.spec.ts`: Button3D renders its face and depth edge as two stacked DOM layers of ONE sanctioned CTA, so the probe asserts exactly one violet wordmark + violet fills confined to exactly one `[role=button]`, and any violet fill outside it fails — stricter on leakage, faithful to the DOM. Paint at effective opacity 0 is exempt (the EnergySweep idle band inside ink-canvas idles violet-at-0; its hue only ever shows during a beat — same pixel contract as the ambient e2e).
+> (b) The resting ground extended beyond this spec's site list: `#0D0D0D` survived in the pre-hydration shell (`app/+html.tsx` style + theme-color), `public/manifest.json`, `app.json` splash/adaptiveIcon, and three navigator `contentStyle` literals (`app/_layout.tsx`, `(auth)/_layout.tsx`, `(onboarding)/_layout.tsx`) — all set to `#000000` per criterion C3-2's ground.
+> (c) `rewards.tsx` comeback headline tokened to `c.xp` (V5 rewards voice), not violet — it is gamification speaking, not the planner; violet there would breach the five-surface policy this spec sets.
+> (d) §C site `finance.tsx:1110` (GlassCard accent) had drifted by file churn; the real accent set was surfaced via tsc after the prop deletion and dispositioned per §C's rules (evidence in the W2 PR).
+> (e) `src/components/charts/chartTheme.ts` hue-parametric area fill stays on the Guard B allowlist (the sanctioned `.ts` escape hatch): migrating it requires a chart-API change — parked, not waived.
 
 All claims verified against the repo. Writing the hardened spec now.
 

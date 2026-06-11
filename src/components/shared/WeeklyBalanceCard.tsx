@@ -46,10 +46,11 @@ export function WeeklyBalanceCard({ primaryDomains = [], onRebalanceTomorrow }: 
   const rebalanceTarget = summary.silentPrimary[0];
 
   return (
-    <Card moduleColor={c.primary} style={styles.card}>
+    // Neutral card — cross-domain summary; the six hues live in the bar segments.
+    <Card style={styles.card}>
       <View style={styles.header}>
         <View>
-          <Label color={c.primary}>WEEKLY BALANCE</Label>
+          <Label>WEEKLY BALANCE</Label>
           <Caption style={{ color: c.textMuted }}>Time spent · last 7 days</Caption>
         </View>
         <Body style={[styles.total, { color: c.textPrimary }]}>{fmtMin(summary.totalCurrent)}</Body>

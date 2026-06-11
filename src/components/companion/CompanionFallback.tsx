@@ -59,7 +59,8 @@ export function CompanionFallback({ mood, size = 44, equipped = [] }: Props) {
 
   const breathStyle = useAnimatedStyle(() => ({ transform: [{ scale: breath.value }] }));
 
-  const ring = mood === 'concerned' ? c.warning : mood === 'thriving' ? c.success : c.primaryDim;
+  // Mood is data — semantic ring when it means something, neutral hairline otherwise.
+  const ring = mood === 'concerned' ? c.warning : mood === 'thriving' ? c.success : c.border;
   const badge = equipped.map((id) => cosmeticById(id)?.emoji).filter(Boolean)[0];
 
   return (
@@ -73,7 +74,7 @@ export function CompanionFallback({ mood, size = 44, equipped = [] }: Props) {
           height: size,
           borderRadius: size / 2,
           backgroundColor: c.card,
-          borderColor: ring + '66',
+          borderColor: ring,
         },
       ]}
     >
