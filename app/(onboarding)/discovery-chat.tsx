@@ -284,7 +284,7 @@ const makeStyles = (colors: AppColors) =>
       paddingHorizontal: spacing.md,
       paddingVertical: 4,
       borderRadius: 999,
-      backgroundColor: colors.primary + '22',
+      backgroundColor: colors.primaryDim,
       borderWidth: 1,
       borderColor: colors.primary,
     },
@@ -317,7 +317,7 @@ const makeStyles = (colors: AppColors) =>
     },
     userBubble: {
       alignSelf: 'flex-end',
-      backgroundColor: colors.primary + '22',
+      backgroundColor: colors.primaryDim,
       borderWidth: 1,
       borderColor: colors.primary,
     },
@@ -330,7 +330,7 @@ const makeStyles = (colors: AppColors) =>
       borderRadius: 16,
       borderWidth: 1,
       borderColor: colors.error,
-      backgroundColor: colors.error + '15',
+      backgroundColor: colors.surfaceAlt,
     },
     errorText: { color: colors.error },
     composer: {

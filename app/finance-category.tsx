@@ -73,7 +73,8 @@ export default function FinanceCategoryScreen() {
           <Heading style={[styles.title, { color: c.textPrimary }]}>{prettyCategory(cat)}</Heading>
 
           <Animated.View entering={FadeInDown.duration(300)}>
-            <Card moduleColor={accent} style={styles.summaryCard}>
+            {/* Neutral card — the category dot + label above are the identity mark. */}
+            <Card style={styles.summaryCard}>
               <Heading style={{ color: c.textPrimary, fontSize: fontSizes.xxxl }}>
                 {formatInr(rollup.total)}
               </Heading>
@@ -86,7 +87,7 @@ export default function FinanceCategoryScreen() {
           {rollup.topMerchants.length > 0 && (
             <Animated.View entering={FadeInDown.delay(80).duration(300)}>
               <Card>
-                <Label color={c.finance}>TOP MERCHANTS</Label>
+                <Label color={c.financeText}>TOP MERCHANTS</Label>
                 {rollup.topMerchants.map((m) => (
                   <Pressable
                     key={m.merchant}

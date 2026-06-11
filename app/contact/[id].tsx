@@ -173,8 +173,8 @@ export default function ContactDetailScreen() {
           </View>
 
           <View style={styles.header}>
-            <View style={[styles.avatar, { backgroundColor: c.social + '22', borderColor: c.social + '55' }]}>
-              <Body style={[styles.avatarText, { color: c.social }]}>{initial}</Body>
+            <View style={[styles.avatar, { backgroundColor: c.socialDim, borderColor: c.border }]}>
+              <Body style={[styles.avatarText, { color: c.socialText }]}>{initial}</Body>
             </View>
             <Heading style={[styles.name, { color: c.textPrimary }]}>{displayName}</Heading>
             <Caption style={{ color: c.textMuted }}>
@@ -182,7 +182,7 @@ export default function ContactDetailScreen() {
               {overdue?.daysSinceContact !== null && overdue ? ` · last contact ${overdue.daysSinceContact}d ago` : ' · no contact yet'}
             </Caption>
             {overdue?.isOverdue ? (
-              <View style={[styles.overduePill, { backgroundColor: c.warning + '22', borderColor: c.warning + '55' }]}>
+              <View style={[styles.overduePill, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                 <Caption style={{ color: c.warning }}>Overdue by {overdue.overdueBy}d</Caption>
               </View>
             ) : null}
@@ -212,7 +212,7 @@ export default function ContactDetailScreen() {
                   <Caption style={{ color: c.textMuted }}>{contact.preferredCadenceDays} days</Caption>
                 </View>
                 <Pressable onPress={() => { setCadenceDraft(String(contact.preferredCadenceDays)); setEditingCadence(true); }}>
-                  <Body style={{ color: c.social }}>Edit</Body>
+                  <Body style={{ color: c.socialText }}>Edit</Body>
                 </Pressable>
               </View>
             </Card>
@@ -221,7 +221,7 @@ export default function ContactDetailScreen() {
           {/* Conversation starters */}
           <View style={styles.section}>
             <SectionLabel>Conversation starter</SectionLabel>
-            <Card moduleColor={c.social}>
+            <Card>
               <Caption style={{ color: c.textMuted }}>
                 Suggestions based on relationship type and how long it's been. The contact's name is not sent.
               </Caption>

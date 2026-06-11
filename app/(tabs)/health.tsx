@@ -371,7 +371,9 @@ export default function HealthScreen() {
       <InkCanvas />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
+        {/* R1 block — full-bleed, outside the padded inner container. */}
         <ModuleHeader title="Health" domain="health" color={c.health} />
+        <View style={styles.scrollInner}>
 
         <Animated.View entering={FadeInDown.duration(400)}>
           <VitalsCard
@@ -620,6 +622,7 @@ export default function HealthScreen() {
             )}
           </Animated.View>
         )}
+        </View>
       </ScrollView>
 
       <EditVitalsSheet
@@ -664,8 +667,11 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   scroll: {
-    paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,
+    gap: spacing.md,
+  },
+  scrollInner: {
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
   },
   sectionHeader: {},

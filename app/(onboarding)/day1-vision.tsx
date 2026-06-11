@@ -130,8 +130,8 @@ export default function Day1VisionScreen() {
             <Animated.View entering={FadeInUp.duration(600)} style={styles.preview}>
               <Label style={styles.previewLabel}>YOUR LIFE PLAN</Label>
 
-              <Card moduleColor={c.goal} style={styles.previewCard}>
-                <Label color={c.goal}>PRIMARY GOAL</Label>
+              <Card style={styles.previewCard}>
+                <Label color={c.goalText}>PRIMARY GOAL</Label>
                 <Heading style={styles.goalTitle}>{hierarchy.primaryGoal.title}</Heading>
               </Card>
 

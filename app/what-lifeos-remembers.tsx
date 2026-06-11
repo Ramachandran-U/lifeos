@@ -320,7 +320,7 @@ function FactEditorModal({
                     editorStyles.kindChip,
                     {
                       borderColor: active ? c.primary : c.border,
-                      backgroundColor: active ? c.primary + '22' : 'transparent',
+                      backgroundColor: active ? c.primaryDim : 'transparent',
                     },
                   ]}
                 >

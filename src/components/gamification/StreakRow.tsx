@@ -21,7 +21,8 @@ export function StreakRow({ streakKey, count, best, graceUsed }: Props) {
   const size = count >= 20 ? 'lg' : count >= 10 ? 'md' : 'sm';
 
   return (
-    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border, borderLeftColor: color }]}>
+    // Neutral card — the flame + hue-filled bar identify the streak, not an edge.
+    <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
       <View style={styles.flameCol}>
         <StreakFlame count={count} graceUsed={graceUsed} size={size} />
       </View>
@@ -35,7 +36,7 @@ export function StreakRow({ streakKey, count, best, graceUsed }: Props) {
             {graceUsed && (
               // A used grace day is resilience, not a near-miss. Frame it as a
               // shield in the streak's own colour — never an amber "warning".
-              <View style={[styles.grace, { backgroundColor: color + '22', borderColor: color + '55' }]}>
+              <View style={[styles.grace, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
                 <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 10, color }}>🛡️ SHIELD</Text>
               </View>
             )}
@@ -54,7 +55,8 @@ export function StreakRow({ streakKey, count, best, graceUsed }: Props) {
           <View
             style={[
               styles.marker,
-              { left: `${bestPct * 100}%`, backgroundColor: color + '99' },
+              // The best-marker is data — solid hue, no alpha.
+              { left: `${bestPct * 100}%`, backgroundColor: color },
             ]}
           />
         </View>
@@ -73,7 +75,6 @@ const styles = StyleSheet.create({
     gap: 14,
     borderRadius: 16,
     borderWidth: 1,
-    borderLeftWidth: 2,
     padding: 14,
   },
   flameCol: { width: 56, alignItems: 'center' },

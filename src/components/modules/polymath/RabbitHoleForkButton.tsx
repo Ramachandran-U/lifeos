@@ -39,17 +39,17 @@ export function RabbitHoleForkButton({ direction, hint, state, onPress, disabled
       accessibilityLabel={`${isDeeper ? 'Go deeper' : 'Branch sideways'}: ${hint}`}
       style={[
         styles.btn,
-        isDeeper ? { backgroundColor: c.polymath + '14', borderColor: c.polymath } : { borderColor: c.border },
+        isDeeper ? { backgroundColor: c.polymathDim, borderColor: c.polymath } : { borderColor: c.border },
         disabled ? styles.disabled : null,
       ]}
     >
       <Ionicons
         name={isDeeper ? 'arrow-down-circle-outline' : 'git-branch-outline'}
         size={20}
-        color={isDeeper ? c.polymath : c.textSecondary}
+        color={isDeeper ? c.polymathText : c.textSecondary}
       />
       <View style={styles.label}>
-        <Caption style={{ color: isDeeper ? c.polymath : c.textSecondary, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
+        <Caption style={{ color: isDeeper ? c.polymathText : c.textSecondary, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
           {isDeeper ? 'GO DEEPER' : 'BRANCH SIDEWAYS'}
         </Caption>
         <Body style={{ color: c.textPrimary }} numberOfLines={2}>{hint}</Body>

@@ -184,7 +184,7 @@ export function VoiceAssistantSheet({
       <Animated.View
         entering={FadeIn.duration(MOTION_BUDGET.scrimEnter).delay(150)}
         exiting={FadeOut.duration(MOTION_BUDGET.scrimExit).delay(80)}
-        style={[styles.backdrop, { backgroundColor: c.background + 'CC' }]}
+        style={[styles.backdrop, { backgroundColor: c.overlay }]}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={sheet.requestClose} />
       </Animated.View>

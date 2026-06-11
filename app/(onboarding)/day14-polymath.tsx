@@ -219,8 +219,8 @@ export default function Day14PolymathScreen() {
                 </Caption>
               </Card>
             ) : suggestions ? (
-              <Card moduleColor={c.polymath} style={styles.previewCard}>
-                <Label color={c.polymath}>YOU MIGHT ALSO ENJOY</Label>
+              <Card style={styles.previewCard}>
+                <Label color={c.polymathText}>YOU MIGHT ALSO ENJOY</Label>
                 <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
                   {suggestions.slice(0, 4).map((s, i) => (
                     <View key={i} style={[styles.suggestion, { borderColor: c.border }]}>

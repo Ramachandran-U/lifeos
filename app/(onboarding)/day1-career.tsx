@@ -185,7 +185,7 @@ export default function Day1CareerScreen() {
             <Animated.View entering={FadeInDown.duration(600)} style={styles.preview}>
               <Label style={styles.previewLabel}>TOP SKILL GAPS</Label>
               {analysis.gaps.slice(0, 3).map((gap) => (
-                <Card key={gap.skill} moduleColor={c.career} style={styles.gapCard}>
+                <Card key={gap.skill} style={styles.gapCard}>
                   <Body style={styles.gapSkill}>{gap.skill}</Body>
                   <View style={styles.gapLevels}>
                     <Badge label={gap.currentLevel} variant="default" />

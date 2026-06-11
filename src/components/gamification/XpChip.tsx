@@ -75,7 +75,7 @@ export function XpChip({ amount, prefix = '+' }: { amount: number; prefix?: stri
 
   return (
     <View
-      style={[styles.chip, { backgroundColor: c.xp + '22', borderColor: c.xp + '55' }]}
+      style={[styles.chip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
       accessibilityRole="text"
       accessibilityLabel={`${prefix}${amount} XP`}
     >

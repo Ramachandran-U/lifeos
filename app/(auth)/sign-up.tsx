@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
+import { TIMING } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
@@ -115,18 +116,18 @@ export default function SignUpScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.Text entering={FadeIn.duration(800)} style={styles.logo}>
+          <Animated.Text entering={FadeIn.duration(TIMING.slow)} style={styles.logo}>
             LifeOS
           </Animated.Text>
 
-          <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+          <Animated.View entering={FadeInDown.delay(300).duration(TIMING.slow)}>
             <Heading style={styles.title}>Create your account</Heading>
             <Body style={styles.subtitle}>
               Your data stays on your device. We never see your information.
             </Body>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(500).duration(600)} style={[styles.form, styles.glassCard]}>
+          <Animated.View entering={FadeInDown.delay(500).duration(TIMING.slow)} style={styles.form}>
             <Input
               label="Your name"
               placeholder="Alex"
@@ -209,19 +210,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  glassCard: {
-    backgroundColor: colors.background + 'B3',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    ...(Platform.OS === 'web'
-      ? ({
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-        } as unknown as object)
-      : {}),
-  },
   flex: {
     flex: 1,
   },
@@ -229,6 +217,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,
   },
+  // Wordmark — violet policy V1: the single violet text on screen.
   logo: {
     fontFamily: fonts.display,
     fontSize: fontSizes.xxxl,
@@ -237,12 +226,18 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
   },
+  // Type-led header (§E): hero register, left-aligned — the form sits
+  // directly on the ink; the glass card chrome died with the wash.
   title: {
-    textAlign: 'center',
+    fontFamily: fonts.display,
+    fontSize: fontSizes.hero,
+    lineHeight: 50,
+    color: colors.textPrimary,
+    textAlign: 'left',
   },
   subtitle: {
     color: colors.textSecondary,
-    textAlign: 'center',
+    textAlign: 'left',
     marginTop: spacing.sm,
   },
   form: {
@@ -261,9 +256,12 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   signInPrompt: {
     color: colors.textMuted,
   },
+  // Neutral underlined link — violet policy V2: the Create account button
+  // owns this screen's one violet CTA.
   signInLink: {
-    color: colors.primary,
+    color: colors.textPrimary,
     fontFamily: fonts.bodyMedium,
+    textDecorationLine: 'underline',
   },
   dividerRow: {
     flexDirection: 'row',

@@ -42,7 +42,8 @@ export function CoachActionsCard() {
   const visible = proposals.filter((p) => p.state !== 'dismissed');
 
   return (
-    <Card moduleColor={c.primary} style={styles.card}>
+    // V4 — AI-speaking surface: violet eyebrow + icon; card neutral.
+    <Card style={styles.card}>
       <View style={styles.header}>
         <Ionicons name="sparkles-outline" size={16} color={c.primary} />
         <Label color={c.primary}>YOUR COACH</Label>
@@ -71,17 +72,18 @@ export function CoachActionsCard() {
           {visible.map((p, visibleIndex) => {
             const index = proposals.indexOf(p);
             const accentColor = accentForAction(p.action.kind, c);
+            // Outcome states are data (solid semantic border); pending is neutral chrome.
             const borderColor =
               p.state === 'done' ? c.success :
               p.state === 'failed' ? c.error :
-              accentColor + '44';
+              c.border;
             return (
               <Animated.View
                 key={index}
                 entering={FadeInDown.duration(MOTION_BUDGET.microFeedback).delay(visibleIndex * 60)}
-                style={[styles.proposal, { borderColor, backgroundColor: accentColor + '0d' }]}
+                style={[styles.proposal, { borderColor, backgroundColor: c.surfaceAlt }]}
               >
-                <View style={[styles.iconBadge, { backgroundColor: accentColor + '22' }]}>
+                <View style={[styles.iconBadge, { backgroundColor: c.card }]}>
                   <Ionicons
                     name={iconForAction(p.action.kind) as 'add'}
                     size={18}
@@ -104,10 +106,10 @@ export function CoachActionsCard() {
                       onPress={() => { Haptics.selectionAsync(); void confirm(index); }}
                       style={({ pressed }) => [
                         styles.smallBtn,
-                        { borderColor: 'transparent', backgroundColor: pressed ? accentColor + 'cc' : accentColor },
+                        { borderColor: 'transparent', backgroundColor: accentColor, opacity: pressed ? 0.85 : 1 },
                       ]}
                     >
-                      <Caption style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>Confirm</Caption>
+                      <Caption style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Confirm</Caption>
                     </Pressable>
                   </View>
                 )}
@@ -152,13 +154,13 @@ export function CoachActionsCard() {
           style={({ pressed }) => [
             styles.btn,
             styles.btnPrimary,
-            { backgroundColor: pressed ? c.primary + 'cc' : c.primary, opacity: status === 'loading' ? 0.7 : 1 },
+            { backgroundColor: c.primary, opacity: status === 'loading' ? 0.7 : pressed ? 0.85 : 1 },
           ]}
         >
           {status === 'loading' ? (
             <LoadingDots />
           ) : (
-            <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+            <Body style={{ color: c.onPrimary, fontFamily: fonts.heading }}>
               {status === 'done' || status === 'error' ? 'Ask again' : 'What should I do next?'}
             </Body>
           )}
@@ -182,7 +184,7 @@ function accentForAction(kind: ProposedAction['kind'], c: AppColors): string {
     case 'createRoutineBlock': return c.primary;
     case 'completeBlock': return c.success;
     case 'skipBlock': return c.textMuted;
-    case 'adjustGoalStatus': return c.goal ?? c.primary;
+    case 'adjustGoalStatus': return c.goal;
   }
 }
 

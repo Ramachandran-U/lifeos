@@ -5,8 +5,10 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { TIMING } from '@/theme/motion';
 import { Button3D } from '@/components/ui/Button3D';
 import { Body } from '@/components/ui/Typography';
+import { DomainGlyph } from '@/components/ui/DomainGlyph';
 import { InkCanvas } from '@/components/shared/InkCanvas';
 
 export default function WelcomeScreen() {
@@ -18,19 +20,26 @@ export default function WelcomeScreen() {
       <InkCanvas />
       <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Animated.Text entering={FadeIn.duration(800)} style={[styles.logo, { color: c.primary }]}>
+        <Animated.Text entering={FadeIn.duration(TIMING.slow)} style={[styles.logo, { color: c.primary }]}>
           LifeOS
         </Animated.Text>
-        <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+        <Animated.View entering={FadeInDown.delay(400).duration(TIMING.slow)}>
           <Body style={[styles.tagline, { color: c.textSecondary }]}>Your Digital Life Architect</Body>
         </Animated.View>
-        <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.description}>
+        {/* The palette signature (§E) — six domain glyphs in their full-sat
+            hues. The only color flourish on auth: static, no motion after entry. */}
+        <Animated.View entering={FadeInDown.delay(500).duration(TIMING.slow)} style={styles.glyphRow}>
+          {(['goal', 'health', 'finance', 'career', 'social', 'polymath'] as const).map((d) => (
+            <DomainGlyph key={d} domain={d} size={14} color={c[d]} />
+          ))}
+        </Animated.View>
+        <Animated.View entering={FadeInDown.delay(600).duration(TIMING.slow)} style={styles.description}>
           <Body style={[styles.descText, { color: c.textMuted }]}>
             One system that understands every dimension of your life and turns it into a liveable daily structure.
           </Body>
         </Animated.View>
       </View>
-      <Animated.View entering={FadeInDown.delay(800).duration(600)} style={styles.bottom}>
+      <Animated.View entering={FadeInDown.delay(800).duration(TIMING.slow)} style={styles.bottom}>
         <Button3D
           title="Let's build your life plan"
           onPress={() => router.push('/(onboarding)/day1-vision')}
@@ -60,6 +69,11 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: fontSizes.xl,
     textAlign: 'center',
+  },
+  glyphRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   description: {
     marginTop: spacing.lg,

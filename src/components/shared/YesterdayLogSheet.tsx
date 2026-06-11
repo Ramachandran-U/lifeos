@@ -72,7 +72,7 @@ export function YesterdayLogSheet({ visible, onClose, onLogged }: Props) {
               <Pressable
                 key={b.id}
                 onPress={() => toggle(b)}
-                style={[styles.row, { backgroundColor: c.card, borderColor: done ? c.success + '55' : c.border }]}
+                style={[styles.row, { backgroundColor: c.card, borderColor: done ? c.success : c.border }]}
               >
                 <Ionicons
                   name={done ? 'checkmark-circle' : 'ellipse-outline'}

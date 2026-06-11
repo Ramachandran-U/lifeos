@@ -332,11 +332,11 @@ export default function EveningReflectScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
           <View style={styles.eyebrowRow}>
-            <Label color={c.primaryDim} style={styles.eyebrow}>EVENING REFLECT</Label>
+            <Label color={c.textMuted} style={styles.eyebrow}>EVENING REFLECT</Label>
             <Pressable
               onPress={() => router.push('/feedback')}
               hitSlop={8}
-              style={[styles.feedbackBtn, { backgroundColor: c.warning + '1A', borderColor: c.warning + '55' }]}
+              style={[styles.feedbackBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
               accessibilityRole="button"
               accessibilityLabel="Send feedback"
             >
@@ -373,7 +373,8 @@ export default function EveningReflectScreen() {
                           onPress={() => setReview(b.id, opt.value)}
                           style={[
                             styles.reviewBtn,
-                            { borderColor: selected ? opt.color : c.border, backgroundColor: selected ? opt.color + '1F' : 'transparent' },
+                            // Selected state is data — the border carries the solid hue.
+                            { borderColor: selected ? opt.color : c.border, backgroundColor: selected ? c.surfaceAlt : 'transparent' },
                           ]}
                         >
                           <Ionicons name={opt.icon} size={16} color={selected ? opt.color : c.textMuted} />
@@ -405,11 +406,11 @@ export default function EveningReflectScreen() {
                     }}
                     style={[
                       styles.moodBtn,
-                      selected && { borderColor: c.primary, backgroundColor: c.primary + '22' },
+                      selected && { borderColor: c.primary, backgroundColor: c.primaryDim },
                     ]}
                   >
                     <Body style={styles.moodEmoji}>{m.emoji}</Body>
-                    <Caption style={{ color: selected ? c.primaryDim : c.textMuted }}>{m.label}</Caption>
+                    <Caption style={{ color: selected ? c.primary : c.textMuted }}>{m.label}</Caption>
                   </Pressable>
                 );
               })}
@@ -424,7 +425,8 @@ export default function EveningReflectScreen() {
         {step === 'tomorrow' && (
           <Animated.View entering={FadeInDown.duration(400)} style={styles.list}>
             {habitProposal && (
-              <Card style={[styles.tweakCard, { borderLeftWidth: 4, borderLeftColor: c.warning }]}>
+              // R2 — the warning ink is the eyebrow; card neutral.
+              <Card style={styles.tweakCard}>
                 <View style={styles.tweakHeader}>
                   <Ionicons name="leaf-outline" size={18} color={c.warning} />
                   <Label color={c.warning}>HABIT CHECK</Label>
@@ -470,10 +472,11 @@ export default function EveningReflectScreen() {
             )}
 
             {tweak && !tweakLoading && (
-              <Card style={[styles.tweakCard, { borderLeftWidth: 4, borderLeftColor: c.primary }]}>
+              // V4 — the AI's suggestion: violet eyebrow + icon; card neutral.
+              <Card style={styles.tweakCard}>
                 <View style={styles.tweakHeader}>
-                  <Ionicons name="sparkles" size={18} color={c.primaryDim} />
-                  <Label color={c.primaryDim}>SUGGESTED TWEAK</Label>
+                  <Ionicons name="sparkles" size={18} color={c.primary} />
+                  <Label color={c.primary}>SUGGESTED TWEAK</Label>
                 </View>
                 <Body style={styles.tweakRationale}>{tweak.rationale}</Body>
                 <View style={[styles.tweakPatch, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -515,8 +518,9 @@ export default function EveningReflectScreen() {
                         key={b.id}
                         style={[
                           styles.previewRow,
-                          { borderColor: isTarget ? c.primary + '77' : c.border },
-                          isTarget && { backgroundColor: c.primary + '14' },
+                          // The applied-tweak target is data — solid border, Dim fill.
+                          { borderColor: isTarget ? c.primary : c.border },
+                          isTarget && { backgroundColor: c.primaryDim },
                         ]}
                       >
                         <Caption style={{ color: c.textMuted, fontFamily: fonts.heading, width: 52 }}>

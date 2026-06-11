@@ -240,8 +240,8 @@ export default function Day7FinanceScreen() {
                 </Caption>
               </Card>
             ) : plan ? (
-              <Card moduleColor={c.finance} style={styles.previewCard}>
-                <Label color={c.finance}>YOUR PLAN</Label>
+              <Card style={styles.previewCard}>
+                <Label color={c.financeText}>YOUR PLAN</Label>
                 <Heading style={[styles.planHeadline, { color: c.textPrimary }]}>
                   {formatMoney(Math.round(plan.monthlyTarget))} / month
                 </Heading>

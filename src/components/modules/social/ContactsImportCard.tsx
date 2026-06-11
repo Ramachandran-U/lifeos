@@ -216,9 +216,9 @@ function ReviewModal({
                 <Pressable
                   key={t}
                   onPress={() => onTier(t)}
-                  style={[styles.tierChip, { borderColor: on ? c.social : c.border, backgroundColor: on ? c.social + '22' : 'transparent' }]}
+                  style={[styles.tierChip, { borderColor: on ? c.social : c.border, backgroundColor: on ? c.socialDim : 'transparent' }]}
                 >
-                  <Caption style={{ color: on ? c.social : c.textSecondary }}>{RELATIONSHIP_META[t].label}</Caption>
+                  <Caption style={{ color: on ? c.socialText : c.textSecondary }}>{RELATIONSHIP_META[t].label}</Caption>
                 </Pressable>
               );
             })}

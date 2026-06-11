@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
+import { TIMING } from '@/theme/motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption } from '@/components/ui/Typography';
@@ -110,16 +111,16 @@ export default function SignInScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <Animated.Text entering={FadeIn.duration(800)} style={styles.logo}>
+          <Animated.Text entering={FadeIn.duration(TIMING.slow)} style={styles.logo}>
             LifeOS
           </Animated.Text>
 
-          <Animated.View entering={FadeInDown.delay(300).duration(600)}>
+          <Animated.View entering={FadeInDown.delay(300).duration(TIMING.slow)}>
             <Heading style={styles.title}>Welcome back</Heading>
             <Body style={styles.subtitle}>Sign in to continue building your life.</Body>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(500).duration(600)} style={[styles.form, styles.glassCard]}>
+          <Animated.View entering={FadeInDown.delay(500).duration(TIMING.slow)} style={styles.form}>
             <Input
               label="Email"
               placeholder="you@example.com"
@@ -169,7 +170,7 @@ export default function SignInScreen() {
 
             <View style={styles.registerRow}>
               <Caption style={styles.registerPrompt}>Don't have an account? </Caption>
-              <Pressable onPress={() => router.push('/(auth)/sign-up')}>
+              <Pressable onPress={() => router.push('/(auth)/sign-up')} accessibilityRole="link">
                 <Caption style={styles.registerLink}>Create one</Caption>
               </Pressable>
             </View>
@@ -186,19 +187,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  glassCard: {
-    backgroundColor: colors.background + 'B3', // 70% bg over the aurora
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    ...(Platform.OS === 'web'
-      ? ({
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-        } as unknown as object)
-      : {}),
-  },
   flex: {
     flex: 1,
   },
@@ -206,6 +194,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,
   },
+  // Wordmark — violet policy V1: the single violet text on screen.
   logo: {
     fontFamily: fonts.display,
     fontSize: fontSizes.xxxl,
@@ -214,12 +203,18 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
   },
+  // Type-led header (§E): hero register, left-aligned — the form sits
+  // directly on the ink; the glass card chrome died with the wash.
   title: {
-    textAlign: 'center',
+    fontFamily: fonts.display,
+    fontSize: fontSizes.hero,
+    lineHeight: 50,
+    color: colors.textPrimary,
+    textAlign: 'left',
   },
   subtitle: {
     color: colors.textSecondary,
-    textAlign: 'center',
+    textAlign: 'left',
     marginTop: spacing.sm,
   },
   form: {
@@ -238,9 +233,12 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   registerPrompt: {
     color: colors.textMuted,
   },
+  // Neutral underlined link — violet policy V2 allows ONE violet CTA per
+  // screen and the Sign in button owns it.
   registerLink: {
-    color: colors.primary,
+    color: colors.textPrimary,
     fontFamily: fonts.bodyMedium,
+    textDecorationLine: 'underline',
   },
   dividerRow: {
     flexDirection: 'row',

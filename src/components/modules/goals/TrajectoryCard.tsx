@@ -49,9 +49,11 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
 
   // In the opening window the pace verdict is meaningless (0% vs 0% is trivially
   // "on track"), so present a neutral "just getting started" state instead.
+  // R2 — pace is data: warning when behind, success when ahead, and the goal
+  // domain's own ink when on track (violet is banned from domain content, §A.4).
   const statusColor = t.justStarted
     ? c.textSecondary
-    : t.status === 'behind' ? c.warning : t.status === 'ahead' ? c.success : c.primary;
+    : t.status === 'behind' ? c.warning : t.status === 'ahead' ? c.success : c.goalText;
   const meta = STATUS_META[t.status];
   const headerIcon: keyof typeof Ionicons.glyphMap = t.justStarted ? 'sparkles-outline' : meta.icon;
   // Never present a defaulted horizon as the user's chosen timeline.
@@ -84,12 +86,13 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
   };
 
   return (
-    <Card moduleColor={statusColor} style={styles.card}>
+    // Neutral card — the status ink lives in the header + pace bar (R2).
+    <Card style={styles.card}>
       <View style={styles.header}>
         <Ionicons name={headerIcon} size={16} color={statusColor} />
         <Label color={statusColor}>TRAJECTORY · {visionLabel} VISION</Label>
         {!t.justStarted && needsReview && !assessment && (
-          <View style={[styles.pill, { backgroundColor: statusColor + '22', borderColor: statusColor + '55' }]}>
+          <View style={[styles.pill, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
             <Caption style={{ color: statusColor }}>{quarterKey()} check-in</Caption>
           </View>
         )}
@@ -136,7 +139,7 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
           </View>
 
           <View style={styles.statusRow}>
-            <View style={[styles.pill, { backgroundColor: statusColor + '22', borderColor: statusColor + '55' }]}>
+            <View style={[styles.pill, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <Caption style={{ color: statusColor, fontFamily: fonts.heading }}>{meta.label}</Caption>
             </View>
             <Caption style={{ color: c.textMuted }}>
@@ -161,15 +164,16 @@ export function TrajectoryCard({ lifeGoal, goals }: Props) {
               style={({ pressed }) => [
                 styles.btn,
                 {
-                  backgroundColor: pressed ? statusColor + 'cc' : statusColor,
-                  opacity: loading ? 0.7 : 1,
+                  // Solid domain fill + contrast-locked ink; press feedback via opacity.
+                  backgroundColor: c.goal,
+                  opacity: loading ? 0.7 : pressed ? 0.85 : 1,
                 },
               ]}
             >
               {loading ? (
                 <LoadingDots />
               ) : (
-                <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+                <Body style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>
                   {error ? 'Try again' : needsReview ? 'Recalibrate this quarter' : 'Review trajectory'}
                 </Body>
               )}

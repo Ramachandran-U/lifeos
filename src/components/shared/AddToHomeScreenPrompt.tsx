@@ -41,7 +41,7 @@ export function AddToHomeScreenPrompt() {
             onPress={install}
             style={({ pressed }) => [
               styles.cta,
-              { backgroundColor: pressed ? c.primary + 'cc' : c.primary },
+              { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1 },
             ]}
           >
             <Caption style={styles.ctaText}>Install</Caption>

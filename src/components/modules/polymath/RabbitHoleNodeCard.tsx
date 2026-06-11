@@ -35,8 +35,9 @@ export function RabbitHoleNodeCard({ node, onClimb, onMap }: Props) {
 
   return (
     <Animated.View entering={FadeInDown.duration(TIMING.normal)}>
-      <Card style={[styles.card, { borderLeftWidth: 4, borderLeftColor: c.polymath }]}>
-        <Caption style={{ color: c.polymath, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
+      <Card style={styles.card}>
+        {/* R2 — the arrival mark carries the polymath ink; card neutral. */}
+        <Caption style={{ color: c.polymathText, fontFamily: fonts.heading, letterSpacing: 0.5 }}>
           {node.arrivedVia == null ? '✦ START' : node.arrivedVia === 'deeper' ? '↓ DEEPER' : '↻ SIDEWAYS'}
         </Caption>
         <Heading style={styles.title} testID="rabbit-hole-node-title">{node.title}</Heading>

@@ -44,7 +44,6 @@ export function OnboardingIntroSection({
             style={[
               styles.card,
               {
-                borderLeftColor: accentColor ?? c.primary,
                 backgroundColor: c.card,
                 borderColor: c.border,
               },
@@ -73,7 +72,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    borderLeftWidth: 3,
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: spacing.md,

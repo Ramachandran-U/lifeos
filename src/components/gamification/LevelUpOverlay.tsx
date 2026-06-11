@@ -48,12 +48,13 @@ export function LevelUpOverlay({ level, userName, onClose }: Props) {
           accessibilityLabel={`Level ${level} reached. Tap to dismiss.`}
           style={[
             styles.banner,
-            { backgroundColor: c.surface, borderColor: c.primary + '55' },
+            // Moment banner — solid violet border (V5: level-up surface).
+            { backgroundColor: c.surface, borderColor: c.primary },
             glow as object,
           ]}
         >
-          <View style={[styles.levelBadge, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}>
-            <Text style={[styles.levelNum, { color: c.primaryDim }]}>{level}</Text>
+          <View style={[styles.levelBadge, { backgroundColor: c.primaryDim, borderColor: c.primary }]}>
+            <Text style={[styles.levelNum, { color: c.primary }]}>{level}</Text>
           </View>
           <View style={styles.copy}>
             <Text style={[styles.kicker, { color: c.textMuted }]}>LEVEL UP ✨</Text>

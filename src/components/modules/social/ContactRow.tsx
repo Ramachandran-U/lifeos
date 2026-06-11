@@ -40,12 +40,13 @@ export function ContactRow({ contact, onPress }: ContactRowProps) {
         styles.row,
         {
           backgroundColor: c.card,
-          borderColor: overdue.isOverdue ? c.warning + '55' : c.border,
+          // Overdue is data — solid warning border.
+          borderColor: overdue.isOverdue ? c.warning : c.border,
         },
       ]}
     >
-      <View style={[styles.avatar, { backgroundColor: c.social + '22', borderColor: c.social + '55' }]}>
-        <Body style={[styles.avatarText, { color: c.social }]}>{initial}</Body>
+      <View style={[styles.avatar, { backgroundColor: c.socialDim, borderColor: c.border }]}>
+        <Body style={[styles.avatarText, { color: c.socialText }]}>{initial}</Body>
       </View>
       <View style={styles.body}>
         <Body style={[styles.name, { color: c.textPrimary }]} numberOfLines={1}>

@@ -34,27 +34,27 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
 
   return (
     <View style={s.wrap}>
-      {/* Reality Check */}
-      <Card moduleColor={c.error} style={s.card}>
+      {/* Reality Check — R2: the semantic ink is the eyebrow; card neutral. */}
+      <Card style={s.card}>
         <Label color={c.error}>REALITY CHECK</Label>
         <Body style={{ color: c.textPrimary, lineHeight: 22 }}>{strategy.realityCheck}</Body>
       </Card>
 
       {/* MVS */}
-      <Card moduleColor={c.career} style={s.card}>
-        <Label color={c.career}>MINIMUM VIABLE SUCCESS</Label>
+      <Card style={s.card}>
+        <Label color={c.careerText}>MINIMUM VIABLE SUCCESS</Label>
         <Heading style={[s.mvsMetric, { color: c.textPrimary }]}>{strategy.mvs.metric}</Heading>
         <Caption style={{ color: c.textSecondary }}>{strategy.mvs.outcome}</Caption>
       </Card>
 
       {/* Skill gaps */}
       <Card style={s.card}>
-        <Label color={c.career}>SKILL GAPS</Label>
+        <Label color={c.careerText}>SKILL GAPS</Label>
         {strategy.skillGaps.map((g, i) => (
           <View key={i} style={[s.skillRow, { borderColor: c.border }]}>
             <View style={s.skillHeader}>
               <Body style={[s.skillName, { color: c.textPrimary }]}>{g.skill}</Body>
-              <View style={[s.priorityPill, { backgroundColor: priorityColor(g.priority, c) + '22' }]}>
+              <View style={[s.priorityPill, { backgroundColor: c.surfaceAlt }]}>
                 <Caption style={{ color: priorityColor(g.priority, c), fontFamily: fonts.heading }}>
                   {g.priority.toUpperCase()}
                 </Caption>
@@ -76,12 +76,13 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
 
       {/* Phases */}
       <Card style={s.card}>
-        <Label color={c.career}>12-WEEK EXECUTION PLAN</Label>
+        <Label color={c.careerText}>12-WEEK EXECUTION PLAN</Label>
         {strategy.phases.map((p, i) => {
-          const phaseColors = [c.polymath, c.career, c.success];
-          const pc = phaseColors[i] ?? c.career;
+          // R2 — each phase's identity lives in its label + milestone dots, not a rail.
+          const phaseColors = [c.polymathText, c.careerText, c.success];
+          const pc = phaseColors[i] ?? c.careerText;
           return (
-            <View key={p.name} style={[s.phaseBox, { borderLeftColor: pc, borderColor: c.border }]}>
+            <View key={p.name} style={[s.phaseBox, { borderColor: c.border }]}>
               <View style={s.phaseHeader}>
                 <Label color={pc}>PHASE {i + 1}: {p.name.toUpperCase()}</Label>
                 <Caption style={{ color: c.textMuted }}>Weeks {p.weeks}</Caption>
@@ -101,12 +102,12 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
       {/* Daily plan */}
       <Card style={s.card}>
         <View style={s.headerRow}>
-          <Label color={c.career}>DAILY PLAN TEMPLATE</Label>
+          <Label color={c.careerText}>DAILY PLAN TEMPLATE</Label>
         </View>
         {(['deepWork', 'build', 'review'] as const).map((slot) => {
           const items = strategy.dailyPlan[slot];
           const slotLabel = slot === 'deepWork' ? 'Deep Work' : slot === 'build' ? 'Build' : 'Review';
-          const slotColor = slot === 'deepWork' ? c.career : slot === 'build' ? c.success : c.textSecondary;
+          const slotColor = slot === 'deepWork' ? c.careerText : slot === 'build' ? c.success : c.textSecondary;
           return (
             <View key={slot} style={s.slotBox}>
               <Caption style={{ color: slotColor, fontFamily: fonts.heading, letterSpacing: 1 }}>
@@ -122,7 +123,7 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
                       onPress={() => onAcceptDaily(slot, i)}
                       disabled={accepted}
                       hitSlop={6}
-                      style={[s.acceptPill, { backgroundColor: accepted ? c.surface : slotColor + '22' }]}
+                      style={[s.acceptPill, { backgroundColor: accepted ? c.surface : c.surfaceAlt }]}
                     >
                       <Ionicons name={accepted ? 'checkmark' : 'add'} size={14} color={accepted ? c.success : slotColor} />
                       <Caption style={{ color: accepted ? c.success : slotColor, fontFamily: fonts.heading }}>
@@ -140,7 +141,7 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
       {/* Weekly output */}
       <Card style={s.card}>
         <View style={s.headerRow}>
-          <Label color={c.career}>WEEKLY OUTPUT</Label>
+          <Label color={c.careerText}>WEEKLY OUTPUT</Label>
           <Pressable
             onPress={onAcceptAll}
             disabled={allAccepted}
@@ -149,9 +150,9 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
             <Ionicons
               name={allAccepted ? 'checkmark-done' : 'rocket-outline'}
               size={14}
-              color={allAccepted ? c.textSecondary : '#fff'}
+              color={allAccepted ? c.textSecondary : c.inkOnColor}
             />
-            <Caption style={{ color: allAccepted ? c.textSecondary : '#fff', fontFamily: fonts.heading }}>
+            <Caption style={{ color: allAccepted ? c.textSecondary : c.inkOnColor, fontFamily: fonts.heading }}>
               {allAccepted ? 'All committed' : 'Commit all'}
             </Caption>
           </Pressable>
@@ -161,8 +162,8 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
           const accepted = acceptedIds.has(acceptId);
           return (
             <View key={i} style={[s.weekRow, { borderColor: c.border }]}>
-              <View style={[s.weekNum, { backgroundColor: c.careerDim ?? c.primaryDim }]}>
-                <Caption style={{ color: c.career, fontFamily: fonts.heading }}>W{w.week}</Caption>
+              <View style={[s.weekNum, { backgroundColor: c.careerDim }]}>
+                <Caption style={{ color: c.careerText, fontFamily: fonts.heading }}>W{w.week}</Caption>
               </View>
               <View style={s.weekBody}>
                 <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>{w.artifact}</Body>
@@ -172,17 +173,17 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
                 onPress={() => onAcceptWeek(i)}
                 disabled={accepted}
                 hitSlop={6}
-                style={[s.acceptPill, { backgroundColor: accepted ? c.surface : c.careerDim ?? c.primaryDim }]}
+                style={[s.acceptPill, { backgroundColor: accepted ? c.surface : c.careerDim }]}
               >
-                <Ionicons name={accepted ? 'checkmark' : 'add'} size={14} color={accepted ? c.success : c.career} />
+                <Ionicons name={accepted ? 'checkmark' : 'add'} size={14} color={accepted ? c.success : c.careerText} />
               </Pressable>
             </View>
           );
         })}
       </Card>
 
-      {/* Failure points */}
-      <Card moduleColor={c.warning} style={s.card}>
+      {/* Failure points — R2: the warning ink is the eyebrow; card neutral. */}
+      <Card style={s.card}>
         <Label color={c.warning}>FAILURE POINTS</Label>
         {strategy.failurePoints.map((f, i) => (
           <View key={i} style={s.failureRow}>
@@ -205,7 +206,7 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     skillName: { fontFamily: fonts.heading, flex: 1 },
     skillLevelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
     phaseBox: {
-      borderLeftWidth: 4, borderWidth: 1, borderRadius: 12,
+      borderWidth: 1, borderRadius: 12,
       paddingVertical: spacing.sm, paddingHorizontal: spacing.md, gap: 4, marginTop: spacing.xs,
     },
     phaseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

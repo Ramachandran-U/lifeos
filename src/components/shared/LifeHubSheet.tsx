@@ -85,7 +85,7 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
                   },
                 ]}
               >
-                <View style={[styles.iconBubble, { backgroundColor: c[h.colorKey] + '22' }]}>
+                <View style={[styles.iconBubble, { backgroundColor: (c as Record<string, string>)[`${h.colorKey}Dim`] }]}>
                   <DomainGlyph domain={h.colorKey} size={24} color={c[h.colorKey]} strokeWidth={2.25} />
                 </View>
                 <Body style={[styles.tileLabel, { color: c.textPrimary }]}>{h.label}</Body>

@@ -324,6 +324,7 @@ export default function EditPrioritiesScreen() {
               if (!meta) return null;
               const isSelected = selectedSet.has(id);
               const color = c[meta.colorKey];
+              const dim = (c as Record<string, string>)[`${String(meta.colorKey)}Dim`] ?? c.surfaceAlt;
               const selectedIdx = selectedInOrder.indexOf(id);
               const isFirstSelected = isSelected && selectedIdx === 0;
               const isLastSelected = isSelected && selectedIdx === selectedInOrder.length - 1;
@@ -332,10 +333,10 @@ export default function EditPrioritiesScreen() {
                   key={id}
                   style={[
                     styles.row,
+                    // Selected state is data — solid hue border + the domain's Dim fill.
                     {
                       borderColor: isSelected ? color : c.border,
-                      backgroundColor: isSelected ? color + '14' : 'transparent',
-                      borderLeftColor: color,
+                      backgroundColor: isSelected ? dim : 'transparent',
                     },
                   ]}
                 >
@@ -349,14 +350,14 @@ export default function EditPrioritiesScreen() {
                         },
                       ]}
                     >
-                      {isSelected ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+                      {isSelected ? <Ionicons name="checkmark" size={14} color={c.inkOnColor} /> : null}
                     </View>
                     <Body style={[styles.rowEmoji, { color }]}>{meta.emoji}</Body>
                     <Body style={[styles.rowLabel, isSelected && { color: c.textPrimary }]}>
                       {meta.label}
                     </Body>
                     {isSelected && selectedIdx === 0 ? (
-                      <Caption style={[styles.priorityTag, { color, borderColor: color }]}>TOP PRIORITY</Caption>
+                      <Caption style={[styles.priorityTag, { color, borderColor: c.border }]}>TOP PRIORITY</Caption>
                     ) : null}
                   </Pressable>
 
@@ -442,7 +443,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: 16,
     borderWidth: 1,
-    borderLeftWidth: 4,
     minHeight: 56,
   },
   rowLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

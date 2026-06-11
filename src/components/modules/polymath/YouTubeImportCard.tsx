@@ -177,7 +177,7 @@ function ReviewModal({
                 <Pressable
                   key={`${it.name}-${i}`}
                   onPress={() => onToggle(i)}
-                  style={[styles.row, { borderColor: on ? c.polymath : c.border, backgroundColor: on ? c.polymath + '15' : 'transparent' }]}
+                  style={[styles.row, { borderColor: on ? c.polymath : c.border, backgroundColor: on ? c.polymathDim : 'transparent' }]}
                 >
                   <Ionicons
                     name={on ? 'checkbox' : 'square-outline'}

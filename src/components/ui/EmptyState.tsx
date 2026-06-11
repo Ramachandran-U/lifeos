@@ -24,7 +24,8 @@ export function EmptyState({ icon, title, caption, accent, cta, style }: EmptySt
   const hue = accent ?? c.primary;
   return (
     <View style={[styles.root, style]}>
-      <View style={[styles.iconBubble, { backgroundColor: hue + '22' }]}>
+      {/* Neutral bubble — the icon in the hue is the R3 mark. */}
+      <View style={[styles.iconBubble, { backgroundColor: c.surfaceAlt }]}>
         <Ionicons name={icon} size={30} color={hue} />
       </View>
       <Heading style={styles.title}>{title}</Heading>

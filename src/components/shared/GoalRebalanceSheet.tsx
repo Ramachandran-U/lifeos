@@ -63,8 +63,8 @@ export function GoalRebalanceSheet({
           {phase === 'choice' && (
             <>
               <View style={styles.iconRow}>
-                <View style={[styles.iconBadge, { backgroundColor: c.goal + '22' }]}>
-                  <Ionicons name="git-branch-outline" size={22} color={c.goal} />
+                <View style={[styles.iconBadge, { backgroundColor: c.goalDim }]}>
+                  <Ionicons name="git-branch-outline" size={22} color={c.goalText} />
                 </View>
               </View>
               <Heading style={styles.title}>Balance check</Heading>

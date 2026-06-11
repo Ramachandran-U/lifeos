@@ -99,7 +99,8 @@ export function PriorityChangeSheet({
               )}
 
               {hasRisks && (
-                <Card style={[styles.impactCard, { borderLeftWidth: 3, borderLeftColor: c.warning }]}>
+                <Card style={styles.impactCard}>
+                  {/* R2 — the warning ink is the eyebrow; card neutral. */}
                   <Label color={c.warning}>HEADS UP</Label>
                   {impact.streaksAtRisk.map((s) => (
                     <Body key={s.streakKey} style={styles.risk}>

@@ -29,10 +29,11 @@ export function FrontierCard({ frontier, onExplore }: Props) {
   };
 
   return (
-    <Card style={[styles.card, { borderLeftWidth: 4, borderLeftColor: c.polymath }]}>
+    // Neutral card — the polymath ink lives in the eyebrow + mark (R2/R3).
+    <Card style={styles.card}>
       <View style={styles.eyebrowRow}>
-        <Ionicons name="git-compare-outline" size={16} color={c.polymath} />
-        <Label color={c.polymath}>THE FRONTIER</Label>
+        <Ionicons name="git-compare-outline" size={16} color={c.polymathText} />
+        <Label color={c.polymathText}>THE FRONTIER</Label>
       </View>
 
       {/* The two endpoints with the untraveled edge between them. */}
@@ -44,7 +45,7 @@ export function FrontierCard({ frontier, onExplore }: Props) {
         </View>
         <View style={styles.gap}>
           <View style={[styles.gapLine, { backgroundColor: c.border }]} />
-          <Caption style={[styles.gapMark, { color: c.polymath, backgroundColor: c.background }]}>?</Caption>
+          <Caption style={[styles.gapMark, { color: c.polymathText, backgroundColor: c.background }]}>?</Caption>
         </View>
         <View style={[styles.endpoint, { borderColor: c.border, backgroundColor: c.surface }]}>
           <Body style={[styles.endpointText, { color: c.textPrimary }]} numberOfLines={2}>

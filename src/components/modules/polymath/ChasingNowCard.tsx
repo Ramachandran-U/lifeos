@@ -34,10 +34,11 @@ export function ChasingNowCard({ threads, onPull, onDismiss }: Props) {
   const handleDismiss = (t: ChasingThread) => { haptic(); onDismiss(t); };
 
   return (
-    <Card style={[styles.card, { borderLeftWidth: 4, borderLeftColor: c.polymath }]}>
+    // Neutral card — the polymath ink lives in the eyebrow + live dot (R2/R3).
+    <Card style={styles.card}>
       <View style={styles.eyebrowRow}>
-        <Ionicons name="git-network-outline" size={16} color={c.polymath} />
-        <Label color={c.polymath}>CHASING NOW</Label>
+        <Ionicons name="git-network-outline" size={16} color={c.polymathText} />
+        <Label color={c.polymathText}>CHASING NOW</Label>
         <View style={styles.liveRow}>
           <View style={[styles.dot, { backgroundColor: c.polymath }]} />
           <Caption style={{ color: c.textMuted, fontFamily: fonts.heading }}>live</Caption>
@@ -47,7 +48,7 @@ export function ChasingNowCard({ threads, onPull, onDismiss }: Props) {
       <Heading style={styles.question}>{lead.question}</Heading>
 
       <View style={styles.rationaleRow}>
-        <Caption style={{ color: c.polymath, fontFamily: fonts.heading }}>↳ </Caption>
+        <Caption style={{ color: c.polymathText, fontFamily: fonts.heading }}>↳ </Caption>
         <Caption style={[styles.rationale, { color: c.textSecondary }]}>{lead.rationale}</Caption>
       </View>
 

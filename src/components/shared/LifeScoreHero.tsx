@@ -70,10 +70,11 @@ export function LifeScoreHero({ minHistoryPoints = 5 }: Props) {
     d > 0 ? c.success : d < 0 ? c.warning : c.textMuted;
 
   return (
-    <Card moduleColor={c.primary} style={styles.card}>
+    // Neutral card — cross-domain score; trend deltas carry the semantic ink.
+    <Card style={styles.card}>
       <View style={styles.headerRow}>
         <View>
-          <Label color={c.primary}>LIFE SCORE</Label>
+          <Label>LIFE SCORE</Label>
           <View style={styles.scoreRow}>
             <Heading style={[styles.score, { color: c.textPrimary }]}>{score}</Heading>
             <Caption style={{ color: c.textMuted, marginLeft: spacing.xs }}>/100</Caption>

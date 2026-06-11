@@ -20,18 +20,18 @@ import { useFlagStore } from '@/store/useFlagStore';
 import { useGameStore } from '@/store/useGameStore';
 import { track, EVENTS } from '@/utils/telemetry';
 
-type Chip = { id: DomainId; icon: LucideIcon; label: string; sub: string; color: string };
+type Chip = { id: DomainId; icon: LucideIcon; label: string; sub: string; color: string; dim: string };
 
 export default function WelcomeIntentScreen() {
   const c = useColors();
   const styles = makeStyles(c);
   const CHIPS: Chip[] = [
-    { id: 'goals',    icon: DOMAIN_ICONS.goal,     label: 'Ship a big goal',       sub: 'Turn an ambition into a plan',  color: c.goal },
-    { id: 'health',   icon: DOMAIN_ICONS.health,   label: 'Feel strong',           sub: 'Energy, fitness, and sleep',    color: c.health },
-    { id: 'finance',  icon: DOMAIN_ICONS.finance,  label: 'Build wealth',          sub: 'Save toward what matters',      color: c.finance },
-    { id: 'career',   icon: DOMAIN_ICONS.career,   label: 'Level up career',       sub: 'Grow toward the work you want', color: c.career },
-    { id: 'social',   icon: DOMAIN_ICONS.social,   label: 'Nurture relationships', sub: 'Stay close to your people',     color: c.social },
-    { id: 'polymath', icon: DOMAIN_ICONS.polymath, label: 'Learn something new',   sub: 'Explore a skill or curiosity',  color: c.polymath },
+    { id: 'goals',    icon: DOMAIN_ICONS.goal,     label: 'Ship a big goal',       sub: 'Turn an ambition into a plan',  color: c.goal,     dim: c.goalDim },
+    { id: 'health',   icon: DOMAIN_ICONS.health,   label: 'Feel strong',           sub: 'Energy, fitness, and sleep',    color: c.health,   dim: c.healthDim },
+    { id: 'finance',  icon: DOMAIN_ICONS.finance,  label: 'Build wealth',          sub: 'Save toward what matters',      color: c.finance,  dim: c.financeDim },
+    { id: 'career',   icon: DOMAIN_ICONS.career,   label: 'Level up career',       sub: 'Grow toward the work you want', color: c.career,   dim: c.careerDim },
+    { id: 'social',   icon: DOMAIN_ICONS.social,   label: 'Nurture relationships', sub: 'Stay close to your people',     color: c.social,   dim: c.socialDim },
+    { id: 'polymath', icon: DOMAIN_ICONS.polymath, label: 'Learn something new',   sub: 'Explore a skill or curiosity',  color: c.polymath, dim: c.polymathDim },
   ];
   const router = useRouter();
   const { userId, name, setOnboardingStage, setPrimaryDomains } = useUserStore();
@@ -97,9 +97,9 @@ export default function WelcomeIntentScreen() {
                 onPress={() => toggle(chip.id)}
                 style={[
                   styles.chip,
+                  // Selected state is data — solid hue border + the domain's Dim fill.
                   { borderColor: isSelected ? chip.color : c.border,
-                    backgroundColor: isSelected ? chip.color + '22' : c.surface,
-                    borderLeftColor: chip.color },
+                    backgroundColor: isSelected ? chip.dim : c.surface },
                 ]}
               >
                 <Icon size={24} color={chip.color} strokeWidth={2} />
@@ -187,7 +187,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderLeftWidth: 4,
     minHeight: 64,
   },
   chipText: { flex: 1, gap: 2 },

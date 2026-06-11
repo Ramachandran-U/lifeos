@@ -30,9 +30,10 @@ export function LearningResourceCard({ title, type, estimatedHours, status, prog
   const icon = TYPE_ICONS[type] ?? 'document';
 
   return (
-    <Card moduleColor={c.career} style={styles.card}>
+    // Neutral card — the type icon in career ink is the R3 mark.
+    <Card style={styles.card}>
       <View style={styles.row}>
-        <Ionicons name={icon} size={20} color={c.career} />
+        <Ionicons name={icon} size={20} color={c.careerText} />
         <View style={styles.content}>
           <Body style={styles.title}>{title}</Body>
           <View style={styles.meta}>

@@ -43,13 +43,14 @@ export function FinanceGoalCard({
   const formattedSaved = formatMoney(currentSaved);
 
   return (
-    <Card moduleColor={c.finance} style={styles.card}>
+    // Neutral card — the gold lives in the saved amount + solid progress (R2).
+    <Card style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name={icon} size={20} color={c.finance} />
+          <Ionicons name={icon} size={20} color={c.financeText} />
         </View>
         <View style={styles.headerText}>
-          <Label color={c.finance}>YOUR GOAL</Label>
+          <Label color={c.financeText}>YOUR GOAL</Label>
           <Body style={styles.title}>{title}</Body>
         </View>
       </View>
@@ -82,7 +83,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.financeDim + '30',
+    backgroundColor: colors.financeDim,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -98,7 +99,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'baseline',
   },
   amount: {
-    color: colors.finance,
+    // R2 — the saved amount IS the finance signal.
+    color: colors.financeText,
     fontSize: fontSizes.display,
   },
   footer: {

@@ -200,7 +200,8 @@ export default function NotificationsSettingsScreen() {
           </AuroraText>
 
           {permission !== 'granted' && (
-            <GlassCard accent={c.warning} style={styles.permissionCard}>
+            // R2 — the permission state carries the warning ink; card neutral.
+            <GlassCard style={styles.permissionCard}>
               <SectionLabel color={c.warning}>PERMISSION NEEDED</SectionLabel>
               <AuroraText variant="bodyLg" style={{ marginTop: 4 }}>
                 Notifications are {permission === 'denied' ? 'blocked' : 'not yet enabled'} on this device.
@@ -213,7 +214,7 @@ export default function NotificationsSettingsScreen() {
               {permission !== 'denied' && (
                 <Pressable
                   onPress={requestPerms}
-                  style={[styles.permissionBtn, { borderColor: c.warning, backgroundColor: c.warning + '1A' }]}
+                  style={[styles.permissionBtn, { borderColor: c.border, backgroundColor: c.surfaceAlt }]}
                   accessibilityRole="button"
                 >
                   <AuroraText variant="caption" color={c.warning}>Enable notifications</AuroraText>
@@ -222,8 +223,9 @@ export default function NotificationsSettingsScreen() {
             </GlassCard>
           )}
 
-          <GlassCard accent={c.primary} style={styles.section}>
-            <SectionLabel color={c.primary}>NUDGES</SectionLabel>
+          {/* Not an AI surface — accent dropped, neutral chrome (violet policy §A.4). */}
+          <GlassCard style={styles.section}>
+            <SectionLabel>NUDGES</SectionLabel>
             <View style={styles.rowList}>
               {TOGGLES.map((t, i) => (
                 <View
@@ -233,8 +235,8 @@ export default function NotificationsSettingsScreen() {
                     i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
                   ]}
                 >
-                  <View style={[styles.rowIcon, { backgroundColor: c.primary + '14', borderColor: c.primary + '33' }]}>
-                    <Ionicons name={t.icon} size={18} color={c.primary} />
+                  <View style={[styles.rowIcon, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                    <Ionicons name={t.icon} size={18} color={c.textSecondary} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <AuroraText variant="bodyLg">{t.title}</AuroraText>

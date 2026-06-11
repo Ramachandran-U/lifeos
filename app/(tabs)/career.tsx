@@ -288,7 +288,7 @@ export default function CareerScreen() {
   const renderSetup = () => (
     <Animated.View entering={FadeInDown.duration(400)} style={s.section}>
       <Card style={s.setupCard}>
-        <Label style={{ color: c.career }}>NEW CAREER PATH</Label>
+        <Label style={{ color: c.careerText }}>NEW CAREER PATH</Label>
         <Heading style={[s.setupHeading, { color: c.textPrimary }]}>
           Where are you going?
         </Heading>
@@ -326,7 +326,7 @@ export default function CareerScreen() {
                   <Caption
                     style={[
                       s.timelineLabel,
-                      { color: timelineMonths === opt.months ? '#FFF' : c.textSecondary },
+                      { color: timelineMonths === opt.months ? c.inkOnColor : c.textSecondary },
                     ]}
                   >
                     {opt.label}
@@ -357,7 +357,7 @@ export default function CareerScreen() {
                 />
               </View>
               <Pressable style={[s.addBtn, { backgroundColor: c.career }]} onPress={addSkill}>
-                <Ionicons name="add" size={20} color="#FFF" />
+                <Ionicons name="add" size={20} color={c.inkOnColor} />
               </Pressable>
             </View>
             {skills.length > 0 && (
@@ -405,8 +405,9 @@ export default function CareerScreen() {
 
       {/* Path card */}
       <Animated.View entering={FadeInDown.duration(400)}>
-        <Card moduleColor={c.career} style={s.targetCard}>
-          <Label color={c.career}>YOUR PATH</Label>
+        {/* Neutral card — domain identity is the R2 eyebrow + solid progress fill. */}
+        <Card style={s.targetCard}>
+          <Label color={c.careerText}>YOUR PATH</Label>
           <Heading style={[s.pathTitle, { color: c.textPrimary }]}>
             {currentRole} → {targetRole}
           </Heading>
@@ -455,7 +456,7 @@ export default function CareerScreen() {
       <Animated.View entering={FadeInDown.delay(250).duration(400)} style={s.section}>
         {!strategy ? (
           <Card style={s.setupCard}>
-            <Label color={c.career}>ELITE STRATEGIST</Label>
+            <Label color={c.careerText}>ELITE STRATEGIST</Label>
             <Caption style={{ color: c.textSecondary }}>
               Generate a no-fluff execution plan: Reality Check, 12-week phases, daily + weekly artifacts.
             </Caption>
@@ -473,7 +474,7 @@ export default function CareerScreen() {
                     ]}
                     onPress={() => setTimeframeWeeks(opt.weeks)}
                   >
-                    <Caption style={[s.timelineLabel, { color: timeframeWeeks === opt.weeks ? '#FFF' : c.textSecondary }]}>
+                    <Caption style={[s.timelineLabel, { color: timeframeWeeks === opt.weeks ? c.inkOnColor : c.textSecondary }]}>
                       {opt.label}
                     </Caption>
                   </Pressable>
@@ -494,7 +495,7 @@ export default function CareerScreen() {
                     ]}
                     onPress={() => setWeeklyHours(h)}
                   >
-                    <Caption style={[s.timelineLabel, { color: weeklyHours === h ? '#FFF' : c.textSecondary }]}>
+                    <Caption style={[s.timelineLabel, { color: weeklyHours === h ? c.inkOnColor : c.textSecondary }]}>
                       {h}h
                     </Caption>
                   </Pressable>
@@ -595,10 +596,10 @@ export default function CareerScreen() {
                   onPress={() => loadPath(path)}
                   hitSlop={8}
                 >
-                  <Ionicons name="folder-open-outline" size={16} color={c.career} />
+                  <Ionicons name="folder-open-outline" size={16} color={c.careerText} />
                 </Pressable>
                 <Pressable
-                  style={[s.iconBtn, { backgroundColor: '#FF444422' }]}
+                  style={[s.iconBtn, { backgroundColor: c.surfaceAlt }]}
                   onPress={() => handleDelete(path.id)}
                   hitSlop={8}
                 >
@@ -652,7 +653,7 @@ export default function CareerScreen() {
               onPress={confirmSave}
               disabled={!saveName.trim()}
             >
-              <Body style={{ color: '#FFF', fontFamily: fonts.heading }}>Save</Body>
+              <Body style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Save</Body>
             </Pressable>
           </View>
         </Animated.View>
@@ -667,7 +668,9 @@ export default function CareerScreen() {
       <InkCanvas />
       <SafeAreaView style={s.container}>
       <ScrollView style={s.flex} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        {/* R1 block — full-bleed, outside the padded inner container. */}
         <ModuleHeader title="Career" domain="career" color={c.career} />
+        <View style={s.scrollInner}>
 
         {loading && !analysis && (
           <View style={s.loadingContainer}>
@@ -678,6 +681,7 @@ export default function CareerScreen() {
 
         {!analysis && !loading && renderSetup()}
         {analysis && renderResults()}
+        </View>
       </ScrollView>
 
       {renderSaveModal()}
@@ -693,8 +697,11 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     container: { flex: 1 },
     flex: { flex: 1 },
     scroll: {
-      paddingHorizontal: spacing.xl,
       paddingBottom: spacing.xxxl,
+      gap: spacing.md,
+    },
+    scrollInner: {
+      paddingHorizontal: spacing.xl,
       gap: spacing.md,
     },
 
@@ -790,7 +797,7 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'rgba(0,0,0,0.55)',
+      backgroundColor: c.overlay,
       padding: spacing.xl,
     },
     modalBox: {

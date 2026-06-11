@@ -1,4 +1,5 @@
 import { useColors } from '@/theme/colors';
+import type { DomainKey } from '@/theme/domainIcons';
 
 export type GoalType = 'career' | 'health' | 'finance' | 'social' | 'learning' | 'personal' | string;
 
@@ -9,11 +10,9 @@ export interface GoalTypeColor {
   text: string;
   /** The only legal tinted container for this domain. */
   dim: string;
+  /** Canonical domain key — feeds <DomainGlyph domain={…}> (R3 marks). */
+  domain: DomainKey;
   label: string;
-  /** @deprecated legacy alias of `hue` — swept to hue/text/dim in the W2 structural pass. */
-  color: string;
-  /** @deprecated legacy alias of `dim` — swept in the W2 structural pass. */
-  light: string;
 }
 
 // Ink + Signal (Cluster 3 §A.2): this hook owns goal-type palette semantics.
@@ -21,18 +20,18 @@ export interface GoalTypeColor {
 // signal and is banned from domain content (violet policy §A.4).
 export function useGoalTypeColor() {
   const c = useColors();
-  const make = (hue: string, text: string, dim: string, label: string): GoalTypeColor => ({
-    hue, text, dim, label, color: hue, light: dim,
+  const make = (hue: string, text: string, dim: string, domain: DomainKey, label: string): GoalTypeColor => ({
+    hue, text, dim, domain, label,
   });
   return (goalType: string): GoalTypeColor => {
     switch (goalType) {
-      case 'career':   return make(c.career,   c.careerText,   c.careerDim,   'Career');
-      case 'health':   return make(c.health,   c.healthText,   c.healthDim,   'Health');
-      case 'finance':  return make(c.finance,  c.financeText,  c.financeDim,  'Finance');
-      case 'social':   return make(c.social,   c.socialText,   c.socialDim,   'Social');
-      case 'learning': return make(c.polymath, c.polymathText, c.polymathDim, 'Learning');
+      case 'career':   return make(c.career,   c.careerText,   c.careerDim,   'career',   'Career');
+      case 'health':   return make(c.health,   c.healthText,   c.healthDim,   'health',   'Health');
+      case 'finance':  return make(c.finance,  c.financeText,  c.financeDim,  'finance',  'Finance');
+      case 'social':   return make(c.social,   c.socialText,   c.socialDim,   'social',   'Social');
+      case 'learning': return make(c.polymath, c.polymathText, c.polymathDim, 'polymath', 'Learning');
       case 'personal':
-      default:         return make(c.goal,     c.goalText,     c.goalDim,     'Personal');
+      default:         return make(c.goal,     c.goalText,     c.goalDim,     'goal',     'Personal');
     }
   };
 }

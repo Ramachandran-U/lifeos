@@ -203,7 +203,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
     setDraftMilestones((prev) => prev.map((m, i) => (i === idx ? text : m)));
   };
 
-  const accent = getTypeColor(domainType).color;
+  const accentTc = getTypeColor(domainType);
 
   return (
     <Modal
@@ -277,8 +277,8 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
               <View style={styles.preview}>
                 {/* GOAL — editable */}
                 <Animated.View entering={FadeInDown.duration(TIMING.normal)}>
-                  <View style={[styles.editCard, { borderLeftColor: accent, borderColor: c.border }]}>
-                    <Label color={accent}>GOAL</Label>
+                  <View style={[styles.editCard, { borderColor: c.border }]}>
+                    <Label color={accentTc.text}>GOAL</Label>
                     <TextInput
                       style={[styles.goalTitleInput, { color: c.textPrimary }]}
                       value={draftTitle}
@@ -303,11 +303,12 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                           onPress={() => selectDomain(entry.goalType)}
                           style={[
                             styles.chip,
-                            { borderColor: selected ? tc.color : c.border, backgroundColor: selected ? tc.light : 'transparent' },
+                            // Selected state is data — the border carries the solid hue.
+                            { borderColor: selected ? tc.hue : c.border, backgroundColor: selected ? tc.dim : 'transparent' },
                           ]}
                         >
-                          <View style={[styles.chipDot, { backgroundColor: tc.color }]} />
-                          <Caption style={{ color: selected ? tc.color : c.textSecondary, fontFamily: selected ? fonts.heading : fonts.body }}>
+                          <View style={[styles.chipDot, { backgroundColor: tc.hue }]} />
+                          <Caption style={{ color: selected ? tc.text : c.textSecondary, fontFamily: selected ? fonts.heading : fonts.body }}>
                             {entry.label}
                           </Caption>
                         </Pressable>
@@ -319,7 +320,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                 {/* OUTCOME + MILESTONES — editable, undated (item 2) */}
                 <Animated.View entering={FadeInDown.delay(120).duration(TIMING.normal)}>
                   <Caption style={styles.fieldLabel}>WHAT SUCCESS LOOKS LIKE</Caption>
-                  <View style={[styles.editCard, { borderLeftColor: accent, borderColor: c.border }]}>
+                  <View style={[styles.editCard, { borderColor: c.border }]}>
                     <TextInput
                       style={[styles.bodyInput, { color: c.textPrimary }]}
                       value={draftYearly}
@@ -335,8 +336,8 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                   <Caption style={styles.fieldLabel}>FIRST MILESTONES</Caption>
                   {draftMilestones.map((m, i) => (
                     <View key={i} style={[styles.milestoneCard, { borderColor: c.border }]}>
-                      <View style={[styles.stepDot, { backgroundColor: accent }]}>
-                        <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>{i + 1}</Caption>
+                      <View style={[styles.stepDot, { backgroundColor: accentTc.hue }]}>
+                        <Caption style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>{i + 1}</Caption>
                       </View>
                       <TextInput
                         style={[styles.milestoneInput, { color: c.textPrimary }]}
@@ -367,10 +368,10 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                           onPress={() => selectTimeline(t)}
                           style={[
                             styles.chip,
-                            { borderColor: selected ? accent : c.border, backgroundColor: selected ? getTypeColor(domainType).light : 'transparent' },
+                            { borderColor: selected ? accentTc.hue : c.border, backgroundColor: selected ? accentTc.dim : 'transparent' },
                           ]}
                         >
-                          <Caption style={{ color: selected ? accent : c.textSecondary, fontFamily: selected ? fonts.heading : fonts.body }}>
+                          <Caption style={{ color: selected ? accentTc.text : c.textSecondary, fontFamily: selected ? fonts.heading : fonts.body }}>
                             {t}
                           </Caption>
                         </Pressable>
@@ -395,7 +396,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
 const makeStyles = (colors: AppColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -462,7 +463,6 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderLeftWidth: 4,
     padding: spacing.md,
     gap: 4,
   },

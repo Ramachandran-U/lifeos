@@ -141,7 +141,8 @@ export function OvercommitmentCard({ userId, date }: Props) {
   const headline = insight.severity >= 70 ? 'Tomorrow looks heavy' : 'Plan trending heavy';
 
   return (
-    <Card style={[styles.card, { borderLeftWidth: 4, borderLeftColor: accent }]}>
+    // Neutral card — the severity ink lives in the eyebrow (R2: semantic is data).
+    <Card style={styles.card}>
       <View style={styles.header}>
         <Ionicons name="speedometer-outline" size={18} color={accent} />
         <Label color={accent}>HEADS UP</Label>

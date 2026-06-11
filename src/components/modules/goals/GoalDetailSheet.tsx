@@ -167,7 +167,7 @@ export function GoalDetailSheet({
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.box, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Label color={typeColor.color}>{typeColor.label.toUpperCase()}</Label>
+          <Label color={typeColor.text}>{typeColor.label.toUpperCase()}</Label>
           <Body style={[styles.title, { color: c.textPrimary }]}>{goalTitle}</Body>
 
           <View style={[styles.divider, { backgroundColor: c.border }]} />
@@ -178,15 +178,15 @@ export function GoalDetailSheet({
               <Pressable
                 onPress={handleGenerateDescription}
                 disabled={descLoading}
-                style={[styles.descBtn, { backgroundColor: descLoading ? c.surface : typeColor.light }]}
+                style={[styles.descBtn, { backgroundColor: descLoading ? c.surface : typeColor.dim }]}
                 hitSlop={6}
               >
                 <Ionicons
                   name={descLoading ? 'hourglass-outline' : (description ? 'refresh' : 'sparkles')}
                   size={12}
-                  color={typeColor.color}
+                  color={typeColor.text}
                 />
-                <Caption style={{ color: typeColor.color, fontFamily: fonts.heading }}>
+                <Caption style={{ color: typeColor.text, fontFamily: fonts.heading }}>
                   {descLoading ? 'Generating…' : description ? 'Regenerate' : 'Generate'}
                 </Caption>
               </Pressable>
@@ -233,13 +233,13 @@ export function GoalDetailSheet({
               multiline
             />
             <Pressable
-              style={[styles.sendBtn, { backgroundColor: draft.trim() ? typeColor.color : c.surface }]}
+              style={[styles.sendBtn, { backgroundColor: draft.trim() ? typeColor.hue : c.surface }]}
               onPress={submit}
               disabled={!draft.trim()}
               accessibilityRole="button"
               accessibilityLabel="Send comment"
             >
-              <Ionicons name="send" size={16} color={draft.trim() ? '#fff' : c.textMuted} />
+              <Ionicons name="send" size={16} color={draft.trim() ? c.inkOnColor : c.textMuted} />
             </Pressable>
           </View>
 
@@ -248,16 +248,16 @@ export function GoalDetailSheet({
               <View style={[styles.divider, { backgroundColor: c.border }]} />
               <Pressable
                 onPress={handleGetBackOnTrack}
-                style={[styles.recoveryBanner, { backgroundColor: typeColor.light, borderColor: typeColor.color + '44' }]}
+                style={[styles.recoveryBanner, { backgroundColor: typeColor.dim, borderColor: c.border }]}
               >
-                <Ionicons name="rocket-outline" size={16} color={typeColor.color} />
+                <Ionicons name="rocket-outline" size={16} color={typeColor.text} />
                 <View style={{ flex: 1 }}>
-                  <Caption style={{ color: typeColor.color, fontFamily: fonts.heading }}>
+                  <Caption style={{ color: typeColor.text, fontFamily: fonts.heading }}>
                     {`${daysSinceUpdate}d since last update`}
                   </Caption>
                   <Caption style={{ color: c.textSecondary }}>Get a 7-day recovery plan</Caption>
                 </View>
-                <Ionicons name="chevron-forward" size={14} color={typeColor.color} />
+                <Ionicons name="chevron-forward" size={14} color={typeColor.text} />
               </Pressable>
             </>
           )}
@@ -276,7 +276,7 @@ export function GoalDetailSheet({
                 </View>
                 {recoveryLoading && (
                   <View style={styles.recoveryLoading}>
-                    <ActivityIndicator size="small" color={typeColor.color} />
+                    <ActivityIndicator size="small" color={typeColor.text} />
                     <Caption style={{ color: c.textSecondary }}>Building your plan…</Caption>
                   </View>
                 )}
@@ -286,17 +286,17 @@ export function GoalDetailSheet({
                 {recoveryPlan && (
                   <>
                     <Body style={{ color: c.textSecondary, fontStyle: 'italic' }}>{recoveryPlan.encouragement}</Body>
-                    <View style={[styles.quickWin, { backgroundColor: typeColor.light, borderColor: typeColor.color + '44' }]}>
-                      <Ionicons name="flash" size={14} color={typeColor.color} />
-                      <Caption style={{ color: typeColor.color, flex: 1 }}>
+                    <View style={[styles.quickWin, { backgroundColor: typeColor.dim, borderColor: c.border }]}>
+                      <Ionicons name="flash" size={14} color={typeColor.text} />
+                      <Caption style={{ color: typeColor.text, flex: 1 }}>
                         <Caption style={{ fontFamily: fonts.heading }}>Quick win: </Caption>
                         {recoveryPlan.quickWin}
                       </Caption>
                     </View>
                     {recoveryPlan.recoveryPlan.map((step) => (
                       <View key={step.day} style={[styles.recoveryStep, { borderColor: c.border }]}>
-                        <View style={[styles.dayBadge, { backgroundColor: typeColor.light }]}>
-                          <Caption style={{ color: typeColor.color, fontFamily: fonts.heading }}>{`D${step.day}`}</Caption>
+                        <View style={[styles.dayBadge, { backgroundColor: typeColor.dim }]}>
+                          <Caption style={{ color: typeColor.text, fontFamily: fonts.heading }}>{`D${step.day}`}</Caption>
                         </View>
                         <View style={{ flex: 1 }}>
                           <Caption style={{ color: c.textPrimary }}>{step.task}</Caption>
@@ -334,10 +334,10 @@ export function GoalDetailSheet({
                     {SNOOZE_PRESETS.map((p) => (
                       <Pressable
                         key={p.label}
-                        style={[styles.chip, { borderColor: typeColor.color }]}
+                        style={[styles.chip, { borderColor: c.border }]}
                         onPress={() => onPostpone?.(p.until())}
                       >
-                        <Caption style={{ color: typeColor.color, fontFamily: fonts.heading }}>{p.label}</Caption>
+                        <Caption style={{ color: typeColor.text, fontFamily: fonts.heading }}>{p.label}</Caption>
                       </Pressable>
                     ))}
                   </View>
@@ -380,11 +380,12 @@ export function GoalDetailSheet({
                           onPress={() => setEditGoalType(entry.goalType)}
                           style={[
                             styles.chip,
-                            { borderColor: isSelected ? typeColor.color : c.border,
-                              backgroundColor: isSelected ? typeColor.light : 'transparent' },
+                            // Selected state is data — the border carries the solid hue.
+                            { borderColor: isSelected ? typeColor.hue : c.border,
+                              backgroundColor: isSelected ? typeColor.dim : 'transparent' },
                           ]}
                         >
-                          <Caption style={{ color: isSelected ? typeColor.color : c.textSecondary, fontFamily: isSelected ? fonts.heading : fonts.body }}>
+                          <Caption style={{ color: isSelected ? typeColor.text : c.textSecondary, fontFamily: isSelected ? fonts.heading : fonts.body }}>
                             {entry.label}
                           </Caption>
                         </Pressable>

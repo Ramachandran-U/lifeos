@@ -420,7 +420,8 @@ export default function GoalsScreen() {
     const tc = getTypeColor(goal.goalType);
 
     return (
-      <View key={goal.id} style={[styles.nodeWrap, depth > 0 && { marginLeft: spacing.md, borderLeftColor: tc.color, borderLeftWidth: 2, paddingLeft: spacing.md }]}>
+      // Nesting guide is structure, not domain color — neutral hairline.
+      <View key={goal.id} style={[styles.nodeWrap, depth > 0 && { marginLeft: spacing.md, borderLeftColor: c.border, borderLeftWidth: 2, paddingLeft: spacing.md }]}>
         <View style={styles.nodeRow}>
           <View style={{ flex: 1 }}>
             <GoalCard
@@ -439,17 +440,17 @@ export default function GoalsScreen() {
           {hasChildren && (
             <Pressable
               onPress={() => toggleExpand(goal.id)}
-              style={[styles.chevronBtn, { backgroundColor: tc.light, borderColor: tc.color + '55' }]}
+              style={[styles.chevronBtn, { backgroundColor: tc.dim, borderColor: c.border }]}
               hitSlop={8}
             >
-              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={tc.color} />
-              <Caption style={{ color: tc.color, fontFamily: fonts.heading }}>{children.length}</Caption>
+              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={tc.text} />
+              <Caption style={{ color: tc.text, fontFamily: fonts.heading }}>{children.length}</Caption>
             </Pressable>
           )}
         </View>
 
         {depth === 0 && isExpanded && (
-          <MotivationBanner module="goals" context={goal.title} accent={tc.color} />
+          <MotivationBanner module="goals" context={goal.title} accent={tc.hue} />
         )}
 
         {isExpanded && hasChildren && (
@@ -466,24 +467,26 @@ export default function GoalsScreen() {
       <InkCanvas />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
+        {/* R1 block — full-bleed, outside the padded inner container. */}
         <ModuleHeader title="Goals" domain="goal" color={c.goal} />
+        <View style={styles.scrollInner}>
 
         <View style={styles.legendRow}>
           {GOAL_TYPE_LEGEND.map((entry) => {
             const tc = getTypeColor(entry.goalType);
             return (
               <View key={entry.goalType} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: tc.color }]} />
+                <View style={[styles.legendDot, { backgroundColor: tc.hue }]} />
                 <Caption style={{ color: c.textSecondary }}>{entry.label}</Caption>
               </View>
             );
           })}
           <Pressable
             onPress={() => setRebalance({ visible: true, phase: 'choice', starvedDomain: '', suggestions: [], insight: '' })}
-            style={[styles.rebalanceChip, { borderColor: c.goal }]}
+            style={[styles.rebalanceChip, { borderColor: c.border }]}
           >
-            <Ionicons name="git-branch-outline" size={12} color={c.goal} />
-            <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>Balance</Caption>
+            <Ionicons name="git-branch-outline" size={12} color={c.goalText} />
+            <Caption style={{ color: c.goalText, fontFamily: fonts.heading }}>Balance</Caption>
           </Pressable>
         </View>
 
@@ -494,10 +497,10 @@ export default function GoalsScreen() {
 
         {/* YOUR NEXT MOVE — first active daily task */}
         {dailyTasks.length > 0 && (
-          <View style={[styles.nextMoveCard, { backgroundColor: c.goal + '12', borderColor: c.goal + '33' }]}>
+          <View style={[styles.nextMoveCard, { backgroundColor: c.goalDim, borderColor: c.border }]}>
             <View style={styles.nextMoveHeader}>
-              <Ionicons name="flash" size={14} color={c.goal} />
-              <Caption style={{ color: c.goal, fontFamily: fonts.heading, letterSpacing: 0.5 }}>YOUR NEXT MOVE</Caption>
+              <Ionicons name="flash" size={14} color={c.goalText} />
+              <Caption style={{ color: c.goalText, fontFamily: fonts.heading, letterSpacing: 0.5 }}>YOUR NEXT MOVE</Caption>
             </View>
             <Body style={[styles.nextMoveTitle, { color: c.textPrimary }]} numberOfLines={2}>
               {dailyTasks[0].title}
@@ -510,14 +513,14 @@ export default function GoalsScreen() {
                 onPress={() => handleCompleteTask(dailyTasks[0].id)}
                 style={[styles.nextMoveBtn, { backgroundColor: c.goal }]}
               >
-                <Ionicons name="checkmark" size={14} color="#FFF" />
-                <Caption style={{ color: '#FFF', fontFamily: fonts.heading }}>Mark done</Caption>
+                <Ionicons name="checkmark" size={14} color={c.inkOnColor} />
+                <Caption style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Mark done</Caption>
               </Pressable>
               <Pressable
                 onPress={() => openGoalDetail(dailyTasks[0])}
-                style={[styles.nextMoveBtn, { backgroundColor: 'transparent', borderColor: c.goal, borderWidth: 1 }]}
+                style={[styles.nextMoveBtn, { backgroundColor: 'transparent', borderColor: c.border, borderWidth: 1 }]}
               >
-                <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>View</Caption>
+                <Caption style={{ color: c.goalText, fontFamily: fonts.heading }}>View</Caption>
               </Pressable>
             </View>
           </View>
@@ -569,9 +572,8 @@ export default function GoalsScreen() {
             {showArchive && (
               <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
                 {completedGoals.map((g) => {
-                  const tc = getTypeColor(g.goalType);
                   return (
-                    <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                    <View key={g.id} style={[styles.achievementRow, { backgroundColor: c.surface }]}>
                       <Ionicons name="checkmark-circle" size={18} color={c.success} />
                       <View style={{ flex: 1 }}>
                         <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
@@ -583,10 +585,9 @@ export default function GoalsScreen() {
                   );
                 })}
                 {postponedGoals.map((g) => {
-                  const tc = getTypeColor(g.goalType);
                   const until = snoozeUntilOf(g);
                   return (
-                    <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                    <View key={g.id} style={[styles.achievementRow, { backgroundColor: c.surface }]}>
                       <Ionicons name="moon-outline" size={18} color={c.textMuted} />
                       <View style={{ flex: 1 }}>
                         <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
@@ -596,19 +597,18 @@ export default function GoalsScreen() {
                       </View>
                       <Pressable
                         onPress={() => handleGoalResume(g.id)}
-                        style={[styles.restoreBtn, { borderColor: c.goal }]}
+                        style={[styles.restoreBtn, { borderColor: c.border }]}
                         hitSlop={8}
                       >
-                        <Ionicons name="play" size={16} color={c.goal} />
-                        <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>Resume</Caption>
+                        <Ionicons name="play" size={16} color={c.goalText} />
+                        <Caption style={{ color: c.goalText, fontFamily: fonts.heading }}>Resume</Caption>
                       </Pressable>
                     </View>
                   );
                 })}
                 {deletedGoals.map((g) => {
-                  const tc = getTypeColor(g.goalType);
                   return (
-                    <View key={g.id} style={[styles.achievementRow, { borderLeftColor: tc.color, backgroundColor: c.surface }]}>
+                    <View key={g.id} style={[styles.achievementRow, { backgroundColor: c.surface }]}>
                       <Ionicons name="trash-outline" size={18} color={c.textMuted} />
                       <View style={{ flex: 1 }}>
                         <Body style={{ color: c.textPrimary }} numberOfLines={2}>{g.title}</Body>
@@ -618,11 +618,11 @@ export default function GoalsScreen() {
                       </View>
                       <Pressable
                         onPress={() => handleRestore(g.id)}
-                        style={[styles.restoreBtn, { borderColor: c.goal }]}
+                        style={[styles.restoreBtn, { borderColor: c.border }]}
                         hitSlop={8}
                       >
-                        <Ionicons name="arrow-undo" size={16} color={c.goal} />
-                        <Caption style={{ color: c.goal, fontFamily: fonts.heading }}>Restore</Caption>
+                        <Ionicons name="arrow-undo" size={16} color={c.goalText} />
+                        <Caption style={{ color: c.goalText, fontFamily: fonts.heading }}>Restore</Caption>
                       </Pressable>
                     </View>
                   );
@@ -631,16 +631,17 @@ export default function GoalsScreen() {
             )}
           </View>
         )}
+        </View>
       </ScrollView>
 
       {/* Completion toast with Undo */}
       {completionToast && (
         <Animated.View
           entering={FadeInDown.duration(300)}
-          style={[styles.completionToast, { backgroundColor: c.success + 'f0', borderColor: c.success }]}
+          style={[styles.completionToast, { backgroundColor: c.success, borderColor: c.success }]}
         >
-          <Ionicons name="checkmark-circle" size={20} color="#FFF" />
-          <Body style={{ color: '#FFF', flex: 1, fontFamily: fonts.heading }} numberOfLines={1}>
+          <Ionicons name="checkmark-circle" size={20} color={c.inkOnColor} />
+          <Body style={{ color: c.inkOnColor, flex: 1, fontFamily: fonts.heading }} numberOfLines={1}>
             {completionToast.title}
           </Body>
           <Pressable
@@ -648,16 +649,16 @@ export default function GoalsScreen() {
             style={styles.undoBtn}
             hitSlop={8}
           >
-            <Caption style={{ color: '#FFF', fontFamily: fonts.heading }}>Undo</Caption>
+            <Caption style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Undo</Caption>
           </Pressable>
           <Pressable onPress={() => setCompletionToast(null)} hitSlop={8}>
-            <Ionicons name="close" size={16} color="#FFF" />
+            <Ionicons name="close" size={16} color={c.inkOnColor} />
           </Pressable>
         </Animated.View>
       )}
 
       <Pressable testID="add-goal-fab" style={styles.fab} onPress={() => setShowAddSheet(true)}>
-        <Ionicons name="add" size={28} color="#FFF" />
+        <Ionicons name="add" size={28} color={c.inkOnColor} />
       </Pressable>
 
       <AddGoalSheet
@@ -733,7 +734,8 @@ function makeStyles(c: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: c.background },
     flex: { flex: 1 },
-    scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxxl, gap: spacing.md },
+    scroll: { paddingBottom: spacing.xxxl, gap: spacing.md },
+    scrollInner: { paddingHorizontal: spacing.xl, gap: spacing.md },
     legendRow: {
       flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md,
       paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
@@ -755,7 +757,7 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     },
     achievementRow: {
       flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-      padding: spacing.md, borderRadius: 12, borderLeftWidth: 3,
+      padding: spacing.md, borderRadius: 12,
     },
     restoreBtn: {
       flexDirection: 'row', alignItems: 'center', gap: spacing.xs,

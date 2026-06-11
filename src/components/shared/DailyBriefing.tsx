@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { StyleSheet, Pressable, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -42,12 +41,9 @@ export function DailyBriefing({ text, ctaLabel, onCtaPress }: DailyBriefingProps
   }));
 
   return (
-    <LinearGradient
-      colors={[c.primary + '30', c.career + '10']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.container, { borderColor: c.border }]}
-    >
+    // V4 — AI-speaking surface: solid ink card; the violet lives in the
+    // identity mark + eyebrow, never a gradient wash (Manifesto P3).
+    <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.headerRow}>
         <Animated.Text style={[styles.sparkle, { color: c.primary }, sparkleStyle]}>
           ✦
@@ -57,11 +53,11 @@ export function DailyBriefing({ text, ctaLabel, onCtaPress }: DailyBriefingProps
       <Body style={[styles.text, { color: c.textSecondary }]}>{typed}</Body>
       {ctaLabel && onCtaPress && (
         <Pressable onPress={onCtaPress} style={[styles.cta, { backgroundColor: c.primary }]} hitSlop={6}>
-          <Caption style={[styles.ctaText, { color: '#fff' }]}>{ctaLabel}</Caption>
-          <Ionicons name="arrow-forward" size={14} color="#fff" />
+          <Caption style={[styles.ctaText, { color: c.onPrimary }]}>{ctaLabel}</Caption>
+          <Ionicons name="arrow-forward" size={14} color={c.onPrimary} />
         </Pressable>
       )}
-    </LinearGradient>
+    </View>
   );
 }
 

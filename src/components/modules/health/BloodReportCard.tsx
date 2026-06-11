@@ -16,14 +16,15 @@ export function BloodReportCard({ result, date }: BloodReportCardProps) {
   const c = useColors();
   const styles = makeStyles(c);
   const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    normal: { bg: c.healthDim, text: c.health },
-    high: { bg: '#FFE8E8', text: c.error },
-    low: { bg: c.financeDim, text: c.warning },
+    normal: { bg: c.healthDim, text: c.healthText },
+    high: { bg: c.surfaceAlt, text: c.error },
+    low: { bg: c.surfaceAlt, text: c.warning },
   };
   return (
-    <Card moduleColor={c.health}>
+    // Neutral card — domain identity is the R2 eyebrow; status pills carry semantics.
+    <Card>
       <View style={styles.header}>
-        <Label color={c.health}>BLOOD REPORT</Label>
+        <Label color={c.healthText}>BLOOD REPORT</Label>
         <Caption>{date}</Caption>
       </View>
 

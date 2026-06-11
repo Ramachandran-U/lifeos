@@ -17,6 +17,8 @@ export function DomainMiniCard({ domainKey, score, delta, history, onPress }: Pr
   const c = useColors();
   const dm = DOMAIN_META.find((d) => d.key === domainKey)!;
   const color = c[dm.colorKey];
+  // R2 — the score numeral renders in the domain's per-mode text ink.
+  const ink = (c as Record<string, string>)[`${String(dm.colorKey)}Text`] ?? color;
   const positive = delta >= 0;
   const deltaColor = positive ? c.success : c.error;
 
@@ -25,21 +27,21 @@ export function DomainMiniCard({ domainKey, score, delta, history, onPress }: Pr
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: c.card, borderColor: color + '33', borderLeftColor: color, opacity: pressed ? 0.9 : 1 },
+        { backgroundColor: c.card, borderColor: c.border, opacity: pressed ? 0.9 : 1 },
       ]}
     >
       <View style={styles.topRow}>
         <View style={styles.leftGroup}>
-          <View style={[styles.iconBox, { backgroundColor: color + '22' }]}>
+          <View style={[styles.iconBox, { backgroundColor: c.surfaceAlt }]}>
             <Text style={{ fontSize: 16 }}>{dm.emoji}</Text>
           </View>
           <View>
             <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 12, color: c.textSecondary }}>{dm.label}</Text>
-            <Text style={{ fontFamily: fonts.heading, fontSize: 22, color: c.textPrimary, lineHeight: 24 }}>{score}</Text>
+            <Text style={{ fontFamily: fonts.heading, fontSize: 22, color: ink, lineHeight: 24 }}>{score}</Text>
           </View>
         </View>
         <View style={styles.rightGroup}>
-          <View style={[styles.deltaChip, { backgroundColor: deltaColor + '22' }]}>
+          <View style={[styles.deltaChip, { backgroundColor: c.surfaceAlt }]}>
             <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11, color: deltaColor }}>
               {positive ? '↑' : '↓'}{Math.abs(delta)}
             </Text>
@@ -56,7 +58,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
     borderWidth: 1,
-    borderLeftWidth: 3,
     padding: 16,
     gap: 12,
     minHeight: 120,

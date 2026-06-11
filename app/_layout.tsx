@@ -180,7 +180,7 @@ export default function RootLayout() {
             <Stack
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: '#0D0D0D' },
+                contentStyle: { backgroundColor: '#000000' },
                 // M1: platform-native push when motionTransitions is on
                 // (web stays instant — native-stack anims are no-ops there);
                 // legacy 'fade' when off; 'none' under reduce-motion.

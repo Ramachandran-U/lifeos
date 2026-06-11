@@ -188,7 +188,8 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
         testID={`routine-block-${id}`}
         style={[
           styles.container,
-          isActive && { borderColor: moduleColor + '66', backgroundColor: moduleColor + '11' },
+          // Active block is data — solid hue border, neutral fill.
+          isActive && { borderColor: moduleColor, backgroundColor: c.surfaceAlt },
         ]}
       >
         {/* Time rail */}
@@ -210,16 +211,18 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
           <Body style={[styles.title, isCompleted && styles.titleCompleted]}>{title}</Body>
           {sub && <Caption style={styles.sub}>{sub}</Caption>}
           <View style={styles.tagsRow}>
-            <View style={[styles.tag, styles.tagRow, { backgroundColor: moduleColor + '1A', borderColor: moduleColor + '33' }]}>
+            {/* R3 — the glyph + label in the hue identify the domain; chip chrome neutral. */}
+            <View style={[styles.tag, styles.tagRow, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <ModuleIcon size={11} color={moduleColor} strokeWidth={2.25} />
               <Caption style={[styles.tagText, { color: moduleColor }]}>{moduleLabel}</Caption>
             </View>
-            <View style={[styles.tag, { backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.08)' }]}>
+            <View style={[styles.tag, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
               <Caption style={[styles.tagText, { color: c.textSecondary }]}>{duration}</Caption>
             </View>
             {xp !== undefined && (
-              <View style={[styles.tag, { backgroundColor: c.primary + '1F', borderColor: c.primary + '33' }]}>
-                <Caption style={[styles.tagText, { color: c.primaryDim }]}>+{xp} XP</Caption>
+              <View style={[styles.tag, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+                {/* V5 — XP numerals carry the xp ink. */}
+                <Caption style={[styles.tagText, { color: c.xp }]}>+{xp} XP</Caption>
               </View>
             )}
           </View>
@@ -239,7 +242,7 @@ export function RoutineBlock({ id, startTime, endTime, title, module, status, on
             <Animated.View
               testID={`routine-block-${id}-completed`}
               entering={ZoomIn.springify().damping(9).stiffness(280)}
-              style={[styles.checkCircle, { backgroundColor: c.success + '26', borderColor: c.success + '66' }]}
+              style={[styles.checkCircle, { backgroundColor: c.surfaceAlt, borderColor: c.success }]}
             >
               <Ionicons name="checkmark" size={16} color={c.success} />
             </Animated.View>

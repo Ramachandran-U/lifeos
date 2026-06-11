@@ -96,7 +96,8 @@ export function BadgeCard({ badgeId, earned, unlock = 'idle' }: BadgeCardProps) 
         styles.card,
         {
           backgroundColor: c.card,
-          borderColor: isEarned || isUnlocking ? c.badge + '44' : c.border,
+          // Earned state is data — solid badge-gold border.
+          borderColor: isEarned || isUnlocking ? c.badge : c.border,
           opacity: isEarned ? (pressed ? 0.9 : 1) : cardOpacity,
         },
       ]}
@@ -106,7 +107,8 @@ export function BadgeCard({ badgeId, earned, unlock = 'idle' }: BadgeCardProps) 
         <Animated.View
           style={[
             styles.halo,
-            { backgroundColor: c.badge + '44' },
+            // Unlock halo is a moment — solid hue; the animated style drives opacity.
+            { backgroundColor: c.badge },
             haloStyle,
           ]}
         />
@@ -114,8 +116,8 @@ export function BadgeCard({ badgeId, earned, unlock = 'idle' }: BadgeCardProps) 
           style={[
             styles.orb,
             {
-              backgroundColor: isEarned ? c.badge + '22' : c.border + '44',
-              borderColor: isEarned || isUnlocking ? c.badge + '66' : c.border,
+              backgroundColor: c.surfaceAlt,
+              borderColor: isEarned || isUnlocking ? c.badge : c.border,
             },
           ]}
         >

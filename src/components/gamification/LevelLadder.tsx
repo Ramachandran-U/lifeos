@@ -53,7 +53,8 @@ export function LevelLadder({ currentLevel }: Props) {
               <View
                 style={[
                   styles.perkCard,
-                  { backgroundColor: c.card, borderColor: isCurrent ? c.primary + '55' : c.border },
+                  // Current level is data — solid violet border (V5: level surface).
+                  { backgroundColor: c.card, borderColor: isCurrent ? c.primary : c.border },
                 ]}
               >
                 <Text style={{ fontFamily: fonts.heading, fontSize: 11, color: c.textMuted, marginBottom: 6, letterSpacing: 0.5 }}>

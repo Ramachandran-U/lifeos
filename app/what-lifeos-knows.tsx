@@ -145,7 +145,7 @@ export default function WhatLifeOSKnowsScreen() {
               onPress={handleCopyPrompt}
               style={({ pressed }) => [
                 styles.actionBtn,
-                { backgroundColor: pressed ? c.primary + 'cc' : c.primary, flex: 1 },
+                { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1, flex: 1 },
               ]}
             >
               <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
@@ -218,7 +218,7 @@ export default function WhatLifeOSKnowsScreen() {
               onPress={handleCopyPrompt}
               style={({ pressed }) => [
                 styles.actionBtn,
-                { backgroundColor: pressed ? c.primary + 'cc' : c.primary, flex: 1 },
+                { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1, flex: 1 },
               ]}
             >
               <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
@@ -368,7 +368,7 @@ export default function WhatLifeOSKnowsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: active ? c.primary + '33' : c.surface,
+                      backgroundColor: active ? c.primaryDim : c.surface,
                       borderColor: active ? c.primary : c.border,
                     },
                   ]}
@@ -406,7 +406,7 @@ export default function WhatLifeOSKnowsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: active ? c.primary + '33' : c.surface,
+                      backgroundColor: active ? c.primaryDim : c.surface,
                       borderColor: active ? c.primary : c.border,
                     },
                   ]}
@@ -485,7 +485,7 @@ export default function WhatLifeOSKnowsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: active ? c.primary + '33' : c.surface,
+                      backgroundColor: active ? c.primaryDim : c.surface,
                       borderColor: active ? c.primary : c.border,
                     },
                   ]}
@@ -727,7 +727,7 @@ function ChipList({
             <Pressable
               key={`${item}-${i}`}
               onPress={() => onChange(items.filter((_, idx) => idx !== i))}
-              style={[styles.chip, { borderColor: c.primary, backgroundColor: c.primary + '22' }]}
+              style={[styles.chip, { borderColor: c.primary, backgroundColor: c.primaryDim }]}
             >
               <Caption style={{ color: c.textPrimary }}>{item}</Caption>
               <Caption style={{ color: c.textMuted, marginLeft: 6 }}>×</Caption>

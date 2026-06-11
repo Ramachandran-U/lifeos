@@ -72,7 +72,8 @@ export function AdaptationCard({ onApplied }: Props) {
   };
 
   return (
-    <Card moduleColor={c.primary} style={styles.card}>
+    // V4 — AI-speaking surface: violet eyebrow + icon; card neutral.
+    <Card style={styles.card}>
       <View style={styles.header}>
         <Ionicons
           name={KIND_ICON[top.kind] as keyof typeof import('@expo/vector-icons').Ionicons.glyphMap}
@@ -110,15 +111,15 @@ export function AdaptationCard({ onApplied }: Props) {
             styles.btn,
             styles.btnPrimary,
             {
-              backgroundColor: pressed ? c.primary + 'cc' : c.primary,
-              opacity: applying ? 0.7 : 1,
+              backgroundColor: c.primary,
+              opacity: applying ? 0.7 : pressed ? 0.85 : 1,
             },
           ]}
         >
           {applying ? (
             <LoadingDots />
           ) : (
-            <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>Apply</Body>
+            <Body style={{ color: c.onPrimary, fontFamily: fonts.heading }}>Apply</Body>
           )}
         </Pressable>
       </View>

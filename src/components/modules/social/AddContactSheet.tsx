@@ -142,7 +142,7 @@ export function AddContactSheet({ visible, userId, onClose, onCreated }: AddCont
         onPress={() => setMode('manual')}
         style={({ pressed }) => [styles.menuItem, { backgroundColor: c.card, borderColor: pressed ? c.social : c.border }]}
       >
-        <View style={[styles.menuIcon, { backgroundColor: c.social + '22' }]}>
+        <View style={[styles.menuIcon, { backgroundColor: c.socialDim }]}>
           <Ionicons name="person-add" size={22} color={c.social} />
         </View>
         <View style={{ flex: 1 }}>
@@ -160,7 +160,7 @@ export function AddContactSheet({ visible, userId, onClose, onCreated }: AddCont
           }}
           style={({ pressed }) => [styles.menuItem, { backgroundColor: c.card, borderColor: pressed ? c.social : c.border }]}
         >
-          <View style={[styles.menuIcon, { backgroundColor: c.social + '22' }]}>
+          <View style={[styles.menuIcon, { backgroundColor: c.socialDim }]}>
             <Ionicons name="phone-portrait" size={22} color={c.social} />
           </View>
           <View style={{ flex: 1 }}>
@@ -186,12 +186,12 @@ export function AddContactSheet({ visible, userId, onClose, onCreated }: AddCont
             style={[
               styles.tierChip,
               {
-                backgroundColor: active ? c.social + '22' : c.card,
+                backgroundColor: active ? c.socialDim : c.card,
                 borderColor: active ? c.social : c.border,
               },
             ]}
           >
-            <Caption style={{ color: active ? c.social : c.textSecondary }}>
+            <Caption style={{ color: active ? c.socialText : c.textSecondary }}>
               {RELATIONSHIP_META[t].label}
             </Caption>
           </Pressable>

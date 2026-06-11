@@ -41,9 +41,10 @@ export function VitalsCard({
     trendDirection === 'up' ? c.warning : trendDirection === 'down' ? c.success : c.textMuted;
 
   return (
-    <Card moduleColor={c.health} style={styles.card}>
+    // Neutral card — the green lives in the eyebrow + BMI numeral (R2).
+    <Card style={styles.card}>
       <View style={styles.headerRow}>
-        <Label color={c.health}>VITALS</Label>
+        <Label color={c.healthText}>VITALS</Label>
         <Pressable onPress={onEdit} hitSlop={8} style={styles.editBtn}>
           <Ionicons name="create-outline" size={18} color={c.textSecondary} />
           <Label color={c.textSecondary}>Edit</Label>
@@ -53,7 +54,8 @@ export function VitalsCard({
       <View style={styles.bmiRow}>
         <View>
           <Caption>BMI</Caption>
-          <Heading style={styles.bmiNumber}>{bmi != null ? bmi : '—'}</Heading>
+          {/* R2 — the score numeral renders in the domain ink. */}
+          <Heading style={[styles.bmiNumber, { color: c.healthText }]}>{bmi != null ? bmi : '—'}</Heading>
           {category && (
             <Label color={categoryColor(category, c)}>{bmiCategoryLabel(category)}</Label>
           )}

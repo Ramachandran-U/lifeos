@@ -253,7 +253,7 @@ export default function SettingsScreen() {
                   await Notifications.cancelScheduledNotificationAsync('daily_routine').catch(() => {});
                 }
               }}
-              trackColor={{ false: c.border, true: c.primary + '80' }}
+              trackColor={{ false: c.border, true: c.primaryDim }}
               thumbColor={notifDailyRoutine ? c.primary : c.textMuted}
             />
           </View>
@@ -266,7 +266,7 @@ export default function SettingsScreen() {
                 if (val) await scheduleGoalTaskReminder();
                 else await Notifications.cancelScheduledNotificationAsync('goal_task_reminder').catch(() => {});
               }}
-              trackColor={{ false: c.border, true: c.primary + '80' }}
+              trackColor={{ false: c.border, true: c.primaryDim }}
               thumbColor={notifGoalReminder ? c.primary : c.textMuted}
             />
           </View>
@@ -279,7 +279,7 @@ export default function SettingsScreen() {
                 if (val) await scheduleStreakAtRiskNotification();
                 else await Notifications.cancelScheduledNotificationAsync('streak_at_risk').catch(() => {});
               }}
-              trackColor={{ false: c.border, true: c.primary + '80' }}
+              trackColor={{ false: c.border, true: c.primaryDim }}
               thumbColor={notifStreakAtRisk ? c.primary : c.textMuted}
             />
           </View>
@@ -292,7 +292,7 @@ export default function SettingsScreen() {
                 if (val) await scheduleSocialOverdueNudge();
                 else await Notifications.cancelScheduledNotificationAsync('social_overdue').catch(() => {});
               }}
-              trackColor={{ false: c.border, true: c.primary + '80' }}
+              trackColor={{ false: c.border, true: c.primaryDim }}
               thumbColor={notifSocialNudge ? c.primary : c.textMuted}
             />
           </View>
@@ -311,7 +311,7 @@ export default function SettingsScreen() {
             <Switch
               value={themeMode === 'light'}
               onValueChange={(val) => setThemeMode(val ? 'light' : 'dark')}
-              trackColor={{ false: c.border, true: c.primary + '80' }}
+              trackColor={{ false: c.border, true: c.primaryDim }}
               thumbColor={themeMode === 'light' ? c.primary : c.textMuted}
             />
           </View>
@@ -325,7 +325,7 @@ export default function SettingsScreen() {
             <Switch
               value={soundEnabled}
               onValueChange={setSoundEnabled}
-              trackColor={{ false: c.border, true: c.primary + '80' }}
+              trackColor={{ false: c.border, true: c.primaryDim }}
               thumbColor={soundEnabled ? c.primary : c.textMuted}
             />
           </View>
@@ -341,7 +341,7 @@ export default function SettingsScreen() {
             <Switch
               value={telemetryEnabled}
               onValueChange={setTelemetryEnabled}
-              trackColor={{ false: c.border, true: c.primary + '80' }}
+              trackColor={{ false: c.border, true: c.primaryDim }}
               thumbColor={telemetryEnabled ? c.primary : c.textMuted}
             />
           </View>
