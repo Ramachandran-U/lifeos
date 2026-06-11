@@ -5,6 +5,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
+import { ConnectRow } from '@/components/ui/ConnectRow';
 import { Body, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { isYouTubeConnected, startYouTubeOAuth } from '@/integrations/youtube/oauth';
@@ -18,13 +19,21 @@ type Phase = 'idle' | 'loading' | 'review' | 'error';
  * Import interests from the user's YouTube subscriptions (web-only — Google
  * OAuth is web-only). Connect → fetch subscriptions → AI clusters them into
  * interests → the user reviews/toggles → `onImport` creates the chosen ones.
+ *
+ * `presentation` (Ink + Signal §3.0.3, W4 Explore PR 2026-06-12): the legacy
+ * tree keeps the default `'card'` promo render byte-identical; the recomposed
+ * tree passes `'row'`, which renders the compact ConnectRow under the screen's
+ * `Connections` SectionTitle. The state machine and review modal are shared by
+ * both presentations — the row press is the same connect/import flow.
  */
 export function YouTubeImportCard({
   existingInterestNames,
   onImport,
+  presentation = 'card',
 }: {
   existingInterestNames: string[];
   onImport: (items: YouTubeImportedInterest[]) => void;
+  presentation?: 'card' | 'row';
 }) {
   const c = useColors();
   const styles = makeStyles(c);
@@ -94,6 +103,47 @@ export function YouTubeImportCard({
     setProposed([]);
     setSelected(new Set());
   };
+
+  if (presentation === 'row') {
+    // §3.0.3 copy table — Explore / YouTube, disconnected and connected rows.
+    return (
+      <View>
+        {!connected ? (
+          <ConnectRow
+            icon="logo-youtube"
+            title="Connect YouTube"
+            caption="Turns subscriptions into interests · read-only"
+            actionLabel="Connect"
+            accent={c.polymath}
+            onPress={handleConnect}
+            testID="connect-row-youtube"
+            error={phase === 'error' && error ? error : undefined}
+          />
+        ) : (
+          <ConnectRow
+            icon="logo-youtube"
+            title="Import from YouTube"
+            caption="You choose what gets added"
+            actionLabel="Import"
+            accent={c.polymath}
+            onPress={handleImport}
+            testID="connect-row-youtube"
+            loading={phase === 'loading'}
+            error={phase === 'error' && error ? error : undefined}
+          />
+        )}
+        <ReviewModal
+          visible={phase === 'review'}
+          proposed={proposed}
+          selected={selected}
+          c={c}
+          onToggle={toggle}
+          onCancel={() => setPhase('idle')}
+          onConfirm={confirm}
+        />
+      </View>
+    );
+  }
 
   return (
     <Card style={styles.card}>

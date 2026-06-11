@@ -90,6 +90,10 @@ const CLUSTER_CREATED_FILES = [
   'src/components/ui/ConnectRow.tsx',
   'src/components/ui/EmptyState.tsx',
   'src/store/useHeroSnoozeStore.ts',
+  // W4 screens batch A (2026-06-12): zero-suppression row components created
+  // with the Health/Explore recompositions (§3.0.5 / AC8).
+  'src/components/modules/health/HealthStreakRow.tsx',
+  'src/components/modules/polymath/WeekStatLine.tsx',
   ...SCREEN_FILES,
 ] as const;
 

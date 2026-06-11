@@ -5,7 +5,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
-import { Body, Caption, Heading, Label } from '@/components/ui/Typography';
+import { Body, Caption, Heading } from '@/components/ui/Typography';
 import type { Frontier } from '@/explore/frontier';
 
 interface Props {
@@ -31,9 +31,11 @@ export function FrontierCard({ frontier, onExplore }: Props) {
   return (
     // Neutral card — the polymath ink lives in the eyebrow + mark (R2/R3).
     <Card style={styles.card}>
+      {/* Ink + Signal §3.0.7: THE FRONTIER caps eyebrow died in the W4 Explore
+          sweep (2026-06-12) — sentence case in bodyMedium instead. */}
       <View style={styles.eyebrowRow}>
         <Ionicons name="git-compare-outline" size={16} color={c.polymathText} />
-        <Label color={c.polymathText}>THE FRONTIER</Label>
+        <Body style={[styles.eyebrowText, { color: c.polymath }]}>The frontier</Body>
       </View>
 
       {/* The two endpoints with the untraveled edge between them. */}
@@ -73,6 +75,7 @@ export function FrontierCard({ frontier, onExplore }: Props) {
 const makeStyles = (c: AppColors) => StyleSheet.create({
   card: { gap: spacing.sm },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  eyebrowText: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm },
   edgeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs },
   endpoint: {
     flex: 1, borderWidth: 1, borderRadius: 12,

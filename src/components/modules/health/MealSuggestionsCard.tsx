@@ -8,8 +8,8 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Body, Label, Caption } from '@/components/ui/Typography';
-import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Body, Caption } from '@/components/ui/Typography';
+import { SectionTitle } from '@/components/ui/SectionTitle';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { useAI } from '@/hooks/useAI';
 import { suggestMeals } from '@/ai/functions';
@@ -96,10 +96,9 @@ export function MealSuggestionsCard({
 
   return (
     <Card style={styles.card}>
-      <View style={styles.header}>
-        <Ionicons name="restaurant-outline" size={18} color={c.health} />
-        <SectionLabel color={c.health}>MEAL IDEAS</SectionLabel>
-      </View>
+      {/* Ink + Signal §3.0.7: the MEAL IDEAS caps eyebrow died in the W4
+          Health sweep (2026-06-12) — sentence-case SectionTitle instead. */}
+      <SectionTitle>Meal ideas</SectionTitle>
       <Caption style={{ color: c.textSecondary }}>
         {remaining > 0
           ? `${remaining} kcal left today — get AI meal ideas that fill the gap.`
@@ -178,7 +177,6 @@ export function MealSuggestionsCard({
 
 const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: { gap: spacing.sm },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   loading: { alignItems: 'center', paddingVertical: spacing.md, gap: spacing.sm },
   mealPicker: { flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap', marginTop: spacing.xs },
   mealChip: {

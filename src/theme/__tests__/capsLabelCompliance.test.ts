@@ -74,21 +74,21 @@ const ALLOWLIST = new Set<string>([
   'src/components/modules/finance/SubscriptionsBillsCard.tsx',
   'src/components/modules/finance/WeeklyInsightCard.tsx',
   'src/components/modules/goals/AddGoalSheet.tsx',
-  'src/components/modules/health/BloodReportCard.tsx',
+  // W4 screens batch A (2026-06-12): the §3.0.7 sweep killed the caps in
+  // BloodReportCard, MealSuggestionsCard, SparkHeroCard, ChasingNowCard,
+  // ConstellationView, ExpeditionProgressRow and FrontierCard — their entries
+  // SHRANK off this list. FitDashboard keeps its StatTile metric caps
+  // (ACTIVE MIN etc. — outside the §3.0.7 table) and stays. EnergyCard /
+  // WaterCard / RecoveryCard / HealthSummaryCard are LEGACY-ONLY surfaces
+  // (their caps die with the files at flag graduation).
   'src/components/modules/health/EnergyCard.tsx',
   'src/components/modules/health/FitDashboard.tsx',
   'src/components/modules/health/HealthSummaryCard.tsx',
-  'src/components/modules/health/MealSuggestionsCard.tsx',
   'src/components/modules/health/RecoveryCard.tsx',
   'src/components/modules/health/WaterCard.tsx',
-  'src/components/modules/polymath/ChasingNowCard.tsx',
-  'src/components/modules/polymath/ConstellationView.tsx',
   'src/components/modules/polymath/DiscoverGrid.tsx',
-  'src/components/modules/polymath/ExpeditionProgressRow.tsx',
-  'src/components/modules/polymath/FrontierCard.tsx',
   'src/components/modules/polymath/RabbitHoleBreadcrumb.tsx',
   'src/components/modules/polymath/RabbitHoleForkButton.tsx',
-  'src/components/modules/polymath/SparkHeroCard.tsx',
   'src/components/modules/polymath/YouTubeImportCard.tsx',
   'src/components/modules/social/ContactsImportCard.tsx',
   'src/components/modules/social/UpcomingBirthdaysCard.tsx',

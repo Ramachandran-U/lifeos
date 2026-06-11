@@ -13,6 +13,13 @@
 > (c) jest wiring (required for the mandated test paths to execute): the node project's `testPathIgnorePatterns` `/app/` entry now exempts `app/(tabs)/__tests__/`, and the components project's `testMatch` gained `src/screens/**/*.test.tsx` — without these, hierarchyGuards and the legacy snapshots are silently undiscovered.
 > (d) hierarchyGuards' §3.0.7 file list is seeded with 13 of 14 files — `UpcomingBirthdaysCard.tsx` still carries its emoji until the Social PR's re-skin lands (append-as-you-sweep, documented in the test header); Finance's hero is inline so `app/(tabs)/finance.tsx` stands in for it in HERO_FILES; hero files arm via existsSync as each screen PR creates them.
 > (e) The spec's SectionTitle comment literal (`never "SKILL GAPS"`) would trip Guard D in a non-allowlisted file — reworded without the caps literal.
+> **Amendment (founder-flagged, 2026-06-13, W4 batch A — Health + Explore):**
+> (f) §3.0.7 swaps are unconditional in the shared components (the sanctioned "lands with its screen's PR" mechanism); the ExploreScreenLegacy AC12 snapshot was re-recorded in the same PR — a pure 66-line deletion (ConstellationView's empty-placeholder Card). Legacy files themselves untouched.
+> (g) `YouTubeImportCard` gained `presentation?: 'card' | 'row'` (default `'card'` — legacy byte-identical); `'row'` renders the §3.0.3 ConnectRow and keeps the state machine + review modal as the press flow.
+> (h) ChasingNowCard's row re-skin renders question + `Pull →` only; the per-thread dismiss died with the Card (`onDismiss` stays optional for legacy compat).
+> (i) The connected Fit row's press target is Sync, leaving no home for "Disconnect" — not surfaced in the flag-on Health tree (legacy keeps it). Filed as PARKED_ITEMS 13.2; must land before flag graduation.
+> (j) DiscoverGrid + interest-suggestions fetch are legacy-only; the recomposed Explore cast is exactly §3.2 items 1–9.
+> (k) The Energy row's `Log` action expands an inline 1–5 numeral pill picker (the emoji scale is banned by §3.0.5; the spec named the action, not the input).
 
 All paths, line numbers, tokens, and store APIs are now verified against the repo. Three load-bearing discoveries: the repo has **no ESLint config** (the spec's ESLint enforcement is unenforceable as written), `usePreferencesStore` **does not persist on native** (the snooze decision was broken), and a dozen child-card CAPS eyebrows survive the spec's sweep. Producing the hardened spec.
 

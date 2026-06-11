@@ -10,6 +10,18 @@
  * which is never allowed; it is deleted, not edited (graduation task in
  * docs/PARKED_ITEMS.md §13).
  *
+ * SANCTIONED REGENERATIONS (§3.0.7 — "lands with its screen's PR"): the
+ * *.legacy.tsx FILES stay untouched, but they mount shared child components
+ * whose internal caps labels die unconditionally in each screen PR's §3.0.7
+ * sweep. Those card-internal label swaps are the one sanctioned source of
+ * legacy-pixel change, and the snapshot is re-recorded in the same PR:
+ *  - 2026-06-12 (W4 screens batch A, Health + Explore): ExploreScreenLegacy
+ *    re-recorded — ConstellationView's empty-placeholder Card was deleted
+ *    (§3.2 item 6 ≥3-node threshold), so the legacy zero-state no longer
+ *    renders it. The Health sweep (MealSuggestionsCard / BloodReportCard /
+ *    FitDashboard) only touches surfaces that are collapsed or disconnected
+ *    in the zero-data baseline — no Health snapshot churn.
+ *
  * Mock seams follow the established component-test conventions
  * (TodayHeader.test.tsx, ContactsImportCard.test.tsx): expo-router hooks and
  * the screen-tracking/notification hooks are stubbed; everything below the

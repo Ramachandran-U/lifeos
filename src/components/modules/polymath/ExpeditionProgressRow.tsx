@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
-import { Body, Caption, Label } from '@/components/ui/Typography';
+import { Body, Caption } from '@/components/ui/Typography';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { progressFraction, type Expedition, type ExpeditionProgress } from '@/explore/expeditions';
 
@@ -19,8 +19,10 @@ export function ExpeditionProgressRow({ expeditions, onPress }: Props) {
   if (expeditions.length === 0) return null;
 
   return (
+    // Ink + Signal §3.0.7: the ACTIVE EXPEDITIONS caps eyebrow died in the W4
+    // Explore sweep (2026-06-12) — the screen renders the `Expeditions`
+    // SectionTitle above this row instead.
     <View style={styles.section}>
-      <Label color={c.textMuted} style={styles.sectionLabel}>ACTIVE EXPEDITIONS</Label>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {expeditions.map(({ expedition: e, progress: p }) => {
           const frac = progressFraction(p, e.totalSteps);
@@ -54,7 +56,6 @@ export function ExpeditionProgressRow({ expeditions, onPress }: Props) {
 
 const makeStyles = (c: AppColors) => StyleSheet.create({
   section: { gap: spacing.xs },
-  sectionLabel: { letterSpacing: 1, paddingHorizontal: spacing.xl },
   row: { paddingHorizontal: spacing.xl, gap: spacing.sm },
   card: {
     width: 180, borderRadius: 16, borderWidth: 1, padding: spacing.md, gap: spacing.xs,

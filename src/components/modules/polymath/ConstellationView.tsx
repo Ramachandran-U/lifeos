@@ -1,10 +1,9 @@
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors, type AppColors } from '@/theme/colors';
-import { fonts, fontSizes } from '@/theme/typography';
+import { fonts } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
-import { Body, Caption, Label } from '@/components/ui/Typography';
-import { Card } from '@/components/ui/Card';
+import { Caption } from '@/components/ui/Typography';
 import { projectConstellation, countSynapses, constellationStats, type ConstellationInput } from '@/explore/constellation';
 
 interface Props {
@@ -18,28 +17,33 @@ const TYPE_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   concept: 'ellipse-outline',
 };
 
+/** §3.2 item 6: the constellation earns its slot by content — it renders only
+ *  once the input carries at least this many nodes (interests + saved sparks +
+ *  expeditions). Below the threshold the component is null: the W4 sweep
+ *  (2026-06-12) deleted the empty-placeholder Card. */
+export const CONSTELLATION_MIN_NODES = 3;
+
+export function constellationInputNodeCount(input: ConstellationInput): number {
+  return input.interests.length + input.sparks.length + input.expeditions.length;
+}
+
+// Ink + Signal §3.0.7: the YOUR CONSTELLATION caps eyebrow died in the W4
+// Explore sweep (2026-06-12) — the screen renders the `Constellation`
+// SectionTitle above this component; the nodes/synapses/depth stats stay here
+// as the Caption line under that title.
 export function ConstellationView({ input }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
+
+  if (constellationInputNodeCount(input) < CONSTELLATION_MIN_NODES) return null;
+
   const constellation = projectConstellation(input);
   const synapses = countSynapses(constellation);
   const stats = constellationStats(input);
 
-  if (constellation.nodes.length === 0) {
-    return (
-      <Card style={styles.empty}>
-        <Ionicons name="telescope-outline" size={32} color={c.textMuted} />
-        <Body style={{ color: c.textMuted, textAlign: 'center' }}>
-          Save sparks and complete expeditions to grow your constellation.
-        </Body>
-      </Card>
-    );
-  }
-
   return (
     <View style={styles.section}>
       <View style={styles.headerRow}>
-        <Label color={c.polymath} style={styles.sectionLabel}>YOUR CONSTELLATION</Label>
         <View style={styles.statsRow}>
           <Caption style={{ color: c.textMuted }}>
             <Caption style={{ fontFamily: fonts.heading, color: c.polymath }}>{constellation.nodes.length}</Caption> nodes
@@ -76,9 +80,7 @@ export function ConstellationView({ input }: Props) {
 const makeStyles = (c: AppColors) => StyleSheet.create({
   section: { gap: spacing.sm },
   headerRow: { gap: spacing.xs },
-  sectionLabel: { letterSpacing: 1 },
   statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   node: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
