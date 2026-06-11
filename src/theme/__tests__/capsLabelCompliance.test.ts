@@ -102,6 +102,9 @@ const ALLOWLIST = new Set<string>([
   'src/components/shared/DailyBriefing.tsx',
   'src/components/shared/DomainNudgeCard.tsx',
   'src/components/shared/LifeScoreHero.tsx',
+  // founder-approved manifesto-change batch (resolution 8, approved 2026-06-10): hero metadata caps in the W3 Today recomposition.
+  'src/components/shared/NextMoveHero.tsx',
+  'src/components/shared/TodayHeader.tsx',
   'src/components/shared/OvercommitmentCard.tsx',
   'src/components/shared/PriorityChangeSheet.tsx',
   'src/components/shared/RoutineDiffPreview.tsx',

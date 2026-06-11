@@ -60,6 +60,10 @@ export default function RootLayout() {
   const dismissMilestone = useGameStore((s) => s.dismissMilestone);
   const motionScale = useMotionScale();
   const transitionPrefs = { enabled: isEnabled('motionTransitions'), motionScale };
+  // install_prompt_v2 (W3 §3.3): with the flag on, no screen renders
+  // top-of-flow install chrome — the only install UI is the event-triggered
+  // InstallSheet on Today plus the quiet Profile row.
+  const installV2 = useFlagStore((s) => s.isEnabled('install_prompt_v2'));
 
   useEffect(() => {
     async function init() {
@@ -173,8 +177,9 @@ export default function RootLayout() {
             isn't already installed. Sits ABOVE the navigator in the layout flow
             (not as an overlay) so it pushes screens down rather than covering
             their own headers. Renders null on native + everywhere else, taking
-            no space. */}
-        <AddToHomeScreenPrompt />
+            no space. Legacy path only — install_prompt_v2 replaces it with the
+            event-triggered InstallSheet on Today (W3 §3.3). */}
+        {!installV2 && <AddToHomeScreenPrompt />}
         <View style={styles.stackHost}>
           <ErrorBoundary>
             <Stack

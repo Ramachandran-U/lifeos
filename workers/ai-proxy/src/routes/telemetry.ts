@@ -73,6 +73,10 @@ const ALLOWED_EVENTS = new Set([
   'companion_tapped',
   'comeback_detected',
   'comeback_claimed',
+  // Ink + Signal W3 Today recomposition (NextMoveHero). Deploy BEFORE the
+  // today_answer_first_v1 cohort flip, or these 400 server-side.
+  'next_move_shown',
+  'next_move_completed',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;
