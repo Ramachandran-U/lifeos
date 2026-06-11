@@ -532,6 +532,21 @@ function providerHasKey(provider: keyof typeof DEFAULTS, env: Env): boolean {
   return !!env.ANTHROPIC_API_KEY;
 }
 
+/**
+ * Whether a provider error should fail over to the NEXT provider in the chain
+ * rather than aborting (502):
+ *   - 401 / 403 — auth error: a missing/expired/invalid key. A lapsed cheap-tier
+ *     key (e.g. Groq) must degrade to the default provider, NOT 502 the user.
+ *     (This is the resilience gap that took down "Generate my routine" when the
+ *     Groq key expired — failover previously only covered 429/5xx.)
+ *   - 429 — rate/quota limit; the next provider has separate quota.
+ *   - 5xx — transient provider outage.
+ * A 400 / 404 is a request-shape problem another provider won't fix → abort.
+ */
+export function isFailoverStatus(status: number): boolean {
+  return status === 401 || status === 403 || status === 429 || (status >= 500 && status < 600);
+}
+
 export async function proxyClaude(
   req: Request,
   env: Env,
@@ -605,7 +620,7 @@ export async function proxyClaude(
         }
         return await callGroqStream(body, env, cors, workerStart, ctx, userId, task);
       } catch (e) {
-        if (e instanceof ProviderError && (e.status === 429 || (e.status >= 500 && e.status < 600))) {
+        if (e instanceof ProviderError && isFailoverStatus(e.status)) {
           errors.push({ provider: e.provider, status: e.status, detail: e.detail.slice(0, 200) });
           continue;
         }
@@ -663,9 +678,8 @@ export async function proxyClaude(
     } catch (e) {
       if (e instanceof ProviderError) {
         errors.push({ provider: e.provider, status: e.status, detail: e.detail.slice(0, 200) });
-        // 5xx / 429 → try next in chain. Anything else (auth/400) → abort.
-        const isFailover = e.status === 429 || (e.status >= 500 && e.status < 600);
-        if (!isFailover) {
+        // 401/403 (auth) / 429 / 5xx → try next in chain. 400/404 → abort.
+        if (!isFailoverStatus(e.status)) {
           return new Response(
             JSON.stringify({ error: `${e.provider} ${e.status}`, detail: e.detail.slice(0, 500) }),
             { status: 502, headers: { 'Content-Type': 'application/json', ...cors } },
