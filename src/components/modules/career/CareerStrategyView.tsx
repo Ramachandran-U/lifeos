@@ -34,22 +34,23 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
 
   return (
     <View style={s.wrap}>
-      {/* Reality Check — R2: the semantic ink is the eyebrow; card neutral. */}
+      {/* Reality Check — R2: the semantic ink is the eyebrow; card neutral.
+          §3.0.7 (W4 Career PR): sentence case as Body/bodyMedium, color kept. */}
       <Card style={s.card}>
-        <Label color={c.error}>REALITY CHECK</Label>
+        <Body style={[s.sweepLabel, { color: c.error }]}>Reality check</Body>
         <Body style={{ color: c.textPrimary, lineHeight: 22 }}>{strategy.realityCheck}</Body>
       </Card>
 
       {/* MVS */}
       <Card style={s.card}>
-        <Label color={c.careerText}>MINIMUM VIABLE SUCCESS</Label>
+        <Body style={[s.sweepLabel, { color: c.careerText }]}>Minimum viable success</Body>
         <Heading style={[s.mvsMetric, { color: c.textPrimary }]}>{strategy.mvs.metric}</Heading>
         <Caption style={{ color: c.textSecondary }}>{strategy.mvs.outcome}</Caption>
       </Card>
 
       {/* Skill gaps */}
       <Card style={s.card}>
-        <Label color={c.careerText}>SKILL GAPS</Label>
+        <Body style={[s.sweepLabel, { color: c.careerText }]}>Skill gaps</Body>
         {strategy.skillGaps.map((g, i) => (
           <View key={i} style={[s.skillRow, { borderColor: c.border }]}>
             <View style={s.skillHeader}>
@@ -102,7 +103,7 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
       {/* Daily plan */}
       <Card style={s.card}>
         <View style={s.headerRow}>
-          <Label color={c.careerText}>DAILY PLAN TEMPLATE</Label>
+          <Body style={[s.sweepLabel, { color: c.careerText }]}>Daily plan template</Body>
         </View>
         {(['deepWork', 'build', 'review'] as const).map((slot) => {
           const items = strategy.dailyPlan[slot];
@@ -141,7 +142,7 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
       {/* Weekly output */}
       <Card style={s.card}>
         <View style={s.headerRow}>
-          <Label color={c.careerText}>WEEKLY OUTPUT</Label>
+          <Body style={[s.sweepLabel, { color: c.careerText }]}>Weekly output</Body>
           <Pressable
             onPress={onAcceptAll}
             disabled={allAccepted}
@@ -184,7 +185,7 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
 
       {/* Failure points — R2: the warning ink is the eyebrow; card neutral. */}
       <Card style={s.card}>
-        <Label color={c.warning}>FAILURE POINTS</Label>
+        <Body style={[s.sweepLabel, { color: c.warning }]}>Failure points</Body>
         {strategy.failurePoints.map((f, i) => (
           <View key={i} style={s.failureRow}>
             <Ionicons name="warning-outline" size={14} color={c.warning} />
@@ -200,6 +201,9 @@ function makeStyles(c: ReturnType<typeof useColors>) {
   return StyleSheet.create({
     wrap: { gap: spacing.md },
     card: { gap: spacing.sm },
+    // §3.0.7 sentence-case eyebrow replacement — Body in bodyMedium, the
+    // semantic/domain ink carries the meaning (color set per call site).
+    sweepLabel: { fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm },
     mvsMetric: { fontSize: fontSizes.lg },
     skillRow: { borderBottomWidth: 1, paddingVertical: spacing.sm, gap: spacing.xs },
     skillHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },

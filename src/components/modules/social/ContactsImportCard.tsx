@@ -5,6 +5,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
+import { ConnectRow } from '@/components/ui/ConnectRow';
 import { Body, Label, Caption } from '@/components/ui/Typography';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { isContactsConnected, startContactsOAuth } from '@/integrations/googleContacts/oauth';
@@ -23,15 +24,23 @@ const webTextInputOutline = Platform.select({ web: { outlineStyle: 'none' as con
  * (Google OAuth is web-only). Connect → fetch → review/multi-select with a
  * default relationship tier → create the chosen contacts. Contacts already on
  * file (by name) are filtered out so re-importing doesn't duplicate.
+ *
+ * `presentation` (Ink + Signal §3.0.3, W4 Social PR): the legacy tree keeps
+ * the default `'card'` promo render byte-identical; the recomposed tree passes
+ * `'row'`, which renders the compact ConnectRow under the screen's
+ * `Connections` SectionTitle. The state machine and review modal are shared by
+ * both presentations — the row press is the same connect/import flow.
  */
 export function ContactsImportCard({
   userId,
   existingNames,
   onImported,
+  presentation = 'card',
 }: {
   userId: string;
   existingNames: string[];
   onImported: () => void;
+  presentation?: 'card' | 'row';
 }) {
   const c = useColors();
   const styles = makeStyles(c);
@@ -109,6 +118,51 @@ export function ContactsImportCard({
     setFetched([]);
     setSelected(new Set());
   };
+
+  if (presentation === 'row') {
+    // §3.0.3 copy table — Social / Contacts, disconnected and connected rows.
+    return (
+      <View>
+        {!connected ? (
+          <ConnectRow
+            icon="person-add-outline"
+            title="Connect Google Contacts"
+            caption="Names and birthdays stay on this device"
+            actionLabel="Connect"
+            accent={c.social}
+            onPress={handleConnect}
+            testID="connect-row-contacts"
+            error={phase === 'error' && error ? error : undefined}
+          />
+        ) : (
+          <ConnectRow
+            icon="person-add-outline"
+            title="Import contacts"
+            caption="You choose who gets added"
+            actionLabel="Import"
+            accent={c.social}
+            onPress={handleImport}
+            testID="connect-row-contacts"
+            loading={phase === 'loading'}
+            error={phase === 'error' && error ? error : undefined}
+          />
+        )}
+        <ReviewModal
+          visible={phase === 'review'}
+          fetched={fetched}
+          selected={selected}
+          tier={tier}
+          query={query}
+          c={c}
+          onTier={setTier}
+          onQuery={setQuery}
+          onToggle={toggle}
+          onCancel={() => setPhase('idle')}
+          onConfirm={confirm}
+        />
+      </View>
+    );
+  }
 
   return (
     <Card style={styles.card}>

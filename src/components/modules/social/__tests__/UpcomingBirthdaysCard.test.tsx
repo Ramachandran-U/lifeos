@@ -42,7 +42,20 @@ describe('UpcomingBirthdaysCard', () => {
       />,
     );
     expect(screen.getByText('Alex Rivera')).toBeTruthy();
-    expect(screen.getByText('Today 🎉')).toBeTruthy();
+    expect(screen.getByText('Today')).toBeTruthy();
+  });
+
+  it('renders no emoji and no caps eyebrow after the W4 re-skin (§3.0.5 / §3.0.7)', () => {
+    const today = mmdd(new Date());
+    const tree = render(
+      <UpcomingBirthdaysCard
+        contacts={[contact({ id: 'a', name: 'Alex Rivera', birthday: today })]}
+        onPress={jest.fn()}
+      />,
+    );
+    const dump = JSON.stringify(tree.toJSON());
+    expect(dump).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+    expect(dump).not.toContain('UPCOMING BIRTHDAYS');
   });
 
   it('fires onPress with the tapped contact', () => {

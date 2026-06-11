@@ -17,10 +17,10 @@
  * - HERO_FILES don't all exist yet (each screen PR lands its hero). Missing
  *   files are SKIPPED via fs.existsSync — a deliberate ratchet: the checks arm
  *   themselves the moment a hero file appears.
- * - KILL_TABLE_FILES (§3.0.7) starts with the 13 child-card files that are
- *   already emoji-free. UpcomingBirthdaysCard.tsx still carries its legacy
- *   glyphs and joins this list in the Social screen PR, where the §3.4 item 2
- *   re-skin deletes them — same append-as-you-sweep ratchet as the heroes.
+ * - KILL_TABLE_FILES (§3.0.7) started with the 13 child-card files that were
+ *   already emoji-free. UpcomingBirthdaysCard.tsx joined in the W4 Social PR
+ *   (2026-06-12 batch B): the §3.4 item 2 re-skin deleted its cake/party
+ *   glyphs and caps eyebrow — the append-as-you-sweep ratchet closed at 14/14.
  */
 
 import * as fs from 'fs';
@@ -58,9 +58,9 @@ const HERO_FILES = [
 
 /**
  * §3.0.7 child-card kill table — the files whose CAPS eyebrows and emoji die
- * with their screen's PR. Seeded with the 13 files that are emoji-clean today;
- * src/components/modules/social/UpcomingBirthdaysCard.tsx joins in the Social
- * PR (its glyphs are deleted by the §3.4 item 2 "Coming up" re-skin).
+ * with their screen's PR. Seeded with the 13 files that were emoji-clean at
+ * the foundation; UpcomingBirthdaysCard.tsx joined in the W4 Social PR (its
+ * glyphs died with the §3.4 item 2 "Coming up" re-skin) — list complete.
  */
 const KILL_TABLE_FILES = [
   'src/components/modules/polymath/ExpeditionProgressRow.tsx',
@@ -76,6 +76,7 @@ const KILL_TABLE_FILES = [
   'src/components/modules/finance/FinanceGoalCard.tsx',
   'src/components/modules/finance/MilestoneTracker.tsx',
   'src/components/modules/finance/WeeklyInsightCard.tsx',
+  'src/components/modules/social/UpcomingBirthdaysCard.tsx',
 ] as const;
 
 /**
@@ -94,6 +95,12 @@ const CLUSTER_CREATED_FILES = [
   // with the Health/Explore recompositions (§3.0.5 / AC8).
   'src/components/modules/health/HealthStreakRow.tsx',
   'src/components/modules/polymath/WeekStatLine.tsx',
+  // W4 screens batch B (2026-06-12): Career sheet/modal extractions (§3.3,
+  // trap 2) + the social stat row (§3.4 item 3 / AC8). Heroes are covered via
+  // HERO_FILES.
+  'src/components/modules/career/CareerSetupSheet.tsx',
+  'src/components/modules/career/SavePathModal.tsx',
+  'src/components/modules/social/SocialHealthRow.tsx',
   ...SCREEN_FILES,
 ] as const;
 

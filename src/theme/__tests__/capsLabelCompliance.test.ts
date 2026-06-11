@@ -69,7 +69,10 @@ const ALLOWLIST = new Set<string>([
   'src/components/gamification/FirstWinCard.tsx',
   'src/components/gamification/ProgressPath.tsx',
   'src/components/gamification/QuestDetailSheet.tsx',
-  'src/components/modules/career/CareerStrategyView.tsx',
+  // W4 screens batch B (2026-06-12): CareerStrategyView's six §3.0.7 eyebrows
+  // went sentence-case with the Career recomposition — its entry SHRANK off
+  // this list (the PHASE/slot dynamic uppercase strings don't match Guard D's
+  // literal-caps pattern and are tracked by the §3.0.7 table scope decision).
   'src/components/modules/finance/FinanceGoalCard.tsx',
   'src/components/modules/finance/SubscriptionsBillsCard.tsx',
   'src/components/modules/finance/WeeklyInsightCard.tsx',
@@ -90,8 +93,12 @@ const ALLOWLIST = new Set<string>([
   'src/components/modules/polymath/RabbitHoleBreadcrumb.tsx',
   'src/components/modules/polymath/RabbitHoleForkButton.tsx',
   'src/components/modules/polymath/YouTubeImportCard.tsx',
+  // W4 screens batch B (2026-06-12): UpcomingBirthdaysCard's caps eyebrow died
+  // with the §3.4 item 2 "Coming up" re-skin — its entry SHRANK off this list.
+  // ContactsImportCard stays: its default 'card' presentation keeps the legacy
+  // promo (caps eyebrow + review-modal header) byte-identical until flag
+  // graduation, same as YouTubeImportCard above.
   'src/components/modules/social/ContactsImportCard.tsx',
-  'src/components/modules/social/UpcomingBirthdaysCard.tsx',
   'src/components/shared/AddToHomeScreenPrompt.tsx',
   'src/components/shared/CoachActionsCard.tsx',
   'src/components/shared/DailyBriefing.tsx',
