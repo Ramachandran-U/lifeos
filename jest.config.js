@@ -130,7 +130,10 @@ module.exports = {
       // ts-jest/CJS node suite must transform them (everything else in
       // node_modules stays ignored).
       transformIgnorePatterns: ['/node_modules/(?!@noble/)'],
-      testPathIgnorePatterns: [...IGNORE, '/app/', '/src/components/', '/src/hooks/'],
+      // app/** stays out of the node suite (screens need the components env) —
+      // EXCEPT app/(tabs)/__tests__/, which holds pure fs source-guard tests
+      // (hierarchyGuards.test.ts, Ink + Signal W4 §3.0.2/AC7) with no RN imports.
+      testPathIgnorePatterns: [...IGNORE, '/app/(?!\\(tabs\\)/__tests__/)', '/src/components/', '/src/hooks/'],
       // src/components and src/hooks are measured by the `components` project ONLY.
       // The node suite stubs react-native so it can't run component or hook tests.
       // Without this it would emit 0%-coverage maps that dilute per-directory numbers.
@@ -150,7 +153,9 @@ module.exports = {
       // Relative glob (not <rootDir>/…) — an absolute glob breaks on Windows
       // where the path mixes \ and /. Matches src/components/**/*.test.tsx and
       // src/hooks/**/*.test.tsx (hooks need renderHook from the jest-expo env).
-      testMatch: ['**/src/components/**/*.test.tsx', '**/src/hooks/**/*.test.tsx'],
+      // src/screens added for the Ink + Signal W4 legacy-snapshot suite (AC12)
+      // — the *.legacy.tsx trees render under this project's jest-expo env.
+      testMatch: ['**/src/components/**/*.test.tsx', '**/src/hooks/**/*.test.tsx', '**/src/screens/**/*.test.tsx'],
       // @/ alias merges with jest-expo's asset mocks. The node-suite RN stubs
       // are intentionally NOT here — the component suite uses the real
       // react-native via jest-expo. AsyncStorage IS stubbed (mirroring the node

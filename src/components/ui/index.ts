@@ -3,6 +3,8 @@ export { Text } from './Text';
 export type { TextProps } from './Text';
 export { GlassCard } from './GlassCard';
 export { SectionLabel } from './SectionLabel';
+export { SectionTitle } from './SectionTitle';
+export { ConnectRow } from './ConnectRow';
 export { DomainGlyph } from './DomainGlyph';
 export type { DomainKey } from './DomainGlyph';
 export { DomainChip } from './DomainChip';

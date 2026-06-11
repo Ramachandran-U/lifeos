@@ -171,6 +171,16 @@
 
 ---
 
+## 13. Ink + Signal W4 — module-screen hierarchy
+
+> The W4 foundation PR (flag `module_hierarchy_v1`, legacy extraction + snapshots, `SectionTitle`/`ConnectRow`/`EmptyState.trustNote`, `useHeroSnoozeStore`, `hierarchyGuards.test.ts`) landed first; the five screen recompositions follow one PR each behind the flag. Spec: `docs/design-deep-dive/04-module-screens.md`.
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 13.1 🅿️ | **Delete `src/screens/legacy/*` + the `*.legacy` snapshots** (`src/screens/legacy/__tests__/legacySnapshots.test.tsx` + its `__snapshots__/`), the five `if (!hierarchyV1) return <XScreenLegacy/>` branches, and the three guard-allowlist entries that followed the extraction (colorToken ×1, capsLabel ×5, motionToken ×5 renames in `src/theme/__tests__`). Counter-rule for Dilution trap 1 — the legacy path must die, not linger. Owner: founder to ratify (proposed: the Claude session that flips the flag records the date and executes 14 days later). Filed by W4 foundation PR. | The legacy trees are the flag-off render path until `module_hierarchy_v1` rollout completes — deleting earlier removes the kill switch. | **Graduation criterion: `module_hierarchy_v1` at 100% for 14 consecutive days.** Deletion is one file per screen plus the wrapper branch — no surgery. |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
