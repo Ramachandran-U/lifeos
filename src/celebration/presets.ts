@@ -58,6 +58,11 @@ const KIND_PRESETS: Partial<Record<CelebrationKind, Partial<Record<CelebrationTi
   milestone: {
     epic: { ...EPIC_CANNON, paletteKeys: ['streak', 'xp', 'warning'] },
   },
+  // Cold-start first-ever block completion (cold_start_v1) — the identity
+  // cannon. (R1: paletteKey primaryLight → primaryDim — *Light tokens died.)
+  firstWin: {
+    epic: { ...EPIC_CANNON, paletteKeys: ['xp', 'primaryDim', 'streak'] },
+  },
 };
 
 export function resolvePreset(event: Pick<CelebrationEvent, 'kind' | 'tier'>): CelebrationPreset {

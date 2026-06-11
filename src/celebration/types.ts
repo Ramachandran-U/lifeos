@@ -25,7 +25,8 @@ export type CelebrationKind =
   | 'badge'
   | 'levelUp'
   | 'dayComplete'
-  | 'milestone';
+  | 'milestone'
+  | 'firstWin';
 
 /** What a call site knows at the moment something celebration-worthy happens. */
 export interface CelebrationInput {

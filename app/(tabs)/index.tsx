@@ -30,6 +30,9 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
 import { InkCanvas } from '@/components/shared/InkCanvas';
+import { StarterLine } from '@/components/shared/StarterLine';
+import { RadarMeaningCaption } from '@/components/shared/RadarMeaningCaption';
+import { STARTER_COPY } from '@/constants/starterCopy';
 import { useAmbientEventStore } from '@/components/shared/ambient/useAmbientEventStore';
 import { WeeklyBalanceCard } from '@/components/shared/WeeklyBalanceCard';
 import { Confetti } from '@/components/shared/Confetti';
@@ -50,7 +53,7 @@ import type { DailyBriefingInput } from '@/ai/types';
 import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { buildVoiceTools } from '@/ai/agent/voiceTools';
 import { useUserStore } from '@/store/useUserStore';
-import { useGameStore } from '@/store/useGameStore';
+import { useGameStore, DOMAIN_SCORE_FLOOR } from '@/store/useGameStore';
 import { useSyncStore } from '@/store/useSyncStore';
 import { AvatarRing } from '@/components/gamification/AvatarRing';
 import { HexRadar } from '@/components/gamification/HexRadar';
@@ -129,6 +132,7 @@ export default function TodayScreen() {
   const [loaded, setLoaded] = useState(false);
   const onboardingV2 = useFlagStore((s) => s.isEnabled('onboarding_v2'));
   const streakProtection = useFlagStore((s) => s.isEnabled('streak_protection_v1'));
+  const coldStart = useFlagStore((s) => s.isEnabled('cold_start_v1'));
   // The acting coach supersedes the read-only "what next" card when enabled, so
   // only one of the two shows.
   const coachActionsEnabled = useFlagStore((s) => s.isEnabled('ai_coach_actions'));
@@ -303,6 +307,21 @@ export default function TodayScreen() {
               module: block?.module ?? 'goal',
               source: profile.source,
             });
+            // Cold-start first-win beat (§3.3): the first thing a user ever
+            // completes is an identity beat — epic, exactly once per account
+            // (this stamp guard is the once-enforcer). Exact dayComplete
+            // celebrate/Confetti fallback pattern; skipped entirely when the
+            // gamification pref is 'off'.
+            if (
+              useFlagStore.getState().isEnabled('cold_start_v1') &&
+              usePreferencesStore.getState().gamification !== 'off'
+            ) {
+              if (isFlagEnabled('celebrationEngine')) {
+                celebrate({ kind: 'firstWin' });
+              } else {
+                setShowConfetti(true);
+              }
+            }
           }
         } catch { /* non-fatal */ }
       })();
@@ -524,6 +543,7 @@ export default function TodayScreen() {
           <Animated.View
             entering={FadeIn.delay(280).duration(600)}
             style={[styles.heroWrap, heroStyle]}
+            testID="today-hero-radar"
           >
             <HexRadar
               scores={radarScores}
@@ -542,6 +562,15 @@ export default function TodayScreen() {
                 if (route) router.push(route);
               }}
             />
+            {/* §3.7 — zero-state radar meaning. Mounted AFTER HexRadar inside
+                the same hero wrapper so the radar does not move one pixel and
+                the caption shares the hero's entry fade. Visibility is exactly
+                "all six scores equal the floor" (plus the program flag): once
+                any domain diverges, loadFromDB's clamp means the all-floor
+                state can never return — the caption retires by construction. */}
+            {coldStart && Object.values(radarScores).every((v) => v === DOMAIN_SCORE_FLOOR) && (
+              <RadarMeaningCaption maxWidth={340} />
+            )}
           </Animated.View>
 
           {/* Header */}
@@ -586,9 +615,16 @@ export default function TodayScreen() {
                         <AuroraText variant="micro" muted>
                           {`L${prog.level} → L${prog.level + 1}`}
                         </AuroraText>
-                        <AuroraText variant="caption" numeric color={c.xp}>
-                          {`${prog.current}/${prog.needed} XP`}
-                        </AuroraText>
+                        {/* §3.1 — at zero XP the caption is the action, not a
+                            0/300 stat. The bar itself stays: it's an
+                            affordance. 'minimal'/'off' branches untouched. */}
+                        {coldStart && totalXP === 0 ? (
+                          <StarterLine variant="caption">{STARTER_COPY.todayXpBar}</StarterLine>
+                        ) : (
+                          <AuroraText variant="caption" numeric color={c.xp}>
+                            {`${prog.current}/${prog.needed} XP`}
+                          </AuroraText>
+                        )}
                       </View>
                     )}
                     <XpBar pct={prog.pct} color={c.primary} height={6} />

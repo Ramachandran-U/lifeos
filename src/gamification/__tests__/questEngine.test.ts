@@ -73,6 +73,67 @@ describe('selectDailyQuests — determinism & shape', () => {
   });
 });
 
+describe('selectDailyQuests — day-1 clamp (cold_start_v1, AC-3)', () => {
+  const firstDayCtx: QuestSelectionCtx = {
+    primaryDomains: [],
+    liveStreakKeys: [],
+    isFirstDay: true,
+  };
+
+  it('isFirstDay → exactly 3 drafts, never 3–5', () => {
+    expect(selectDailyQuests(firstDayCtx, 'u1:2026-06-10')).toHaveLength(3);
+    // A few extra seeds so the clamp can't hide behind one lucky rng draw.
+    for (let d = 1; d <= 10; d++) {
+      const qs = selectDailyQuests(firstDayCtx, `u9:2026-08-${String(d).padStart(2, '0')}`);
+      expect(qs).toHaveLength(3);
+    }
+  });
+
+  it('slot 1 is the pinned first-block quest, constructed below the template range', () => {
+    const [first] = selectDailyQuests(firstDayCtx, 'u1:2026-06-10');
+    expect(first).toEqual({
+      templateId: 't_blocks_small',
+      target: 1,
+      xp: 10,
+      title: 'Complete your first routine block',
+      metricKey: 'blocks_completed',
+      module: 'goal',
+      source: 'pinned',
+    });
+  });
+
+  it('no other draft shares the blocks_completed metric (no double-tick)', () => {
+    const qs = selectDailyQuests(firstDayCtx, 'u1:2026-06-10');
+    expect(qs.slice(1).some((q) => q.metricKey === 'blocks_completed')).toBe(false);
+  });
+
+  it('isFirstDay: false is BYTE-IDENTICAL to the pre-change output (same seed)', () => {
+    // Fixture captured 2026-06-12 on trunk 4e9b367 (pre-change questEngine)
+    // by running the then-current selectDailyQuests with this exact ctx+seed.
+    const PRE_CHANGE_FIXTURE =
+      '[{"templateId":"t_blocks_full","title":"Finish every block before dinner","module":"goal","metricKey":"blocks_completed","target":7,"xp":85},' +
+      '{"templateId":"t_journal","title":"Close the day with a reflection","module":"goal","metricKey":"journal","target":1,"xp":30},' +
+      '{"templateId":"t_resource","title":"Finish a learning resource","module":"polymath","metricKey":"learning_resource","target":1,"xp":60}]';
+    const withFalse = selectDailyQuests(
+      { primaryDomains: [], liveStreakKeys: [], isFirstDay: false },
+      'u1:2026-06-10',
+    );
+    const withAbsent = selectDailyQuests({ primaryDomains: [], liveStreakKeys: [] }, 'u1:2026-06-10');
+    expect(JSON.stringify(withFalse)).toBe(PRE_CHANGE_FIXTURE);
+    expect(JSON.stringify(withAbsent)).toBe(PRE_CHANGE_FIXTURE);
+  });
+
+  it('day-1 reroll path: an excluded t_blocks_small is not re-pinned', () => {
+    const rerolled = selectDailyQuests(
+      { ...firstDayCtx, excludeTemplateIds: ['t_blocks_small'] },
+      'u1:2026-06-10:reroll:1',
+    );
+    expect(rerolled).toHaveLength(3);
+    expect(rerolled.some((q) => q.templateId === 't_blocks_small')).toBe(false);
+    expect(rerolled.some((q) => q.source === 'pinned')).toBe(false);
+  });
+});
+
 describe('clampDraftToTemplate — AI output safety', () => {
   it('clamps target and xp to template bounds', () => {
     const clamped = clampDraftToTemplate({

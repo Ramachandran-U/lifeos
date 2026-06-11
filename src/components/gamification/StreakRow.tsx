@@ -2,8 +2,20 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { STREAK_META, type StreakKey } from '@/constants/gamification';
+import { useFlagStore } from '@/store/useFlagStore';
+import { StarterLine } from '@/components/shared/StarterLine';
+import { STARTER_COPY } from '@/constants/starterCopy';
 import { StreakFlame } from './StreakFlame';
 import { XpBar } from './XpBar';
+
+// §3.5: the action that starts each streak, from the single copy source.
+const STREAK_STARTER: Record<StreakKey, string> = {
+  workout: STARTER_COPY.streakWorkout,
+  learning: STARTER_COPY.streakLearning,
+  foodTracking: STARTER_COPY.streakFoodTracking,
+  journaling: STARTER_COPY.streakJournaling,
+  social: STARTER_COPY.streakSocial,
+};
 
 interface Props {
   streakKey: StreakKey;
@@ -14,11 +26,30 @@ interface Props {
 
 export function StreakRow({ streakKey, count, best, graceUsed }: Props) {
   const c = useColors();
+  const coldStart = useFlagStore((s) => s.isEnabled('cold_start_v1'));
   const meta = STREAK_META[streakKey];
   const color = c[meta.colorKey];
   const pct = Math.min(1, count / 30);
   const bestPct = Math.min(1, best / 30);
   const size = count >= 20 ? 'lg' : count >= 10 ? 'md' : 'sm';
+
+  // §3.5 starter variant: a streak the user has never run renders the action
+  // that starts it — same card shell, no flame, no bars, no Best/Now zeros.
+  if (coldStart && count === 0 && best === 0) {
+    return (
+      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+        <View style={styles.body}>
+          <View style={styles.titleRow}>
+            <Text style={{ fontSize: 16 }}>{meta.emoji}</Text>
+            <Text style={{ fontFamily: fonts.bodyMedium, fontSize: fontSizes.sm, color: c.textPrimary }}>
+              {meta.label}
+            </Text>
+          </View>
+          <StarterLine variant="caption">{STREAK_STARTER[streakKey]}</StarterLine>
+        </View>
+      </View>
+    );
+  }
 
   return (
     // Neutral card — the flame + hue-filled bar identify the streak, not an edge.

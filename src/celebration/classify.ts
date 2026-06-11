@@ -30,5 +30,8 @@ export function classifyTier(input: CelebrationInput): CelebrationTier {
     case 'dayComplete':
     case 'milestone':
       return 'epic';
+    // the first thing a user ever completes is an identity beat by definition.
+    case 'firstWin':
+      return 'epic';
   }
 }

@@ -64,7 +64,9 @@ export const useQuestStore = create<QuestV2State>((set, get) => ({
     let rows = getQuestsByDay(userId, today);
     if (rows.length === 0) {
       const drafts = selectDailyQuests(ctx, `${userId}:${today}`);
-      for (const draft of drafts) insertQuest(userId, today, draft, 'template');
+      // The day-1 pinned first quest carries source 'pinned' (cold_start_v1);
+      // everything procedural stays 'template'.
+      for (const draft of drafts) insertQuest(userId, today, draft, draft.source ?? 'template');
       rows = getQuestsByDay(userId, today);
       track(EVENTS.questGenerated, { source: 'template', count: rows.length });
     }

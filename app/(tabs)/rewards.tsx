@@ -27,6 +27,9 @@ import { getXpDailyTotals } from '@/db/queries/xpEvents';
 import { BadgeTile } from '@/components/gamification/BadgeTile';
 import { StreakRow } from '@/components/gamification/StreakRow';
 import { FreezeBank } from '@/components/gamification/FreezeBank';
+import { FirstWinCard } from '@/components/gamification/FirstWinCard';
+import { StarterLine } from '@/components/shared/StarterLine';
+import { STARTER_COPY } from '@/constants/starterCopy';
 import { ChestCard } from '@/components/gamification/ChestCard';
 import { ChestOpenOverlay } from '@/components/gamification/ChestOpenOverlay';
 import { QuestCard } from '@/components/gamification/QuestCard';
@@ -61,6 +64,11 @@ export default function RewardsScreen() {
   const streakProtection = useFlagStore((s) => s.isEnabled('streak_protection_v1'));
   const variableRewards = useFlagStore((s) => s.isEnabled('variable_rewards_v1'));
   const progressMap = useFlagStore((s) => s.isEnabled('progress_map_v1'));
+  const coldStart = useFlagStore((s) => s.isEnabled('cold_start_v1'));
+  // Day-1 minimal mode (§3.2): exactly three sections until the first XP
+  // exists. totalXP is a subscribed selector, so the first completeBlock
+  // write exits minimal mode on the same render pass — no transition added.
+  const isColdStart = coldStart && totalXP === 0;
   const animatedCharts = isCompileFlagEnabled('animatedCharts');
   const gamificationPref = usePreferencesStore((s) => s.gamification);
   const pendingChests = useChestStore((s) => s.pending);
@@ -171,27 +179,85 @@ export default function RewardsScreen() {
       <InkCanvas />
       <SafeAreaView style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          {/* Hero */}
-          <View style={styles.hero}>
+          {/* Hero — expanded on day 1 (§3.2): proudLine promoted, the
+              0-of-300 micro line replaced by the first-win invitation, and
+              the StatBox row held back until the first XP exists. */}
+          <View style={styles.hero} testID="rewards-hero">
             <LevelRing xp={totalXP} size={160} />
             <View style={styles.heroStats}>
               <AuroraText variant="caption" color={c.xp}>{`LEVEL ${prog.level}`}</AuroraText>
               <AuroraText variant="h2">{levelTitle(prog.level)}</AuroraText>
-              <AuroraText variant="caption" muted style={{ marginTop: 4 }}>{proudLine}</AuroraText>
+              {isColdStart ? (
+                <AuroraText variant="bodyLg" color={c.textPrimary} style={{ marginTop: 4 }}>{proudLine}</AuroraText>
+              ) : (
+                <AuroraText variant="caption" muted style={{ marginTop: 4 }}>{proudLine}</AuroraText>
+              )}
               <View style={{ marginTop: 12 }}>
                 <XpBar pct={prog.pct} color={c.xp} height={6} />
               </View>
-              <AuroraText variant="micro" muted style={{ marginTop: 4 }}>
-                {`${prog.current.toLocaleString()} / ${prog.needed.toLocaleString()} XP to Level ${prog.level + 1}`}
-              </AuroraText>
-              <View style={styles.statsRow}>
-                <StatBox label="THIS WEEK" value={`+${weeklyXP}`} color={c.xp} />
-                <StatBox label="BADGES" value={`${badges.length}/${allBadgeIds.length}`} color={c.badge} />
-                <StatBox label="BEST STREAK" value={`${bestStreak}🔥`} color={c.streak} />
-              </View>
+              {isColdStart ? (
+                <View style={{ marginTop: 4 }}>
+                  <StarterLine variant="micro">{STARTER_COPY.rewardsHeroMicro}</StarterLine>
+                </View>
+              ) : (
+                <AuroraText variant="micro" muted style={{ marginTop: 4 }}>
+                  {`${prog.current.toLocaleString()} / ${prog.needed.toLocaleString()} XP to Level ${prog.level + 1}`}
+                </AuroraText>
+              )}
+              {!isColdStart && (
+                <View style={styles.statsRow}>
+                  <StatBox label="THIS WEEK" value={`+${weeklyXP}`} color={c.xp} />
+                  <StatBox label="BADGES" value={`${badges.length}/${allBadgeIds.length}`} color={c.badge} />
+                  {/* From first XP the streak slot is words-or-numbers, never
+                      an emoji-in-data zero (§3.5); legacy keeps the flame. */}
+                  {coldStart ? (
+                    bestStreak === 0 ? (
+                      <StatBox label="BEST STREAK" value={STARTER_COPY.bestStreakStarter} color={c.streak} starter />
+                    ) : (
+                      <StatBox label="BEST STREAK" value={`${bestStreak} days`} color={c.streak} />
+                    )
+                  ) : (
+                    <StatBox label="BEST STREAK" value={`${bestStreak}🔥`} color={c.streak} />
+                  )}
+                </View>
+              )}
             </View>
           </View>
 
+          {isColdStart ? (
+            // Day-1 minimal mode (§3.2): exactly three top-level sections —
+            // hero, FirstWinCard, DAILY QUESTS. The stat ledger (sparkline,
+            // journey, balance, badges, streaks) and the legacy WEEKLY QUEST
+            // section do not mount; they earn their way in at the first XP.
+            <>
+              <FirstWinCard />
+              <View testID="rewards-quests-section" style={{ gap: spacing.lg }}>
+                <SectionLabel>DAILY QUESTS</SectionLabel>
+                <View style={{ gap: 10 }}>
+                  {dailyQuests.enabled
+                    ? dailyQuests.quests
+                        .filter((q) => q.status !== 'rerolled')
+                        .map((q) => {
+                          const legacy = toLegacyQuest(q);
+                          return (
+                            <QuestCard
+                              key={q.id}
+                              quest={legacy}
+                              onPress={() => setOpenQuest(legacy)}
+                              onClaim={() => dailyQuests.claim(q.id)}
+                            />
+                          );
+                        })
+                    : quests
+                        .filter((q) => q.type === 'daily')
+                        .map((q) => (
+                          <QuestCard key={q.id} quest={q} onPress={() => setOpenQuest(q)} />
+                        ))}
+                </View>
+              </View>
+            </>
+          ) : (
+          <>
           {/* Chests (variable_rewards_v1) — pending drops wait patiently; no
               timers, no expiry. 'minimal' = plain claim row, no theatre. */}
           {showChests && (
@@ -377,6 +443,8 @@ export default function RewardsScreen() {
               </View>
             </>
           )}
+          </>
+          )}
         </ScrollView>
       </SafeAreaView>
 
@@ -407,12 +475,18 @@ export default function RewardsScreen() {
   );
 }
 
-function StatBox({ label, value, color }: { label: string; value: string; color: string }) {
+function StatBox({ label, value, color, starter }: { label: string; value: string; color: string; starter?: boolean }) {
   const c = useColors();
   return (
     <View style={[sbStyles.box, { backgroundColor: c.card, borderColor: c.border }]}>
       <AuroraText variant="micro" muted>{label}</AuroraText>
-      <AuroraText variant="h3" numeric color={color}>{value}</AuroraText>
+      {starter ? (
+        // §3.5: a never-nonzero slot renders the action that creates its
+        // first value — words in textSecondary, never a display-type zero.
+        <StarterLine variant="caption">{value}</StarterLine>
+      ) : (
+        <AuroraText variant="h3" numeric color={color}>{value}</AuroraText>
+      )}
     </View>
   );
 }

@@ -45,8 +45,11 @@ import { recoveryFromFitDays, computeRecoveryScore } from '@/utils/recovery';
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
+import { useFlagStore } from '@/store/useFlagStore';
 import { tickQuestMetric } from '@/store/useQuestStore';
 import { XP_VALUES } from '@/utils/gamification';
+import { StarterLine } from '@/components/shared/StarterLine';
+import { STARTER_COPY } from '@/constants/starterCopy';
 import { useUserStore } from '@/store/useUserStore';
 import { useFitSyncStore } from '@/store/useFitSyncStore';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
@@ -112,6 +115,11 @@ export default function HealthScreen() {
   const advanceQuest = useGameStore((s) => s.advanceQuest);
   const triggerStreak = useGameStore((s) => s.triggerStreak);
   const streaks = useGameStore((s) => s.streaks);
+  const coldStartHealth = useFlagStore((s) => s.isEnabled('cold_start_v1'));
+  // §3.6: never-run streaks render the action that starts them, not zeros.
+  const healthStreaksBothZero =
+    streaks.workout.count === 0 && (streaks.workout.best ?? 0) === 0 &&
+    streaks.foodTracking.count === 0 && (streaks.foodTracking.best ?? 0) === 0;
 
   const loadData = useCallback(() => {
     setFoodEntries(
@@ -398,22 +406,35 @@ export default function HealthScreen() {
         )}
 
         <Animated.View entering={FadeInDown.delay(250).duration(400)}>
-          <Card style={styles.streakCard}>
+          <Card style={styles.streakCard} testID="health-streaks-card">
             <View style={styles.streakHeader}>
               <Ionicons name="flame" size={16} color={c.health} />
               <SectionLabel>STREAKS</SectionLabel>
             </View>
-            <View style={styles.streakRow}>
-              {([
-                ['workout', 'Workout', '💪'],
-                ['foodTracking', 'Food log', '🥗'],
-              ] as const).map(([key, label, emoji]) => (
-                <View key={key} style={styles.streakItem}>
-                  <Body style={styles.streakCount}>{streaks[key].count}</Body>
-                  <Caption style={{ color: c.textSecondary }}>{emoji} {label}</Caption>
-                </View>
-              ))}
-            </View>
+            {/* §3.6 — three exhaustive states: both-zero → one starter line;
+                exactly one zero → number + starter fragment in the zero
+                column; both nonzero → the shipped two-number layout. */}
+            {coldStartHealth && healthStreaksBothZero ? (
+              <StarterLine>{STARTER_COPY.healthStreaks}</StarterLine>
+            ) : (
+              <View style={styles.streakRow}>
+                {([
+                  ['workout', 'Workout', '💪'],
+                  ['foodTracking', 'Food log', '🥗'],
+                ] as const).map(([key, label, emoji]) => (
+                  <View key={key} style={styles.streakItem}>
+                    {coldStartHealth && streaks[key].count === 0 && (streaks[key].best ?? 0) === 0 ? (
+                      <StarterLine variant="caption">
+                        {key === 'workout' ? STARTER_COPY.healthFirstWorkout : STARTER_COPY.healthFirstMeal}
+                      </StarterLine>
+                    ) : (
+                      <Body style={styles.streakCount}>{streaks[key].count}</Body>
+                    )}
+                    <Caption style={{ color: c.textSecondary }}>{emoji} {label}</Caption>
+                  </View>
+                ))}
+              </View>
+            )}
           </Card>
         </Animated.View>
 

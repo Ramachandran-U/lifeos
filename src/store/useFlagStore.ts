@@ -67,6 +67,10 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   companion_v1: false,         // W4: companion mood/reactions (product layer)
   comeback_v1: false,          // W4: comeback chest + recovery quest + gentle nudge
   progress_map_v1: false,      // W5: ProgressPath replaces LevelLadder on Rewards
+  // Cold-start program: zero-state replacement + first-win arc. Default ON —
+  // this fixes a broken first-run, it is not a retention experiment. The
+  // Worker /v1/config row is the kill switch.
+  cold_start_v1: true,
 };
 
 interface FlagState {
@@ -135,7 +139,9 @@ export const useFlagStore = create<FlagState>()(
       // existing persisted state from before the addition doesn't shadow it.
       // Bumped to v3 (2026-06-05): ai_coach_actions flipped default-on; drop
       // persisted `false` so existing installs pick up the acting coach.
-      name: 'lifeos_flags_v3',
+      // Bumped to v4 (2026-06-12): cold_start_v1 added as default-on so
+      // persisted pre-addition state doesn't shadow the cold-start fixes.
+      name: 'lifeos_flags_v4',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },

@@ -25,6 +25,10 @@ describe('classifyTier — the single celebration choke point', () => {
     expect(classifyTier({ kind: 'milestone', count: 365 })).toBe('epic');
   });
 
+  test('firstWin is epic — the first thing a user ever completes is an identity beat (AC-4)', () => {
+    expect(classifyTier({ kind: 'firstWin' })).toBe('epic');
+  });
+
   test('streak and badge beats are standard', () => {
     expect(classifyTier({ kind: 'streak', count: 3 })).toBe('standard');
     expect(classifyTier({ kind: 'badge' })).toBe('standard');

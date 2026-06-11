@@ -2,7 +2,7 @@ import { MOTION_BUDGET, TIMING } from '@/theme/motion';
 import { resolvePreset, presetLifetimeMs } from '../presets';
 import type { CelebrationKind, CelebrationTier } from '../types';
 
-const KINDS: CelebrationKind[] = ['xp', 'streak', 'badge', 'levelUp', 'dayComplete', 'milestone'];
+const KINDS: CelebrationKind[] = ['xp', 'streak', 'badge', 'levelUp', 'dayComplete', 'milestone', 'firstWin'];
 const TIERS: CelebrationTier[] = ['micro', 'standard', 'epic'];
 
 describe('resolvePreset — every tier×kind maps to a renderable preset', () => {
@@ -45,6 +45,13 @@ describe('resolvePreset — every tier×kind maps to a renderable preset', () =>
     expect(resolvePreset({ kind: 'milestone', tier: 'epic' }).renderer).toBe('confettiCannon');
     expect(resolvePreset({ kind: 'xp', tier: 'standard' }).renderer).toBe('burst');
     expect(resolvePreset({ kind: 'streak', tier: 'standard' }).renderer).toBe('burst');
+  });
+
+  test('firstWin epic is the identity cannon with the R1-amended palette (AC-4)', () => {
+    const preset = resolvePreset({ kind: 'firstWin', tier: 'epic' });
+    expect(preset.renderer).toBe('confettiCannon');
+    expect(preset.paletteKeys).toEqual(['xp', 'primaryDim', 'streak']);
+    expect(preset.durationMs).toBe(MOTION_BUDGET.celebrationFall);
   });
 
   test('streak/milestone presets lead with the streak hue', () => {

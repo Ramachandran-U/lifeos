@@ -3,6 +3,7 @@ import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { radii } from '@/theme/radii';
+import { STARTER_COPY } from '@/constants/starterCopy';
 import { FREEZE_EARN_XP, MAX_FREEZES_BANKED } from '@/gamification/streakEngine';
 
 interface Props {
@@ -17,6 +18,12 @@ export function FreezeBank({ freezes, progressXP }: Props) {
   const c = useColors();
   const bankFull = freezes >= MAX_FREEZES_BANKED;
   const pct = bankFull ? 1 : Math.min(1, Math.max(0, progressXP / FREEZE_EARN_XP));
+  // §3.5: the empty bank is forward motion, not a deficit — starter title +
+  // sub-line in textSecondary. The ⬡ glyph row and the track stay either way.
+  // The old "No streak shields banked" string is deleted (spec §3.5) — this
+  // branch is unconditional, and the surface itself only mounts behind
+  // streak_protection_v1.
+  const forming = freezes === 0;
 
   return (
     <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
@@ -26,11 +33,15 @@ export function FreezeBank({ freezes, progressXP }: Props) {
         </Text>
         <View style={styles.copy}>
           <Text style={[styles.title, { color: c.textPrimary }]}>
-            {freezes === 0 ? 'No streak shields banked' : `${freezes} streak shield${freezes > 1 ? 's' : ''} banked`}
+            {freezes === 0
+              ? STARTER_COPY.freezeForming
+              : `${freezes} streak shield${freezes > 1 ? 's' : ''} banked`}
           </Text>
-          <Text style={[styles.sub, { color: c.textMuted }]}>
+          <Text style={[styles.sub, { color: forming ? c.textSecondary : c.textMuted }]}>
             {bankFull
               ? 'Bank full — a missed day auto-spends one to keep your streak.'
+              : forming
+              ? `${FREEZE_EARN_XP - progressXP} ${STARTER_COPY.freezeFormingSub}`
               : `${FREEZE_EARN_XP - progressXP} XP until your next shield. Auto-used if a streak would break.`}
           </Text>
         </View>

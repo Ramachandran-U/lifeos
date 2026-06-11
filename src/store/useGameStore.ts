@@ -160,8 +160,21 @@ const DEFAULT_STREAKS: Streaks = {
   social: { count: 0, lastDate: '', graceUsed: false },
 };
 
+/**
+ * The install floor for every domain score — a fresh account's radar renders
+ * at this value, and loadFromDB clamps every score up to it, so scores can
+ * never return to the all-floor state once any domain diverges. Exported for
+ * the zero-state radar caption's visibility check (cold_start_v1, §3.7).
+ */
+export const DOMAIN_SCORE_FLOOR = 15;
+
 const DEFAULT_SCORES: DomainScores = {
-  goals: 15, health: 15, finance: 15, career: 15, social: 15, polymath: 15,
+  goals: DOMAIN_SCORE_FLOOR,
+  health: DOMAIN_SCORE_FLOOR,
+  finance: DOMAIN_SCORE_FLOOR,
+  career: DOMAIN_SCORE_FLOOR,
+  social: DOMAIN_SCORE_FLOOR,
+  polymath: DOMAIN_SCORE_FLOOR,
 };
 
 const MODULE_TO_DOMAIN: Record<string, keyof DomainScores> = {
@@ -200,14 +213,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     try {
       const parsed = JSON.parse(game.domainScores) as DomainScores;
       scores = {
-        goals: Math.max(15, parsed.goals ?? 0),
-        health: Math.max(15, parsed.health ?? 0),
-        finance: Math.max(15, parsed.finance ?? 0),
-        career: Math.max(15, parsed.career ?? 0),
-        social: Math.max(15, parsed.social ?? 0),
+        goals: Math.max(DOMAIN_SCORE_FLOOR, parsed.goals ?? 0),
+        health: Math.max(DOMAIN_SCORE_FLOOR, parsed.health ?? 0),
+        finance: Math.max(DOMAIN_SCORE_FLOOR, parsed.finance ?? 0),
+        career: Math.max(DOMAIN_SCORE_FLOOR, parsed.career ?? 0),
+        social: Math.max(DOMAIN_SCORE_FLOOR, parsed.social ?? 0),
         // Read-alias: coalesce legacy `mind` into `polymath` so existing
         // gamification rows aren't zeroed by the BUG-009 rename.
-        polymath: Math.max(15, parsed.polymath ?? (parsed as { mind?: number }).mind ?? 0),
+        polymath: Math.max(DOMAIN_SCORE_FLOOR, parsed.polymath ?? (parsed as { mind?: number }).mind ?? 0),
       };
     } catch { /* keep default */ }
     // Merge OVER the defaults — a fresh user's row stores streaks as '{}',
