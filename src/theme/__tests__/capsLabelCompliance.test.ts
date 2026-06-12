@@ -73,9 +73,12 @@ const ALLOWLIST = new Set<string>([
   // went sentence-case with the Career recomposition — its entry SHRANK off
   // this list (the PHASE/slot dynamic uppercase strings don't match Guard D's
   // literal-caps pattern and are tracked by the §3.0.7 table scope decision).
-  'src/components/modules/finance/FinanceGoalCard.tsx',
-  'src/components/modules/finance/SubscriptionsBillsCard.tsx',
-  'src/components/modules/finance/WeeklyInsightCard.tsx',
+  // W4 screens batch C (2026-06-12): the Finance §3.0.7 sweep killed
+  // SUBSCRIPTIONS & BILLS / SUBSCRIPTIONS / UPCOMING BILLS, YOUR GOAL and
+  // WEEKLY INSIGHT — FinanceGoalCard, SubscriptionsBillsCard and
+  // WeeklyInsightCard SHRANK off this list (MilestoneTracker's single-word
+  // MILESTONES never matched Guard D's two-word pattern; killed in the same
+  // sweep regardless).
   'src/components/modules/goals/AddGoalSheet.tsx',
   // W4 screens batch A (2026-06-12): the §3.0.7 sweep killed the caps in
   // BloodReportCard, MealSuggestionsCard, SparkHeroCard, ChasingNowCard,

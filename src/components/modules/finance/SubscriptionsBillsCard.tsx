@@ -7,7 +7,8 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { MOTION_BUDGET } from '@/theme/motion';
 import { Card } from '@/components/ui/Card';
-import { Body, Label, Caption } from '@/components/ui/Typography';
+import { Body, Caption } from '@/components/ui/Typography';
+import { SectionTitle } from '@/components/ui/SectionTitle';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { formatInr } from '@/finance/display';
 import { useRecurringStore } from '@/finance/store/useRecurringStore';
@@ -66,23 +67,29 @@ export function SubscriptionsBillsCard({ clientId }: { clientId?: string }) {
   return (
     <Animated.View entering={FadeInDown.delay(160).duration(MOTION_BUDGET.reveal)}>
       <Card style={styles.card}>
-        <View style={styles.header}>
-          <Label color={c.finance}>SUBSCRIPTIONS & BILLS</Label>
-          <Pressable
-            onPress={onScan}
-            disabled={syncing}
-            style={[styles.scanBtn, { borderColor: c.finance }]}
-          >
-            {syncing ? (
-              <LoadingDots />
-            ) : (
-              <>
-                <Ionicons name="search" size={13} color={c.finance} />
-                <Caption style={{ color: c.finance, fontWeight: '700' }}>Scan inbox</Caption>
-              </>
-            )}
-          </Pressable>
-        </View>
+        {/* Ink + Signal §3.0.7: the SUBSCRIPTIONS & BILLS caps eyebrow died in
+            the W4 Finance sweep (2026-06-12) — sentence-case SectionTitle, the
+            scan action in its trailing slot. */}
+        <SectionTitle
+          trailing={
+            <Pressable
+              onPress={onScan}
+              disabled={syncing}
+              style={[styles.scanBtn, { borderColor: c.finance }]}
+            >
+              {syncing ? (
+                <LoadingDots />
+              ) : (
+                <>
+                  <Ionicons name="search" size={13} color={c.finance} />
+                  <Caption style={{ color: c.finance, fontWeight: '700' }}>Scan inbox</Caption>
+                </>
+              )}
+            </Pressable>
+          }
+        >
+          Subscriptions & bills
+        </SectionTitle>
 
         {monthlySubscriptionTotalPaise > 0 && (
           <View style={styles.totalRow}>
@@ -95,14 +102,14 @@ export function SubscriptionsBillsCard({ clientId }: { clientId?: string }) {
 
         {subscriptions.length > 0 && (
           <>
-            <Caption style={styles.sectionLabel}>SUBSCRIPTIONS</Caption>
+            <Caption style={styles.sectionLabel}>Subscriptions</Caption>
             {subscriptions.map(renderRow)}
           </>
         )}
 
         {bills.length > 0 && (
           <>
-            <Caption style={styles.sectionLabel}>UPCOMING BILLS</Caption>
+            <Caption style={styles.sectionLabel}>Upcoming bills</Caption>
             {bills.map(renderRow)}
           </>
         )}

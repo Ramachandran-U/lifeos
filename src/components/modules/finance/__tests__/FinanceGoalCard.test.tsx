@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react-native';
 import { FinanceGoalCard } from '@/components/modules/finance/FinanceGoalCard';
 
 describe('FinanceGoalCard', () => {
-  it('renders the title and the static eyebrow label', () => {
+  it('renders the title without the dead YOUR GOAL eyebrow (Ink + Signal §3.0.7)', () => {
     render(
       <FinanceGoalCard
         title="Emergency fund"
@@ -14,7 +14,8 @@ describe('FinanceGoalCard', () => {
       />,
     );
     expect(screen.getByText('Emergency fund')).toBeTruthy();
-    expect(screen.getByText('YOUR GOAL')).toBeTruthy();
+    // The caps eyebrow died in the W4 Finance sweep — the title carries the meaning.
+    expect(screen.queryByText('YOUR GOAL')).toBeNull();
   });
 
   it('computes progress percent from saved / target', () => {

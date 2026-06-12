@@ -5,7 +5,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Display, Body, Label, Caption } from '@/components/ui/Typography';
+import { Display, Body, Caption } from '@/components/ui/Typography';
 import { formatMoney } from '@/utils/currency';
 
 interface FinanceGoalCardProps {
@@ -50,7 +50,8 @@ export function FinanceGoalCard({
           <Ionicons name={icon} size={20} color={c.financeText} />
         </View>
         <View style={styles.headerText}>
-          <Label color={c.financeText}>YOUR GOAL</Label>
+          {/* Ink + Signal §3.0.7: the YOUR GOAL caps eyebrow died in the W4
+              Finance sweep (2026-06-12) — the goal-type title carries the meaning. */}
           <Body style={styles.title}>{title}</Body>
         </View>
       </View>

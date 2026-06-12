@@ -53,7 +53,12 @@ const HERO_FILES = [
   'src/components/modules/polymath/SparkHeroCard.tsx',
   'src/components/modules/career/CareerPathHero.tsx',
   'src/components/modules/social/ReconnectHero.tsx',
-  'app/(tabs)/finance.tsx', // Finance hero is inline in the route file (§3.5)
+  'app/(tabs)/finance.tsx', // Finance hero slot lives in the route file (§3.5)
+  // W4 screens batch C (2026-06-12): the finance hero's render states were
+  // extracted to FinanceHero.tsx so the AC8/AC13/R4 unit halves are render-
+  // testable (route files run in neither jest project). The route file above
+  // keeps its stand-in entry — it still owns the testID slot.
+  'src/components/modules/finance/FinanceHero.tsx',
 ] as const;
 
 /**
@@ -101,6 +106,9 @@ const CLUSTER_CREATED_FILES = [
   'src/components/modules/career/CareerSetupSheet.tsx',
   'src/components/modules/career/SavePathModal.tsx',
   'src/components/modules/social/SocialHealthRow.tsx',
+  // W4 screens batch C (2026-06-12): the extracted Finance hero (§3.5 / AC8 /
+  // AC13 unit halves). Also listed in HERO_FILES for the tint/emoji checks.
+  'src/components/modules/finance/FinanceHero.tsx',
   ...SCREEN_FILES,
 ] as const;
 

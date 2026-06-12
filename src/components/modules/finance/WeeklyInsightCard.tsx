@@ -4,7 +4,8 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
-import { Body, Label, Caption } from '@/components/ui/Typography';
+import { Body, Caption } from '@/components/ui/Typography';
+import { SectionTitle } from '@/components/ui/SectionTitle';
 import type { WeeklyFinanceInsight } from '@/ai/types';
 
 interface WeeklyInsightCardProps {
@@ -16,12 +17,10 @@ export function WeeklyInsightCard({ insight }: WeeklyInsightCardProps) {
   const styles = makeStyles(c);
   return (
     <Card style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="sparkles" size={18} color={c.finance} />
-        </View>
-        <Label color={c.finance}>WEEKLY INSIGHT</Label>
-      </View>
+      {/* Ink + Signal §3.0.7: the WEEKLY INSIGHT caps eyebrow died in the W4
+          Finance sweep (2026-06-12) — sentence-case SectionTitle; the sparkles
+          icon bubble went with it (decoration, not meaning). */}
+      <SectionTitle>Weekly insight</SectionTitle>
 
       <Body style={styles.headline}>{insight.headline}</Body>
       <Caption style={styles.insightText}>{insight.insight}</Caption>
@@ -39,19 +38,6 @@ export function WeeklyInsightCard({ insight }: WeeklyInsightCardProps) {
 const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.sm,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  iconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.financeDim,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headline: {
     fontFamily: fonts.heading,
