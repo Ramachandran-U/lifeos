@@ -19,9 +19,7 @@ import { MotivationBanner } from '@/components/shared/MotivationBanner';
 import { format } from 'date-fns';
 import { useUserStore } from '@/store/useUserStore';
 import { useGoalStore } from '@/store/useGoalStore';
-import { useGameStore } from '@/store/useGameStore';
 import { useSyncStore } from '@/store/useSyncStore';
-import { useFlagStore } from '@/store/useFlagStore';
 import { updateGoalStatus, getDeletedGoals, restoreGoal } from '@/db/queries/goals';
 import { getCommentCountsByUser } from '@/db/queries/goalComments';
 import { GOAL_TYPE_LEGEND, useGoalTypeColor } from '@/utils/goalTypeColor';
@@ -50,11 +48,6 @@ export default function GoalsScreen() {
   const getTypeColor = useGoalTypeColor();
   const { userId, primaryDomains } = useUserStore();
   const { goals, loadGoals, removeGoal, snoozeGoal, resumeGoal, reactivateDue } = useGoalStore();
-  const completeGoalNode = useGameStore((s) => s.completeGoalNode);
-  // W3 answer-first: the same flag that mounts NextMoveHero on Today hides
-  // this tab's inline card — the card moves, it does not fork (§3.2). The
-  // JSX + styles are deleted outright at fallback-flip.
-  const answerFirst = useFlagStore((s) => s.isEnabled('today_answer_first_v1'));
   // Re-read when the sync engine applies a remote pull (P1 Increment 3), so a
   // goal synced from another device repaints without a manual reload.
   const syncTick = useSyncStore((s) => s.appliedTick);
@@ -117,7 +110,6 @@ export default function GoalsScreen() {
     return map;
   }, [goals]);
 
-  const dailyTasks = goals.filter((g) => g.level === 'daily' && g.status === 'active');
 
   const postponedGoals = useMemo(
     () => goals.filter((g) => g.status === 'paused'),
@@ -211,16 +203,6 @@ export default function GoalsScreen() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
-
-  const handleCompleteTask = (id: string) => {
-    const goal = goals.find((g) => g.id === id);
-    if (goal?.status === 'completed') return; // don't double-score a re-tap
-    updateGoalStatus(id, 'completed');
-    if (goal && userId) completeGoalNode(userId, goal.goalType, goal.level);
-    if (goal) track(EVENTS.goalCompleted, { goal_id: goal.id, goal_type: goal.goalType, level: goal.level });
-    if (goal) setCompletionToast({ title: goal.title, id: goal.id });
-    if (userId) loadGoals(userId);
   };
 
   const handleUndoComplete = (id: string) => {
@@ -500,38 +482,8 @@ export default function GoalsScreen() {
           <TrajectoryCard lifeGoal={lifeGoal} goals={goals} />
         )}
 
-        {/* YOUR NEXT MOVE — first active daily task. Renders only while
-            today_answer_first_v1 is off: flag-on, Today's NextMoveHero is the
-            single answer surface. */}
-        {!answerFirst && dailyTasks.length > 0 && (
-          <View style={[styles.nextMoveCard, { backgroundColor: c.goalDim, borderColor: c.border }]}>
-            <View style={styles.nextMoveHeader}>
-              <Ionicons name="flash" size={14} color={c.goalText} />
-              <Caption style={{ color: c.goalText, fontFamily: fonts.heading, letterSpacing: 0.5 }}>YOUR NEXT MOVE</Caption>
-            </View>
-            <Body style={[styles.nextMoveTitle, { color: c.textPrimary }]} numberOfLines={2}>
-              {dailyTasks[0].title}
-            </Body>
-            {dailyTasks.length > 1 && (
-              <Caption style={{ color: c.textMuted }}>{`+${dailyTasks.length - 1} more task${dailyTasks.length > 2 ? 's' : ''} today`}</Caption>
-            )}
-            <View style={styles.nextMoveActions}>
-              <Pressable
-                onPress={() => handleCompleteTask(dailyTasks[0].id)}
-                style={[styles.nextMoveBtn, { backgroundColor: c.goal }]}
-              >
-                <Ionicons name="checkmark" size={14} color={c.inkOnColor} />
-                <Caption style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Mark done</Caption>
-              </Pressable>
-              <Pressable
-                onPress={() => openGoalDetail(dailyTasks[0])}
-                style={[styles.nextMoveBtn, { backgroundColor: 'transparent', borderColor: c.border, borderWidth: 1 }]}
-              >
-                <Caption style={{ color: c.goalText, fontFamily: fonts.heading }}>View</Caption>
-              </Pressable>
-            </View>
-          </View>
-        )}
+        {/* The Next Move card moved to Today (NextMoveHero) — deleted here at
+            the today_answer_first_v1 fallback-flip per spec 01 §3.2 / C1-5. */}
 
         {/* NOW — strategic horizon (life / yearly goals) */}
         {nowGoals.length > 0 && (
@@ -770,17 +722,6 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
       paddingVertical: spacing.xs, paddingHorizontal: spacing.sm,
       borderRadius: 10, borderWidth: 1,
-    },
-    nextMoveCard: {
-      borderRadius: 16, borderWidth: 1, padding: spacing.md, gap: spacing.xs,
-    },
-    nextMoveHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-    nextMoveTitle: { fontFamily: fonts.heading, fontSize: fontSizes.lg, lineHeight: fontSizes.lg * 1.3 },
-    nextMoveActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
-    nextMoveBtn: {
-      flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-      paddingVertical: spacing.xs, paddingHorizontal: spacing.md,
-      borderRadius: 10, minHeight: 36,
     },
     completionToast: {
       position: 'absolute', bottom: 110, left: spacing.xl, right: spacing.xl,
