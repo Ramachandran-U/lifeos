@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Label } from '@/components/ui/Typography';
 
@@ -85,7 +85,7 @@ export function AddInterestSheet({ visible, onClose, onAdd, seed }: Props) {
             keyboardType="number-pad"
           />
 
-          <Button title="Add interest" onPress={handleSave} disabled={!name.trim()} />
+          <Button3D title="Add interest" tone="polymath" onPress={handleSave} disabled={!name.trim()} />
         </Pressable>
       </Pressable>
     </Modal>

@@ -33,7 +33,7 @@ export function LevelRing({ xp, size = 80, showLabel = true, ringColor }: Props)
     strokeDasharray: [circ * progress.value, circ - circ * progress.value].join(' '),
   }));
 
-  const stroke = ringColor ?? c.primary;
+  const stroke = ringColor ?? c.xp;
 
   return (
     <View style={{ width: size, height: size }}>

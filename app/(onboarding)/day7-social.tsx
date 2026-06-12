@@ -18,7 +18,7 @@ import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { InkCanvas } from '@/components/shared/InkCanvas';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -223,7 +223,7 @@ export default function Day7SocialScreen() {
               <Body style={{ color: c.social }}>Add another</Body>
             </Pressable>
 
-            <Button title="Save & open Social" onPress={handleContinue} />
+            <Button3D title="Save & open Social" tone="social" onPress={handleContinue} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

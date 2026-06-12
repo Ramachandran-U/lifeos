@@ -20,7 +20,7 @@ export function LevelLadder({ currentLevel }: Props) {
         return (
           <View key={lvl} style={styles.stepGroup}>
             {i > 0 && (
-              <View style={[styles.connector, { backgroundColor: isCurrent ? c.primary : c.border }]} />
+              <View style={[styles.connector, { backgroundColor: isCurrent ? c.xp : c.border }]} />
             )}
             <View style={styles.stepCol}>
               <View
@@ -30,8 +30,8 @@ export function LevelLadder({ currentLevel }: Props) {
                     width: isCurrent ? 68 : 52,
                     height: isCurrent ? 68 : 52,
                     borderRadius: isCurrent ? 34 : 26,
-                    backgroundColor: isCurrent ? c.primary : c.card,
-                    borderColor: isCurrent ? c.primary : c.border,
+                    backgroundColor: isCurrent ? c.xp : c.card,
+                    borderColor: isCurrent ? c.xp : c.border,
                   },
                 ]}
               >
@@ -54,7 +54,7 @@ export function LevelLadder({ currentLevel }: Props) {
                 style={[
                   styles.perkCard,
                   // Current level is data — solid violet border (V5: level surface).
-                  { backgroundColor: c.card, borderColor: isCurrent ? c.primary : c.border },
+                  { backgroundColor: c.card, borderColor: isCurrent ? c.xp : c.border },
                 ]}
               >
                 <Text style={{ fontFamily: fonts.heading, fontSize: 11, color: c.textMuted, marginBottom: 6, letterSpacing: 0.5 }}>
@@ -63,7 +63,7 @@ export function LevelLadder({ currentLevel }: Props) {
                 {perks.length > 0 ? (
                   perks.map((p, pi) => (
                     <View key={pi} style={styles.perkRow}>
-                      <View style={[styles.dot, { backgroundColor: isCurrent ? c.primary : c.textMuted }]} />
+                      <View style={[styles.dot, { backgroundColor: isCurrent ? c.xp : c.textMuted }]} />
                       <Text
                         style={{
                           fontFamily: fonts.body,

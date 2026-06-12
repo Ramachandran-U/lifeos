@@ -71,6 +71,7 @@ export default function DiscoveryIntroScreen() {
         <Animated.View entering={FadeInDown.delay(400).duration(500)} style={styles.copyRow}>
           <Button
             title={copied ? 'Copied ✓' : 'Copy prompt'}
+            variant="primary"
             onPress={handleCopy}
           />
         </Animated.View>
@@ -91,6 +92,7 @@ export default function DiscoveryIntroScreen() {
         <Animated.View entering={FadeInDown.delay(650).duration(500)} style={styles.cta}>
           <Button
             title="I have my response →"
+            variant="primary"
             onPress={() => router.push('/(onboarding)/discovery-paste')}
           />
           <Pressable onPress={() => router.back()} style={styles.skip} hitSlop={8}>

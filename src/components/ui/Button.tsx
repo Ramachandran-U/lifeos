@@ -8,11 +8,18 @@ import { spacing } from '@/theme/spacing';
 import { usePressScale } from '@/hooks/usePressScale';
 import { Body } from './Typography';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'xp';
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   title: string;
-  variant?: ButtonVariant;
+  /**
+   * REQUIRED — violet voice ruling (founder, 2026-06-14): violet means "the
+   * brand or the AI is speaking", never "this is a button". The Aurora-era
+   * silent `primary` default is removed so every call site declares its
+   * voice: `primary` (brand/AI), `xp` (gamification gold), `danger`,
+   * `secondary`/`ghost` (neutral ink).
+   */
+  variant: ButtonVariant;
   style?: ViewStyle;
   /** Shows a spinner beside the label, dims the button, and blocks presses. */
   loading?: boolean;
@@ -25,7 +32,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
 
 export function Button({
   title,
-  variant = 'primary',
+  variant,
   style,
   onPress,
   loading = false,
@@ -45,6 +52,9 @@ export function Button({
     secondary: { bg: 'transparent', text: c.textPrimary, border: c.border },
     ghost: { bg: 'transparent', text: c.textSecondary },
     danger: { bg: c.error, text: c.onPrimary },
+    // Gamification voice — xp gold. onPrimary is per-mode correct: near-black
+    // ink on the bright dark-mode gold, white on the deep light-mode gold.
+    xp: { bg: c.xp, text: c.onPrimary },
   };
   const v = variantStyles[variant];
   const isInteractive = !disabled && !loading;

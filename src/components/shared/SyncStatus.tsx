@@ -47,7 +47,7 @@ export function SyncStatus() {
     case 'pushing':
     case 'pulling':
       label = 'Syncing…';
-      dot = c.primary;
+      dot = c.textSecondary;
       break;
     default:
       label = lastSyncedAt ? `Synced · ${ago(lastSyncedAt)}` : 'Synced · not yet';

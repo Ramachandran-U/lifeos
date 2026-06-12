@@ -11,6 +11,7 @@ import { spacing } from '@/theme/spacing';
 import { MOTION_BUDGET, useMotionScale, useStaggerDelay } from '@/theme/motion';
 import { ModuleHeader } from '@/components/ui/ModuleHeader';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Body, Caption } from '@/components/ui/Typography';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { InkCanvas } from '@/components/shared/InkCanvas';
@@ -371,7 +372,7 @@ function CareerScreenV1() {
                   entering={FadeIn.delay(stagger(3, MOTION_BUDGET.staggerTight)).duration(scaled(MOTION_BUDGET.reveal))}
                   style={styles.actionRow}
                 >
-                  <Button title="Save path" onPress={openSaveModal} style={styles.actionBtn} />
+                  <Button3D title="Save path" tone="career" onPress={openSaveModal} style={styles.actionBtn} />
                   <Button title="Clear" variant="danger" onPress={handleClear} style={styles.actionBtn} />
                 </Animated.View>
 

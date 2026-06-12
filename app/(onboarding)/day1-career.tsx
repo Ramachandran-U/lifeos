@@ -165,6 +165,7 @@ export default function Day1CareerScreen() {
             {!analysis && !loading && (
               <Button3D
                 title="Analyse my skill gaps"
+                tone="career"
                 onPress={handleAnalyse}
                 disabled={!currentRole.trim() || !targetRole.trim()}
                 fullWidth
@@ -197,6 +198,7 @@ export default function Day1CareerScreen() {
 
               <Button3D
                 title="Start building these skills"
+                tone="career"
                 onPress={handleContinue}
                 style={styles.continueButton}
                 fullWidth
@@ -248,15 +250,15 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     alignItems: 'center',
   },
   timelinePillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.career,
+    borderColor: colors.career,
   },
   timelineText: {
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
   },
   timelineTextActive: {
-    color: colors.textPrimary,
+    color: colors.inkOnColor,
     fontFamily: fonts.bodyMedium,
   },
   skillsRow: {

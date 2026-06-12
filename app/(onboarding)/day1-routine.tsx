@@ -328,6 +328,7 @@ export default function Day1RoutineScreen() {
         {!routine && !loading && (
           <Button3D
             title="Generate my routine"
+            tone="primary"
             onPress={handleGenerate}
             disabled={!!scheduleError}
             style={styles.generateButton}
@@ -378,6 +379,7 @@ export default function Day1RoutineScreen() {
 
             <Button3D
               title="Save my routine"
+              tone="primary"
               onPress={handleSave}
               style={styles.saveButton}
               fullWidth

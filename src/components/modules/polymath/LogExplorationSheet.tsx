@@ -3,7 +3,7 @@ import { View, StyleSheet, Modal, Pressable } from 'react-native';
 import { format } from 'date-fns';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Label } from '@/components/ui/Typography';
 
@@ -85,7 +85,7 @@ export function LogExplorationSheet({ visible, interestName, onClose, onLog }: P
             style={styles.notes}
           />
 
-          <Button title="Log session" onPress={handleSave} />
+          <Button3D title="Log session" tone="polymath" onPress={handleSave} />
         </Pressable>
       </Pressable>
     </Modal>

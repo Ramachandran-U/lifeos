@@ -137,7 +137,7 @@ export function AvatarEditSheet({ visible, onClose, onSaved }: AvatarEditSheetPr
           {/* Actions */}
           {mode === 'choose' && (
             <View style={styles.actions}>
-              <Button title="Take photo" onPress={() => pick('camera')} />
+              <Button title="Take photo" variant="secondary" onPress={() => pick('camera')} />
               <Button title="Choose from library" variant="secondary" onPress={() => pick('library')} />
             </View>
           )}
@@ -147,14 +147,14 @@ export function AvatarEditSheet({ visible, onClose, onSaved }: AvatarEditSheetPr
               <Caption style={styles.hint}>
                 We'll turn this into a bold, gamified avatar. Faces work best.
               </Caption>
-              <Button title="Generate avatar" onPress={handleGenerate} disabled={loading} />
+              <Button title="Generate avatar" variant="secondary" onPress={handleGenerate} disabled={loading} />
               <Button title="Pick another" variant="ghost" onPress={() => setMode('choose')} disabled={loading} />
             </View>
           )}
 
           {mode === 'result' && (
             <View style={styles.actions}>
-              <Button title="Use this avatar" onPress={handleSave} />
+              <Button title="Use this avatar" variant="secondary" onPress={handleSave} />
               <Button title="Regenerate" variant="secondary" onPress={handleGenerate} disabled={loading} />
               <Button title="Cancel" variant="ghost" onPress={handleClose} disabled={loading} />
             </View>

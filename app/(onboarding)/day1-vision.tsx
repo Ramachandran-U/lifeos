@@ -108,6 +108,7 @@ export default function Day1VisionScreen() {
             {!hierarchy && !loading && (
               <Button3D
                 title="Build my plan"
+                tone="goal"
                 onPress={handleBuildPlan}
                 disabled={!vision.trim()}
                 fullWidth
@@ -136,7 +137,7 @@ export default function Day1VisionScreen() {
               </Card>
 
               <Card style={styles.previewCard}>
-                <Label color={c.primary}>THIS YEAR</Label>
+                <Label color={c.goalText}>THIS YEAR</Label>
                 <Body>{hierarchy.yearly.title}</Body>
                 <Caption style={styles.milestone}>{hierarchy.yearly.milestone}</Caption>
               </Card>
@@ -144,7 +145,7 @@ export default function Day1VisionScreen() {
               <Label style={styles.sectionLabel}>FIRST 3 MONTHS</Label>
               {hierarchy.monthly.map((m) => (
                 <Card key={m.month} style={styles.monthCard}>
-                  <Label color={c.primary}>MONTH {m.month}</Label>
+                  <Label color={c.goalText}>MONTH {m.month}</Label>
                   <Body>{m.title}</Body>
                   <Caption>{m.milestone}</Caption>
                 </Card>
@@ -153,7 +154,7 @@ export default function Day1VisionScreen() {
               <Label style={styles.sectionLabel}>THIS WEEK</Label>
               {hierarchy.weekly.slice(0, 1).map((w) => (
                 <Card key={w.week} style={styles.previewCard}>
-                  <Label color={c.primary}>WEEK {w.week}: {w.focus}</Label>
+                  <Label color={c.goalText}>WEEK {w.week}: {w.focus}</Label>
                   {w.tasks.map((task, i) => (
                     <Body key={i} style={styles.task}>• {task}</Body>
                   ))}
@@ -169,6 +170,7 @@ export default function Day1VisionScreen() {
 
               <Button3D
                 title="This looks right"
+                tone="goal"
                 onPress={handleConfirm}
                 style={styles.confirmButton}
                 fullWidth
@@ -196,7 +198,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   logo: {
     fontFamily: fonts.display,
     fontSize: fontSizes.xxxl,
-    color: colors.primary,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
@@ -234,7 +236,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     gap: spacing.md,
   },
   previewLabel: {
-    color: colors.primary,
+    color: colors.goalText,
     textAlign: 'center',
     letterSpacing: 2,
   },

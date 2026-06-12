@@ -108,7 +108,7 @@ export function WeeklyBalanceCard({ primaryDomains = [], onRebalanceTomorrow }: 
                 },
               ]}
             >
-              <Ionicons name="sync" size={14} color={c.primary} />
+              <Ionicons name="sync" size={14} color={c.textSecondary} />
               <Body style={{ color: c.textPrimary, flex: 1 }} numberOfLines={1}>
                 {DOMAIN_LABEL[rebalanceTarget]} went silent. Bring it back tomorrow?
               </Body>

@@ -221,7 +221,7 @@ export default function DiscoveryChatScreen() {
 
         {done ? (
           <View style={styles.composer}>
-            <Button title="Review what I know about you" onPress={handleConfirm} />
+            <Button title="Review what I know about you" variant="primary" onPress={handleConfirm} />
           </View>
         ) : (
           <View style={styles.composer}>

@@ -11,6 +11,7 @@ import { spacing } from '@/theme/spacing';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -63,7 +64,7 @@ export default function ExpeditionDetailScreen() {
       <SafeAreaView style={styles.container}>
         <InkCanvas />
         <Body style={[styles.empty, { color: c.textMuted }]}>Expedition not found.</Body>
-        <Button title="Back" onPress={() => router.back()} />
+        <Button title="Back" variant="secondary" onPress={() => router.back()} />
       </SafeAreaView>
     );
   }
@@ -107,8 +108,8 @@ export default function ExpeditionDetailScreen() {
                   <View style={styles.stepHeader}>
                     <View style={[styles.stepNum, { backgroundColor: done ? c.success : isNext ? c.polymath : c.border }]}>
                       {done
-                        ? <Ionicons name="checkmark" size={14} color="#FFF" />
-                        : <Caption style={{ color: '#FFF', fontFamily: fonts.heading }}>{step.index + 1}</Caption>}
+                        ? <Ionicons name="checkmark" size={14} color={c.inkOnColor} />
+                        : <Caption style={{ color: isNext ? c.inkOnColor : c.textPrimary, fontFamily: fonts.heading }}>{step.index + 1}</Caption>}
                     </View>
                     <View style={{ flex: 1 }}>
                       <Body style={{ fontFamily: fonts.heading, color: locked ? c.textMuted : c.textPrimary }}>{step.title}</Body>
@@ -121,7 +122,7 @@ export default function ExpeditionDetailScreen() {
                     <Body style={{ color: c.textSecondary, marginTop: spacing.xs }}>{step.prompt}</Body>
                   )}
                   {isNext && !done && (
-                    <Button title="Mark complete" onPress={() => handleComplete(step.index)} style={{ marginTop: spacing.sm }} />
+                    <Button3D title="Mark complete" tone="polymath" onPress={() => handleComplete(step.index)} style={{ marginTop: spacing.sm }} />
                   )}
                 </Card>
               </Animated.View>

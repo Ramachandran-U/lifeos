@@ -87,9 +87,9 @@ export function DailySummarySheet({ visible, onClose, blocks }: Props) {
         </ScrollView>
         <Pressable
           onPress={onClose}
-          style={({ pressed }) => [styles.doneBtn, { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.doneBtn, { backgroundColor: c.textPrimary, opacity: pressed ? 0.85 : 1 }]}
         >
-          <Body style={{ color: c.onPrimary, fontFamily: fonts.heading }}>Done</Body>
+          <Body style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Done</Body>
         </Pressable>
       </View>
     </Modal>

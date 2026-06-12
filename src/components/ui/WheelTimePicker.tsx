@@ -164,7 +164,7 @@ export function WheelTimePicker({ label, options, selected, onSelect, formatValu
         <View pointerEvents="none" style={[styles.centerBand, {
           top: CENTER_INDEX * ITEM_HEIGHT,
           height: ITEM_HEIGHT,
-          borderColor: c.primary,
+          borderColor: c.textPrimary,
           backgroundColor: c.surfaceAlt,
         }]} />
       </View>

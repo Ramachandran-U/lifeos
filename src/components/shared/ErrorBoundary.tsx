@@ -61,7 +61,7 @@ function ErrorFallback({ error, onReset }: { error: Error; onReset: () => void }
         <Body style={[styles.message, { color: c.textSecondary }]} numberOfLines={4}>
           {error.message || 'Unknown error'}
         </Body>
-        <Pressable onPress={onReset} style={[styles.button, { backgroundColor: c.primary }]}>
+        <Pressable onPress={onReset} style={[styles.button, { backgroundColor: c.textPrimary }]}>
           <Body style={styles.buttonText}>Try again</Body>
         </Pressable>
       </View>
@@ -91,7 +91,7 @@ const makeStyles = (colors: AppColors) =>
       justifyContent: 'center',
     },
     buttonText: {
-      color: '#fff',
+      color: colors.inkOnColor,
       fontFamily: fonts.heading,
       fontSize: fontSizes.md,
     },

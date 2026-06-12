@@ -13,7 +13,7 @@ import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { Heading, Body, Caption } from '@/components/ui/Typography';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import {
   createContact,
@@ -214,7 +214,7 @@ export function AddContactSheet({ visible, userId, onClose, onCreated }: AddCont
 
       <Input label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="Anything worth remembering" multiline />
 
-      <Button title="Add contact" onPress={saveManual} disabled={!name.trim()} />
+      <Button3D title="Add contact" tone="social" onPress={saveManual} disabled={!name.trim()} />
     </ScrollView>
   );
 
@@ -254,8 +254,9 @@ export function AddContactSheet({ visible, userId, onClose, onCreated }: AddCont
           )}
         </ScrollView>
         <View style={{ padding: spacing.lg }}>
-          <Button
+          <Button3D
             title={`Import ${pickedCount} contact${pickedCount === 1 ? '' : 's'}`}
+            tone="social"
             onPress={importPicked}
             disabled={pickedCount === 0}
           />

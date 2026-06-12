@@ -20,6 +20,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { MOTION_BUDGET, SPRING, TIMING } from '@/theme/motion';
 import { useSheetLifecycle } from '@/hooks/useSheetLifecycle';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { useAI } from '@/hooks/useAI';
@@ -250,7 +251,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
             />
 
             {!hierarchy && !decomposing && (
-              <Button title="Break it down" onPress={handleDecompose} disabled={!goalText.trim()} />
+              <Button3D title="Break it down" tone="goal" onPress={handleDecompose} disabled={!goalText.trim()} />
             )}
 
             {decomposing && (
@@ -381,7 +382,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
                 </Animated.View>
 
                 <Animated.View entering={FadeInDown.delay(360).duration(TIMING.normal)} style={styles.actions}>
-                  <Button title="Save goal" onPress={handleSave} />
+                  <Button3D title="Save goal" tone="goal" onPress={handleSave} />
                   <Button title="Close" variant="ghost" onPress={handleClose} />
                 </Animated.View>
               </View>

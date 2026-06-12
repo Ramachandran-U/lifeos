@@ -19,7 +19,7 @@ import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { InkCanvas } from '@/components/shared/InkCanvas';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -231,8 +231,9 @@ export default function Day3HealthScreen() {
               </Caption>
             </Card>
 
-            <Button
+            <Button3D
               title="Save & open Health"
+              tone="health"
               onPress={handleSave}
               disabled={!canSave}
             />

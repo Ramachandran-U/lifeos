@@ -20,6 +20,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { LoadingDots } from '@/components/ui/LoadingDots';
@@ -86,7 +87,7 @@ export default function ContactDetailScreen() {
         <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Caption style={{ color: c.textMuted }}>Contact not found.</Caption>
           <Pressable onPress={() => router.back()} style={{ marginTop: spacing.md }}>
-            <Body style={{ color: c.primary }}>Go back</Body>
+            <Body style={{ color: c.textSecondary }}>Go back</Body>
           </Pressable>
         </SafeAreaView>
       </View>
@@ -188,7 +189,7 @@ export default function ContactDetailScreen() {
             ) : null}
           </View>
 
-          <Button title="Log an interaction" onPress={() => setLogOpen(true)} style={{ marginTop: spacing.md }} />
+          <Button3D title="Log an interaction" tone="social" onPress={() => setLogOpen(true)} style={{ marginTop: spacing.md }} />
 
           {/* Settings rows */}
           <View style={styles.section}>
@@ -239,7 +240,7 @@ export default function ContactDetailScreen() {
                 </View>
               ) : (
                 <View style={{ marginTop: spacing.sm }}>
-                  <Button title="Suggest an opener" onPress={handleGetStarters} />
+                  <Button title="Suggest an opener" variant="secondary" onPress={handleGetStarters} />
                 </View>
               )}
             </Card>
@@ -330,7 +331,7 @@ export default function ContactDetailScreen() {
             keyboardType="number-pad"
             placeholder="e.g. 14"
           />
-          <Button title="Save" onPress={handleSaveCadence} style={{ marginTop: spacing.sm }} />
+          <Button title="Save" variant="secondary" onPress={handleSaveCadence} style={{ marginTop: spacing.sm }} />
         </View>
       </Modal>
     </View>

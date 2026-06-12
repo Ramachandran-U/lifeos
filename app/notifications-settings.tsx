@@ -246,7 +246,7 @@ export default function NotificationsSettingsScreen() {
                   <Switch
                     value={prefs[t.id]}
                     onValueChange={(v) => setToggle(t.id, v)}
-                    trackColor={{ false: c.border, true: c.primary }}
+                    trackColor={{ false: c.border, true: c.primaryDim }}
                     thumbColor="#FFF"
                   />
                 </View>

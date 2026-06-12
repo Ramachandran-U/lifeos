@@ -126,6 +126,7 @@ export default function DiscoveryPasteScreen() {
           ) : (
             <Button
               title="Extract my profile"
+              variant="primary"
               onPress={handleExtract}
               disabled={tooShort}
             />

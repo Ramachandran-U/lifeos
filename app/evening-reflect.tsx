@@ -10,6 +10,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { InkCanvas } from '@/components/shared/InkCanvas';
@@ -388,7 +389,7 @@ export default function EveningReflectScreen() {
                 </Card>
               ))
             )}
-            <Button title="Continue" onPress={goToMood} disabled={!canAdvanceFromBlocks} />
+            <Button3D title="Continue" tone="goal" onPress={goToMood} disabled={!canAdvanceFromBlocks} />
           </Animated.View>
         )}
 
@@ -406,16 +407,16 @@ export default function EveningReflectScreen() {
                     }}
                     style={[
                       styles.moodBtn,
-                      selected && { borderColor: c.primary, backgroundColor: c.primaryDim },
+                      selected && { borderColor: c.goal, backgroundColor: c.goalDim },
                     ]}
                   >
                     <Body style={styles.moodEmoji}>{m.emoji}</Body>
-                    <Caption style={{ color: selected ? c.primary : c.textMuted }}>{m.label}</Caption>
+                    <Caption style={{ color: selected ? c.goalText : c.textMuted }}>{m.label}</Caption>
                   </Pressable>
                 );
               })}
             </View>
-            <Button title="Continue" onPress={goToTomorrow} disabled={mood === null} />
+            <Button3D title="Continue" tone="goal" onPress={goToTomorrow} disabled={mood === null} />
             <Pressable onPress={goToTomorrow} style={styles.skip}>
               <Caption style={{ color: c.textMuted }}>Skip</Caption>
             </Pressable>
@@ -439,7 +440,7 @@ export default function EveningReflectScreen() {
                   <View style={[styles.tweakActions, { flexWrap: 'wrap' }]}>
                     <Button title="Drop it" variant="secondary" onPress={() => decideHabit('drop')} style={{ flex: 1, minWidth: 110 }} />
                     <Button title="Smaller" variant="secondary" onPress={() => decideHabit('smaller')} style={{ flex: 1, minWidth: 110 }} />
-                    <Button title="Keep" onPress={() => decideHabit('keep')} style={{ flex: 1, minWidth: 110 }} />
+                    <Button3D title="Keep" tone="goal" onPress={() => decideHabit('keep')} style={{ flex: 1, minWidth: 110 }} />
                   </View>
                 )}
                 {habitChoice === 'drop' && (
@@ -491,7 +492,7 @@ export default function EveningReflectScreen() {
                 {tweakAccepted === null && (
                   <View style={styles.tweakActions}>
                     <Button title="Dismiss" variant="secondary" onPress={dismissTweak} style={{ flex: 1 }} />
-                    <Button title="Apply" onPress={applyTweak} style={{ flex: 1 }} />
+                    <Button3D title="Apply" tone="goal" onPress={applyTweak} style={{ flex: 1 }} />
                   </View>
                 )}
                 {tweakAccepted === true && (
@@ -519,8 +520,8 @@ export default function EveningReflectScreen() {
                         style={[
                           styles.previewRow,
                           // The applied-tweak target is data — solid border, Dim fill.
-                          { borderColor: isTarget ? c.primary : c.border },
-                          isTarget && { backgroundColor: c.primaryDim },
+                          { borderColor: isTarget ? c.goal : c.border },
+                          isTarget && { backgroundColor: c.goalDim },
                         ]}
                       >
                         <Caption style={{ color: c.textMuted, fontFamily: fonts.heading, width: 52 }}>
@@ -534,8 +535,9 @@ export default function EveningReflectScreen() {
               </>
             )}
 
-            <Button
+            <Button3D
               title={saving ? 'Saving…' : tweakAccepted === null ? 'Finish without applying' : 'Finish'}
+              tone="goal"
               onPress={finish}
               disabled={saving}
             />
@@ -558,7 +560,7 @@ function Stepper({ current }: { current: Step }) {
           key={s}
           style={[
             styles.stepDot,
-            { backgroundColor: i <= idx ? c.primary : c.border },
+            { backgroundColor: i <= idx ? c.goal : c.border },
           ]}
         />
       ))}

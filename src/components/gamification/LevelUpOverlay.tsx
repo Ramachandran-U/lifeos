@@ -34,7 +34,7 @@ export function LevelUpOverlay({ level, userName, onClose }: Props) {
   const perks = LEVEL_PERKS[level] ?? ['New features unlocked', 'Keep going!'];
   const firstName = (userName ?? 'Friend').split(' ')[0];
   const glow = Platform.OS === 'web'
-    ? ({ boxShadow: `0 12px 40px ${c.primary}44` } as unknown as object)
+    ? ({ boxShadow: `0 12px 40px ${c.xp}44` } as unknown as object)
     : undefined;
 
   return (
@@ -48,13 +48,14 @@ export function LevelUpOverlay({ level, userName, onClose }: Props) {
           accessibilityLabel={`Level ${level} reached. Tap to dismiss.`}
           style={[
             styles.banner,
-            // Moment banner — solid violet border (V5: level-up surface).
-            { backgroundColor: c.surface, borderColor: c.primary },
+            // Moment banner — gold-bordered (violet voice ruling 2026-06-14:
+            // level-up is the gamification voice, not the brand's).
+            { backgroundColor: c.surface, borderColor: c.xp },
             glow as object,
           ]}
         >
-          <View style={[styles.levelBadge, { backgroundColor: c.primaryDim, borderColor: c.primary }]}>
-            <Text style={[styles.levelNum, { color: c.primary }]}>{level}</Text>
+          <View style={[styles.levelBadge, { backgroundColor: c.xp, borderColor: c.xp }]}>
+            <Text style={[styles.levelNum, { color: c.inkOnColor }]}>{level}</Text>
           </View>
           <View style={styles.copy}>
             <Text style={[styles.kicker, { color: c.textMuted }]}>LEVEL UP ✨</Text>

@@ -352,7 +352,7 @@ export function GoalDetailSheet({
                   </Caption>
                   <View style={styles.lifecycleRow}>
                     {onRemove && (
-                      <Button title="Remove" onPress={() => onRemove()} style={StyleSheet.flatten([styles.lifecycleBtn, { backgroundColor: c.error }])} />
+                      <Button title="Remove" variant="danger" onPress={() => onRemove()} style={styles.lifecycleBtn} />
                     )}
                     <Button title="Cancel" variant="secondary" onPress={() => setMode('view')} style={styles.lifecycleBtn} />
                   </View>
@@ -405,6 +405,7 @@ export function GoalDetailSheet({
                   <View style={styles.lifecycleRow}>
                     <Button
                       title="Save"
+                      variant="secondary"
                       onPress={handleSaveFields}
                       style={styles.lifecycleBtn}
                     />

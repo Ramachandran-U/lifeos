@@ -18,7 +18,7 @@ import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { InkCanvas } from '@/components/shared/InkCanvas';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -231,15 +231,17 @@ export default function Day14PolymathScreen() {
                 </View>
               </Card>
             ) : (
-              <Button
+              <Button3D
                 title="Suggest adjacent fields"
+                tone="polymath"
                 onPress={handleSuggest}
                 disabled={filledDrafts.length === 0}
               />
             )}
 
-            <Button
+            <Button3D
               title="Save & open Explore"
+              tone="polymath"
               onPress={handleContinue}
               disabled={filledDrafts.length === 0}
             />

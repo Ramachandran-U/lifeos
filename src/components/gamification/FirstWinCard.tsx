@@ -35,6 +35,7 @@ export function FirstWinCard() {
         </AuroraText>
         <Button
           title={STARTER_COPY.firstWinCta}
+          variant="xp"
           onPress={() => router.push('/(tabs)')}
           testID="first-win-cta"
         />

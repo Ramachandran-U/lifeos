@@ -267,6 +267,7 @@ export function CareerSetupSheet({
 
                   <Button3D
                     title="Analyse my career path"
+                    tone="career"
                     loadingTitle="Analysing…"
                     loading={loading}
                     onPress={onAnalyse}
@@ -368,6 +369,7 @@ export function CareerSetupSheet({
 
                   <Button3D
                     title="Generate strategy"
+                    tone="career"
                     loadingTitle="Designing strategy…"
                     loading={loading}
                     onPress={onGenerateStrategy}
