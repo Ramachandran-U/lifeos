@@ -85,7 +85,7 @@ export function ProgressPath({ currentLevel, levelPct, streaks, badgeCount }: Pr
               measuring path length: scale a generous dash by pct). */}
           <Path
             d={legs[0]}
-            stroke={c.primary}
+            stroke={c.xp}
             strokeWidth={3}
             strokeLinecap="round"
             fill="none"
@@ -97,8 +97,8 @@ export function ProgressPath({ currentLevel, levelPct, streaks, badgeCount }: Pr
               cx={xAt(i)}
               cy={yAt(i)}
               r={i === 0 ? 17 : 13}
-              fill={i === 0 ? c.primary : c.card}
-              stroke={i === 0 ? c.primaryDim : c.border}
+              fill={i === 0 ? c.xp : c.card}
+              stroke={i === 0 ? c.badge : c.border}
               strokeWidth={2}
             />
           ))}
@@ -132,7 +132,7 @@ export function ProgressPath({ currentLevel, levelPct, streaks, badgeCount }: Pr
                 </Text>
               ) : null}
               {i === 0 && (
-                <Text style={[styles.youChip, { color: c.primaryDim }]}>YOU ARE HERE</Text>
+                <Text style={[styles.youChip, { color: c.badge }]}>YOU ARE HERE</Text>
               )}
             </View>
           );

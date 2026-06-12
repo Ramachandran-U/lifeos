@@ -395,7 +395,7 @@ export default function EditPrioritiesScreen() {
           </Caption>
 
           <View style={styles.cta}>
-            <Button title={canSave ? 'Save priorities' : 'Pick at least one'} onPress={handleSave} disabled={!canSave} />
+            <Button title={canSave ? 'Save priorities' : 'Pick at least one'} variant="secondary" onPress={handleSave} disabled={!canSave} />
           </View>
         </ScrollView>
       </SafeAreaView>

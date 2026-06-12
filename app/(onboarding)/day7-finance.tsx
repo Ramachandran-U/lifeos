@@ -18,7 +18,7 @@ import { useStaggerDelay } from '@/theme/motion';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { InkCanvas } from '@/components/shared/InkCanvas';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -255,15 +255,16 @@ export default function Day7FinanceScreen() {
                 ) : null}
               </Card>
             ) : (
-              <Button
+              <Button3D
                 title="Generate my plan"
+                tone="finance"
                 onPress={handleGenerate}
                 disabled={!canGenerate}
               />
             )}
 
             {plan ? (
-              <Button title="Save & open Finance" onPress={handleContinue} />
+              <Button3D title="Save & open Finance" tone="finance" onPress={handleContinue} />
             ) : null}
           </View>
         </ScrollView>

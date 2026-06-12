@@ -41,12 +41,19 @@ type Button3DTone =
   | 'social'
   | 'polymath'
   | 'success'
-  | 'danger';
+  | 'danger'
+  | 'xp';
 
 interface Button3DProps extends Omit<PressableProps, 'style'> {
   title: string;
-  /** Filled tone — drives the face colour; the rim is auto-derived (darker). */
-  tone?: Button3DTone;
+  /**
+   * REQUIRED — violet voice ruling (founder, 2026-06-14): violet means "the
+   * brand or the AI is speaking", never "this is a button". The Aurora-era
+   * silent `primary` default is removed so every call site declares its
+   * voice: `primary` (brand/AI), a domain tone, `xp` (gamification gold),
+   * `success`, or `danger`. The rim is auto-derived (darker) from the face.
+   */
+  tone: Button3DTone;
   /** Rim height in px — how "tall" the button sits off the surface. */
   depth?: number;
   /** Shows a spinner beside the label, dims the button, and blocks presses. */
@@ -62,7 +69,7 @@ interface Button3DProps extends Omit<PressableProps, 'style'> {
   style?: ViewStyle;
 }
 
-const TONE_TO_TOKEN: Record<Button3DTone, 'primary' | 'goal' | 'health' | 'finance' | 'career' | 'social' | 'polymath' | 'success' | 'error'> = {
+const TONE_TO_TOKEN: Record<Button3DTone, 'primary' | 'goal' | 'health' | 'finance' | 'career' | 'social' | 'polymath' | 'success' | 'error' | 'xp'> = {
   primary: 'primary',
   goal: 'goal',
   health: 'health',
@@ -72,6 +79,7 @@ const TONE_TO_TOKEN: Record<Button3DTone, 'primary' | 'goal' | 'health' | 'finan
   polymath: 'polymath',
   success: 'success',
   danger: 'error',
+  xp: 'xp',
 };
 
 /** Mix a solid #RRGGBB hex toward black by `ratio` (0–1). Returns input unchanged
@@ -89,7 +97,7 @@ function darken(hex: string, ratio: number): string {
 
 export function Button3D({
   title,
-  tone = 'primary',
+  tone,
   depth = 6,
   loading = false,
   loadingTitle,
@@ -108,9 +116,10 @@ export function Button3D({
 
   const faceColor = c[TONE_TO_TOKEN[tone]];
   const rimColor = darken(faceColor, 0.28);
-  // Domain hues are bright in both modes → inkOnColor; brand/danger fills are
-  // per-mode → onPrimary (light primary is too dark for near-black ink).
-  const labelColor = tone === 'primary' || tone === 'danger' ? c.onPrimary : c.inkOnColor;
+  // Domain hues are bright in both modes → inkOnColor; brand/danger/xp fills
+  // are per-mode → onPrimary (light primary and the deep light-mode xp gold
+  // are too dark for near-black ink).
+  const labelColor = tone === 'primary' || tone === 'danger' || tone === 'xp' ? c.onPrimary : c.inkOnColor;
 
   // 0 = at rest (face lifted, rim showing), 1 = fully pressed (face covers rim).
   const pressed = useSharedValue(0);

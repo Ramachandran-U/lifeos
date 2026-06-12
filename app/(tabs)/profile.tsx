@@ -87,12 +87,12 @@ function Avatar({
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: c.primary,
+        backgroundColor: c.surfaceAlt,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
-      <Body style={{ color: '#FFF', fontFamily: fonts.heading, fontSize: size * 0.4 }}>
+      <Body style={{ color: c.textPrimary, fontFamily: fonts.heading, fontSize: size * 0.4 }}>
         {initials || '?'}
       </Body>
     </View>
@@ -127,20 +127,22 @@ function SegmentedPicker<T extends string>({ value, options, onChange, c }: Segm
             onPress={() => onChange(opt.value)}
             style={[
               styles.segmentLargeBtn,
-              active && { backgroundColor: c.primary },
+              // Ink selected-state: the active chip insets to true black against
+              // the surfaceAlt track (violet voice ruling — never violet).
+              active && { backgroundColor: c.background },
             ]}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
           >
             <AuroraText
               variant="caption"
-              color={active ? '#FFF' : c.textSecondary}
+              color={active ? c.textPrimary : c.textSecondary}
               style={{ fontFamily: active ? fonts.bodyMedium : fonts.body }}
             >
               {opt.label}
             </AuroraText>
             {opt.hint ? (
-              <AuroraText variant="micro" color={active ? '#FFF' : c.textMuted}>
+              <AuroraText variant="micro" color={active ? c.textPrimary : c.textMuted}>
                 {opt.hint}
               </AuroraText>
             ) : null}
@@ -266,8 +268,8 @@ export default function ProfileScreen() {
               accessibilityLabel="Edit profile avatar"
             >
               <Avatar name={name || 'User'} size={72} c={c} uri={avatarUri} />
-              <View style={[styles.avatarBadge, { backgroundColor: c.primary, borderColor: c.background }]}>
-                <Ionicons name="camera" size={12} color="#FFF" />
+              <View style={[styles.avatarBadge, { backgroundColor: c.textPrimary, borderColor: c.background }]}>
+                <Ionicons name="camera" size={12} color={c.inkOnColor} />
               </View>
             </Pressable>
           ) : (
@@ -298,12 +300,12 @@ export default function ProfileScreen() {
                     onPress={() => setRange(r)}
                     style={[
                       styles.segmentBtn,
-                      { backgroundColor: active ? c.primary : 'transparent' },
+                      { backgroundColor: active ? c.surfaceAlt : 'transparent' },
                     ]}
                   >
                     <Caption
                       style={{
-                        color: active ? '#FFF' : c.textSecondary,
+                        color: active ? c.textPrimary : c.textSecondary,
                         fontFamily: fonts.bodyMedium,
                       }}
                     >
@@ -355,7 +357,7 @@ export default function ProfileScreen() {
 
           {stats && stats.buckets.some((v) => v > 0) ? (
             <View style={styles.sparkWrap}>
-              <Sparkline values={stats.buckets} color={c.primary} height={48} />
+              <Sparkline values={stats.buckets} color={c.textSecondary} height={48} />
               <View style={styles.sparkLabels}>
                 <Caption style={{ color: c.textMuted }}>
                   {range === 'day' ? '12am' : 'Mon'}
@@ -467,7 +469,7 @@ export default function ProfileScreen() {
               <Switch
                 value={themeMode === 'dark'}
                 onValueChange={toggleTheme}
-                trackColor={{ false: c.border, true: c.primary }}
+                trackColor={{ false: c.border, true: c.primaryDim }}
                 thumbColor="#FFF"
               />
             </View>

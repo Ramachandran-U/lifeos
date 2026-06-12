@@ -140,7 +140,7 @@ export function PriorityChangeSheet({
                 {!impact.tooLateForToday && (
                   <Button title="Adjust my day now" variant="secondary" onPress={handleNow} style={styles.btn} />
                 )}
-                <Button title="Start fresh tomorrow" onPress={handleTomorrow} style={styles.btn} />
+                <Button title="Start fresh tomorrow" variant="primary" onPress={handleTomorrow} style={styles.btn} />
                 {impact.tooLateForToday && (
                   <Caption style={{ color: c.textMuted, textAlign: 'center' }}>
                     Only {impact.remainingMinutes} min left today — tomorrow is recommended.
@@ -184,7 +184,7 @@ export function PriorityChangeSheet({
               </Body>
               <View style={[styles.actions, { marginTop: spacing.md, flexDirection: 'row', flexWrap: 'wrap' }]}>
                 <Button title="Try again" variant="secondary" onPress={() => onRetry?.()} style={{ flex: 1, minWidth: 110 }} />
-                <Button title="Start tomorrow" onPress={() => onStartTomorrow?.()} style={{ flex: 1, minWidth: 110 }} />
+                <Button title="Start tomorrow" variant="primary" onPress={() => onStartTomorrow?.()} style={{ flex: 1, minWidth: 110 }} />
               </View>
               <Pressable onPress={onSkip} style={styles.skip} hitSlop={8}>
                 <Caption style={{ color: c.textMuted }}>Skip — just save the setting</Caption>
@@ -202,7 +202,7 @@ export function PriorityChangeSheet({
               </Body>
               <View style={[styles.actions, { marginTop: spacing.md, flexDirection: 'row' }]}>
                 <Button title="Undo" variant="secondary" onPress={() => onUndo?.()} style={{ flex: 1 }} />
-                <Button title="Done" onPress={() => onClose?.()} style={{ flex: 1 }} />
+                <Button title="Done" variant="primary" onPress={() => onClose?.()} style={{ flex: 1 }} />
               </View>
             </View>
           )}

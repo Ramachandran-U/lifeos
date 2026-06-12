@@ -145,11 +145,11 @@ export default function WhatLifeOSKnowsScreen() {
               onPress={handleCopyPrompt}
               style={({ pressed }) => [
                 styles.actionBtn,
-                { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1, flex: 1 },
+                { backgroundColor: c.textPrimary, opacity: pressed ? 0.85 : 1, flex: 1 },
               ]}
             >
-              <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
-              <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+              <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color={c.inkOnColor} />
+              <Body style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>
                 {promptCopied ? 'Copied!' : 'Copy AI prompt'}
               </Body>
             </Pressable>
@@ -197,7 +197,7 @@ export default function WhatLifeOSKnowsScreen() {
             <Caption style={{ color: c.textMuted }}>known about you</Caption>
           </View>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: c.primary }]} />
+            <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: c.textPrimary }]} />
           </View>
           <Caption style={{ color: routineUnlocked ? c.success : c.warning, marginTop: spacing.xs }}>
             {routineUnlocked
@@ -218,11 +218,11 @@ export default function WhatLifeOSKnowsScreen() {
               onPress={handleCopyPrompt}
               style={({ pressed }) => [
                 styles.actionBtn,
-                { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1, flex: 1 },
+                { backgroundColor: c.textPrimary, opacity: pressed ? 0.85 : 1, flex: 1 },
               ]}
             >
-              <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
-              <Body style={{ color: '#FFFFFF', fontFamily: fonts.heading }}>
+              <Ionicons name={promptCopied ? 'checkmark' : 'copy-outline'} size={16} color={c.inkOnColor} />
+              <Body style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>
                 {promptCopied ? 'Copied!' : 'Copy AI prompt'}
               </Body>
             </Pressable>
@@ -368,8 +368,8 @@ export default function WhatLifeOSKnowsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: active ? c.primaryDim : c.surface,
-                      borderColor: active ? c.primary : c.border,
+                      backgroundColor: active ? c.surfaceAlt : c.surface,
+                      borderColor: active ? c.textPrimary : c.border,
                     },
                   ]}
                 >
@@ -406,8 +406,8 @@ export default function WhatLifeOSKnowsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: active ? c.primaryDim : c.surface,
-                      borderColor: active ? c.primary : c.border,
+                      backgroundColor: active ? c.surfaceAlt : c.surface,
+                      borderColor: active ? c.textPrimary : c.border,
                     },
                   ]}
                 >
@@ -485,8 +485,8 @@ export default function WhatLifeOSKnowsScreen() {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: active ? c.primaryDim : c.surface,
-                      borderColor: active ? c.primary : c.border,
+                      backgroundColor: active ? c.surfaceAlt : c.surface,
+                      borderColor: active ? c.textPrimary : c.border,
                     },
                   ]}
                 >
@@ -606,10 +606,10 @@ function InferredPrefsCard({
 
       <Pressable
         onPress={() => onRefresh()}
-        style={[styles.refreshBtn, { borderColor: c.primary }]}
+        style={[styles.refreshBtn, { borderColor: c.border }]}
       >
-        <Ionicons name="refresh" size={14} color={c.primary} />
-        <Caption style={{ color: c.primary, fontFamily: fonts.bodyMedium }}>Recompute now</Caption>
+        <Ionicons name="refresh" size={14} color={c.textSecondary} />
+        <Caption style={{ color: c.textPrimary, fontFamily: fonts.bodyMedium }}>Recompute now</Caption>
       </Pressable>
     </Card>
   );
@@ -727,7 +727,7 @@ function ChipList({
             <Pressable
               key={`${item}-${i}`}
               onPress={() => onChange(items.filter((_, idx) => idx !== i))}
-              style={[styles.chip, { borderColor: c.primary, backgroundColor: c.primaryDim }]}
+              style={[styles.chip, { borderColor: c.border, backgroundColor: c.surfaceAlt }]}
             >
               <Caption style={{ color: c.textPrimary }}>{item}</Caption>
               <Caption style={{ color: c.textMuted, marginLeft: 6 }}>×</Caption>
@@ -745,8 +745,8 @@ function ChipList({
           returnKeyType="done"
           style={[styles.textInput, { flex: 1 }]}
         />
-        <Pressable onPress={add} style={[styles.addBtn, { backgroundColor: c.primary }]}>
-          <Caption style={{ color: '#fff', fontFamily: fonts.bodyMedium }}>Add</Caption>
+        <Pressable onPress={add} style={[styles.addBtn, { backgroundColor: c.textPrimary }]}>
+          <Caption style={{ color: c.inkOnColor, fontFamily: fonts.bodyMedium }}>Add</Caption>
         </Pressable>
       </View>
     </View>

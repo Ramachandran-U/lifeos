@@ -41,7 +41,7 @@ export function ChestCard({ chest, onOpen, minimal = false }: Props) {
         style={[styles.minimalRow, { backgroundColor: c.card, borderColor: c.border }]}
       >
         <Text style={[styles.minimalText, { color: c.textPrimary }]}>A reward is waiting</Text>
-        <Text style={[styles.minimalCta, { color: c.primary }]}>Claim</Text>
+        <Text style={[styles.minimalCta, { color: c.xp }]}>Claim</Text>
       </Pressable>
     );
   }

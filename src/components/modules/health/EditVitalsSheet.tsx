@@ -3,7 +3,7 @@ import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import { useColors, type AppColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts } from '@/theme/typography';
-import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Body, Heading, Caption, Label } from '@/components/ui/Typography';
 import { SEX_OPTIONS, ACTIVITY_OPTIONS, GOAL_OPTIONS, type ActivityLevel } from '@/utils/health';
@@ -171,7 +171,7 @@ export function EditVitalsSheet({
               ))}
             </View>
 
-            <Button title="Save" onPress={handleSave} disabled={hasError} />
+            <Button3D title="Save" tone="health" onPress={handleSave} disabled={hasError} />
           </ScrollView>
         </Pressable>
       </Pressable>

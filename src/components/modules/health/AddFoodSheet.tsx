@@ -7,6 +7,7 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
@@ -409,7 +410,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
         </Body>
       </Card>
       {speech.error ? <Body style={styles.voiceError}>{speech.error}</Body> : null}
-      <Button title="Done" onPress={handleVoiceDone} disabled={!speech.transcript.trim()} />
+      <Button3D title="Done" tone="health" onPress={handleVoiceDone} disabled={!speech.transcript.trim()} />
       <Button title="Cancel" variant="ghost" onPress={() => { speech.stop(); setMode('choose'); }} />
     </>
   );
@@ -457,7 +458,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
 
       <View style={styles.form}>
         {Platform.OS === 'web' && canScan && !scannerOn ? (
-          <Button title="📷 Scan with camera" onPress={() => { setBarcodeError(null); setScannerOn(true); }} />
+          <Button3D title="📷 Scan with camera" tone="health" onPress={() => { setBarcodeError(null); setScannerOn(true); }} />
         ) : null}
         {scannerOn ? (
           <Button title="Stop scanning" variant="ghost" onPress={() => setScannerOn(false)} />
@@ -470,8 +471,9 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
           keyboardType="numeric"
         />
         {barcodeError ? <Body style={styles.barcodeError}>{barcodeError}</Body> : null}
-        <Button
+        <Button3D
           title={barcodeBusy ? 'Looking up…' : 'Look up'}
+          tone="health"
           onPress={handleBarcodeLookup}
           disabled={!barcode.trim() || barcodeBusy}
         />
@@ -530,7 +532,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
           <Body>{selectedTotal.calories} cal  |  P: {selectedTotal.protein}g  C: {selectedTotal.carbs}g  F: {selectedTotal.fat}g</Body>
         </Card>
 
-        <Button title="Confirm & save" onPress={handleConfirmRecognised} />
+        <Button3D title="Confirm & save" tone="health" onPress={handleConfirmRecognised} />
         <Button title="Re-scan" variant="ghost" onPress={() => { setMode('choose'); setRecognised(null); }} />
       </>
     );
@@ -587,7 +589,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
           </View>
         </View>
         {manualError ? <Body style={styles.barcodeError}>{manualError}</Body> : null}
-        <Button title={isEditing ? 'Save changes' : 'Add food'} onPress={handleManualSave} disabled={!foodName.trim() || !calories.trim()} />
+        <Button3D title={isEditing ? 'Save changes' : 'Add food'} tone="health" onPress={handleManualSave} disabled={!foodName.trim() || !calories.trim()} />
         <Button title={isEditing ? 'Cancel' : 'Back'} variant="ghost" onPress={() => (isEditing ? handleClose() : setMode('choose'))} />
       </View>
     </>

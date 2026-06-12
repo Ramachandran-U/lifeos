@@ -143,6 +143,7 @@ export default function SignInScreen() {
 
             <Button
               title={loading ? 'Signing in…' : 'Sign in'}
+              variant="primary"
               onPress={handleSignIn}
               disabled={loading}
             />

@@ -166,6 +166,7 @@ export default function SignUpScreen() {
 
             <Button
               title={loading ? 'Creating account…' : 'Create account'}
+              variant="primary"
               onPress={handleRegister}
               disabled={loading}
             />

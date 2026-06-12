@@ -15,8 +15,10 @@ export function BadgeTile({ badgeId, earned, onPress }: Props) {
   const meta = BADGE_META[badgeId];
   const tier = BADGE_TIER[badgeId];
   // Rarity accent from existing tokens — the tier label carries the meaning
-  // (colour-blind safe); colour only reinforces it. Rare = brand violet.
-  const tierColor = tier === 'rare' ? c.primary : tier === 'mastery' ? c.xp : c.badge;
+  // (colour-blind safe); colour only reinforces it. Violet voice ruling
+  // (2026-06-14): gamification never speaks violet — rare = streak ember,
+  // mastery = xp gold, common = badge amber.
+  const tierColor = tier === 'rare' ? c.streak : tier === 'mastery' ? c.xp : c.badge;
   const accent = earned ? tierColor : c.border;
 
   return (

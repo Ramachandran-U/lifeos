@@ -52,14 +52,14 @@ function Avatar({ name, size, c }: { name: string; size: number; c: ReturnType<t
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: c.primary,
+        backgroundColor: c.surfaceAlt,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
       <Body
         style={{
-          color: '#FFF',
+          color: c.textPrimary,
           fontFamily: fonts.heading,
           fontSize: size * 0.38,
         }}
@@ -214,7 +214,7 @@ export function ProfileSidebar({ visible, onClose }: ProfileSidebarProps) {
               <Switch
                 value={mode === 'dark'}
                 onValueChange={toggle}
-                trackColor={{ false: c.border, true: c.primary }}
+                trackColor={{ false: c.border, true: c.primaryDim }}
                 thumbColor="#FFF"
               />
             }

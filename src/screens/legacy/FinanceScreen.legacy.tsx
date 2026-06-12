@@ -371,7 +371,7 @@ export function FinanceScreenLegacy() {
               ))}
             </View>
             {selectedType !== '' && (
-              <Button3D title="Continue" onPress={() => setSetupStep('details')} style={styles.continueBtn} fullWidth />
+              <Button3D title="Continue" tone="primary" onPress={() => setSetupStep('details')} style={styles.continueBtn} fullWidth />
             )}
             </View>
           </ScrollView>
@@ -481,7 +481,7 @@ export function FinanceScreenLegacy() {
                 {error} — please try again.
               </Body>
             )}
-            <Button3D title="Generate my plan" onPress={handleGeneratePlan} style={styles.continueBtn} fullWidth />
+            <Button3D title="Generate my plan" tone="primary" onPress={handleGeneratePlan} style={styles.continueBtn} fullWidth />
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -696,7 +696,7 @@ function OverviewTab({
           <Caption style={styles.connectBody}>
             LifeOS reads HDFC, ICICI, and Axis bank alert emails to categorise spending and surface behavioural insights. Only transaction emails are scanned — nothing is uploaded.
           </Caption>
-          <Button3D title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} fullWidth />
+          <Button3D title="Connect Gmail" tone="primary" onPress={onConnect} style={styles.connectBtn} fullWidth />
         </Card>
       </Animated.View>
     );
@@ -950,7 +950,7 @@ function TransactionsTab({
           Connect Gmail on the Overview tab to start ingesting bank alert emails.
         </Caption>
         {Platform.OS === 'web' && (
-          <Button3D title="Connect Gmail" onPress={onConnect} style={styles.connectBtn} fullWidth />
+          <Button3D title="Connect Gmail" tone="primary" onPress={onConnect} style={styles.connectBtn} fullWidth />
         )}
       </Card>
     );

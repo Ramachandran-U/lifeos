@@ -373,6 +373,7 @@ export function CareerScreenLegacy() {
 
           <Button3D
             title="Analyse my career path"
+            tone="primary"
             onPress={handleAnalyse}
             disabled={!currentRole.trim() || !targetRole.trim() || loading}
             fullWidth
@@ -516,6 +517,7 @@ export function CareerScreenLegacy() {
 
             <Button3D
               title="Generate strategy"
+              tone="primary"
               loadingTitle="Designing strategy…"
               loading={loading}
               onPress={handleGenerateStrategy}
@@ -537,6 +539,7 @@ export function CareerScreenLegacy() {
       <Animated.View entering={FadeInDown.delay(300).duration(400)} style={s.actionRow}>
         <Button
           title="Save path"
+          variant="primary"
           onPress={openSaveModal}
           style={s.actionBtn}
         />

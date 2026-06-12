@@ -117,6 +117,7 @@ export default function WelcomeIntentScreen() {
         <Animated.View entering={FadeInDown.delay(600).duration(600)} style={styles.cta}>
           <Button
             title="Build my day"
+            variant="primary"
             loadingTitle="Building your day…"
             loading={submitting}
             onPress={handleContinue}

@@ -114,14 +114,14 @@ export default function AnnualReviewScreen() {
           <View style={styles.topActions}>
             {report && (
               <Pressable onPress={handleExport} hitSlop={12} style={styles.exportBtn}>
-                <Ionicons name={Platform.OS === 'web' ? 'download-outline' : 'share-outline'} size={18} color={c.primary} />
-                <Caption style={{ color: c.primary, fontFamily: fonts.heading }}>
+                <Ionicons name={Platform.OS === 'web' ? 'download-outline' : 'share-outline'} size={18} color={c.textSecondary} />
+                <Caption style={{ color: c.textPrimary, fontFamily: fonts.heading }}>
                   {Platform.OS === 'web' ? 'Save PDF' : 'Share'}
                 </Caption>
               </Pressable>
             )}
             <Pressable onPress={() => generate({ force: true })} hitSlop={12} disabled={loading}>
-              <Ionicons name="refresh" size={20} color={loading ? c.textMuted : c.primary} />
+              <Ionicons name="refresh" size={20} color={loading ? c.textMuted : c.textSecondary} />
             </Pressable>
           </View>
         </View>

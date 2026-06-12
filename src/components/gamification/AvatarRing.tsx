@@ -43,7 +43,7 @@ export function AvatarRing({ xp, initials, size = 72 }: Props) {
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={c.primary}
+          stroke={c.xp}
           strokeWidth={sw}
           strokeLinecap="round"
           animatedProps={animatedProps}
@@ -57,16 +57,18 @@ export function AvatarRing({ xp, initials, size = 72 }: Props) {
             width: inner,
             height: inner,
             borderRadius: inner / 2,
-            backgroundColor: c.primary,
+            // XP progress ring + level chip speak the gamification gold voice
+            // (violet voice ruling, 2026-06-14) — bright gold fill carries ink.
+            backgroundColor: c.xp,
             alignItems: 'center',
             justifyContent: 'center',
           },
         ]}
       >
-        <Body style={{ fontFamily: fonts.heading, fontSize: size * 0.22, color: '#FFF', lineHeight: size * 0.24 }}>
+        <Body style={{ fontFamily: fonts.heading, fontSize: size * 0.22, color: c.inkOnColor, lineHeight: size * 0.24 }}>
           {initials}
         </Body>
-        <Caption style={{ fontSize: Math.max(9, size * 0.11), color: 'rgba(255,255,255,0.75)' }}>Lv{level}</Caption>
+        <Caption style={{ fontSize: Math.max(9, size * 0.11), color: c.inkOnColor }}>Lv{level}</Caption>
       </View>
     </View>
   );

@@ -42,6 +42,7 @@ export default function WelcomeScreen() {
       <Animated.View entering={FadeInDown.delay(800).duration(TIMING.slow)} style={styles.bottom}>
         <Button3D
           title="Let's build your life plan"
+          tone="primary"
           onPress={() => router.push('/(onboarding)/day1-vision')}
           fullWidth
         />

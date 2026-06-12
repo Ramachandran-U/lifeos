@@ -168,6 +168,7 @@ export default function DiscoveryConfirmScreen() {
         <View style={styles.cta}>
           <Button
             title={ctaTitle(source)}
+            variant="primary"
             loadingTitle="Building your day…"
             loading={seeding}
             onPress={handleConfirm}

@@ -862,16 +862,16 @@ export default function TodayScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Edit routine"
                 >
-                  <Ionicons name="pencil" size={14} color={c.primary} />
-                  <Caption style={{ color: c.primary, fontFamily: fonts.heading }}>Edit routine</Caption>
+                  <Ionicons name="pencil" size={14} color={c.textSecondary} />
+                  <Caption style={{ color: c.textSecondary, fontFamily: fonts.heading }}>Edit routine</Caption>
                 </Pressable>
               </View>
 
               {(showReplanCta || replanning || replanRationale) ? (
                 <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
                   {replanning
-                    ? <ActivityIndicator size="small" color={c.primary} />
-                    : <Ionicons name="refresh" size={20} color={c.primary} />}
+                    ? <ActivityIndicator size="small" color={c.textSecondary} />
+                    : <Ionicons name="refresh" size={20} color={c.textSecondary} />}
                   <View style={{ flex: 1 }}>
                     <Body style={{ color: c.textPrimary, fontFamily: fonts.heading }}>
                       {replanning ? 'Re-planning the rest of today…' : replanRationale ?? 'Day off track?'}
@@ -892,7 +892,7 @@ export default function TodayScreen() {
                         borderRadius: 12,
                       }}
                     >
-                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Re-plan</Caption>
+                      <Caption style={{ color: c.onPrimary, fontFamily: fonts.heading }}>Re-plan</Caption>
                     </Pressable>
                   ) : null}
                 </Card>
@@ -960,8 +960,8 @@ export default function TodayScreen() {
                 ]}
               >
                 {planningWeek
-                  ? <ActivityIndicator size="small" color={c.primary} />
-                  : <Ionicons name="calendar" size={16} color={c.primary} />}
+                  ? <ActivityIndicator size="small" color={c.textSecondary} />
+                  : <Ionicons name="calendar" size={16} color={c.textSecondary} />}
                 <Body style={{ color: c.textPrimary, flex: 1 }}>
                   {planningWeek ? 'Planning your week…' : 'Plan my next 7 days'}
                 </Body>
@@ -977,7 +977,7 @@ export default function TodayScreen() {
                   },
                 ]}
               >
-                <Ionicons name="bar-chart" size={16} color={c.primary} />
+                <Ionicons name="bar-chart" size={16} color={c.textSecondary} />
                 <Body style={{ color: c.textPrimary, flex: 1 }}>View your 28-day report</Body>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
@@ -991,7 +991,7 @@ export default function TodayScreen() {
                   },
                 ]}
               >
-                <Ionicons name="sparkles-outline" size={16} color={c.primary} />
+                <Ionicons name="sparkles-outline" size={16} color={c.textSecondary} />
                 <Body style={{ color: c.textPrimary, flex: 1 }}>Your journey so far</Body>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
@@ -1002,15 +1002,15 @@ export default function TodayScreen() {
                   { backgroundColor: pressed ? c.card : c.surface, borderColor: c.border },
                 ]}
               >
-                <Ionicons name="time-outline" size={16} color={c.primary} />
+                <Ionicons name="time-outline" size={16} color={c.textSecondary} />
                 <Body style={{ color: c.textPrimary, flex: 1 }}>Log yesterday's progress</Body>
                 <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
               </Pressable>
 
               <Card style={[styles.calCard, { marginTop: spacing.sm }]}>
                 <View style={styles.calHeader}>
-                  <Ionicons name="calendar" size={18} color={c.primary} />
-                  <Label color={c.primary}>GOOGLE CALENDAR</Label>
+                  <Ionicons name="calendar" size={18} color={c.textSecondary} />
+                  <Label color={c.textSecondary}>GOOGLE CALENDAR</Label>
                 </View>
                 {calConnected ? (
                   <>
@@ -1019,12 +1019,12 @@ export default function TodayScreen() {
                     </Caption>
                     <View style={styles.calActions}>
                       <Pressable
-                        style={[styles.calPrimary, { backgroundColor: c.primary }, calSyncing && { opacity: 0.6 }]}
+                        style={[styles.calPrimary, { backgroundColor: c.textPrimary }, calSyncing && { opacity: 0.6 }]}
                         onPress={handleCalendarSync}
                         disabled={calSyncing}
                       >
-                        <Ionicons name="sync" size={14} color="#fff" />
-                        <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>
+                        <Ionicons name="sync" size={14} color={c.inkOnColor} />
+                        <Caption style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>
                           {calSyncing ? 'Syncing…' : `Sync ${blocks.length} block${blocks.length === 1 ? '' : 's'}`}
                         </Caption>
                       </Pressable>
@@ -1039,11 +1039,11 @@ export default function TodayScreen() {
                       Block time for your routine on your calendar and get popup reminders before each block.
                     </Caption>
                     <Pressable
-                      style={[styles.calPrimary, { backgroundColor: c.primary, alignSelf: 'flex-start' }]}
+                      style={[styles.calPrimary, { backgroundColor: c.textPrimary, alignSelf: 'flex-start' }]}
                       onPress={handleCalendarConnect}
                     >
-                      <Ionicons name="link" size={14} color="#fff" />
-                      <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Connect Google Calendar</Caption>
+                      <Ionicons name="link" size={14} color={c.inkOnColor} />
+                      <Caption style={{ color: c.inkOnColor, fontFamily: fonts.heading }}>Connect Google Calendar</Caption>
                     </Pressable>
                   </>
                 )}
@@ -1065,7 +1065,7 @@ export default function TodayScreen() {
               accessibilityRole="button"
               accessibilityLabel="Send feedback"
             >
-              <Ionicons name="bug-outline" size={16} color={c.primary} />
+              <Ionicons name="bug-outline" size={16} color={c.textSecondary} />
               <Body style={{ color: c.textPrimary, flex: 1 }}>Send feedback</Body>
               <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
             </Pressable>
@@ -1193,7 +1193,7 @@ export default function TodayScreen() {
                         )}
                       </View>
                     )}
-                    <XpBar pct={prog.pct} color={c.primary} height={6} />
+                    <XpBar pct={prog.pct} color={c.xp} height={6} />
                   </View>
                 </View>
               )}

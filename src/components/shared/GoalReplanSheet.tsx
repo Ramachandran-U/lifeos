@@ -99,7 +99,7 @@ export function GoalReplanSheet({
               </Body>
               <View style={[styles.actions, { marginTop: spacing.md, flexDirection: 'row', gap: spacing.sm }]}>
                 <Button title="Try again" variant="secondary" onPress={() => onRetry?.()} style={{ flex: 1 }} />
-                <Button title="Leave as is" onPress={onSkip} style={{ flex: 1 }} />
+                <Button title="Leave as is" variant="primary" onPress={onSkip} style={{ flex: 1 }} />
               </View>
             </View>
           )}
@@ -114,7 +114,7 @@ export function GoalReplanSheet({
               </Body>
               <View style={[styles.actions, { marginTop: spacing.md, flexDirection: 'row', gap: spacing.sm }]}>
                 <Button title="Undo" variant="secondary" onPress={() => onUndo?.()} style={{ flex: 1 }} />
-                <Button title="Done" onPress={() => onClose?.()} style={{ flex: 1 }} />
+                <Button title="Done" variant="primary" onPress={() => onClose?.()} style={{ flex: 1 }} />
               </View>
             </View>
           )}

@@ -393,7 +393,7 @@ function FinanceScreenV1() {
               ))}
             </View>
             {selectedType !== '' && (
-              <Button3D title="Continue" onPress={() => setSetupStep('details')} style={styles.continueBtn} fullWidth />
+              <Button3D title="Continue" tone="finance" onPress={() => setSetupStep('details')} style={styles.continueBtn} fullWidth />
             )}
             </View>
           </ScrollView>
@@ -503,7 +503,7 @@ function FinanceScreenV1() {
                 {error} — please try again.
               </Body>
             )}
-            <Button3D title="Generate my plan" onPress={handleGeneratePlan} style={styles.continueBtn} fullWidth />
+            <Button3D title="Generate my plan" tone="finance" onPress={handleGeneratePlan} style={styles.continueBtn} fullWidth />
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -1320,7 +1320,9 @@ function severityColor(s: Insight['severity'], c: ReturnType<typeof useColors>):
     case 'notice':
       return c.finance;
     default:
-      return c.primary;
+      // Violet voice ruling (founder, 2026-06-14): insight severity is finance
+      // data, not the brand speaking — default to the domain hue.
+      return c.finance;
   }
 }
 

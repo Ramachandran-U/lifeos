@@ -254,7 +254,7 @@ export default function SettingsScreen() {
                 }
               }}
               trackColor={{ false: c.border, true: c.primaryDim }}
-              thumbColor={notifDailyRoutine ? c.primary : c.textMuted}
+              thumbColor={notifDailyRoutine ? c.textPrimary : c.textMuted}
             />
           </View>
           <View style={styles.switchRow}>
@@ -267,7 +267,7 @@ export default function SettingsScreen() {
                 else await Notifications.cancelScheduledNotificationAsync('goal_task_reminder').catch(() => {});
               }}
               trackColor={{ false: c.border, true: c.primaryDim }}
-              thumbColor={notifGoalReminder ? c.primary : c.textMuted}
+              thumbColor={notifGoalReminder ? c.textPrimary : c.textMuted}
             />
           </View>
           <View style={styles.switchRow}>
@@ -280,7 +280,7 @@ export default function SettingsScreen() {
                 else await Notifications.cancelScheduledNotificationAsync('streak_at_risk').catch(() => {});
               }}
               trackColor={{ false: c.border, true: c.primaryDim }}
-              thumbColor={notifStreakAtRisk ? c.primary : c.textMuted}
+              thumbColor={notifStreakAtRisk ? c.textPrimary : c.textMuted}
             />
           </View>
           <View style={styles.switchRow}>
@@ -293,7 +293,7 @@ export default function SettingsScreen() {
                 else await Notifications.cancelScheduledNotificationAsync('social_overdue').catch(() => {});
               }}
               trackColor={{ false: c.border, true: c.primaryDim }}
-              thumbColor={notifSocialNudge ? c.primary : c.textMuted}
+              thumbColor={notifSocialNudge ? c.textPrimary : c.textMuted}
             />
           </View>
         </Card>
@@ -312,7 +312,7 @@ export default function SettingsScreen() {
               value={themeMode === 'light'}
               onValueChange={(val) => setThemeMode(val ? 'light' : 'dark')}
               trackColor={{ false: c.border, true: c.primaryDim }}
-              thumbColor={themeMode === 'light' ? c.primary : c.textMuted}
+              thumbColor={themeMode === 'light' ? c.textPrimary : c.textMuted}
             />
           </View>
           {/* M5 (soundEffects): celebration micro-sounds, strictly opt-in.
@@ -326,7 +326,7 @@ export default function SettingsScreen() {
               value={soundEnabled}
               onValueChange={setSoundEnabled}
               trackColor={{ false: c.border, true: c.primaryDim }}
-              thumbColor={soundEnabled ? c.primary : c.textMuted}
+              thumbColor={soundEnabled ? c.textPrimary : c.textMuted}
             />
           </View>
         </Card>
@@ -342,7 +342,7 @@ export default function SettingsScreen() {
               value={telemetryEnabled}
               onValueChange={setTelemetryEnabled}
               trackColor={{ false: c.border, true: c.primaryDim }}
-              thumbColor={telemetryEnabled ? c.primary : c.textMuted}
+              thumbColor={telemetryEnabled ? c.textPrimary : c.textMuted}
             />
           </View>
         </Card>

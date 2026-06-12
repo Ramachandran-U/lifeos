@@ -51,7 +51,7 @@ export default function FeedbackScreen() {
               <Body style={styles.thanksBody}>
                 We read every message. If you left an email we'll reply when something ships.
               </Body>
-              <Button title="Done" onPress={() => router.back()} style={styles.doneBtn} />
+              <Button title="Done" variant="secondary" onPress={() => router.back()} style={styles.doneBtn} />
             </Card>
           </Animated.View>
         </View>
@@ -109,6 +109,7 @@ export default function FeedbackScreen() {
 
             <Button
               title={status === 'submitting' ? 'Sending…' : 'Send feedback'}
+              variant="secondary"
               onPress={handleSubmit}
               disabled={status === 'submitting'}
             />

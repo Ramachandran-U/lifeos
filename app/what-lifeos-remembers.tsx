@@ -138,7 +138,7 @@ export default function WhatLifeOSRemembersScreen() {
           <Body style={{ color: c.textSecondary }}>← Back</Body>
         </Pressable>
         <Pressable onPress={handleConsolidate} hitSlop={12} disabled={refreshing}>
-          <Caption style={{ color: refreshing ? c.textMuted : c.primary, fontFamily: fonts.bodyMedium }}>
+          <Caption style={{ color: refreshing ? c.textMuted : c.textPrimary, fontFamily: fonts.bodyMedium }}>
             {refreshing ? 'Thinking…' : 'Refresh'}
           </Caption>
         </Pressable>
@@ -152,8 +152,8 @@ export default function WhatLifeOSRemembersScreen() {
         </Body>
 
         <Pressable onPress={openAdd} style={styles.addBtn}>
-          <Ionicons name="add-circle-outline" size={18} color={c.primary} />
-          <Caption style={{ color: c.primary, fontFamily: fonts.bodyMedium }}>Add a memory</Caption>
+          <Ionicons name="add-circle-outline" size={18} color={c.textSecondary} />
+          <Caption style={{ color: c.textPrimary, fontFamily: fonts.bodyMedium }}>Add a memory</Caption>
         </Pressable>
 
         {loading ? (
@@ -174,7 +174,7 @@ export default function WhatLifeOSRemembersScreen() {
             {grouped.map((g) => (
               <Card key={g.kind} style={styles.section}>
                 <View style={styles.sectionHead}>
-                  <Ionicons name={KIND_META[g.kind].icon} size={18} color={c.primary} />
+                  <Ionicons name={KIND_META[g.kind].icon} size={18} color={c.textSecondary} />
                   <Body style={styles.sectionTitle}>{KIND_META[g.kind].label}</Body>
                   <Caption style={{ color: c.textMuted, marginLeft: 'auto' }}>{g.items.length}</Caption>
                 </View>
@@ -201,7 +201,7 @@ export default function WhatLifeOSRemembersScreen() {
                                 styles.strengthFill,
                                 {
                                   width: `${Math.round(strength * 100)}%`,
-                                  backgroundColor: f.pinned ? c.success : c.primary,
+                                  backgroundColor: f.pinned ? c.success : c.textMuted,
                                 },
                               ]}
                             />
@@ -319,13 +319,13 @@ function FactEditorModal({
                   style={[
                     editorStyles.kindChip,
                     {
-                      borderColor: active ? c.primary : c.border,
-                      backgroundColor: active ? c.primaryDim : 'transparent',
+                      borderColor: active ? c.textPrimary : c.border,
+                      backgroundColor: active ? c.surfaceAlt : 'transparent',
                     },
                   ]}
                 >
-                  <Ionicons name={KIND_META[k].icon} size={13} color={active ? c.primary : c.textSecondary} />
-                  <Caption style={{ color: active ? c.primary : c.textSecondary }}>{KIND_META[k].label}</Caption>
+                  <Ionicons name={KIND_META[k].icon} size={13} color={active ? c.textPrimary : c.textSecondary} />
+                  <Caption style={{ color: active ? c.textPrimary : c.textSecondary }}>{KIND_META[k].label}</Caption>
                 </Pressable>
               );
             })}
@@ -337,9 +337,9 @@ function FactEditorModal({
             <Pressable
               onPress={() => onSave(text, kind)}
               disabled={!text.trim()}
-              style={[editorStyles.saveBtn, { backgroundColor: c.primary, opacity: text.trim() ? 1 : 0.5 }]}
+              style={[editorStyles.saveBtn, { backgroundColor: c.textPrimary, opacity: text.trim() ? 1 : 0.5 }]}
             >
-              <Body style={{ color: '#FFFFFF', fontFamily: fonts.bodyMedium }}>Save</Body>
+              <Body style={{ color: c.inkOnColor, fontFamily: fonts.bodyMedium }}>Save</Body>
             </Pressable>
           </View>
         </Pressable>

@@ -70,8 +70,11 @@ export const darkColors = {
   success: '#00D68F',
   warning: '#FFC53D',
   error:   '#FF6166',
-  // Gamification (violet on xp only — policy V5; badges are gold, not violet)
-  xp:     '#9D8CFF',
+  // Gamification — the gold/ember voice (violet voice ruling, founder
+  // 2026-06-14: violet is the brand/AI voice, never gamification — the old
+  // policy-V5 violet xp #9D8CFF is retired). xp is a bright gold, distinct
+  // from the badge/finance gold and the streak ember.
+  xp:     '#FFD60A',
   streak: '#FF8C3C',
   badge:  '#FFB300',
   // Brand violet ("Signal") — the one brand accent; see violet policy §A.4.
@@ -115,8 +118,11 @@ export const lightColors = {
   success: '#047857',
   warning: '#8A5800',
   error:   '#C2243B',
-  // Gamification (light text forms; badge FILLS stay #FFB300 + inkOnColor in both modes)
-  xp:     '#5B4FE8',
+  // Gamification (light text forms; badge FILLS stay #FFB300 + inkOnColor in
+  // both modes). xp leaves the violet family (violet voice ruling, founder
+  // 2026-06-14) for the deep gold text form badge/warning already use —
+  // ≥ 4.5:1 on white, and onPrimary white clears AA on it as a fill.
+  xp:     '#8A5800',
   streak: '#C2410C',
   badge:  '#8A5800',
   // Brand

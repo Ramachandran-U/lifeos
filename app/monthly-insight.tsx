@@ -61,7 +61,7 @@ export default function MonthlyInsightScreen() {
             <Ionicons name="chevron-back" size={26} color={c.textPrimary} />
           </Pressable>
           <Pressable onPress={generate} hitSlop={12} disabled={loading}>
-            <Ionicons name="refresh" size={20} color={loading ? c.textMuted : c.primary} />
+            <Ionicons name="refresh" size={20} color={loading ? c.textMuted : c.textSecondary} />
           </Pressable>
         </View>
 

@@ -113,7 +113,7 @@ export function GoalRebalanceSheet({
               </ScrollView>
               <View style={[styles.actions, { flexDirection: 'row', gap: spacing.sm }]}>
                 <Button title="Not now" variant="secondary" onPress={onDismiss} style={{ flex: 1 }} />
-                <Button title="Apply targets" onPress={handleConfirm} style={{ flex: 1 }} />
+                <Button title="Apply targets" variant="primary" onPress={handleConfirm} style={{ flex: 1 }} />
               </View>
             </>
           )}
@@ -128,7 +128,7 @@ export function GoalRebalanceSheet({
               </Body>
               <View style={[styles.actions, { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }]}>
                 <Button title="Try again" variant="secondary" onPress={() => onRetry?.()} style={{ flex: 1 }} />
-                <Button title="Dismiss" onPress={onDismiss} style={{ flex: 1 }} />
+                <Button title="Dismiss" variant="primary" onPress={onDismiss} style={{ flex: 1 }} />
               </View>
             </View>
           )}
@@ -141,7 +141,7 @@ export function GoalRebalanceSheet({
               <Body style={{ color: c.textSecondary, textAlign: 'center', marginTop: spacing.xs }}>
                 Your weekly hour targets are updated. The planner will use them when building tomorrow's routine.
               </Body>
-              <Button title="Done" onPress={onDismiss} style={{ marginTop: spacing.md }} />
+              <Button title="Done" variant="primary" onPress={onDismiss} style={{ marginTop: spacing.md }} />
             </View>
           )}
         </View>

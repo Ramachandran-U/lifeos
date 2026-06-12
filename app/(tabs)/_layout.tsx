@@ -14,11 +14,13 @@ type TabIcon = {
 
 function getTabConfig(c: ReturnType<typeof useColors>): Record<string, TabIcon> {
   return {
-    index:   { name: 'home',           activeColor: c.primary  },
-    life:    { name: 'grid',           activeColor: c.primary  },
-    explore: { name: 'compass',        activeColor: c.polymath },
-    rewards: { name: 'trophy',         activeColor: c.xp       },
-    profile: { name: 'person-circle',  activeColor: c.primary  },
+    // Violet voice ruling (2026-06-14): violet is never a selection state.
+    // Domain tabs keep their meaningful hues; neutral tabs select in ink.
+    index:   { name: 'home',           activeColor: c.textPrimary },
+    life:    { name: 'grid',           activeColor: c.textPrimary },
+    explore: { name: 'compass',        activeColor: c.polymath    },
+    rewards: { name: 'trophy',         activeColor: c.xp          },
+    profile: { name: 'person-circle',  activeColor: c.textPrimary },
   };
 }
 
@@ -39,7 +41,7 @@ export default function TabLayout() {
         },
       }}
       screenOptions={({ route }) => {
-        const config = tabConfig[route.name] ?? { name: 'ellipse' as const, activeColor: c.primary };
+        const config = tabConfig[route.name] ?? { name: 'ellipse' as const, activeColor: c.textPrimary };
         return {
           ...transition,
           headerShown: false,

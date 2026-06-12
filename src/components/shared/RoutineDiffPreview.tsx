@@ -112,6 +112,7 @@ export function RoutineDiffPreview({ existing, plan, loading, onConfirm, onCance
         <Button title="Cancel" variant="secondary" onPress={onCancel} style={{ flex: 1 }} disabled={loading} />
         <Button
           title={loading ? 'Planning…' : (totalChanges === 0 ? 'Close' : 'Apply')}
+          variant="primary"
           onPress={onConfirm}
           style={{ flex: 1 }}
           disabled={loading}

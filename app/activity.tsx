@@ -36,7 +36,7 @@ const iconFor = (entity: string): keyof typeof Ionicons.glyphMap =>
 function opColor(op: ActivityItem['op'], c: AppColors): string {
   if (op === 'insert') return c.success;
   if (op === 'delete') return c.warning;
-  return c.primary;
+  return c.textSecondary;
 }
 
 function dayLabel(day: string): string {
@@ -141,7 +141,7 @@ export default function ActivityScreen() {
               <Ionicons
                 name="refresh"
                 size={20}
-                color={status === 'loading' ? c.textMuted : c.primary}
+                color={status === 'loading' ? c.textMuted : c.textSecondary}
               />
             </Pressable>
           ) : (
@@ -321,10 +321,10 @@ function TimelineView({
                       onPress={() => onRestore(entry)}
                       style={({ pressed }) => [
                         styles.restoreBtn,
-                        { borderColor: c.primary, backgroundColor: pressed ? c.primaryDim : 'transparent' },
+                        { borderColor: c.border, backgroundColor: pressed ? c.surfaceAlt : 'transparent' },
                       ]}
                     >
-                      <Label color={c.primary}>RESTORE</Label>
+                      <Label color={c.textPrimary}>RESTORE</Label>
                     </Pressable>
                   ) : null}
                 </View>

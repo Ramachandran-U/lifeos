@@ -162,7 +162,7 @@ export function OvercommitmentCard({ userId, date }: Props) {
       </View>
       <View style={styles.actions}>
         <Button title="Not now" variant="secondary" onPress={handleDismiss} style={{ flex: 1 }} />
-        <Button title="Open my plan" onPress={handleOpenPlan} style={{ flex: 1 }} />
+        <Button title="Open my plan" variant="primary" onPress={handleOpenPlan} style={{ flex: 1 }} />
       </View>
     </Card>
   );

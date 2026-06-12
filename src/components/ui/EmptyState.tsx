@@ -41,6 +41,9 @@ export function EmptyState({ icon, title, caption, accent, trustNote, cta, style
       {cta ? (
         <Button
           title={cta.label}
+          // Component default — sanctioned brand voice (violet ruling, founder
+          // 2026-06-14): the empty-state CTA keeps the brand fill.
+          variant="primary"
           onPress={cta.onPress}
           loading={cta.loading}
           style={styles.cta}

@@ -7,6 +7,7 @@ import { fonts, fontSizes } from '@/theme/typography';
 import { Caption, Heading, Label } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Button3D } from '@/components/ui/Button3D';
 
 interface Props {
   depth: number;
@@ -39,7 +40,7 @@ export function RabbitHoleExitSummary({ depth, branches, synapses, xp, onDone }:
       />
       <View style={styles.row}>
         <Button title="Name & keep" variant="secondary" onPress={() => onDone(name.trim() || null)} style={styles.btn} />
-        <Button title="Done" onPress={() => onDone(null)} style={styles.btn} />
+        <Button3D title="Done" tone="polymath" onPress={() => onDone(null)} style={styles.btn} />
       </View>
     </Card>
   );

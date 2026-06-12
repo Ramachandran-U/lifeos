@@ -93,7 +93,7 @@ export function ChestOpenOverlay({ visible, onOpen, onClose }: Props) {
       style={[styles.scrim, { backgroundColor: c.overlay }]}
     >
       {revealed && !reduceMotion && (
-        <CelebrationBurst palette={[c.xp, c.primaryDim, c.streak]} count={16} size={8} originTop={220} />
+        <CelebrationBurst palette={[c.xp, c.badge, c.streak]} count={16} size={8} originTop={220} />
       )}
 
       {!revealed ? (
@@ -110,9 +110,9 @@ export function ChestOpenOverlay({ visible, onOpen, onClose }: Props) {
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel="Dismiss chest reward"
-            style={[styles.cta, { backgroundColor: c.primary }]}
+            style={[styles.cta, { backgroundColor: c.xp }]}
           >
-            <Text style={[styles.ctaText, { color: c.textPrimary }]}>Nice</Text>
+            <Text style={[styles.ctaText, { color: c.inkOnColor }]}>Nice</Text>
           </Pressable>
         </Animated.View>
       )}
