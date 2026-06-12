@@ -23,9 +23,11 @@ test.describe('Today — fully-loaded render [B-P0]', () => {
     await page.goto('/');
     await page.waitForURL((url) => !url.pathname.includes('/(auth)/sign'), { timeout: 10_000 }).catch(() => undefined);
 
-    // Greeting ("Good morning/afternoon/evening, …") proves Today mounted with
-    // the gamestore + colors hook resolved (smoke's home contract).
-    await expect(page.getByText('Good ').first()).toBeVisible({ timeout: 15_000 });
+    // The greeting proves Today mounted with the gamestore + colors hook
+    // resolved (smoke's home contract). today_answer_first_v1 renders
+    // "Morning/Afternoon/Evening, …" via TodayHeader — anchor on its testID
+    // instead of the legacy "Good …" copy.
+    await expect(page.getByTestId('today-greeting')).toBeVisible({ timeout: 15_000 });
 
     // Routine blocks were seeded for today — the with-data home path executed.
     await expect

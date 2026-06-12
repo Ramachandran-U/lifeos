@@ -53,11 +53,16 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   priorityAdjust: true,
   exploreAgenticPrefetch: false,
   profileAvatarGen: false,
-  motionPolish: false,
-  motionTransitions: false,
-  celebrationEngine: false,
-  riveCompanion: false,
-  animatedCharts: false,
+  // Aurora Alive motion track defaults flipped ON 2026-06-14 (founder-directed
+  // next-wave rollout — these ran on the dogfood preview since 2026-06-10).
+  // Kill switch: setFlagOverride or the EXPO_PUBLIC_FLAG_* env at build time.
+  motionPolish: true,
+  motionTransitions: true,
+  celebrationEngine: true,
+  riveCompanion: true,
+  animatedCharts: true,
+  // Deliberately stays OFF: sound is opt-in by design (M5) — the soundEnabled
+  // preference sits on top of this flag, and the flag stays the master gate.
   soundEffects: false,
 });
 

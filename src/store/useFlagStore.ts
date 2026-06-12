@@ -57,16 +57,17 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   explore_agentic_thread: true,
   explore_frontier: true,
   rabbit_hole_tree_map: true,
-  // Aurora Alive retention mechanics (UI/UX revamp program). Runtime flags,
-  // default OFF — flip on per-cohort from the Worker /v1/config; each is a
-  // remote kill switch for its wave. All additionally respect
+  // Aurora Alive retention mechanics (UI/UX revamp program). Defaults flipped
+  // ON 2026-06-14 (founder-directed next-wave rollout; they ran on the dogfood
+  // preview since 2026-06-10). Each remains a remote kill switch via a `false`
+  // row in the Worker flags table, and every surface additionally respects
   // usePreferencesStore.gamification !== 'off' at the render layer.
-  streak_protection_v1: false, // W1: earned freezes + milestone tiers + 24h recovery
-  quests_v2: false,            // W2: DB-backed procedural daily quests + claim/reroll
-  variable_rewards_v1: false,  // W3: chest drops on peak beats (additive only, no timers)
-  companion_v1: false,         // W4: companion mood/reactions (product layer)
-  comeback_v1: false,          // W4: comeback chest + recovery quest + gentle nudge
-  progress_map_v1: false,      // W5: ProgressPath replaces LevelLadder on Rewards
+  streak_protection_v1: true, // W1: earned freezes + milestone tiers + 24h recovery
+  quests_v2: true,            // W2: DB-backed procedural daily quests + claim/reroll
+  variable_rewards_v1: true,  // W3: chest drops on peak beats (additive only, no timers)
+  companion_v1: true,         // W4: companion mood/reactions (product layer)
+  comeback_v1: true,          // W4: comeback chest + recovery quest + gentle nudge
+  progress_map_v1: true,      // W5: ProgressPath replaces LevelLadder on Rewards
   // Module-screen hierarchy v1: hero-first recomposition of Health / Explore /
   // Career / Social / Finance tabs + ConnectRow collapse + SectionTitle swap.
   // Default ON (founder rollout call, 2026-06-13; graduation clock in
@@ -162,7 +163,9 @@ export const useFlagStore = create<FlagState>()(
       // fallback-flipped true (R12 — flip takes the next unused version) and
       // module_hierarchy_v1 flipped true; drop persisted `false` values so
       // existing installs pick up the recompositions.
-      name: 'lifeos_flags_v5',
+      // Bumped to v6 (2026-06-14): the six Aurora Alive retention flags
+      // flipped default-on; drop persisted `false` values.
+      name: 'lifeos_flags_v6',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },

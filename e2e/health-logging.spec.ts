@@ -1,11 +1,13 @@
 /**
  * Health quick-logging flows — #72 / #74 / #75 coverage (water + energy).
  *
- * The Health tab ships always-visible WaterCard and EnergyCard quick-loggers.
- * Each tap writes a health_log row (waterMl / energyLevel) and the parent
- * reloads, re-rendering the card with the new total/selection. These are the
- * mutate-then-re-render flows unit tests can't catch. No AI, no flags, no
- * collapsible — both cards render on first paint.
+ * module_hierarchy_v1 recomposed Health hero-first: the legacy HYDRATION /
+ * ENERGY cards are now plain hairline ROWS under the `Today` SectionTitle.
+ * Water logs one 250 ml glass per "+ glass" tap; Energy opens an inline 1–5
+ * pill picker. Each tap writes a health_log row (waterMl / energyLevel) and
+ * the parent reloads, re-rendering the row with the new total/selection.
+ * These are the mutate-then-re-render flows unit tests can't catch. No AI,
+ * both rows render on first paint.
  *
  * `chromium` project — seeds its own localStorage, real tap interactions.
  */
@@ -26,24 +28,22 @@ test.describe('Health — water & energy quick-log [#72/#74/#75]', () => {
     await page.waitForURL((url) => !url.pathname.includes('/(auth)/sign'), { timeout: 10_000 }).catch(() => undefined);
     await page.goto('/(tabs)/health');
 
-    // Health tab mounts; HYDRATION card is a stable anchor.
+    // Health tab mounts; the V1 hero is the stable anchor.
     await expect(page.getByText('Health').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('HYDRATION')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('health-hero')).toBeVisible({ timeout: 10_000 });
 
-    // ── Water: starts at 0.0 L. Adding 500ml twice → 1.0 L (goal 2.5 L). ──
-    // The "0 / 2.5 L" total is rendered as separate text nodes, so assert via
-    // the accessible add buttons instead. After two adds the Undo affordance
-    // (only shown when totalMl > 0) must appear — proof the log persisted and
-    // the card re-rendered.
-    const add500 = page.getByRole('button', { name: 'Add 500 millilitres of water' });
-    await expect(add500).toBeVisible();
-    await add500.click();
-    await add500.click();
+    // ── Water: starts at 0 ml. One glass = 250 ml; two taps → 500 ml. ──
+    // The default seed has no weight baseline, so the goal is the 2500 ml
+    // fallback and the row re-renders "250 / 2500 ml" then "500 / 2500 ml" —
+    // proof each log persisted and the row re-rendered.
+    const addGlass = page.getByRole('button', { name: 'Add a glass of water' });
+    await expect(addGlass).toBeVisible({ timeout: 10_000 });
+    await addGlass.click();
+    await expect(page.getByText('250 / 2500 ml')).toBeVisible({ timeout: 8_000 });
+    await addGlass.click();
+    await expect(page.getByText('500 / 2500 ml')).toBeVisible({ timeout: 8_000 });
 
-    // Undo only renders once totalMl > 0 → confirms the increment took effect.
-    await expect(page.getByRole('button', { name: 'Undo last water' })).toBeVisible({ timeout: 8_000 });
-
-    // The persisted water rows are summed for today. 2 × 500ml = 1000ml.
+    // The persisted water rows are summed for today. 2 × 250 ml = 500 ml.
     await expect
       .poll(async () =>
         page.evaluate(() => {
@@ -55,15 +55,20 @@ test.describe('Health — water & energy quick-log [#72/#74/#75]', () => {
             return -1;
           }
         }), { timeout: 8_000 })
-      .toBe(1000);
+      .toBe(500);
 
-    // ── Energy: tap "Good" (level 4). The header then shows the level label. ──
-    const energyGood = page.getByRole('button', { name: 'Energy Good' });
-    await expect(energyGood).toBeVisible();
-    await energyGood.click();
+    // ── Energy: open the inline 1–5 pill picker via the row's Log action,
+    // pick level 4. The picker closes and the row shows the logged value. ──
+    await page.getByRole('button', { name: 'Log energy' }).click();
+    const pill4 = page.getByRole('button', { name: 'Energy 4 of 5', exact: true });
+    await expect(pill4).toBeVisible({ timeout: 8_000 });
+    await pill4.click();
 
-    // Selecting an energy level persists energyLevel=4 and re-renders the header
-    // with the matching label.
+    // Selecting an energy level persists energyLevel=4 and re-renders the row
+    // ("4 / 5", relabelled for re-logging).
+    await expect(
+      page.getByRole('button', { name: 'Energy 4 of 5, tap to change' }),
+    ).toBeVisible({ timeout: 8_000 });
     await expect
       .poll(async () =>
         page.evaluate(() => {
