@@ -168,33 +168,47 @@ test.describe('Cold start — Profile (AC-6)', () => {
   });
 });
 
-test.describe('Cold start — Explore, Health, Today (AC-7)', () => {
-  test('Explore: THIS WEEK starter line, no "0 min"', async ({ page }) => {
+test.describe('Cold start — Explore, Health, Today (AC-7, as amended by R5/R6/R7)', () => {
+  // 2026-06-13 fallback-flip: module_hierarchy_v1 + today_answer_first_v1 are
+  // default-on, activating the resolutions the criterion note anticipated
+  // ("Amended by resolutions 5, 6, and 7 once Clusters 1/4 flags are on"):
+  // R5 — Explore renders NOTHING at zero week-minutes (no THIS WEEK label, no
+  //      starter line); the day-1 invitation lives in the Explore hero.
+  // R6 — Health streak rows render only at n>0; no starter line, no zeros.
+  // R7 — the Today header XP caption exists only in the legacy (flag-off)
+  //      branch; flag-on, the header carries no XP surface at all.
+  // The legacy-branch contracts stay covered by the jest legacy snapshots and
+  // remain reachable via the Worker kill switch.
+
+  test('Explore (R5): hero answers; nothing renders for the zero week stat', async ({ page }) => {
     await seedFresh(page);
     await page.goto('/explore');
 
-    await expect(
-      page.getByText('Save a spark to start counting.', { exact: false }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('explore-hero')).toBeAttached({ timeout: 15_000 });
     await expect(page.getByText(/\b0 min/)).toHaveCount(0);
+    await expect(page.getByText('THIS WEEK')).toHaveCount(0);
+    await expect(page.getByText('Save a spark to start counting.', { exact: false })).toHaveCount(0);
   });
 
-  test('Health: STREAKS card renders the starter line and no zero numeral', async ({ page }) => {
+  test('Health (R6): zero streaks render nothing — no starter line, no zero rows', async ({ page }) => {
     await seedFresh(page);
     await page.goto('/health');
 
-    const card = page.getByTestId('health-streaks-card');
+    // Fresh account, no vitals → the baseline empty hero is the answer.
+    await expect(page.getByText('Start with a baseline.')).toBeVisible({ timeout: 15_000 });
     await expect(
-      card.getByText('Streaks start with your first workout or logged meal.'),
-    ).toBeVisible({ timeout: 15_000 });
-    await expect(card.getByText('0', { exact: false })).toHaveCount(0);
+      page.getByText('Streaks start with your first workout or logged meal.'),
+    ).toHaveCount(0);
+    await expect(page.getByText(/\b0 days?\b/)).toHaveCount(0);
   });
 
-  test('Today: header starter caption, radar caption, and the radar has not moved', async ({ page }) => {
+  test('Today (R7): no XP caption in the answer-first header; radar caption shows', async ({ page }) => {
     await seedFresh(page);
     await page.goto('/');
 
-    await expect(page.getByText('Your first block fills this bar.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('today-header')).toBeVisible({ timeout: 15_000 });
+    // R7: the starter caption applies only while today_answer_first_v1 is off.
+    await expect(page.getByText('Your first block fills this bar.')).toHaveCount(0);
     await expect(page.getByText('0/300 XP', { exact: false })).toHaveCount(0);
 
     // Radar caption shows while all six scores equal DOMAIN_SCORE_FLOOR.
@@ -202,12 +216,17 @@ test.describe('Cold start — Explore, Health, Today (AC-7)', () => {
       page.getByText('Your life in six directions', { exact: false }),
     ).toBeVisible();
 
-    // Position lock: same measurement conditions as the committed baseline.
+    // Placement: RADAR_Y_BASELINE=0 governs the LEGACY branch (radar is the
+    // first scroll child there; covered by the legacy jest snapshots). In the
+    // answer-first branch the radar sits below the ~104px TodayHeader chrome —
+    // its first-viewport contract is C1-11, asserted in
+    // e2e/today-answer-first.spec.ts. Here we assert it stays fully visible.
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3_000);
     const box = await page.getByTestId('today-hero-radar').boundingBox();
     expect(box).not.toBeNull();
-    expect(Math.abs(box!.y - RADAR_Y_BASELINE)).toBeLessThanOrEqual(1);
+    expect(box!.y).toBeGreaterThanOrEqual(RADAR_Y_BASELINE);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(764);
   });
 });
 

@@ -69,20 +69,25 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   progress_map_v1: false,      // W5: ProgressPath replaces LevelLadder on Rewards
   // Module-screen hierarchy v1: hero-first recomposition of Health / Explore /
   // Career / Social / Finance tabs + ConnectRow collapse + SectionTitle swap.
-  // Default OFF; cohort rollout from the Worker /v1/config; kill switch = flip off.
-  // Default-false addition -> no persist-key bump: isEnabled is
-  // Boolean(get().flags[key]), so a persisted flags object that predates this
-  // key returns undefined -> false, identical to the fallback.
-  module_hierarchy_v1: false,
+  // Default ON (founder rollout call, 2026-06-13; graduation clock in
+  // docs/PARKED_ITEMS.md 13.1). A `false` row in the Worker flags table is
+  // the kill switch — overrides win over fallbacks.
+  module_hierarchy_v1: true,
   // Cold-start program: zero-state replacement + first-win arc. Default ON —
   // this fixes a broken first-run, it is not a retention experiment. The
   // Worker /v1/config row is the kill switch.
   cold_start_v1: true,
   // Answer-first Today: TodayHeader deck, NextMoveHero (moves off Goals),
   // radar hub + full-signal vertices, composition reorder. Off = legacy Today.
-  today_answer_first_v1: false,
+  // Fallback-flipped true 2026-06-13 (founder call; the Worker-cohort dogfood
+  // stage was substituted by direct flip — the founder IS the current cohort,
+  // and the flags table needs dashboard access to gain rows). The 7-day
+  // -5%-block-completion watch runs through 2026-06-20; kill switch = a
+  // `false` row in the Worker flags table.
+  today_answer_first_v1: true,
   // Event-triggered InstallSheet + Profile row; off = legacy top-of-flow banner.
-  install_prompt_v2: false,
+  // Fallback-flipped true 2026-06-13 with today_answer_first_v1 (same window).
+  install_prompt_v2: true,
 };
 
 interface FlagState {
@@ -153,7 +158,11 @@ export const useFlagStore = create<FlagState>()(
       // persisted `false` so existing installs pick up the acting coach.
       // Bumped to v4 (2026-06-12): cold_start_v1 added as default-on so
       // persisted pre-addition state doesn't shadow the cold-start fixes.
-      name: 'lifeos_flags_v4',
+      // Bumped to v5 (2026-06-13): today_answer_first_v1 + install_prompt_v2
+      // fallback-flipped true (R12 — flip takes the next unused version) and
+      // module_hierarchy_v1 flipped true; drop persisted `false` values so
+      // existing installs pick up the recompositions.
+      name: 'lifeos_flags_v5',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },
