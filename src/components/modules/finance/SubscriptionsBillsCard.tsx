@@ -46,14 +46,14 @@ export function SubscriptionsBillsCard({ clientId }: { clientId?: string }) {
 
   const renderRow = (it: RecurringItemRecord) => {
     const dueLabel = formatDueLabel(it.dueDate, today);
-    const overdue = dueLabel === 'Overdue';
+    const pastDue = dueLabel === 'Past due';
     const meta = [dueLabel, it.cadence].filter(Boolean).join(' · ');
     return (
       <View key={it.id} style={styles.row}>
         <View style={styles.rowText}>
           <Body style={styles.merchant}>{it.merchant}</Body>
           {meta !== '' && (
-            <Caption style={{ color: overdue ? c.error : c.textMuted }}>{meta}</Caption>
+            <Caption style={{ color: pastDue ? c.error : c.textMuted }}>{meta}</Caption>
           )}
         </View>
         {it.amount > 0 && <Body style={styles.amount}>{formatInr(it.amount)}</Body>}

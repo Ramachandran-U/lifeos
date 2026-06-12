@@ -61,8 +61,8 @@ describe('formatDueLabel', () => {
   it('returns empty string when there is no date', () => {
     expect(formatDueLabel(null, today)).toBe('');
   });
-  it('flags overdue / today / tomorrow', () => {
-    expect(formatDueLabel('2026-06-09', today)).toBe('Overdue');
+  it('flags past-due / today / tomorrow', () => {
+    expect(formatDueLabel('2026-06-09', today)).toBe('Past due');
     expect(formatDueLabel('2026-06-10', today)).toBe('Due today');
     expect(formatDueLabel('2026-06-11', today)).toBe('Due tomorrow');
   });
