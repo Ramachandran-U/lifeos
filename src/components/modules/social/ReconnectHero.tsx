@@ -73,7 +73,7 @@ export function ReconnectHero({
       <View style={styles.quiet}>
         <Text variant="h3">You're in cadence with everyone.</Text>
         <Caption style={[styles.numeric, { color: c.textSecondary }]}>
-          {`${inCadenceCount} people in your orbit`}
+          {`${inCadenceCount} ${inCadenceCount === 1 ? 'person' : 'people'} in your orbit`}
         </Caption>
       </View>
     );
@@ -84,12 +84,13 @@ export function ReconnectHero({
   const tierLabel =
     RELATIONSHIP_META[contact.relationshipType as RelationshipType]?.label ??
     contact.relationshipType;
+  const months = daysSince == null ? 0 : Math.round(daysSince / 30);
   const cadenceLine =
     daysSince == null
       ? tierLabel
       : daysSince < MONTH_SWITCH_DAYS
-        ? `${tierLabel} · last contact ${daysSince} days ago`
-        : `${tierLabel} · last contact ${Math.round(daysSince / 30)} months ago`;
+        ? `${tierLabel} · last contact ${daysSince} ${daysSince === 1 ? 'day' : 'days'} ago`
+        : `${tierLabel} · last contact ${months} ${months === 1 ? 'month' : 'months'} ago`;
 
   const handleOpen = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -39,11 +39,16 @@ import type { BehaviourSuggestion } from '@/utils/behaviourPatterns';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// Use a date that is guaranteed to be "today or future" in tests.
-// The module calls todayStr() = format(new Date(), 'yyyy-MM-dd') internally.
-// Blocks whose date >= today AND status is not done/skipped are mutable.
-const TODAY = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
-const TOMORROW = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+// The module compares same-day blocks against the WALL CLOCK (a TODAY block
+// at 08:00 is past by the evening), which made this suite fail when run at
+// night. Freeze the clock at a fixed 06:00 so every fixture time is future
+// and the suite is deterministic at any hour.
+jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+jest.setSystemTime(new Date('2026-06-10T06:00:00'));
+afterAll(() => jest.useRealTimers());
+
+const TODAY = '2026-06-10';
+const TOMORROW = '2026-06-11';
 
 function mkBlock(overrides: {
   id: string;
@@ -59,11 +64,10 @@ function mkBlock(overrides: {
 function suggestion(apply: BehaviourSuggestion['apply']): BehaviourSuggestion {
   return {
     id: 'sug1',
-    module: 'health',
-    pattern: 'skipped_3_times',
-    title: 'Test',
-    description: 'Test',
+    kind: 'workout_timing',
+    headline: 'Test',
     rationale: 'Test',
+    confidence: 'medium',
     apply,
   };
 }

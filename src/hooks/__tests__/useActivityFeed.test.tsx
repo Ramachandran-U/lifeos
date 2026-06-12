@@ -106,10 +106,10 @@ describe('useActivityFeed', () => {
 
     let restored: boolean | undefined;
     await act(async () => {
-      restored = await result.current.restore('goal', 'g1', { seq: 2 });
+      restored = await result.current.restore('goal', 'g1', { lamport: 2 });
     });
 
-    expect(mockRestoreEntityTo).toHaveBeenCalledWith('goal', 'g1', { seq: 2 });
+    expect(mockRestoreEntityTo).toHaveBeenCalledWith('goal', 'g1', { lamport: 2 });
     expect(restored).toBe(true);
     // reload was called again after restore
     expect(mockReadAllWithState).toHaveBeenCalledTimes(2);
@@ -122,7 +122,7 @@ describe('useActivityFeed', () => {
 
     let restored: boolean | undefined;
     await act(async () => {
-      restored = await result.current.restore('goal', 'g1', { seq: 1 });
+      restored = await result.current.restore('goal', 'g1', { lamport: 1 });
     });
     expect(restored).toBe(false);
   });

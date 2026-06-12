@@ -198,9 +198,10 @@ export default function ProfileScreen() {
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   // install_prompt_v2 (W3 §3.3) — the permanent quiet install path. The row
   // shows only on installable web browsers; the manual open bypasses the
-  // auto-offer gates (shouldOfferInstall) by design.
+  // auto-offer gates (shouldOfferInstall), and survives a permanent dismissal
+  // (ignoreDismissed — spec 01 amendment i, founder ruling 2026-06-14).
   const installV2 = useFlagStore((s) => s.isEnabled('install_prompt_v2'));
-  const { variant: installVariant } = useAddToHomeScreen();
+  const { variant: installVariant } = useAddToHomeScreen({ ignoreDismissed: true });
   const [installSheetOpen, setInstallSheetOpen] = useState(false);
 
   const refresh = useCallback(() => {

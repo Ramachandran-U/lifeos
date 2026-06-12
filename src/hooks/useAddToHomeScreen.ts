@@ -86,17 +86,24 @@ export interface UseAddToHomeScreenResult {
  * Decides whether to show the in-app "Add to Home Screen" prompt for the current
  * browser, and exposes the Android one-tap install when Chrome offers it. All
  * the decision logic is the pure `resolveA2HS`; this only reads the live env.
+ *
+ * `ignoreDismissed` (Profile's quiet row, spec 01 amendment i — founder ruling
+ * 2026-06-14): the manual install path survives a permanent dismissal; only
+ * the AUTO offers retire. Already-installed/standalone still resolves null.
  */
-export function useAddToHomeScreen(): UseAddToHomeScreenResult {
+export function useAddToHomeScreen(
+  opts: { ignoreDismissed?: boolean } = {},
+): UseAddToHomeScreenResult {
   const [variant, setVariant] = useState<A2HSVariant | null>(null);
   const [canInstall, setCanInstall] = useState(false);
+  const ignoreDismissed = opts.ignoreDismissed === true;
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof navigator === 'undefined') return;
 
     let dismissed = false;
     try {
-      dismissed = localStorage.getItem(DISMISS_KEY) === '1';
+      dismissed = !ignoreDismissed && localStorage.getItem(DISMISS_KEY) === '1';
     } catch {
       /* storage blocked (private mode) — treat as not dismissed */
     }
@@ -120,7 +127,7 @@ export function useAddToHomeScreen(): UseAddToHomeScreenResult {
     });
     setVariant(next);
     setCanInstall(next === 'android' && deferredInstall !== null);
-  }, []);
+  }, [ignoreDismissed]);
 
   const install = useCallback(() => {
     if (deferredInstall) {

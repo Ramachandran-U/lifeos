@@ -37,6 +37,7 @@
 > **AC5 rulings (founder, 2026-06-13 — both flagged conflicts KILLED, W4 follow-ups PR):**
 > (x) `formatDueLabel`'s past-due branch returns `Past due` (was `Overdue`) — the one data-driven path that could render the AC5-banned literal is closed; AC5 now holds unconditionally on Finance.
 > (y) `12-WEEK EXECUTION PLAN` → sentence-case `12-week execution plan` (Body/bodyMedium in `c.careerText`), joining the §3.0.7 sweep it sat outside of. The dynamic `PHASE {n}: {NAME}` label stays (data-driven phase identity, ruled out of scope).
+> (aa) **Copy ruling, 2026-06-14:** the n=1 plural nits flagged in (q) are fixed — `1 day ago` / `1 month ago` / `1 person in your orbit` (ReconnectHero) and `across 1 interest` (WeekStatLine); the spec's string templates are amended to singularize at n=1.
 > (z) The Fit ConnectRow's press target is now `FitActionsSheet` (`Sync now` / `Disconnect Google Fit`), the Gmail-sheet pattern — amendment (i)'s parking is resolved; PARKED_ITEMS 13.2 un-parked. Legacy-deletion ownership (trap 1) ratified: the flag-flipping session records the 100% date, deletion executes after 14 consecutive days.
 
 All paths, line numbers, tokens, and store APIs are now verified against the repo. Three load-bearing discoveries: the repo has **no ESLint config** (the spec's ESLint enforcement is unenforceable as written), `usePreferencesStore` **does not persist on native** (the snooze decision was broken), and a dozen child-card CAPS eyebrows survive the spec's sweep. Producing the hardened spec.
