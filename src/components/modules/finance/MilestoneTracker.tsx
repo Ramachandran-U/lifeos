@@ -5,7 +5,8 @@ import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
 import { Card } from '@/components/ui/Card';
-import { Body, Label, Caption } from '@/components/ui/Typography';
+import { Body, Caption } from '@/components/ui/Typography';
+import { SectionTitle } from '@/components/ui/SectionTitle';
 import { formatMoney } from '@/utils/currency';
 
 interface Milestone {
@@ -31,7 +32,9 @@ export function MilestoneTracker({ milestones, onComplete }: MilestoneTrackerPro
 
   return (
     <Card style={styles.card}>
-      <Label color={c.finance} style={styles.sectionLabel}>MILESTONES</Label>
+      {/* Ink + Signal §3.0.7: the MILESTONES caps eyebrow died in the W4
+          Finance sweep (2026-06-12) — sentence-case SectionTitle instead. */}
+      <SectionTitle>Milestones</SectionTitle>
       {milestones.map((m, i) => {
         const isCompleted = !!m.completedAt;
         const isNext = !isCompleted && (i === 0 || !!milestones[i - 1]?.completedAt);
@@ -89,9 +92,6 @@ export function MilestoneTracker({ milestones, onComplete }: MilestoneTrackerPro
 const makeStyles = (colors: AppColors) => StyleSheet.create({
   card: {
     gap: spacing.xs,
-  },
-  sectionLabel: {
-    marginBottom: spacing.xs,
   },
   row: {
     flexDirection: 'row',

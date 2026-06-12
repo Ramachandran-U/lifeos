@@ -54,6 +54,43 @@ export interface SeedGameState {
   >;
 }
 
+/** A contact row as persisted in the web (`lifeos_contacts`) store. */
+export interface SeedContact {
+  id: string;
+  name: string;
+  /** inner_circle / close_friend / family / mentor / colleague / acquaintance. */
+  relationshipType: string;
+  preferredCadenceDays: number;
+  /**
+   * Days since last contact. computeOverdue flags a contact when
+   * daysSince > preferredCadenceDays * 1.2 — e.g. cadence 7 + lastContact 30
+   * days ago = overdue. Omit for "never contacted" (anchor = createdAt, today).
+   */
+  lastContactDaysAgo?: number;
+  /** YYYY-MM-DD; optional. */
+  birthday?: string;
+}
+
+/** An interest row as persisted in the web (`lifeos_interests`) store. */
+export interface SeedInterest {
+  id: string;
+  name: string;
+  category: string;
+  weeklyMinutesTarget?: number;
+}
+
+/** A today-spark as persisted in the web (`lifeos_sparks`) store. */
+export interface SeedSpark {
+  id: string;
+  title: string;
+  body: string;
+  threadStarter: string;
+  seedInterest: string;
+  adjacentField: string;
+  /** new / seen / saved / explored / dismissed. Default 'new'. */
+  status?: string;
+}
+
 /** Persisted shape of usePreferencesStore (localStorage 'lifeos_preferences_v1'). */
 export interface SeedPreferences {
   theme?: 'dark' | 'light';
@@ -86,12 +123,43 @@ export interface SeedOptions {
    * existing profile). Default false — existing callers unchanged.
    */
   profile?: boolean;
+  /**
+   * Extra fields merged onto the seeded user row (e.g. { heightCm: 175,
+   * age: 30 }) — the Health hero's hasBaseline needs heightCm on the user.
+   * Additive — existing callers unchanged.
+   */
+  userFields?: Record<string, unknown>;
+  /**
+   * Weight logs ('lifeos_health_logs'). Together with userFields.heightCm this
+   * flips the Health hero to its populated state. Additive.
+   */
+  weightLogs?: { daysAgo: number; weightKg: number }[];
+  /** Contact rows ('lifeos_contacts') under the e2e user. Additive. */
+  contacts?: SeedContact[];
+  /** Interest rows ('lifeos_interests') under the e2e user. Additive. */
+  interests?: SeedInterest[];
+  /**
+   * A spark dated *today* ('lifeos_sparks') so Explore's hero renders the
+   * seeded spark instead of generating one. Additive.
+   */
+  sparkToday?: SeedSpark;
+  /**
+   * Seed a fake Gmail token ('lifeos_gmail_tokens') + a last-sync stamp so the
+   * Finance Overview renders its connected state. Transactions live in
+   * Dexie/IndexedDB and are NOT seeded by this helper — the connected state is
+   * "connected, nothing ingested yet". Additive.
+   */
+  gmailConnected?: boolean;
 }
 
 export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
   await page.addInitScript(
     ({ user, userId, options }) => {
-      localStorage.setItem('lifeos_users', JSON.stringify([user]));
+      // userFields (e.g. heightCm) merge onto the canonical row — additive.
+      localStorage.setItem(
+        'lifeos_users',
+        JSON.stringify([{ ...user, ...(options.userFields ?? {}) }]),
+      );
       localStorage.setItem('lifeos_session', userId);
       const now = new Date();
       // Use LOCAL date (matching date-fns `format(new Date(), 'yyyy-MM-dd')`) so
@@ -188,6 +256,104 @@ export async function seedAuthedUser(page: Page, options: SeedOptions = {}) {
       // Optional usePreferencesStore seed (e.g. gamification 'off' persona).
       if (options.preferences) {
         localStorage.setItem('lifeos_preferences_v1', JSON.stringify(options.preferences));
+      }
+
+      // ── W4 module-hierarchy seeds (all additive) ────────────────────────────
+
+      // Weight logs → Health hero hasBaseline (with userFields.heightCm).
+      if (options.weightLogs && options.weightLogs.length > 0) {
+        const logs = options.weightLogs.map((w, i) => {
+          const d = new Date(now.getTime() - w.daysAgo * 86_400_000);
+          const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+          return {
+            id: `e2e-hlog-${i}`,
+            date,
+            weight: w.weightKg,
+            source: 'manual',
+            createdAt: nowIso,
+          };
+        });
+        localStorage.setItem('lifeos_health_logs', JSON.stringify(logs));
+      }
+
+      // Contacts → Social hero (overdue when daysSince > cadence * 1.2).
+      if (options.contacts && options.contacts.length > 0) {
+        const dateAgo = (n: number) => {
+          const d = new Date(now.getTime() - n * 86_400_000);
+          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        };
+        const contacts = options.contacts.map((ct) => ({
+          id: ct.id,
+          userId,
+          name: ct.name,
+          nickname: null,
+          relationshipType: ct.relationshipType,
+          preferredCadenceDays: ct.preferredCadenceDays,
+          lastContactDate: ct.lastContactDaysAgo != null ? dateAgo(ct.lastContactDaysAgo) : null,
+          notes: null,
+          birthday: ct.birthday ?? null,
+          source: 'manual',
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          deletedAt: null,
+        }));
+        localStorage.setItem('lifeos_contacts', JSON.stringify(contacts));
+      }
+
+      // Interests → Explore supporting cast + spark seeds.
+      if (options.interests && options.interests.length > 0) {
+        const interests = options.interests.map((it) => ({
+          id: it.id,
+          userId,
+          name: it.name,
+          category: it.category,
+          weeklyMinutesTarget: it.weeklyMinutesTarget ?? 60,
+          weeklyMinutesActual: 0,
+          explorationDepth: 'taste',
+          status: 'active',
+          discoveredBy: 'user',
+          timeProtected: false,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        }));
+        localStorage.setItem('lifeos_interests', JSON.stringify(interests));
+      }
+
+      // A today-spark → Explore hero renders it without touching generation.
+      if (options.sparkToday) {
+        const s = options.sparkToday;
+        localStorage.setItem(
+          'lifeos_sparks',
+          JSON.stringify([
+            {
+              id: s.id,
+              userId,
+              date: today,
+              title: s.title,
+              body: s.body,
+              threadStarter: s.threadStarter,
+              seedInterest: s.seedInterest,
+              adjacentField: s.adjacentField,
+              status: s.status ?? 'new',
+              threadId: null,
+              createdAt: nowIso,
+            },
+          ]),
+        );
+      }
+
+      // Gmail "connected" → Finance Overview connected state (token presence is
+      // the whole check — isGmailConnected just reads this key).
+      if (options.gmailConnected) {
+        localStorage.setItem(
+          'lifeos_gmail_tokens',
+          JSON.stringify({
+            access_token: 'e2e-fake-gmail-token',
+            refresh_token: 'e2e-fake-gmail-refresh',
+            expires_at: now.getTime() + 86_400_000,
+          }),
+        );
+        localStorage.setItem('lifeos_last_sync', nowIso);
       }
 
       // Optional empty user-profile row so the first-block stamp guard is live
