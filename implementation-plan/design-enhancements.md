@@ -1,5 +1,7 @@
 # Handover — Design Enhancements (3D/tactile UI, motion, voice, ethical gamification)
 
+> **Status (2026-06-14): COMPLETED AND ROLLED OUT.** This plan became the **Aurora Alive** program (Waves 1–5, all merged June 2026), whose visual layer was then superseded by the **Ink + Signal** recommit (`docs/DESIGN_MANIFESTO.md` + `docs/design-deep-dive/`). All retention mechanics and motion flags are default-on as of 2026-06-14. Historical plan — the truth for what shipped lives in the dossier amendments and `docs/PARKED_ITEMS.md`.
+
 > The sequenced build plan derived from the research in
 > [docs/research/ui-ux-gamification-2026.md](../docs/research/ui-ux-gamification-2026.md)
 > (2 adversarially-verified passes — that file is the source of truth for *findings*;

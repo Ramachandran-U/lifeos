@@ -1,6 +1,6 @@
 # Claude Design Prompt — LifeOS Gamification & Game-Feel UI
 
-> ⚠️ **OBSOLETE DESIGN TOKENS — historical reference only.** The colour palette in this prompt (`goal #FF6B35`, `health #00C896`, `finance #F0B429`, `primary #5B4FE8`, …) is the **pre-Aurora** iteration and no longer matches the live design system. Current tokens live in `src/theme/colors.ts` (Aurora Refined: `goal #C9A0FF`, `health #7EE0B8`, `finance #F4C16A`, `primary #A584FF`, canvas `#0A0612`). Do **not** generate new UI from this prompt as-is — see [`docs/aurora-refined-v2/`](aurora-refined-v2/README.md) for the current design language. Kept for the historical Duolingo/Finch aesthetic direction it captures.
+> ⚠️ **OBSOLETE DESIGN TOKENS — historical reference only (banner refreshed 2026-06-14).** This prompt is two design generations old: its palette is pre-Aurora, and Aurora itself was superseded by the **Ink + Signal** recommit (June 2026). The live design language is `docs/DESIGN_MANIFESTO.md` + `docs/design-deep-dive/`; current tokens live in `src/theme/colors.ts` (true-black ground, `goal #FF7733`, `health #00D68F`, `finance #FFB300`, `career #4D9FFF`, violet as the brand/AI voice only). Do **not** generate new UI from this prompt — kept solely for the historical Duolingo/Finch aesthetic direction it captures.
 
 Paste the prompt below into Claude (claude.ai) with the **Artifacts** feature on. It will return a React + Tailwind artifact covering every screen listed. After review, paste the artifact back to the Claude Code session so it can be ported to React Native.
 

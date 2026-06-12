@@ -1,5 +1,8 @@
 # Ink + Signal — Phase-wise Implementation Plan
 
+> **Status (2026-06-14): ALL FIVE WAVES EXECUTED, MERGED, AND ROLLED OUT.**
+> W0 guardrails #170/#171 · W1 ink tokens + wash kill #172/#173 · W2 structural color + front door #175 · W3 cold start #176 + Today recomposition #178 · W4 module screens #179/#180/#181/#182. Follow-ups: AC5 rulings + Fit disconnect #183, rollout flip #184, Aurora defaults flip #185, quality close-out #186, violet voice sweep + Guard E #187, docs #188/#189. Every criterion was verified with evidence per the consumption contract; deviations live as dated amendments atop each cluster spec. All flags default-on (persist v6). Remaining: legacy deletion (eligible 2026-06-27, PARKED 13.1) and the `companion.riv` asset.
+
 > **Binding inputs:** [00-INDEX.md](00-INDEX.md) (executive summary, 12 cross-spec resolutions, 73 acceptance criteria, open decisions) and the five cluster specs 01–05.
 > **This plan is governed by the consumption contract** (00-INDEX.md § How to consume). The criteria referenced below by ID (C1-1 … C5-16) are NOT restated here — the executing session copies them **verbatim from 00-INDEX.md** into each wave's task list. A wave is done only when every copied criterion is individually marked pass **with evidence** (screenshot, test name, or grep output) in the PR. A task that cannot meet a criterion escalates to the founder; it is never quietly rescoped.
 

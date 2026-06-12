@@ -1,5 +1,7 @@
 # Design Waves 1–3 — Manual Test Plan
 
+> **Status (2026-06-14): HISTORICAL.** This plan covered the Aurora-era design waves; the visual layer it tests was superseded by the Ink + Signal recommit (June 2026), and its surfaces are now covered by the permanent Playwright suites (`ambient`, `ink-structural`, `cold-start`, `today-answer-first`, `module-hierarchy`) plus the Guard A–E CI ratchets. Kept as a record; do not execute against the current build.
+
 Covers everything shipped on branch `feat/design-wave1-2` (commits `0e61c26` →
 `dc1461a`). Each case is independent. Mark **Pass / Fail / N-A** and note the
 device. Re-run on **both iOS and Android** for anything marked **[native]** —

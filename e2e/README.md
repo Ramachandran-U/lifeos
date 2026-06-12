@@ -20,8 +20,10 @@ npm run e2e               # career + voice + routine + notifications
 
 ## Path B — real sign-in (imitates a manual tester)
 
-Used by: `authenticated` project (currently only `ambient.spec.ts`). Goes
-through the real `/sign-in` form against a real Supabase user.
+Used by: `authenticated` project (auth-routing, auth-signout, onboarding-fresh,
+engine-authed, sync-cross-device — `ambient.spec.ts` moved to the self-seeding
+`chromium` project at the Ink + Signal rewrite). Goes through the real
+`/sign-in` form against a real Supabase user.
 
 This is the path to use when verifying that the auth flow itself works, or
 when seeded `localStorage` would mask a regression (e.g. session-token
@@ -107,9 +109,9 @@ so no AI budget is spent.
 
 | Step | Project | Auth | Required? |
 |---|---|---|---|
-| `chromium` | career, voice, routine, notifications | seeded localStorage | ✓ blocking |
-| `smoke` | route walker (24 routes + 6 navs) | seeded localStorage | ✓ blocking |
-| `authenticated` | ambient + future real-auth specs | real Supabase sign-in | non-blocking (`continue-on-error: true`) |
+| `chromium` | career, voice, routine, notifications, health/goals logging, CUJs, **plus the Ink + Signal suites**: ambient, ink-structural, cold-start, today-answer-first, module-hierarchy | seeded localStorage | ✓ blocking |
+| `smoke` | route walker (routes.json — markers are testIDs/stable labels, not copy strings) | seeded localStorage | ✓ blocking |
+| `authenticated` | auth-routing/signout, onboarding-fresh, engine-authed, sync-cross-device | real Supabase sign-in | non-blocking (`continue-on-error: true`) |
 
 ### Enabling the authenticated step
 
@@ -137,13 +139,15 @@ required.
 ## Visual regression
 
 [`visual-regression.spec.ts`](./visual-regression.spec.ts) (project `visual`)
-guards the Aurora gradient progress bars + domain-tinted cards (DELTA Phase 10)
-against committed screenshot baselines. It seeds **filled** data via
-[`seedVisualRich`](./helpers.ts) — the test-suite mirror of the run-lifeos
-driver's `--rich` flag — so the bars render at fixed proportions (goals Career
-75 % / Health 40 %, social 60 %). The seed also forces reduce-motion and dismisses
-the Add-to-Home-Screen banner so each capture is deterministic. Targets `/goals`
-and `/social` (time-stable headers — no "Good morning/evening" greeting like Today).
+guards the Ink + Signal progress bars (solid domain hue on `c.track`) and the
+recomposed goals/social screens against committed screenshot baselines
+(re-recorded at the W1 ink cutover, the W2 module headers, and the V1 social
+tree). It seeds **filled** data via [`seedVisualRich`](./helpers.ts) — the
+test-suite mirror of the run-lifeos driver's `--rich` flag — so the bars render
+at fixed proportions (goals Career 75 % / Health 40 %, social 60 %). The seed
+also forces reduce-motion and suppresses install chrome so each capture is
+deterministic. Targets `/goals` and `/social` (time-stable module headers — no
+time-of-day greeting like Today's).
 
 ```bash
 # 1. Build + serve a current bundle (the project reads SMOKE_BASE_URL).
