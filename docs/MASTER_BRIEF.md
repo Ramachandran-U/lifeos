@@ -132,16 +132,16 @@ All six feed the **Routine Builder** — a time-blocked daily schedule generated
 
 ## 7. Design DNA
 
-- **Vibe:** Duolingo × Headspace × Finch × Habitica HUD — adult and premium, never childish. Current visual layer is the **Aurora Glass** redesign — soft glass surfaces, gradient blooms, and motion-driven depth.
-- **Typography:** Nunito (display/headings, 700/800) + DM Sans (body/labels, 400/500/600). Scale 11 / 13 / 15 / 17 / 20 / 28 / 36 / 48.
-- **Grid:** 4pt. Cards radius 20, buttons 16, pills 999.
-- **Motion:** Reanimated-driven micro-animations on every state change. Haptics on meaningful taps.
-- **Module colours (each engine has an identity):**
-  - Goal `#FF6B35` orange · Health `#00C896` green · Finance `#F0B429` gold
-  - Career `#5B4FE8` violet · Social `#FF4D8B` pink · Polymath `#00B4D8` cyan
-- **Gamification colours:** XP `#FFD700` gold · Streak `#FF6B35` flame · Badge `#A855F7` purple
-- **Brand:** primary `#5B4FE8` deep violet
-- **Dark mode default** — `#0D0D0D` bg, `#1A1A2E` surface, `#1F1F3A` card. **Reactive light mode** — `useColors()` hook + `makeStyles(c: AppColors)` pattern across the consumer app; Settings → Appearance toggle drives a live re-render.
+- **Vibe:** **Ink + Signal** (the June 2026 recommit — manifesto: *Answer First, Celebrate Loud, Rest Quiet*, `docs/DESIGN_MANIFESTO.md`): a true-black OLED ground where colour only ever means something — six full-saturation domain hues used structurally, loud earned celebration that always ends, and a resting state with zero decorative washes, gradients, or glass. Adult and premium, never childish.
+- **Typography:** Nunito (display/headings, 700/800) + DM Sans (body/labels, 400/500/600). Type-led hierarchy — headlines do the work borders and label-caps used to fake.
+- **Grid:** 4pt. Radii from `src/theme/radii.ts` (cards 22, controls 14, pills 999).
+- **Motion:** token-budgeted (`src/theme/motion.ts`), event-triggered, always ends; respects reduce-motion. Haptics on meaningful taps.
+- **Module colours (each engine has an identity; every screen opens on a full-bleed block of its hue):**
+  - Goal `#FF7733` orange · Health `#00D68F` green · Finance `#FFB300` gold
+  - Career `#4D9FFF` blue · Social `#FF5C97` pink · Polymath `#1FC8FF` cyan
+- **Gamification colours:** XP `#FFD60A` gold · Streak `#FF8C3C` ember · Badge `#FFB300` amber — gamification never speaks violet.
+- **Brand:** violet (`#8B7CFF` dark / `#5B4FE8` light) is **a voice, not a paint** — it appears only where the brand or the AI is speaking (wordmark, front door, planner/AI surfaces, companion); CI-enforced.
+- **Dark mode default** — `#000000` ground, neutral ink surfaces (`#101014` card). **Reactive light mode** — `useColors()` hook + `makeStyles(c: AppColors)` pattern; Settings → Appearance toggle drives a live re-render.
 
 ## 8. Tech Stack (for technical marketing / dev-facing content)
 

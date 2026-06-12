@@ -3,7 +3,9 @@
 > Mission: transform LifeOS from "advanced productivity + goal system" into an **AI-native adaptive life operating system.**
 > This is the master sequencing document. Each phase has a detailed design under `/implementation-plan` (P1) or `/docs/architecture` (P2–P5).
 
-## Program status (updated 2026-06-09)
+## Program status (updated 2026-06-09; design addendum 2026-06-14)
+
+> **2026-06-14 addendum — a third workstream completed in parallel:** the **UI/UX program** (Aurora Alive retention mechanics + the Ink + Signal design recommit, Waves 0–4) shipped end-to-end and is **rolled out default-on**: manifesto + CI guard ratchets (A–E), true-black ink palette, structural domain color, cold start, answer-first Today, hero-first module screens, gold gamification voice. Canonical record: `docs/DESIGN_MANIFESTO.md` + `docs/design-deep-dive/` (binding specs with dated amendments). Remaining: legacy-tree deletion (eligible 2026-06-27, PARKED 13.1) and the `companion.riv` asset.
 
 > The P0–P5 table is the original "Adaptive Cognition Program." Several rows advanced after the 2026-05-30 freeze — refreshed below against the merged PRs (a corrected snapshot, not a re-plan). A second, **opportunistic workstream** (free-data integrations, voice, prod-readiness) shipped in parallel and was never in this P0–P5 plan — captured in its own section below and in [docs/PARKED_ITEMS.md](../docs/PARKED_ITEMS.md).
 

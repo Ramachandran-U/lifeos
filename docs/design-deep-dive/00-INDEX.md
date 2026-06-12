@@ -1,5 +1,7 @@
 # Design Deep Dive — Ink + Signal recommit (June 2026)
 
+> **Status (2026-06-14): EXECUTED.** All five clusters shipped and are rolled out default-on (PRs #170–#189; see [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the wave→PR map). The criteria below were verified with per-criterion evidence; execution deviations are recorded as dated amendments at the top of each cluster spec. The body of this index is the binding historical record — amendments, not rewrites.
+
 LifeOS recommits to **Ink + Signal**: true-black ink as the resting state, full-saturation domain hues only where they carry meaning, type-led hierarchy, and loud, flag-gated celebration that always ends.
 The governing manifesto is **Answer First, Celebrate Loud, Rest Quiet** — five principles, each with a CI-locked "We never" sentence; prose with teeth, not prose alone.
 Every screen must answer "what should I do next?" inside the first viewport; the Today hex radar is frozen in place by founder decision and every cluster designs with it, not around it.
