@@ -191,16 +191,17 @@ requires a founder-approved PR labelled `manifesto-change`.
 - Load via `@expo-google-fonts/*`
 
 ### Colour Tokens
-Tokens live in `src/theme/colors.ts`, alongside `elevation.ts`, `motion.ts`, `density.ts`, `radii.ts`, `surfaces.ts`, `typography.ts`, and `spacing.ts`. The brand signature is deep violet (`primary: #5B4FE8`); each engine has its own module colour (goal orange, health green, finance gold, career violet, social pink, polymath cyan). Dark-mode-first neutrals. **Always read tokens from `src/theme/` — never hard-code values.**
+Tokens live in `src/theme/colors.ts`, alongside `elevation.ts`, `motion.ts`, `density.ts`, `radii.ts`, `surfaces.ts`, `typography.ts`, and `spacing.ts`. True-black ground (`background: '#000000'` dark), six full-saturation domain hues (goal orange, health green, finance gold, career blue, social pink, polymath cyan) with per-mode `*Text` forms and `*Dim` containers, and gamification gold/ember (`xp`/`streak`/`badge` — never violet). **Violet (`primary`) is a voice, not a paint** (founder ruling 2026-06-14, spec 03 amendment): it means *the brand or the AI is speaking* — the wordmark, the front door, planner/AI surfaces, the companion, the install ask — never a default button, a selection state, or gamification. Guard E (`violetVoiceCompliance.test.ts`) enforces the file allowlist. **Always read tokens from `src/theme/` — never hard-code values.**
 
 ### Spacing (4pt grid)
 `spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48, xxxl: 64 }`
 
 ### Component Conventions
-- Cards: `borderRadius: 20`, subtle border (`colors.border`)
-- Buttons: large touch targets (`minHeight: 56`), rounded (`borderRadius: 16`)
-- Module cards: coloured left border (4px) in the module colour
-- Progress bars: rounded, gradient fill from module colour
+- Cards are neutral ink surfaces (`radii.card`, hairline `colors.border`) — domain identity is an R3 `DomainGlyph` inside the content, never a coloured card edge; a 4px domain rail is legal only on a screen's single hero (resolution 9)
+- Buttons: large touch targets (`minHeight: 56`, `radii.control`); `Button`/`Button3D` **require** an explicit `variant`/`tone` — pick the context's voice (domain hue / `xp` gold / ink), never default to violet
+- Module screens open on a full-bleed `ModuleHeader` block (R1) in the solid domain hue with `inkOnColor` content
+- Progress fills are the solid domain hue on `c.track` — gradients died with the recommit (resolution 3)
+- Selection states are ink (`surfaceAlt` fill / `textPrimary`), not brand-coloured
 - Always use `StyleSheet.create()` — never inline style literals
 - Haptic feedback on every meaningful interaction (`expo-haptics`)
 - Micro-animations on state changes (`react-native-reanimated`)
