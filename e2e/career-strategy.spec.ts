@@ -41,8 +41,17 @@ test.describe('Career Strategist E2E', () => {
     await page.getByText('Generate plan', { exact: true }).click();
     await page.getByText('Generate strategy', { exact: true }).click();
 
+    // On success the sheet closes onto the loaded strategy view. Wait for the
+    // sheet to actually leave the tree first: during the Modal's slide-out
+    // both trees are attached, and a bare getByText('Reality check') strict-
+    // mode collides with the sheet caption "Generate a no-fluff execution
+    // plan: Reality Check, …" (getByText is case-insensitive substring
+    // matching). The hidden-wait also keeps this test guarding that the sheet
+    // really dismisses after generation — `exact` alone would go blind to it.
+    await expect(page.getByText('Turn it into a plan')).toBeHidden({ timeout: 10_000 });
+
     // §3.0.7 sweep: the caps labels went sentence-case; phase labels remain caps.
-    await expect(page.getByText('Reality check')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Reality check', { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('12-week execution plan')).toBeVisible();
     await expect(page.getByText('PHASE 1: FOUNDATION')).toBeVisible();
     await expect(page.getByText('PHASE 3: PROOF')).toBeVisible();
