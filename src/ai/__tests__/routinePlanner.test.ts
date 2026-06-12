@@ -38,7 +38,6 @@ jest.mock('@/utils/routineBalance', () => ({
 // ─── System under test ────────────────────────────────────────────────────────
 
 import { planRoutineWithContext, planRoutineWithContextDetailed } from '../routinePlanner';
-import { emptyUserProfile } from '../types';
 import type { RoutineInput } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,8 +49,11 @@ const fakeAgentResult = { plan: fakeRoutine, contextUsed: 1, iterations: 2 };
 
 function makeInput(overrides: Partial<RoutineInput> = {}): RoutineInput {
   return {
-    profile: emptyUserProfile(),
-    date: '2026-06-09',
+    wakeTime: '06:30',
+    sleepTime: '22:30',
+    workStartTime: '09:00',
+    workEndTime: '17:00',
+    primaryDomains: ['health', 'career'],
     ...overrides,
   };
 }
@@ -77,12 +79,12 @@ describe('planRoutineWithContext', () => {
     expect(result).toBe(fakeRoutine);
   });
 
-  it('passes profile and date through to planRoutineAgent', async () => {
-    const profile = emptyUserProfile();
-    await planRoutineWithContext(makeInput({ profile, date: '2026-06-09' }));
+  it('passes the routine input fields through to planRoutineAgent', async () => {
+    await planRoutineWithContext(makeInput({ wakeTime: '05:45', primaryDomains: ['finance'] }));
     const input = mockPlanRoutineAgent.mock.calls[0][0];
-    expect(input.profile).toBe(profile);
-    expect(input.date).toBe('2026-06-09');
+    expect(input.wakeTime).toBe('05:45');
+    expect(input.primaryDomains).toEqual(['finance']);
+    expect(input.sleepTime).toBe('22:30');
   });
 });
 

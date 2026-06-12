@@ -5,7 +5,7 @@
 
 import { mergeProfilePatch, markSlotsUserVerified } from '../profileMerge';
 import { emptyUserProfile } from '../types';
-import type { ProfileSlotConfidence } from '../types';
+import type { FixedBlock, ProfileSlotConfidence, UserProfile } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,9 +34,9 @@ describe('mergeProfilePatch', () => {
     });
 
     it('keeps unpatched identity fields intact', () => {
-      const p = { ...emptyUserProfile(), identity: { ...emptyUserProfile().identity, lastName: 'Doe' } };
+      const p = { ...emptyUserProfile(), identity: { ...emptyUserProfile().identity, ageBand: '25-34' } };
       const result = mergeProfilePatch(p, { identity: { firstName: 'Alex' } });
-      expect(result.identity.lastName).toBe('Doe');
+      expect(result.identity.ageBand).toBe('25-34');
     });
   });
 
@@ -65,10 +65,14 @@ describe('mergeProfilePatch', () => {
 
   describe('schedule / fixedBlocks', () => {
     it('appends new fixedBlocks rather than replacing them', () => {
-      const existing = [{ label: 'Work', startTime: '09:00', endTime: '17:00' }];
+      const existing: FixedBlock[] = [
+        { label: 'Work', startTime: '09:00', endTime: '17:00', daysOfWeek: [1, 2, 3, 4, 5], kind: 'work' },
+      ];
       const p = { ...emptyUserProfile(), schedule: { ...emptyUserProfile().schedule, fixedBlocks: existing } };
       const result = mergeProfilePatch(p, {
-        schedule: { fixedBlocks: [{ label: 'Gym', startTime: '07:00', endTime: '08:00' }] },
+        schedule: {
+          fixedBlocks: [{ label: 'Gym', startTime: '07:00', endTime: '08:00', daysOfWeek: [1, 3, 5], kind: 'other' }],
+        },
       });
       expect(result.schedule.fixedBlocks).toHaveLength(2);
       expect(result.schedule.fixedBlocks.some((b) => b.label === 'Work')).toBe(true);
@@ -76,7 +80,9 @@ describe('mergeProfilePatch', () => {
     });
 
     it('keeps existing fixedBlocks unchanged when patch has none', () => {
-      const existing = [{ label: 'Work', startTime: '09:00', endTime: '17:00' }];
+      const existing: FixedBlock[] = [
+        { label: 'Work', startTime: '09:00', endTime: '17:00', daysOfWeek: [1, 2, 3, 4, 5], kind: 'work' },
+      ];
       const p = { ...emptyUserProfile(), schedule: { ...emptyUserProfile().schedule, fixedBlocks: existing } };
       const result = mergeProfilePatch(p, { schedule: { wakeTime: '06:30' } });
       expect(result.schedule.fixedBlocks).toEqual(existing);
@@ -91,14 +97,14 @@ describe('mergeProfilePatch', () => {
 
   describe('primaryDomains', () => {
     it('deduplicates and caps at 3', () => {
-      const p = { ...emptyUserProfile(), primaryDomains: ['health', 'finance'] };
+      const p: UserProfile = { ...emptyUserProfile(), primaryDomains: ['health', 'finance'] };
       const result = mergeProfilePatch(p, { primaryDomains: ['finance', 'career', 'social'] });
       expect(result.primaryDomains.length).toBeLessThanOrEqual(3);
       expect(result.primaryDomains.filter((d) => d === 'finance')).toHaveLength(1);
     });
 
     it('preserves existing domains when no patch', () => {
-      const p = { ...emptyUserProfile(), primaryDomains: ['health'] };
+      const p: UserProfile = { ...emptyUserProfile(), primaryDomains: ['health'] };
       const result = mergeProfilePatch(p, {});
       expect(result.primaryDomains).toEqual(['health']);
     });
@@ -131,8 +137,8 @@ describe('mergeProfilePatch', () => {
   describe('communication', () => {
     it('overwrites tone from patch', () => {
       const p = { ...emptyUserProfile(), communication: { tone: 'direct' as const, avoid: [] } };
-      const result = mergeProfilePatch(p, { communication: { tone: 'gentle' as const } });
-      expect(result.communication.tone).toBe('gentle');
+      const result = mergeProfilePatch(p, { communication: { tone: 'warm' as const } });
+      expect(result.communication.tone).toBe('warm');
     });
 
     it('keeps existing tone when patch has none', () => {

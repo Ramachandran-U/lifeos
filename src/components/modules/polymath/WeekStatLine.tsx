@@ -23,7 +23,7 @@ export function WeekStatLine({ totalMinutesWeek, interestCount }: WeekStatLinePr
 
   return (
     <Body style={[styles.line, { color: c.textSecondary }]}>
-      {`This week: ${totalMinutesWeek} min across ${interestCount} interests`}
+      {`This week: ${totalMinutesWeek} min across ${interestCount} ${interestCount === 1 ? 'interest' : 'interests'}`}
     </Body>
   );
 }

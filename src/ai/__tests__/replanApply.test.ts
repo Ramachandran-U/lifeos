@@ -141,7 +141,7 @@ describe('applyReplan', () => {
   it('calls updateRoutineBlock for each edit', () => {
     const plan: ReplanRemainingDay = {
       drop: [],
-      edits: [{ id: 'blk1', startTime: '10:00', endTime: '11:00', title: 'Walk', module: 'health' }],
+      edits: [{ id: 'blk1', startTime: '10:00', endTime: '11:00', title: 'Walk' }],
       add: [],
       rationale: 'edit one',
     };
@@ -150,7 +150,6 @@ describe('applyReplan', () => {
       startTime: '10:00',
       endTime: '11:00',
       title: 'Walk',
-      module: 'health',
     });
   });
 
