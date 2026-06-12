@@ -8,8 +8,8 @@
     {
       "path": "/",
       "name": "today",
-      "selector": "text=Good ",
-      "comment": "Greeting renders — proves Today screen mounted, gamestore + colors hook resolved."
+      "selector": "[data-testid=\"today-greeting\"]",
+      "comment": "The answer-first greeting (TodayHeader) — proves Today mounted, gamestore + colors hook resolved. (The legacy 'Good morning' string died at the 2026-06-13 today_answer_first_v1 flip; the old 'text=Good ' marker only matched stray briefing copy.)"
     },
     {
       "path": "/(tabs)/profile",
@@ -26,8 +26,8 @@
     {
       "path": "/(tabs)/rewards",
       "name": "rewards",
-      "selector": "text=LEVEL LADDER",
-      "comment": "Section label — proves XP store loaded + ladder mounted."
+      "selector": "text=FIRST WIN",
+      "comment": "The day-1 FirstWinCard label — the smoke seed is a fresh zero-XP user, so cold_start_v1 minimal mode renders hero + FIRST WIN + quests (the ladder/journey sections mount only after the first XP; LEVEL LADDER was the pre-cold-start marker)."
     },
     {
       "path": "/(tabs)/health",
