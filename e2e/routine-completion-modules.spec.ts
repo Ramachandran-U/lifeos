@@ -48,8 +48,9 @@ test.describe('Routine completion — every module type (no blank screen) [#78]'
     const { consoleErrors, pageErrors } = captureErrors(page);
 
     await page.goto('/');
-    // Today mounts.
-    await expect(page.getByText('Good ', { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+    // Today mounts. today_answer_first_v1 greets "Morning/Afternoon/Evening, …"
+    // — anchor on the TodayHeader testID instead of the legacy "Good …" copy.
+    await expect(page.getByTestId('today-greeting')).toBeVisible({ timeout: 15_000 });
     // The flow header proves blocks rendered.
     await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 10_000 });
 

@@ -12,7 +12,9 @@ describe('useCelebrationStore — flag-gated FIFO of celebration beats', () => {
     drainAll();
   });
 
-  test('celebrate is a no-op while celebrationEngine is off (the default)', () => {
+  test('celebrate is a no-op while celebrationEngine is off (the kill switch)', () => {
+    // Default flipped ON 2026-06-14 — force the off state to test the gate.
+    setFlagOverride({ celebrationEngine: false });
     celebrate({ kind: 'levelUp' });
     expect(useCelebrationStore.getState().active).toBeNull();
     expect(useCelebrationStore.getState().queue).toHaveLength(0);

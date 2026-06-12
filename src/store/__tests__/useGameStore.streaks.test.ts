@@ -44,6 +44,11 @@ function resetStore() {
     pendingBadges: [],
     pendingLevelUp: null,
     lastKnownLevel: 1,
+    // streak_protection_v1 defaults ON since 2026-06-14: earlier tests in the
+    // file accrue freeze progress through grantXP — zero it between tests or
+    // the freeze-bank assertions inherit leaked state.
+    streakFreezes: 0,
+    freezeProgressXP: 0,
   });
 }
 
@@ -202,12 +207,14 @@ describe('addXP', () => {
   it('persists the XP fields plus the freeze bank (never streaks/badges)', () => {
     useGameStore.getState().addXP('u1', 10);
     // addXP routes through grantXP (Aurora Alive R0), which always persists
-    // the freeze-accrual pair alongside the counters — flag off ⇒ unchanged 0s.
+    // the freeze-accrual pair alongside the counters. streak_protection_v1
+    // defaults ON since the 2026-06-14 rollout, so 10 XP accrues 10 of the
+    // 200 XP a shield costs (no full shield yet).
     expect(updateGamification).toHaveBeenCalledWith('u1', {
       totalXP: 10,
       weeklyXP: 10,
       streakFreezes: 0,
-      freezeProgressXP: 0,
+      freezeProgressXP: 10,
     });
   });
 

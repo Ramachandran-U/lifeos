@@ -15,16 +15,29 @@ describe('feature flags', () => {
     process.env = { ...envSnapshot };
   });
 
-  it('has correct defaults — only priorityAdjust is on by default', () => {
+  it('has correct defaults — priorityAdjust + the Aurora motion track are on', () => {
     // priorityAdjust ships enabled so the routing sheet works out of the box.
-    // All other flags are off until explicitly enabled via env or override.
-    expect(isEnabled('priorityAdjust')).toBe(true);
+    // The Aurora Alive motion flags flipped default-on 2026-06-14 (founder
+    // next-wave rollout); soundEffects stays off by design (opt-in pref on
+    // top). Everything else is off until explicitly enabled.
+    const ON_BY_DEFAULT: FeatureFlag[] = [
+      'priorityAdjust',
+      'motionPolish',
+      'motionTransitions',
+      'celebrationEngine',
+      'riveCompanion',
+      'animatedCharts',
+    ];
+    ON_BY_DEFAULT.forEach((k) => {
+      expect(isEnabled(k)).toBe(true);
+    });
     const otherFlags = (Object.keys(DEFAULT_FLAGS) as FeatureFlag[]).filter(
-      (k) => k !== 'priorityAdjust',
+      (k) => !ON_BY_DEFAULT.includes(k),
     );
     otherFlags.forEach((k) => {
       expect(isEnabled(k)).toBe(false);
     });
+    expect(isEnabled('soundEffects')).toBe(false);
   });
 
   it('reads truthy env vars (EXPO_PUBLIC_FLAG_<UPPER_SNAKE>)', () => {

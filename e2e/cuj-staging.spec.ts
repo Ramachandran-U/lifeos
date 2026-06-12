@@ -65,7 +65,9 @@ test.describe('CUJ 1 — Block completion awards correct XP (no double-credit)',
   test('completing one block awards exactly 10 XP', async ({ page }) => {
     const { pageErrors } = captureErrors(page);
     await navigateTo(page, '/');
-    await expect(page.getByText('Good ', { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+    // today_answer_first_v1 greets "Morning/Afternoon/Evening, …" — anchor on
+    // the TodayHeader testID instead of the legacy "Good …" copy.
+    await expect(page.getByTestId('today-greeting')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 10_000 });
     // Wait for the first block's title to confirm RoutineBlock has fully rendered.
     await expect(page.getByText('Morning run').first()).toBeVisible({ timeout: 10_000 });
@@ -83,7 +85,8 @@ test.describe('CUJ 1 — Block completion awards correct XP (no double-credit)',
   test('completing 3 blocks accumulates exactly 30 XP', async ({ page }) => {
     const { pageErrors } = captureErrors(page);
     await navigateTo(page, '/');
-    await expect(page.getByText('Good ', { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+    // Same answer-first greeting anchor as above.
+    await expect(page.getByTestId('today-greeting')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("Today's flow")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Morning run').first()).toBeVisible({ timeout: 10_000 });
 
@@ -106,31 +109,48 @@ test.describe('CUJ 1 — Block completion awards correct XP (no double-credit)',
 //
 // Human equivalent: "I mark 'Read 20 pages' done — it should disappear from my
 // queue and the next task should take its place in the hero card."
+//
+// today_answer_first_v1 DELETED the Goals-tab "YOUR NEXT MOVE" card; the answer
+// now lives on Today as NextMoveHero. Blocks are seeded EMPTY because upcoming
+// blocks outrank daily tasks in useNextMove's resolution order — with none, the
+// first active daily goal is the hero, and completing it runs the exact goals
+// pipeline (updateGoalStatus 'completed' → completeGoalNode → reload).
 
 test.describe("CUJ 2 — Goal task completion: done task leaves, next task advances", () => {
   test.beforeEach(async ({ page }) => {
-    await seedAuthedUser(page, { goals: DAILY_GOALS });
+    await seedAuthedUser(page, { goals: DAILY_GOALS, blocks: [] });
   });
 
   test('completing the hero task advances the queue to the next task', async ({ page }) => {
     const { pageErrors, consoleErrors } = captureErrors(page);
-    await navigateTo(page, '/(tabs)/goals');
+    await navigateTo(page, '/');
 
-    await expect(page.getByText('Goals').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('YOUR NEXT MOVE')).toBeVisible({ timeout: 10_000 });
-    // First daily task is the hero
-    await expect(page.getByText('Read 20 pages')).toBeVisible();
+    const hero = page.getByTestId('next-move-hero');
+    await expect(hero).toBeVisible({ timeout: 15_000 });
+    // First daily task is the hero's next move (eyebrow marks the task source).
+    await expect(hero.getByText('Read 20 pages')).toBeVisible({ timeout: 10_000 });
+    await expect(hero.getByText('NEXT · GOALS')).toBeVisible();
 
-    // Business action: mark the hero task done
-    await page.getByText('Mark done', { exact: true }).click();
+    // Business action: mark the hero task done ("Mark done" primary).
+    await page.getByTestId('next-move-primary').click();
 
     // Business outcome 1: next task takes the hero slot
-    await expect(page.getByText('Log a workout')).toBeVisible({ timeout: 8_000 });
+    await expect(hero.getByText('Log a workout')).toBeVisible({ timeout: 8_000 });
     // Business outcome 2: completed task is gone from the active queue
     await expect(page.getByText('Read 20 pages')).toHaveCount(0, { timeout: 8_000 });
+    // Business outcome 3: the completion persisted — same outcome a Goals-tab
+    // completion produced (status flips to 'completed', not merely hidden).
+    await expect
+      .poll(async () => page.evaluate(() => {
+        try {
+          const goals = JSON.parse(localStorage.getItem('lifeos_goals') ?? '[]') as Array<{ id: string; status: string }>;
+          return goals.find((g) => g.id === 'g-daily-1')?.status ?? null;
+        } catch { return null; }
+      }), { timeout: 8_000 })
+      .toBe('completed');
 
     const childCount = await assertNotBlank(page);
-    expect(childCount, 'Goals screen should not go blank after task completion').toBeGreaterThan(20);
+    expect(childCount, 'Today should not go blank after task completion').toBeGreaterThan(20);
     expect(pageErrors).toEqual([]);
     expect(consoleErrors).toEqual([]);
   });
@@ -452,10 +472,15 @@ test.describe('CUJ 9 — Coach proposes an action and confirming commits it', ()
     await seedSupabaseSession(page); // AI auth guard
     await seedAuthedUser(page, { blocks: TODAY_BLOCKS });
     // Under EXPO_PUBLIC_USE_AI_MOCK (how CI builds the bundle) the coach returns a
-    // canned proposal titled "Focus session"; against a live target this route
-    // drives the same shape. Either way the journey is propose → confirm → commit.
-    await routeAI(page, (body, i) => {
-      if (body.task === 'what_next' && i === 0) {
+    // canned proposal titled "Focus session" without touching /claude; against a
+    // live target this route drives the same shape. The agent POSTs task
+    // 'agent.whatNext' (see src/ai/agent/whatNext.ts → runToolAgent): the FIRST
+    // agent turn proposes the block, every later turn answers in plain text so
+    // the tool loop terminates. A per-task counter (not the global call index)
+    // keeps unrelated AI calls from eating the proposal turn.
+    let agentTurns = 0;
+    await routeAI(page, (body) => {
+      if (body.task === 'agent.whatNext' && agentTurns++ === 0) {
         return {
           text: '',
           functionCalls: [{
@@ -641,8 +666,10 @@ test.describe('CUJ 12 — Meal suggestions render and a meal can be logged', () 
     await navigateTo(page, '/(tabs)/health');
     await expect(page.getByText('Health').first()).toBeVisible({ timeout: 15_000 });
 
-    // The meal-ideas card lives inside the collapsible calorie section.
-    await page.getByText('CALORIE TRACKING').first().click();
+    // module_hierarchy_v1: the meal-ideas card lives inside the collapsible
+    // "Calories" section (the legacy 'CALORIE TRACKING' header is gone). The
+    // pressable section row carries an accessibility label with its state.
+    await page.getByLabel('Calories, collapsed').click();
     await page.getByRole('button', { name: 'Suggest meals' }).or(page.getByText('Suggest meals')).first().click();
 
     // Business outcome 1: a concrete meal idea renders (canned mock under CI build).

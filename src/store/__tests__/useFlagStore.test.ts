@@ -76,9 +76,9 @@ describe('FALLBACK_FLAGS baseline', () => {
 });
 
 describe('persist key (AC-11, R12)', () => {
-  it('the store persists under lifeos_flags_v5 — bumped at the 2026-06-13 fallback-flip per R12', () => {
+  it('the store persists under lifeos_flags_v6 — bumped at the 2026-06-14 Aurora defaults flip', () => {
     const { useFlagStore } = loadStore(undefined);
-    expect(useFlagStore.persist.getOptions().name).toBe('lifeos_flags_v5');
+    expect(useFlagStore.persist.getOptions().name).toBe('lifeos_flags_v6');
   });
 
   it('the 2026-06-13 rollout flags default ON in the fallback baseline', () => {
@@ -86,6 +86,21 @@ describe('persist key (AC-11, R12)', () => {
     expect(useFlagStore.getState().flags.today_answer_first_v1).toBe(true);
     expect(useFlagStore.getState().flags.install_prompt_v2).toBe(true);
     expect(useFlagStore.getState().flags.module_hierarchy_v1).toBe(true);
+  });
+
+  it('the 2026-06-14 Aurora Alive retention flags default ON in the fallback baseline', () => {
+    const { useFlagStore } = loadStore(undefined);
+    const { flags } = useFlagStore.getState();
+    for (const key of [
+      'streak_protection_v1',
+      'quests_v2',
+      'variable_rewards_v1',
+      'companion_v1',
+      'comeback_v1',
+      'progress_map_v1',
+    ]) {
+      expect(flags[key]).toBe(true);
+    }
   });
 });
 
