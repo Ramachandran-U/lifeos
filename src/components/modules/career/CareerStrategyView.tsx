@@ -75,9 +75,10 @@ export function CareerStrategyView({ strategy, acceptedIds, onAcceptWeek, onAcce
         ))}
       </Card>
 
-      {/* Phases */}
+      {/* Phases — sentence case per the 2026-06-13 AC5 ruling (the label sat
+          outside the §3.0.7 kill table; founder killed it with the rest). */}
       <Card style={s.card}>
-        <Label color={c.careerText}>12-WEEK EXECUTION PLAN</Label>
+        <Body style={[s.sweepLabel, { color: c.careerText }]}>12-week execution plan</Body>
         {strategy.phases.map((p, i) => {
           // R2 — each phase's identity lives in its label + milestone dots, not a rail.
           const phaseColors = [c.polymathText, c.careerText, c.success];

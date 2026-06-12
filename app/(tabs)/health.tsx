@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,7 +55,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { useFitSyncStore } from '@/store/useFitSyncStore';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import type { BloodReportResult } from '@/ai/types';
-import { isFitConnected, startFitOAuth } from '@/integrations/googleFit/oauth';
+import { isFitConnected, startFitOAuth, clearFitTokens } from '@/integrations/googleFit/oauth';
 import { syncFitDailyData } from '@/integrations/googleFit/client';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -125,9 +125,13 @@ function HealthScreenV1() {
   const [fitConnected, setFitConnected] = useState(false);
   const [fitSyncing, setFitSyncing] = useState(false);
   const [fitError, setFitError] = useState<string | null>(null);
+  // Fit row press target (§3.0.3, amendment x): Sync now + Disconnect live one
+  // level in — same pattern as Finance's Gmail sheet. Un-parks 13.2.
+  const [fitSheetOpen, setFitSheetOpen] = useState(false);
   const fitDays = useFitSyncStore((s) => s.days);
   const fitWorkouts = useFitSyncStore((s) => s.workouts);
   const setFitSync = useFitSyncStore((s) => s.setSync);
+  const clearFitSync = useFitSyncStore((s) => s.clear);
   const { call, loading } = useAI();
   const { userId } = useUserStore();
   const { awardBadge, addXP } = useGameStore();
@@ -193,6 +197,13 @@ function HealthScreenV1() {
       return;
     }
     await startFitOAuth(clientId);
+  };
+
+  const handleFitDisconnect = () => {
+    clearFitTokens();
+    setFitConnected(false);
+    clearFitSync();
+    setFitError(null);
   };
 
   const handleFitSync = async () => {
@@ -686,7 +697,7 @@ function HealthScreenV1() {
               caption="Steps, sleep, heart rate and weight — synced automatically"
               actionLabel="Sync"
               accent={c.health}
-              onPress={handleFitSync}
+              onPress={() => setFitSheetOpen(true)}
               testID="connect-row-fit"
               status={
                 fitDays.length > 0
@@ -748,10 +759,98 @@ function HealthScreenV1() {
           }
         }}
       />
+
+      {/* Fit row press target (§3.0.3): Sync now + Disconnect live one level
+          in — the row itself never carries a destructive action. */}
+      <FitActionsSheet
+        visible={fitSheetOpen}
+        c={c}
+        syncing={fitSyncing}
+        onSync={() => {
+          setFitSheetOpen(false);
+          void handleFitSync();
+        }}
+        onDisconnect={() => {
+          setFitSheetOpen(false);
+          handleFitDisconnect();
+        }}
+        onClose={() => setFitSheetOpen(false)}
+      />
       </SafeAreaView>
     </View>
   );
 }
+
+// ─── Fit press-target sheet ───────────────────────────────────────────────────
+
+function FitActionsSheet({
+  visible,
+  c,
+  syncing,
+  onSync,
+  onDisconnect,
+  onClose,
+}: {
+  visible: boolean;
+  c: ReturnType<typeof useColors>;
+  syncing: boolean;
+  onSync: () => void;
+  onDisconnect: () => void;
+  onClose: () => void;
+}) {
+  if (!visible) return null;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={[fitSheetStyles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
+        <Pressable style={[fitSheetStyles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Body style={{ fontFamily: fonts.bodyMedium, color: c.textPrimary }}>Google Fit</Body>
+          <Pressable
+            onPress={onSync}
+            disabled={syncing}
+            accessibilityRole="button"
+            accessibilityLabel="Sync now"
+            style={[fitSheetStyles.actionRow, { borderTopColor: c.border }]}
+          >
+            <Ionicons name="refresh" size={18} color={c.healthText} />
+            <Body style={{ color: c.textPrimary }}>Sync now</Body>
+          </Pressable>
+          <Pressable
+            onPress={onDisconnect}
+            accessibilityRole="button"
+            accessibilityLabel="Disconnect Google Fit"
+            style={[fitSheetStyles.actionRow, { borderTopColor: c.border }]}
+          >
+            <Ionicons name="log-out-outline" size={18} color={c.error} />
+            <Body style={{ color: c.error }}>Disconnect Google Fit</Body>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+const fitSheetStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    padding: spacing.lg,
+    borderTopLeftRadius: radii.card,
+    borderTopRightRadius: radii.card,
+    borderWidth: 1,
+    maxHeight: '70%',
+    gap: spacing.xs,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 56,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

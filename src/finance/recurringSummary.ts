@@ -60,7 +60,10 @@ export function formatDueLabel(dueDate: string | null, todayIso: string): string
   if (due == null || today == null) return '';
 
   const days = due - today;
-  if (days < 0) return 'Overdue';
+  // 'Past due', not 'Overdue' — AC5 (spec 04 §5.5) bans the literal `Overdue`
+  // on every module screen, and this was the one data-driven path that could
+  // still render it (founder ruling 2026-06-13).
+  if (days < 0) return 'Past due';
   if (days === 0) return 'Due today';
   if (days === 1) return 'Due tomorrow';
   if (days <= 14) return `Due in ${days} days`;
