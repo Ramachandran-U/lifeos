@@ -62,7 +62,7 @@ const FOOD_SEARCH_PLACEHOLDERS = [
 export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, onPhotoUsed }: AddFoodSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
-  const { call, loading } = useAI();
+  const { call, loading, error: aiError } = useAI();
   const [mode, setMode] = useState<Mode>('choose');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [recognised, setRecognised] = useState<FoodRecognition | null>(null);
@@ -389,6 +389,16 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
           <View style={styles.optionSpacer} />
         </View>
       )}
+      {/* Voice/photo recognition failures land back on this screen (their
+          handlers fall through to 'choose' on a null result) — say why instead
+          of silently resetting. Raw proxy errors stay out of the UI. */}
+      {aiError ? (
+        <Body style={styles.voiceError}>
+          {aiError.startsWith('AI proxy')
+            ? 'The AI service had a problem. Try again in a moment.'
+            : aiError}
+        </Body>
+      ) : null}
     </>
   );
 
@@ -410,6 +420,11 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
       </Card>
       {speech.error ? <Body style={styles.voiceError}>{speech.error}</Body> : null}
       <Button title="Done" onPress={handleVoiceDone} disabled={!speech.transcript.trim()} />
+      {/* Recognition can end with nothing heard (mic muted, pause too long) —
+          without this the user faces only a disabled Done and Cancel. */}
+      {!speech.listening && !speech.transcript.trim() ? (
+        <Button title="Listen again" variant="ghost" onPress={speech.start} />
+      ) : null}
       <Button title="Cancel" variant="ghost" onPress={() => { speech.stop(); setMode('choose'); }} />
     </>
   );

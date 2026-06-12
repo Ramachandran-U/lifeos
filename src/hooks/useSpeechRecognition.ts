@@ -48,6 +48,29 @@ export function isSpeechRecognitionSupported(): boolean {
   return getCtor() !== null;
 }
 
+/**
+ * Map Web Speech API error codes to actionable copy. The raw codes ('network',
+ * 'not-allowed') read as developer noise, and each common failure has a
+ * different user remedy — mic permission vs. no mic vs. the browser's speech
+ * service being unreachable (Chrome's recogniser is cloud-backed, so corporate
+ * networks / privacy browsers can block it while the rest of the app works).
+ */
+export function speechErrorMessage(code: string): string {
+  switch (code) {
+    case 'no-speech':
+      return "Didn't catch that — try again.";
+    case 'not-allowed':
+    case 'service-not-allowed':
+      return 'Microphone access is blocked. Allow it for this site in your browser settings, then retry.';
+    case 'audio-capture':
+      return 'No microphone found. Check your input device and try again.';
+    case 'network':
+      return "Your browser couldn't reach its speech service — some browsers and networks block it. Check your connection or try Chrome.";
+    default:
+      return 'Voice input failed. Try again, or type your meal instead.';
+  }
+}
+
 export interface UseSpeechRecognition {
   supported: boolean;
   listening: boolean;
@@ -93,7 +116,7 @@ export function useSpeechRecognition(): UseSpeechRecognition {
       setTranscript(text);
     };
     rec.onerror = (e) => {
-      setError(e.error === 'no-speech' ? "Didn't catch that — try again." : `Voice error: ${e.error}`);
+      setError(speechErrorMessage(e.error));
       setListening(false);
     };
     rec.onend = () => setListening(false);
