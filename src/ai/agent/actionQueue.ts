@@ -33,7 +33,27 @@ export type ProposedAction =
     }
   | { kind: 'completeBlock'; summary: string; payload: { ref: string } }
   | { kind: 'skipBlock'; summary: string; payload: { ref: string } }
-  | { kind: 'adjustGoalStatus'; summary: string; payload: { ref: string; status: GoalStatus } };
+  | { kind: 'adjustGoalStatus'; summary: string; payload: { ref: string; status: GoalStatus } }
+  // ── Voice-agent navigation intents ──────────────────────────────────────────
+  // These two are proposed by the voice agent and, on confirm, are handled by the
+  // companion: it navigates to the domain screen with the collected inputs as
+  // params and lets that screen run its existing generate flow (with its own
+  // loading UI). They are NOT committed through `commitActions` — kicking off a
+  // ~20s AI generation inside the commit would block the spoken turn, and the
+  // screen already owns the loading/skeleton UX. `commitActions` rejects them so
+  // a stray commit can't silently no-op.
+  | { kind: 'createGoalFromVision'; summary: string; payload: { visionStatement: string } }
+  | {
+      kind: 'generateCareerPath';
+      summary: string;
+      payload: {
+        currentRole: string;
+        targetRole: string;
+        timelineMonths: number;
+        weeklyHours?: number;
+        constraints?: string;
+      };
+    };
 
 export interface ActionQueue {
   propose(action: ProposedAction): void;
@@ -132,6 +152,11 @@ export async function commitActions(
           if (!deps.goalExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
           deps.updateGoalStatus(action.payload.ref, action.payload.status);
           break;
+        case 'createGoalFromVision':
+        case 'generateCareerPath':
+          // Navigation intents are executed by the voice companion (navigate +
+          // screen-driven generation), never here. Reaching this is a wiring bug.
+          throw new Error(`${action.kind} is handled by navigation, not commitActions`);
       }
       results.push({ action, ok: true });
     } catch (err) {

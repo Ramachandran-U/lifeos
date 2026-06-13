@@ -87,7 +87,7 @@ describe('useActivityFeed', () => {
   });
 
   it('loadHistory delegates to getEntityHistory', async () => {
-    mockGetEntityHistory.mockResolvedValue([{ seq: 1 }]);
+    mockGetEntityHistory.mockResolvedValue([{ lamport: 1 }]);
     const { result } = renderHook(() => useActivityFeed());
     await waitFor(() => expect(result.current.status).toBe('ready'));
 
@@ -96,7 +96,7 @@ describe('useActivityFeed', () => {
       entries = await result.current.loadHistory('goal', 'g1');
     });
     expect(mockGetEntityHistory).toHaveBeenCalledWith('goal', 'g1');
-    expect(entries).toEqual([{ seq: 1 }]);
+    expect(entries).toEqual([{ lamport: 1 }]);
   });
 
   it('restore() calls restoreEntityTo then reloads', async () => {
@@ -106,10 +106,10 @@ describe('useActivityFeed', () => {
 
     let restored: boolean | undefined;
     await act(async () => {
-      restored = await result.current.restore('goal', 'g1', { seq: 2 });
+      restored = await result.current.restore('goal', 'g1', { lamport: 2 });
     });
 
-    expect(mockRestoreEntityTo).toHaveBeenCalledWith('goal', 'g1', { seq: 2 });
+    expect(mockRestoreEntityTo).toHaveBeenCalledWith('goal', 'g1', { lamport: 2 });
     expect(restored).toBe(true);
     // reload was called again after restore
     expect(mockReadAllWithState).toHaveBeenCalledTimes(2);
@@ -122,7 +122,7 @@ describe('useActivityFeed', () => {
 
     let restored: boolean | undefined;
     await act(async () => {
-      restored = await result.current.restore('goal', 'g1', { seq: 1 });
+      restored = await result.current.restore('goal', 'g1', { lamport: 1 });
     });
     expect(restored).toBe(false);
   });

@@ -19,7 +19,8 @@ jest.mock('@/db/queries/health', () => ({
 }));
 
 import { financeDb, upsertTransactions, type TxRecord } from '@/finance/db/transactionDb';
-import { buildVoiceTools } from '@/ai/agent/voiceTools';
+import { buildVoiceTools, type VoiceAgentDeps } from '@/ai/agent/voiceTools';
+import { createActionQueue, type ProposedAction } from '@/ai/agent/actionQueue';
 import { getUser } from '@/db/queries/users';
 import { getRecentWeightLogs, getFoodEntriesByDate } from '@/db/queries/health';
 
@@ -64,6 +65,84 @@ describe('buildVoiceTools', () => {
   it('exposes the getRecentSpending tool', () => {
     const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
     expect(names).toContain('getRecentSpending');
+  });
+
+  it('stays read-only (no act tools) without agent deps', () => {
+    const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
+    expect(names).not.toContain('navigateTo');
+    expect(names).not.toContain('proposeCreateGoal');
+    expect(names).not.toContain('syncGoogleFit');
+  });
+});
+
+describe('buildVoiceTools (agentic)', () => {
+  function agenticTools() {
+    const queue = createActionQueue();
+    const deps: VoiceAgentDeps = { queue, commitPending: async () => ({ committed: 0 }) };
+    const ctx = {
+      userId: 'u1',
+      today: TODAY,
+      navigate: () => {},
+      currentScreen: () => 'today' as const,
+    };
+    return { tools: buildVoiceTools(ctx, deps), queue };
+  }
+
+  function tool(name: string) {
+    const t = agenticTools().tools.find((x) => x.declaration.name === name);
+    if (!t) throw new Error(`${name} not found`);
+    return t;
+  }
+
+  it('appends nav + propose + sync + commit tools when wired', () => {
+    const names = agenticTools().tools.map((t) => t.declaration.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'navigateTo',
+        'getCurrentScreen',
+        'proposeCreateRoutineBlock', // from buildLifeOsWriteTools
+        'proposeCreateGoal',
+        'proposeGenerateCareerPath',
+        'syncGoogleFit',
+        'commitProposedActions',
+      ]),
+    );
+  });
+
+  it('proposeCreateGoal stages a createGoalFromVision action (no immediate write)', () => {
+    const { tools, queue } = agenticTools();
+    const createGoal = tools.find((t) => t.declaration.name === 'proposeCreateGoal')!;
+    const res = createGoal.execute({ visionStatement: 'I want to run a marathon' });
+    expect(res).toEqual({ proposed: true });
+    const staged = queue.list();
+    expect(staged).toHaveLength(1);
+    expect(staged[0]).toMatchObject<Partial<ProposedAction>>({
+      kind: 'createGoalFromVision',
+      payload: { visionStatement: 'I want to run a marathon' },
+    } as Partial<ProposedAction>);
+  });
+
+  it('proposeGenerateCareerPath demands the required slots before staging', () => {
+    const { tools, queue } = agenticTools();
+    const career = tools.find((t) => t.declaration.name === 'proposeGenerateCareerPath')!;
+    // Missing timeline → rejected, nothing staged (drives the model to ask).
+    const bad = career.execute({ currentRole: 'SWE', targetRole: 'EM' }) as { proposed: boolean };
+    expect(bad.proposed).toBe(false);
+    expect(queue.list()).toHaveLength(0);
+    // Complete → staged.
+    const ok = career.execute({ currentRole: 'SWE', targetRole: 'EM', timelineMonths: 24 });
+    expect(ok).toEqual({ proposed: true });
+    expect(queue.list()[0]).toMatchObject({
+      kind: 'generateCareerPath',
+      payload: { currentRole: 'SWE', targetRole: 'EM', timelineMonths: 24 },
+    });
+  });
+
+  it('navigateTo (instant) reports the screen without staging anything', () => {
+    expect(tool('navigateTo').execute({ screen: 'career' })).toEqual({
+      navigated: true,
+      screen: 'career',
+    });
   });
 });
 

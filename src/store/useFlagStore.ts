@@ -50,6 +50,15 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // time — see actionQueue.commitActions. The admin `flags` table remains the
   // authoritative kill switch (a row here overrides this fallback default).
   ai_coach_actions: true,
+  // Agentic voice: lets the voice assistant NAVIGATE between tabs, sync Google
+  // Fit on request, and PROPOSE writes (create a goal, generate a career path)
+  // that the user confirms — spoken "yes" or a tap on a confirm card. Off by
+  // default; requires the proxy's Gemini function-calling passthrough (same as
+  // agent_what_next). When off, voice stays read-only (today's grounding tools
+  // only) — behaviour-preserving. Navigation/sync execute instantly; anything
+  // that creates/generates/saves goes through propose→confirm. Worker is the
+  // remote kill switch.
+  voice_agent_actions: false,
   // Explore GA flags — all default-on; Worker is the remote kill switch.
   // These graduated out of flags.ts (typed compile-time) into the runtime store
   // so a broken feature can be flipped off from /v1/config without a deploy.

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -123,6 +123,50 @@ export default function CareerScreen() {
       setSavedPaths(getAllCareerPaths());
     }, []),
   );
+
+  // Voice-agent deep link: prefill the setup form from the spoken inputs and,
+  // when autorun, run the existing analyse → strategy flow (with the screen's
+  // own loading UI). Runs once; params are consumed so re-focus is inert.
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    currentRole?: string; targetRole?: string; timelineMonths?: string;
+    weeklyHours?: string; constraints?: string; autorun?: string;
+  }>();
+  const ranVoiceParams = useRef(false);
+  useEffect(() => {
+    if (ranVoiceParams.current) return;
+    const one = (x: string | string[] | undefined) => (Array.isArray(x) ? x[0] : x) ?? '';
+    const cr = one(params.currentRole).trim();
+    const tr = one(params.targetRole).trim();
+    if (!cr || !tr) return;
+    ranVoiceParams.current = true;
+    const months = Number(one(params.timelineMonths)) || 24;
+    const hoursRaw = Number(one(params.weeklyHours));
+    const hours = hoursRaw > 0 ? hoursRaw : 10;
+    const cons = one(params.constraints).trim();
+    setCurrentRole(cr);
+    setTargetRole(tr);
+    setTimelineMonths(months);
+    if (hoursRaw > 0) setWeeklyHours(hours);
+    if (cons) setConstraints(cons);
+    router.setParams({ currentRole: '', targetRole: '', timelineMonths: '', weeklyHours: '', constraints: '', autorun: '' });
+    if (one(params.autorun) === '1') {
+      void (async () => {
+        const a = await call(() =>
+          analyseSkillGap({ currentRole: cr, targetRole: tr, timelineMonths: months, currentSkills: [] }),
+        );
+        if (a) setAnalysis(a);
+        const st = await call(() =>
+          generateCareerStrategy({
+            currentRole: cr, targetRole: tr, currentSkills: [],
+            timeframeWeeks, weeklyHours: hours, constraints: cons || undefined,
+          }),
+        );
+        if (st) { setStrategy(st); setAcceptedStepIds(new Set()); }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.currentRole, params.targetRole]);
 
   // ── Skill tag helpers ──────────────────────────────────────────────────────
 

@@ -108,6 +108,21 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+/**
+ * Parse a raw RFC-2822 `Date:` header to YYYY-MM-DD, or '' for a missing or
+ * UNPARSEABLE header. The old code did `new Date(header).toISOString()` directly;
+ * a malformed header makes `new Date()` Invalid, and `toISOString()` throws
+ * RangeError — which propagated up and aborted the ENTIRE sync batch (one weird
+ * bank email killed the whole sync). Now a bad date just yields '' and the email
+ * is still ingested.
+ */
+export function safeEmailDate(dateHeader: string | undefined): string {
+  if (!dateHeader) return '';
+  const ms = Date.parse(dateHeader);
+  if (Number.isNaN(ms)) return '';
+  return new Date(ms).toISOString().slice(0, 10);
+}
+
 export async function fetchEmailBody(
   accessToken: string,
   messageId: string,
@@ -122,7 +137,7 @@ export async function fetchEmailBody(
   const subject = headers.find((h) => h.name.toLowerCase() === 'subject')?.value ?? '';
   const from = headers.find((h) => h.name.toLowerCase() === 'from')?.value ?? '';
   const dateHeader = headers.find((h) => h.name.toLowerCase() === 'date')?.value;
-  const date = dateHeader ? new Date(dateHeader).toISOString().slice(0, 10) : '';
+  const date = safeEmailDate(dateHeader);
   const body = extractBody(json.payload ?? {});
   return { id: messageId, subject, from, body, date };
 }

@@ -5,6 +5,9 @@ import { getUser } from '@/db/queries/users';
 import { getRecentWeightLogs, getFoodEntriesByDate } from '@/db/queries/health';
 import { calorieTargets } from '@/utils/health';
 import { buildLifeOsTools, type ToolContext } from './tools';
+import { buildNavTools } from './navTools';
+import { buildLifeOsWriteTools } from './writeTools';
+import type { ActionQueue } from './actionQueue';
 import type { AgentTool } from './runtime';
 
 const DEFAULT_WINDOW_DAYS = 30;
@@ -158,13 +161,202 @@ function todayNutritionTool(ctx: ToolContext): AgentTool {
   };
 }
 
+function asString(v: unknown): string | null {
+  return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
+}
+
 /**
- * The tool set the voice assistant can call. It's the read-only `buildLifeOsTools`
- * set (goals, today's routine, recent sleep, gamification momentum, overdue
- * contacts) plus a finance spending summary and today's nutrition — so the voice
- * agent can ground its answers in the user's real data, exactly like the text
- * "what should I do next?" agent does. All tools are read-only and run on-device.
+ * "Add a goal" tool. Propose-only: it does NOT create anything — it pushes a
+ * proposal the user confirms, after which the companion opens the Goals tab
+ * pre-filled with this vision and runs the existing break-it-down flow. Collect
+ * the user's goal in their own words first.
  */
-export function buildVoiceTools(ctx: ToolContext): AgentTool[] {
-  return [...buildLifeOsTools(ctx), recentSpendingTool(ctx), todayNutritionTool(ctx)];
+function proposeCreateGoalTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeCreateGoal',
+      description:
+        "Propose creating a new goal and breaking it into a plan, from the user's own words " +
+        '(e.g. "I want to run a marathon"). Does NOT create it — the user confirms first, then ' +
+        'the Goals screen opens and builds the plan. Capture their goal as a single vision sentence.',
+      parameters: {
+        type: 'object',
+        properties: {
+          visionStatement: {
+            type: 'string',
+            description: "The goal in the user's words, e.g. 'I want to switch into product management'.",
+          },
+        },
+        required: ['visionStatement'],
+      },
+    },
+    execute: (args) => {
+      const visionStatement = asString(args.visionStatement);
+      if (!visionStatement) return { proposed: false, error: 'visionStatement is required' };
+      queue.propose({
+        kind: 'createGoalFromVision',
+        summary: `Create & break down a goal: "${visionStatement}"`,
+        payload: { visionStatement },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/**
+ * "Build my career path" tool. Propose-only. The model must gather the required
+ * fields conversationally first (ask for the timeline if the user didn't say
+ * one) — the schema marks them required so a half-formed call is rejected and
+ * the model asks again. On confirm the companion opens Career pre-filled and
+ * runs the existing strategy generator.
+ */
+function proposeCareerPathTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeGenerateCareerPath',
+      description:
+        'Propose generating a career path/upskill plan. Does NOT generate it — the user confirms ' +
+        'first, then the Career screen opens and generates it. Before calling, make sure you know ' +
+        'the current role, the target role, and a timeline (in months) — ASK the user for whatever ' +
+        'is missing rather than guessing. weeklyHours and constraints are optional extras worth asking for.',
+      parameters: {
+        type: 'object',
+        properties: {
+          currentRole: { type: 'string', description: 'The user\'s current role, e.g. "Software Engineer".' },
+          targetRole: { type: 'string', description: 'The role they want, e.g. "Engineering Manager".' },
+          timelineMonths: { type: 'number', description: 'Target timeline in months, e.g. 24.' },
+          weeklyHours: { type: 'number', description: 'Optional: hours per week they can commit.' },
+          constraints: { type: 'string', description: 'Optional: constraints, e.g. "full-time job, toddler at home".' },
+        },
+        required: ['currentRole', 'targetRole', 'timelineMonths'],
+      },
+    },
+    execute: (args) => {
+      const currentRole = asString(args.currentRole);
+      const targetRole = asString(args.targetRole);
+      const timelineMonths = typeof args.timelineMonths === 'number' ? args.timelineMonths : null;
+      if (!currentRole || !targetRole || !timelineMonths || timelineMonths <= 0) {
+        return {
+          proposed: false,
+          error: 'currentRole, targetRole and a positive timelineMonths are required',
+        };
+      }
+      const weeklyHours =
+        typeof args.weeklyHours === 'number' && args.weeklyHours > 0 ? args.weeklyHours : undefined;
+      const constraints = asString(args.constraints) ?? undefined;
+      queue.propose({
+        kind: 'generateCareerPath',
+        summary: `Generate a career path: ${currentRole} → ${targetRole} over ${timelineMonths} months`,
+        payload: { currentRole, targetRole, timelineMonths, weeklyHours, constraints },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/**
+ * "Sync my Google Fit" tool. INSTANT (idempotent, low-risk) — it syncs and
+ * persists immediately and returns a compact summary the agent narrates ("tell
+ * me what you see"). Mirrors the Health screen's Sync button via `syncAndPersistFit`.
+ */
+function syncGoogleFitTool(): AgentTool {
+  const DEFAULT_DAYS = 14;
+  const MAX_DAYS = 30;
+  return {
+    declaration: {
+      name: 'syncGoogleFit',
+      description:
+        "Sync the user's Google Fit data now and get a summary (steps, sleep, workouts, weight, " +
+        'recovery). Use when the user asks to sync their fitness/Fit data or wants to know what ' +
+        'their recent activity looks like. Runs immediately — no confirmation needed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          days: {
+            type: 'number',
+            description: `How many days back to sync. Default ${DEFAULT_DAYS}.`,
+          },
+        },
+      },
+    },
+    execute: async (args) => {
+      const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        return { synced: false, error: 'Google is not configured on this build.' };
+      }
+      const requested = typeof args.days === 'number' && args.days > 0 ? args.days : DEFAULT_DAYS;
+      const days = Math.min(requested, MAX_DAYS);
+      try {
+        // Lazy import so the (stores + Fit client) graph only loads when the
+        // user actually syncs — keeps the tool module light to import.
+        const { syncAndPersistFit } = await import('@/integrations/googleFit/sync');
+        const summary = await syncAndPersistFit(clientId, days);
+        return { synced: true, ...summary };
+      } catch (err) {
+        return {
+          synced: false,
+          error:
+            err instanceof Error
+              ? err.message
+              : 'Could not sync — the user may need to connect Google Fit on the Health screen.',
+        };
+      }
+    },
+  };
+}
+
+/**
+ * Spoken-confirm commit. The user can tap a confirm card OR just say "yes/do
+ * it" — in the latter case the model calls this to apply everything it has
+ * proposed this turn. The actual commit (DB writes via commitActions, or
+ * navigate-and-generate for goal/career intents) is performed by the companion,
+ * passed in as `commitPending`. Only call after the user has clearly agreed.
+ */
+function commitPendingActionsTool(commitPending: () => Promise<{ committed: number }>): AgentTool {
+  return {
+    declaration: {
+      name: 'commitProposedActions',
+      description:
+        'Apply everything you have proposed this turn, once the user has clearly agreed (said ' +
+        '"yes", "do it", "go ahead", etc.). Do NOT call this until the user has confirmed. Returns ' +
+        'how many actions were applied (0 means there was nothing pending).',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: async () => commitPending(),
+  };
+}
+
+/** Deps the companion injects to turn on the agentic (act-capable) tool set. */
+export interface VoiceAgentDeps {
+  /** Queue the propose tools push onto; the companion renders + commits it. */
+  queue: ActionQueue;
+  /** Apply every confirmed action (spoken-yes path). */
+  commitPending: () => Promise<{ committed: number }>;
+}
+
+/**
+ * The tool set the voice assistant can call. The base set is read-only
+ * (`buildLifeOsTools` — goals, today's routine, sleep, momentum, contacts — plus
+ * a finance spending summary and today's nutrition) so the agent can ground its
+ * answers in the user's real data, exactly like the text "what should I do next?"
+ * agent does.
+ *
+ * When `agent` is supplied (companion + the `voice_agent_actions` flag on), the
+ * agentic tools are appended: navigation/screen-context (instant), the
+ * propose-only write tools (routine/goal), and the voice-specific
+ * propose/sync/commit tools. Everything that writes still goes through
+ * propose→confirm; navigation and Fit-sync are instant. All tools run on-device.
+ */
+export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): AgentTool[] {
+  const base = [...buildLifeOsTools(ctx), recentSpendingTool(ctx), todayNutritionTool(ctx)];
+  if (!agent) return base;
+  return [
+    ...base,
+    ...buildNavTools(ctx),
+    ...buildLifeOsWriteTools({ today: ctx.today }, agent.queue),
+    proposeCreateGoalTool(agent.queue),
+    proposeCareerPathTool(agent.queue),
+    syncGoogleFitTool(),
+    commitPendingActionsTool(agent.commitPending),
+  ];
 }

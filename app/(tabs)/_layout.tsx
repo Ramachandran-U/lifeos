@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
@@ -6,6 +7,7 @@ import { haptic } from '@/utils/haptics';
 import { isEnabled } from '@/config/flags';
 import { useMotionScale } from '@/theme/motion';
 import { tabTransition } from '@/navigation/transitions';
+import { VoiceCompanion } from '@/components/shared/VoiceCompanion';
 
 type TabIcon = {
   name: keyof typeof Ionicons.glyphMap;
@@ -30,6 +32,9 @@ export default function TabLayout() {
   const transition = tabTransition({ enabled: isEnabled('motionTransitions'), motionScale });
 
   return (
+    // Wrap so the persistent voice companion can overlay the tab navigator and
+    // survive tab switches (the layout doesn't remount; the screens inside do).
+    <View style={{ flex: 1 }}>
     <Tabs
       // M0 haptic gap-fill: tab switches are meaningful navigation, so they
       // get a selection tick (no-op on web; flag-gated for safe rollout).
@@ -76,5 +81,7 @@ export default function TabLayout() {
       <Tabs.Screen name="career"  options={{ href: null }} />
       <Tabs.Screen name="social"  options={{ href: null }} />
     </Tabs>
+    <VoiceCompanion />
+    </View>
   );
 }

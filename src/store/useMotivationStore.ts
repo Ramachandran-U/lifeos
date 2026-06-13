@@ -25,12 +25,17 @@ export const useMotivationStore = create<MotivationState>((set, get) => ({
     if (pending) return pending;
 
     const promise = (async () => {
-      const result = await generateMotivation(input);
-      set((s) => ({
-        cache: { ...s.cache, [key]: result },
-        inflight: { ...s.inflight, [key]: undefined },
-      }));
-      return result;
+      try {
+        const result = await generateMotivation(input);
+        set((s) => ({ cache: { ...s.cache, [key]: result } }));
+        return result;
+      } finally {
+        // Always release the inflight slot — on BOTH success and failure. The old
+        // code only cleared it on success, so a single failed AI call (network
+        // blip / 429) left the rejected promise cached and replayed forever,
+        // permanently breaking motivation for that key until reload.
+        set((s) => ({ inflight: { ...s.inflight, [key]: undefined } }));
+      }
     })();
 
     set((s) => ({ inflight: { ...s.inflight, [key]: promise } }));

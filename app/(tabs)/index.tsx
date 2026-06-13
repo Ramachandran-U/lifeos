@@ -47,8 +47,7 @@ import { getGoalsByUser } from '@/db/queries/goals';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import { computeLifeScore, lifeScoreBand } from '@/utils/lifeScore';
 import type { DailyBriefingInput } from '@/ai/types';
-import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
-import { buildVoiceTools } from '@/ai/agent/voiceTools';
+import { useVoiceStore } from '@/store/useVoiceStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useSyncStore } from '@/store/useSyncStore';
@@ -128,24 +127,9 @@ export default function TodayScreen() {
   });
   const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
   const [hasReflectedToday, setHasReflectedToday] = useState(false);
-  const [voiceOpen, setVoiceOpen] = useState(false);
-  // Read-only tools that let the voice assistant ground answers in the user's
-  // real data (routine, goals, momentum, sleep, contacts, spending). Rebuilt only
-  // when the user or the day changes; undefined until signed in.
-  const voiceTools = useMemo(
-    () => (userId ? buildVoiceTools({ userId, today }) : undefined),
-    [userId, today],
-  );
-  const voiceSystemInstruction =
-    "You are LifeOS's voice assistant — the user's Digital Life Architect. This is a " +
-    'spoken conversation, so reply in 1-3 natural sentences: no markdown, no bullet lists. ' +
-    'You have read-only tools that see the user\'s REAL data: goals, today\'s routine, recent ' +
-    'sleep, gamification momentum, overdue contacts, recent spending, and today\'s nutrition ' +
-    '(calories/macros vs target). ALWAYS call the ' +
-    'relevant tool before answering anything about their day, plans, health, food, money, or ' +
-    'progress — never guess or invent data. Ground every answer in what the tools return, and ' +
-    'be specific and actionable. If a tool comes back empty, say so plainly and suggest the fix ' +
-    '(e.g. plan the day, add your age for calories, or sync accounts for spending).';
+  // Voice now lives in the persistent VoiceCompanion (mounted in the tabs
+  // layout), which owns the session, tools, and system prompt so it survives
+  // tab navigation. The mic buttons here just flip the shared store open.
   const [calConnected, setCalConnected] = useState(false);
   const [calSyncing, setCalSyncing] = useState(false);
   const [calStatus, setCalStatus] = useState<string | null>(null);
@@ -510,7 +494,7 @@ export default function TodayScreen() {
               <AvatarRing xp={totalXP} initials={initials || 'U'} size={64} />
             </Pressable>
             <Pressable
-              onPress={() => setVoiceOpen(true)}
+              onPress={() => useVoiceStore.getState().openVoice()}
               hitSlop={8}
               style={[styles.voiceBtn, { backgroundColor: c.primary + '22', borderColor: c.primary + '55' }]}
               testID="voice-open"
@@ -975,7 +959,7 @@ export default function TodayScreen() {
               </AuroraText>
             </View>
             <Pressable
-              onPress={() => setVoiceOpen(true)}
+              onPress={() => useVoiceStore.getState().openVoice()}
               hitSlop={6}
               style={{ marginLeft: spacing.sm, padding: 4 }}
               accessibilityRole="button"
@@ -986,13 +970,6 @@ export default function TodayScreen() {
           </View>
         </Animated.View>
       </SafeAreaView>
-
-      <VoiceAssistantSheet
-        visible={voiceOpen}
-        onClose={() => setVoiceOpen(false)}
-        systemInstruction={voiceSystemInstruction}
-        tools={voiceTools}
-      />
 
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
       <DailySummarySheet

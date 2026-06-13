@@ -1,0 +1,23 @@
+# Cloudflare Pages cache rules.
+# Processed by `post-export-web.js` (copied public/ → dist/), then read by Cloudflare Pages.
+
+# Service worker: NEVER cache. Browsers check this file to detect updates —
+# if the CDN or browser serves a stale copy, the update cycle never fires and
+# the home-screen app keeps running the old code.
+/sw.js
+  Cache-Control: no-store
+
+# Web app manifest: short TTL so icon/name changes land quickly.
+/manifest.json
+  Cache-Control: public, max-age=3600, must-revalidate
+
+# HTML entry points: always revalidate (they reference hashed JS bundles).
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Hashed static assets (JS/CSS/fonts) from expo export: safe to cache forever
+# because the filename changes when content changes.
+/_expo/*
+  Cache-Control: public, max-age=31536000, immutable
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

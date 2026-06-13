@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect, type ReactElement } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
@@ -54,6 +54,12 @@ export default function GoalsScreen() {
   // goal synced from another device repaints without a manual reload.
   const syncTick = useSyncStore((s) => s.appliedTick);
   const [showAddSheet, setShowAddSheet] = useState(false);
+  // Voice-agent deep link: open the Add-Goal sheet pre-seeded with the spoken
+  // vision and auto-run the break-it-down step. Cleared after consuming so a
+  // re-focus doesn't reopen it.
+  const router = useRouter();
+  const params = useLocalSearchParams<{ voiceVision?: string; autorun?: string }>();
+  const [voiceSeed, setVoiceSeed] = useState<{ vision: string; autorun: boolean } | null>(null);
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -95,6 +101,17 @@ export default function GoalsScreen() {
       }
     }, [userId, loadGoals, reactivateDue, syncTick, primaryDomains])
   );
+
+  useEffect(() => {
+    const v = params.voiceVision;
+    const vision = (Array.isArray(v) ? v[0] : v) ?? '';
+    if (!vision) return;
+    setVoiceSeed({ vision, autorun: params.autorun === '1' });
+    setShowAddSheet(true);
+    // Consume the params so navigating back here later doesn't reopen the sheet.
+    router.setParams({ voiceVision: '', autorun: '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.voiceVision]);
 
   // Postponed (paused) goals are hidden from the active tree and surfaced in
   // their own collapsible section with a Resume action.
@@ -662,8 +679,11 @@ export default function GoalsScreen() {
 
       <AddGoalSheet
         visible={showAddSheet}
+        initialVision={voiceSeed?.vision}
+        autoDecompose={voiceSeed?.autorun}
         onClose={() => {
           setShowAddSheet(false);
+          setVoiceSeed(null);
           if (userId) loadGoals(userId);
         }}
         onGoalCreated={handleGoalCreated}

@@ -56,7 +56,7 @@ import {
   startFitOAuth,
   clearFitTokens,
 } from '@/integrations/googleFit/oauth';
-import { syncFitDailyData } from '@/integrations/googleFit/client';
+import { syncAndPersistFit } from '@/integrations/googleFit/sync';
 import { FitDashboard } from '@/components/modules/health/FitDashboard';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -104,7 +104,6 @@ export default function HealthScreen() {
   // away from the tab — otherwise the dashboard cleared and forced a re-sync.
   const fitDays = useFitSyncStore((s) => s.days);
   const fitWorkouts = useFitSyncStore((s) => s.workouts);
-  const setFitSync = useFitSyncStore((s) => s.setSync);
   const clearFitSync = useFitSyncStore((s) => s.clear);
   const { call, loading } = useAI();
   const { userId } = useUserStore();
@@ -179,38 +178,12 @@ export default function HealthScreen() {
     setFitSyncing(true);
     setFitStatus(null);
     try {
-      const result = await syncFitDailyData(clientId, 14);
-      setFitSync(result.days, result.workouts, Date.now());
-      const today = result.days[result.days.length - 1];
-      if (today && today.weightKg && today.weightKg > 0) {
-        createHealthLog({ date: today.date, weight: today.weightKg });
-      }
-      // Persist sleep across the synced window so recovery-aware planning can read it.
-      for (const day of result.days) {
-        const totalMins = day.sleep.total;
-        if (totalMins > 0) {
-          createHealthLog({
-            date: day.date,
-            sleepHours: Math.round((totalMins / 60) * 10) / 10,
-            source: 'health_connect',
-          });
-        }
-      }
-      // Compute + persist today's recovery score so the Routine Builder can
-      // read it (getLatestRecoveryScore) when softening the rest of the day.
-      const latestDate = result.days[result.days.length - 1]?.date;
-      const rec = recoveryFromFitDays(result.days, sleepTargetHours ?? undefined);
-      if (latestDate && rec.hasData) {
-        createHealthLog({ date: latestDate, recoveryScore: rec.score });
-      }
-      // A workout logged today (via Fit) keeps the workout streak alive.
-      if (userId && latestDate && result.workouts.some((w) => w.date === latestDate)) {
-        triggerStreak(userId, 'workout');
-      }
-      const totalSteps = result.days.reduce((s, d) => s + d.steps, 0);
+      // Shared with the voice agent's syncGoogleFit tool — one code path persists
+      // weight, sleep, recovery, the workout streak, and the cached Fit store.
+      const summary = await syncAndPersistFit(clientId, 14);
       setFitStatus(
-        `Synced 14 days · ${totalSteps.toLocaleString()} steps · ${result.workouts.length} workouts` +
-        (result.errors.length ? ` · ${result.errors.length} errors` : ''),
+        `Synced ${summary.daysSynced} days · ${summary.totalSteps.toLocaleString()} steps · ${summary.workouts} workouts` +
+        (summary.errors.length ? ` · ${summary.errors.length} errors` : ''),
       );
       loadData();
     } catch (err) {

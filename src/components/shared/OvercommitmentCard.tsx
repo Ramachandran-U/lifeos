@@ -3,6 +3,7 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { format } from 'date-fns';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
@@ -37,7 +38,10 @@ function blockMinutes(b: { startTime: string; endTime: string }): number {
 function computeAchievableBaseline(today: Date): number {
   // Rolling 14-day median of completed/in-progress block minutes per day.
   const start = new Date(today.getTime() - 14 * 86_400_000);
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  // LOCAL date keys — routine blocks are stored by local day, so a UTC-formatted
+  // window edge (the old toISOString) could include/exclude the wrong day near
+  // midnight and skew the baseline (mis-firing the overcommitment nudge).
+  const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
   const blocks = getRoutineBlocksInRange(fmt(start), fmt(today));
   const byDate: Record<string, number> = {};
   for (const b of blocks) {
@@ -124,7 +128,10 @@ export function OvercommitmentCard({ userId, date }: Props) {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     updateInsightStatus(insight.id, 'accepted');
     track(EVENTS.overcommitmentAccepted, { severity: insight.severity });
-    router.push('/edit-routine');
+    // edit-priorities is the real plan-adjustment surface (it drives the replan
+    // flow). The previous target '/edit-routine' had no route file, so this CTA
+    // was a dead link that also marked the insight accepted — losing it.
+    router.push('/edit-priorities');
   }, [insight, router]);
 
   const handleDismiss = useCallback(() => {

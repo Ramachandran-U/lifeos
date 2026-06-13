@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, isNotNull } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '../index';
 import { healthLogs, foodEntries, bloodReports } from '../schema';
@@ -101,11 +101,16 @@ export function getHealthLogsByDate(date: string) {
 
 export function getRecentWeightLogs(limit = 7) {
   if (isWeb) return webGetRecentWeightLogs(limit);
+  // Filter to weight-bearing rows in SQL BEFORE the limit. Filtering after
+  // .limit() (the old bug) took `limit` rows of ANY kind — water/steps/sleep
+  // entries with null weight — then dropped them, so a user who logs water more
+  // often than weight got an empty weight history on native. This matches the
+  // web path (webGetRecentWeightLogs filters non-null weight, then slices).
   return db.select().from(healthLogs)
+    .where(isNotNull(healthLogs.weight))
     .orderBy(desc(healthLogs.date))
     .limit(limit)
-    .all()
-    .filter((l) => l.weight !== null);
+    .all();
 }
 
 /**

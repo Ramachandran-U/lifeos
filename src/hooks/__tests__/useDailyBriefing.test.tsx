@@ -59,10 +59,14 @@ const TODAY = '2026-06-09';
 const YESTERDAY = '2026-06-08';
 
 const fakeInput: DailyBriefingInput = {
-  userName: 'Alex',
-  todayBlockCount: 6,
-  topGoals: ['Run a 5K'],
-  mood: 4,
+  name: 'Alex',
+  topGoal: 'Run a 5K',
+  blocksToday: 6,
+  overdueContacts: 0,
+  lifeScore: 50,
+  lifeScoreBand: 'Building',
+  weeklyInsight: null,
+  topDomainYesterday: null,
 };
 
 function resetState() {

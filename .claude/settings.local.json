@@ -5,7 +5,16 @@
       "Bash(mkdir -p /tmp/lifeos-design)",
       "Bash(cp \"C:/Users/RamachandranU/.claude/projects/C--personal-Project-X-lifeos--claude-worktrees-strange-greider-fa987b/32634dbc-db7d-4a6a-8f88-a7b00e3e8e87/tool-results/webfetch-1776740663609-ju28b0.bin\" /tmp/lifeos-design/bundle.bin)",
       "Read(//tmp/lifeos-design/**)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(git -C \"C:\\\\personal\\\\Project X\\\\lifeos\" log --since=\"24 hours ago\" --pretty=format:\"%h|%an|%ad|%s\" --date=format:\"%Y-%m-%d %H:%M\")",
+      "PowerShell(git fetch origin --quiet)",
+      "PowerShell(gh run list --branch lifeosv1 --limit 15)",
+      "PowerShell(gh run list --branch lifeosv1 --limit 40 --json displayTitle,name,conclusion,createdAt --jq '.[] | select\\(.name==\"Typecheck\"\\) | [.conclusion, .createdAt, .displayTitle] | @tsv')",
+      "PowerShell(gh run list --branch lifeosv1 --limit 6)",
+      "PowerShell(git show origin/lifeosv1:app/\\(tabs\\)/career.tsx | Select-String -Pattern \"sample|SAMPLE|Reality|strategy\" | Select-Object -First 30)",
+      "PowerShell(\"==== 185 ====\")",
+      "PowerShell(\"==== 186 ====\")",
+      "PowerShell(gh run list --branch lifeosv1 --limit 3)"
     ]
   }
 }
