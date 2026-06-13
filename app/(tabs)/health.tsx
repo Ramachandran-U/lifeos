@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import { Body, Label, Caption } from '@/components/ui/Typography';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { AuroraBackground } from '@/components/shared/AuroraBackground';
+import { VoiceAssistantSheet } from '@/components/shared/VoiceAssistantSheet';
 import { LoadingDots } from '@/components/ui/LoadingDots';
 import { CalorieRing } from '@/components/modules/health/CalorieRing';
 import { FoodEntryRow } from '@/components/modules/health/FoodEntryRow';
@@ -98,6 +99,7 @@ export default function HealthScreen() {
   const [fitConnected, setFitConnected] = useState(false);
   const [fitSyncing, setFitSyncing] = useState(false);
   const [fitStatus, setFitStatus] = useState<string | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
   // Synced Fit data is cached in a persisted store so it survives navigating
   // away from the tab — otherwise the dashboard cleared and forced a re-sync.
   const fitDays = useFitSyncStore((s) => s.days);
@@ -365,7 +367,16 @@ export default function HealthScreen() {
       <AuroraBackground />
       <SafeAreaView style={styles.container}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <ModuleHeader title="Health" domain="health" color={c.health} />
+        <View style={styles.headerRow}>
+          <ModuleHeader title="Health" domain="health" color={c.health} />
+          <Pressable
+            onPress={() => setVoiceOpen(true)}
+            style={[styles.voiceBtn, { backgroundColor: c.health + '22', borderColor: c.health + '55' }]}
+            testID="health-voice-open"
+          >
+            <Ionicons name="mic" size={20} color={c.health} />
+          </Pressable>
+        </View>
 
         <Animated.View entering={FadeInDown.duration(400)}>
           <VitalsCard
@@ -634,6 +645,11 @@ export default function HealthScreen() {
         }}
       />
       </SafeAreaView>
+      <VoiceAssistantSheet
+        visible={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        systemInstruction="You are LifeOS's health assistant. Help the user understand their nutrition, calories, weight trend, workouts, recovery score, and blood markers. Keep answers concise and actionable."
+      />
     </View>
   );
 }
@@ -641,6 +657,19 @@ export default function HealthScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  voiceBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   scroll: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,

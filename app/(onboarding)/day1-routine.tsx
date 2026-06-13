@@ -185,6 +185,8 @@ export default function Day1RoutineScreen() {
     );
 
     if (raw) {
+      // The planner already filters blocks to the wake→sleep window; this
+      // catch ensures nothing slips through on a bad AI response.
       const wMin = toMin(wakeTime);
       const sMin = toMin(sleepTime);
       const safeBlocks = raw.blocks.filter((b) => {
@@ -193,20 +195,13 @@ export default function Day1RoutineScreen() {
         return bs >= wMin && be <= sMin && bs < be;
       });
 
-      console.warn(
-        `[routine-guard] wakeTime=${wakeTime}(${wMin}) sleepTime=${sleepTime}(${sMin}) ` +
-        `raw=${raw.blocks.length} blocks (starts: ${raw.blocks.map(b => b.startTime).join(',')}) ` +
-        `safe=${safeBlocks.length} blocks (starts: ${safeBlocks.map(b => b.startTime).join(',')})`,
-      );
-      setFilterDebug(
-        `Guard: wake=${wakeTime} sleep=${sleepTime} | AI gave ${raw.blocks.length} blocks → ${safeBlocks.length} kept`,
-      );
-
       if (safeBlocks.length === 0) {
-        setRoutine(null);
+        setFilterDebug(
+          `No blocks fit the wake=${wakeTime}…sleep=${sleepTime} window — try adjusting your times and generating again.`,
+        );
       } else {
+        setFilterDebug(null);
         setRoutine({ ...raw, blocks: safeBlocks });
-        // "Your day is ready" beat as the blueprint stages in.
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }
@@ -365,6 +360,17 @@ export default function Day1RoutineScreen() {
               onPress={handleSave}
               style={styles.saveButton}
             />
+            {isEditMode && (
+              <Button
+                title="Regenerate"
+                variant="ghost"
+                onPress={() => {
+                  setRoutine(null);
+                  setFilterDebug(null);
+                }}
+                style={styles.regenerateButton}
+              />
+            )}
           </Animated.View>
         )}
       </ScrollView>
@@ -470,5 +476,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   saveButton: {
     marginTop: spacing.lg,
+  },
+  regenerateButton: {
+    marginTop: spacing.sm,
   },
 });

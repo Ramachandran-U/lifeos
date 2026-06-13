@@ -102,6 +102,10 @@ export function VoiceAssistantSheet({
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
+    // Unlock the AudioContext on the first user gesture inside the sheet so
+    // the model's spoken reply is actually audible on web (browsers start
+    // AudioContext suspended until a user gesture is received).
+    voice.resumeAudio();
     voice.sendText(trimmed);
     setInput('');
   };
@@ -130,7 +134,7 @@ export function VoiceAssistantSheet({
         exiting={FadeOut.duration(460).delay(80)}
         style={[styles.backdrop, { backgroundColor: c.background + 'CC' }]}
       >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => { voice.resumeAudio(); onClose(); }} />
       </Animated.View>
       <Animated.View
         entering={SlideInDown.springify().stiffness(SPRING.soft.stiffness).damping(SPRING.soft.damping)}

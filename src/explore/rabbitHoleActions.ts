@@ -29,6 +29,7 @@ import {
   depthOf,
   maxDeeperDepth,
   asLookup,
+  pathToRoot,
   parseTreeData,
   RABBIT_HOLE_MAX_DEPTH,
   REWARD_GATES,
@@ -63,7 +64,12 @@ export interface RabbitHoleSeed {
 
 const now = (): string => new Date().toISOString();
 
-function buildGenParams(parent: { title: string; body: string }, anchor: RabbitHoleAnchor, direction: RabbitHoleDirection): RabbitHoleInput {
+function buildGenParams(
+  parent: { title: string; body: string },
+  anchor: RabbitHoleAnchor,
+  direction: RabbitHoleDirection,
+  pathNodes?: RabbitHoleNode[],
+): RabbitHoleInput {
   return {
     parent: { title: parent.title, body: parent.body },
     anchor: {
@@ -72,13 +78,20 @@ function buildGenParams(parent: { title: string; body: string }, anchor: RabbitH
       adjacentField: anchor.adjacentField ?? undefined,
     },
     direction,
+    ...(pathNodes && pathNodes.length > 0 ? { pathHistory: pathNodes.map((n) => n.title) } : {}),
   };
 }
 
 /** Generate the next node via the existing (unchanged) AI path — agentic when
  * the flag is on and we have a user, else single-shot. Both never dead-end. */
-function generateNode(parent: { title: string; body: string }, anchor: RabbitHoleAnchor, direction: RabbitHoleDirection, userId: string | null): Promise<GeneratedNode> {
-  const params = buildGenParams(parent, anchor, direction);
+function generateNode(
+  parent: { title: string; body: string },
+  anchor: RabbitHoleAnchor,
+  direction: RabbitHoleDirection,
+  userId: string | null,
+  pathNodes?: RabbitHoleNode[],
+): Promise<GeneratedNode> {
+  const params = buildGenParams(parent, anchor, direction, pathNodes);
   return isEnabled('exploreAgenticThread') && userId
     ? exploreThreadNode({ ...params, userId })
     : generateRabbitHoleNode(params);
@@ -201,7 +214,8 @@ export async function advanceRabbitHole(direction: RabbitHoleDirection): Promise
   try {
     const userId = useUserStore.getState().userId;
     const cached = store.takePrefetch(cursorId, direction);
-    const gen = cached ?? (await generateNode(parent, anchor, direction, userId));
+    const pathNodes = pathToRoot(cursorId, asLookup(nodeMap));
+    const gen = cached ?? (await generateNode(parent, anchor, direction, userId, pathNodes));
     const child = nodeFromGenerated(gen, {
       id: nanoid(),
       parentId: cursorId,
@@ -350,11 +364,12 @@ export async function prefetchOtherFork(): Promise<void> {
   const node = nodeMap[cursorId];
   if (!node) return;
   const userId = useUserStore.getState().userId;
+  const pathNodes = pathToRoot(cursorId, asLookup(nodeMap));
   for (const fork of node.forks) {
     if (fork.childId != null) continue; // already realized
     if (store.prefetchCache[`${cursorId}:${fork.direction}`]) continue; // already cached
     try {
-      const gen = await generateNode(node, anchor, fork.direction, userId);
+      const gen = await generateNode(node, anchor, fork.direction, userId, pathNodes);
       useRabbitHoleStore.getState().setPrefetch(cursorId, fork.direction, gen);
     } catch {
       /* best-effort: a miss just means we generate on tap */

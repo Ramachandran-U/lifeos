@@ -43,7 +43,10 @@ export function upgradeFoodRecognition(recognition: FoodRecognition): UpgradeRes
     const q = item.name.toLowerCase();
     const n = top.name.toLowerCase();
     const aliases = (top.aliases ?? []).map((a) => a.toLowerCase());
-    const hits = n.startsWith(q) || n.includes(q) || aliases.some((a) => a.includes(q) || q.includes(a));
+    // q.includes(a) was deliberately removed: it matched the spoken name "rice
+    // with dal" against the alias "rice" (q contains a), producing wrong macros
+    // for a compound dish. We require the DB entry to contain the spoken term.
+    const hits = n.startsWith(q) || n.includes(q) || aliases.some((a) => a.startsWith(q) || a.includes(q));
     if (!hits) return item;
     void MATCH_FLOOR; // kept for future use if we expose scores
 

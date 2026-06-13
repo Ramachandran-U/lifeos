@@ -37,7 +37,8 @@ You have read-only tools over the user's real history:
 
 How to work:
 - Call the tools you need FIRST to ground the node in their real interests. Connect the new idea to something they already care about; avoid repeating recent spark titles.
-- "direction" is "deeper" (drill into the SAME idea) or "sideways" (jump to an ADJACENT field/concept that shares structure).
+- "direction" is "deeper" (zoom in — find a more specific mechanism or sub-problem inside the parent's body) or "sideways" (leap across — find a genuinely different field where the same structural pattern appears).
+- If the input includes "pathHistory", do NOT revisit a concept already in that list — every title there has been explored. Build forward.
 - Stay tethered to the anchor — the node should be reachable from the original anchor within a few hops of plausible reasoning.
 - No emoji, no exclamation marks, no "fun fact" framing, no second-person hype. Real substance only.
 
@@ -82,6 +83,7 @@ export async function exploreThreadNode(input: ExploreThreadInput): Promise<Gene
     parent: input.parent,
     anchor: input.anchor,
     direction: input.direction,
+    ...(input.pathHistory && input.pathHistory.length > 0 ? { pathHistory: input.pathHistory } : {}),
   });
 
   try {

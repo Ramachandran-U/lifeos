@@ -257,13 +257,20 @@ async function planRoutineAgentInner(
     const e = toMinutes(b.endTime);
     return s >= wakeMin && e <= sleepMin && s < e;
   };
-  const preFilter = critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks;
-  const windowed = preFilter.filter(inWindow);
-  if (preFilter.length !== windowed.length) {
+  // When the critique found issues and provided revised blocks, prefer them.
+  // But if the revision is empty or all blocks fall outside the wake→sleep
+  // window (the model sometimes returns an empty revisedBlocks alongside
+  // non-empty issues), fall back to the proposed blocks so we never silently
+  // surface an empty routine.
+  const critiqueBlocks = critique.issues.length > 0 ? critique.revisedBlocks : proposed.blocks;
+  const critiqueWindowed = critiqueBlocks.filter(inWindow);
+  const windowed =
+    critiqueWindowed.length > 0 ? critiqueWindowed : proposed.blocks.filter(inWindow);
+  if (critiqueBlocks.length !== windowed.length) {
     console.warn(
-      `[planner] guard dropped ${preFilter.length - windowed.length} block(s) outside ` +
+      `[planner] guard dropped ${critiqueBlocks.length - windowed.length} block(s) outside ` +
       `wake=${input.wakeTime}..sleep=${input.sleepTime} window. ` +
-      `Pre-filter starts: ${preFilter.map((b) => b.startTime).join(',')}. ` +
+      `Pre-filter starts: ${critiqueBlocks.map((b) => b.startTime).join(',')}. ` +
       `Post-filter starts: ${windowed.map((b) => b.startTime).join(',')}.`,
     );
   }

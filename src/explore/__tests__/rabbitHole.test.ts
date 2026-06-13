@@ -57,6 +57,48 @@ describe('buildMockNode', () => {
     const n = buildMockNode({ parent: baseInput.parent, anchor: { title: 'A spark' }, direction: 'sideways' });
     expect(isConcreteNode(n)).toBe(true);
   });
+
+  it('is deterministic — same input always produces same output', () => {
+    const n1 = buildMockNode(baseInput);
+    const n2 = buildMockNode(baseInput);
+    expect(n1.title).toBe(n2.title);
+    expect(n1.body).toBe(n2.body);
+  });
+
+  it('depth traversal: four consecutive deeper taps produce unique bodies (with pathHistory)', () => {
+    // Mirror the real runtime path where advanceRabbitHole passes pathHistory
+    let parent = baseInput.parent;
+    const visited: string[] = [];
+    const bodies: string[] = [];
+    for (let depth = 0; depth < 4; depth++) {
+      const n = buildMockNode({ ...baseInput, parent, direction: 'deeper', pathHistory: visited });
+      bodies.push(n.body);
+      visited.push(parent.title);
+      parent = { title: n.title, body: n.body };
+    }
+    // pathHistory.length cycles the template index, so each depth hits a distinct lens
+    expect(new Set(bodies).size).toBe(bodies.length);
+  });
+
+  it('depth traversal: four consecutive sideways taps produce unique bodies (with pathHistory)', () => {
+    let parent = baseInput.parent;
+    const visited: string[] = [];
+    const bodies: string[] = [];
+    for (let depth = 0; depth < 4; depth++) {
+      const n = buildMockNode({ ...baseInput, parent, direction: 'sideways', pathHistory: visited });
+      bodies.push(n.body);
+      visited.push(parent.title);
+      parent = { title: n.title, body: n.body };
+    }
+    expect(new Set(bodies).size).toBe(bodies.length);
+  });
+
+  it('different parent titles produce different body content', () => {
+    // Bodies always embed p (parentTitle), so different parents → different bodies
+    const fromChess = buildMockNode({ ...baseInput, parent: { title: 'Chess', body: 'A game.' }, direction: 'deeper' });
+    const fromJazz = buildMockNode({ ...baseInput, parent: { title: 'Jazz improvisation', body: 'Music.' }, direction: 'deeper' });
+    expect(fromChess.body).not.toBe(fromJazz.body);
+  });
 });
 
 describe('generateRabbitHoleNode (mock mode)', () => {

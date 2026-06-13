@@ -93,6 +93,14 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
   const isEditing = !!editEntry;
   const speech = useSpeechRecognition();
 
+  // localMealType lets the user correct the meal section from the review screen
+  // without navigating back. It's synced from the prop each time the sheet
+  // opens so the parent's meal selection always wins on a fresh open.
+  const [localMealType, setLocalMealType] = useState<MealType>(mealType);
+  useEffect(() => {
+    if (visible) setLocalMealType(mealType);
+  }, [visible, mealType]);
+
   // When opened to edit an existing entry, jump straight to the manual form
   // with its values prefilled.
   useEffect(() => {
@@ -287,7 +295,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
       if (selectedItems[i]) {
         createFoodEntry({
           date: today,
-          mealType,
+          mealType: localMealType,
           foodName: item.name,
           quantityG: item.quantityG,
           calories: item.calories,
@@ -354,7 +362,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
   const renderChoose = () => (
     <>
       <View style={styles.handle} />
-      <Heading style={styles.title}>Add {mealType}</Heading>
+      <Heading style={styles.title}>Add {localMealType}</Heading>
       <View style={styles.optionRow}>
         <Pressable style={styles.optionCard} onPress={handleTakePhoto}>
           <Ionicons name="camera" size={32} color={c.health} />
@@ -502,6 +510,23 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
       <>
         <View style={styles.handle} />
         <Heading style={styles.title}>Review your meal</Heading>
+
+        {/* Meal type selector — lets the user correct the section before saving */}
+        <Caption style={{ color: c.textMuted, marginBottom: spacing.xs }}>Logging to:</Caption>
+        <View style={styles.mealTypeRow}>
+          {(['breakfast', 'lunch', 'dinner', 'snack'] as MealType[]).map((m) => (
+            <Pressable
+              key={m}
+              style={[styles.mealTypeChip, localMealType === m && styles.mealTypeChipActive]}
+              onPress={() => setLocalMealType(m)}
+            >
+              <Caption style={{ color: localMealType === m ? c.health : c.textMuted, fontFamily: fonts.bodyMedium }}>
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </Caption>
+            </Pressable>
+          ))}
+        </View>
+
         {photoUri && <Image source={{ uri: photoUri }} style={styles.previewImageSmall} />}
 
         {recognised?.items.map((item, i) => (
@@ -539,7 +564,7 @@ export function AddFoodSheet({ visible, mealType, editEntry, onClose, onSaved, o
   const renderManual = () => (
     <>
       <View style={styles.handle} />
-      <Heading style={styles.title}>{isEditing ? 'Edit food' : `Add ${mealType}`}</Heading>
+      <Heading style={styles.title}>{isEditing ? 'Edit food' : `Add ${localMealType}`}</Heading>
       <View style={styles.form}>
         <Input
           label="Food name"
@@ -708,6 +733,24 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   reviewName: {
     fontFamily: fonts.bodyMedium,
+  },
+  mealTypeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  mealTypeChip: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  mealTypeChipActive: {
+    borderColor: colors.health,
+    backgroundColor: colors.health + '22',
   },
   totalCard: {
     gap: spacing.xs,
