@@ -12,10 +12,10 @@ const mockSetSync = jest.fn();
 const mockGetUser = jest.fn(() => ({ sleepTargetHours: 8 }));
 const mockRecovery = jest.fn(() => ({ hasData: true, score: 72 }));
 
-jest.mock('../client', () => ({ syncFitDailyData: (...a: unknown[]) => mockSyncFit(...a) }));
-jest.mock('@/db/queries/health', () => ({ createHealthLog: (...a: unknown[]) => mockCreateHealthLog(...a) }));
-jest.mock('@/db/queries/users', () => ({ getUser: () => mockGetUser() }));
-jest.mock('@/utils/recovery', () => ({ recoveryFromFitDays: (...a: unknown[]) => mockRecovery(...a) }));
+jest.mock('../client', () => ({ syncFitDailyData: mockSyncFit }));
+jest.mock('@/db/queries/health', () => ({ createHealthLog: mockCreateHealthLog }));
+jest.mock('@/db/queries/users', () => ({ getUser: mockGetUser }));
+jest.mock('@/utils/recovery', () => ({ recoveryFromFitDays: mockRecovery }));
 jest.mock('@/store/useFitSyncStore', () => ({ useFitSyncStore: { getState: () => ({ setSync: mockSetSync }) } }));
 jest.mock('@/store/useGameStore', () => ({ useGameStore: { getState: () => ({ triggerStreak: mockTriggerStreak }) } }));
 jest.mock('@/store/useUserStore', () => ({ useUserStore: { getState: () => ({ userId: 'u1' }) } }));
