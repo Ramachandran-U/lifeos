@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, Modal, Pressable, Image, Platform } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, Image, Platform, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { generateGamifiedAvatar } from '@/ai/functions';
 import { useAI } from '@/hooks/useAI';
 import { useUserStore } from '@/store/useUserStore';
 import { updateUser } from '@/db/queries/users';
+import { StorageQuotaError } from '@/db/webStorage/_io';
 import { persistAvatarImage } from '@/utils/avatarStorage';
 
 interface AvatarEditSheetProps {
@@ -89,8 +90,25 @@ export function AvatarEditSheet({ visible, onClose, onSaved }: AvatarEditSheetPr
   const handleSave = async () => {
     if (!result || !userId) return;
     const savedUri = await persistAvatarImage(result.base64, result.mimeType, currentAvatarUri);
-    updateUser(userId, { avatarUri: savedUri, avatarSourceUri: source?.uri ?? '' });
+    // Reflect the new avatar in-memory first so a storage hiccup never blocks the
+    // visible result for this session.
     setAvatarUri(savedUri);
+    try {
+      // On web the avatar itself is a base64 data URI; storing the (also large)
+      // SOURCE data URI too would double the localStorage footprint for only a
+      // regeneration hint — skip it on web to stay well under the ~5MB quota.
+      const avatarSourceUri = Platform.OS === 'web' ? '' : (source?.uri ?? '');
+      updateUser(userId, { avatarUri: savedUri, avatarSourceUri });
+    } catch (e) {
+      if (e instanceof StorageQuotaError) {
+        Alert.alert(
+          'Couldn’t save the image',
+          'Your device storage is full, so the new avatar will show this session but won’t be saved. Free up some space and try again.',
+        );
+      } else {
+        throw e;
+      }
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onSaved?.();
     handleClose();

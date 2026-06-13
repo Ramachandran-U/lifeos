@@ -18,6 +18,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { format } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import type { DomainScores } from '@/utils/gamification';
@@ -51,8 +52,12 @@ const storage = createJSONStorage(() =>
   Platform.OS === 'web' ? window.localStorage : AsyncStorage,
 );
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+function localDay(): string {
+  // LOCAL calendar day — matches how routine blocks, behaviour events and the
+  // e2e seed key dates. The old toISOString() (UTC) made the once-per-day
+  // snapshot boundary fire at UTC midnight, so near the user's local midnight a
+  // day could be skipped or double-recorded relative to the rest of the app.
+  return format(new Date(), 'yyyy-MM-dd');
 }
 
 export const useDomainHistoryStore = create<DomainHistoryState>()(
@@ -61,7 +66,7 @@ export const useDomainHistoryStore = create<DomainHistoryState>()(
       entries: {},
 
       record: (scores) => {
-        const today = todayUtc();
+        const today = localDay();
         const current = get().entries;
         const nextEntries: typeof current = { ...current };
         let changed = false;

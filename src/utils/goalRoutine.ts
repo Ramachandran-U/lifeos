@@ -1,3 +1,4 @@
+import { format, addDays } from 'date-fns';
 import { createRoutineBlocks, getRoutineBlocksInRange } from '@/db/queries/routine';
 import { GOALTYPE_TO_MODULE } from '@/utils/gamification';
 
@@ -37,9 +38,12 @@ function fromMinutes(total: number): string {
 }
 
 function addDaysISO(base: Date, days: number): string {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  // LOCAL calendar day (date-fns `format`) — the convention the rest of the app
+  // keys routine blocks by (e.g. starterRoutine, getRoutineBlocksByDate). The old
+  // `toISOString().slice(0,10)` formatted in UTC, so for users whose local day
+  // differs from UTC the focus blocks (and the idempotency range) landed on the
+  // wrong calendar day — a habit could appear to skip "today" or double-book.
+  return format(addDays(base, days), 'yyyy-MM-dd');
 }
 
 export function addGoalFocusBlocks(opts: AddGoalFocusBlocksOptions): string[] {
