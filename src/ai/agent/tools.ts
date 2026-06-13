@@ -8,10 +8,36 @@ import { fetchTodayCalendarEvents } from '@/ai/calendarContext';
 import { getUpcomingBillsForAgent } from '@/ai/billsContext';
 import type { AgentTool } from './runtime';
 
+/**
+ * The tabs the voice agent can navigate to. These map 1:1 to the routable
+ * screens under app/(tabs)/ — 'today' is the index route. Kept here (the shared
+ * tool-context module) so both the read tools and navTools reference one source.
+ */
+export type AppScreen =
+  | 'today'
+  | 'goals'
+  | 'health'
+  | 'finance'
+  | 'career'
+  | 'social'
+  | 'explore'
+  | 'life'
+  | 'profile'
+  | 'rewards';
+
 export interface ToolContext {
   userId: string;
   /** yyyy-MM-dd. Injected for testability; defaults to today. */
   today?: string;
+  /**
+   * Navigate the app to a tab (optionally with query params to pre-fill a
+   * screen). Supplied by the voice companion, which holds the expo-router
+   * `router`. Only present when the agentic-voice tools are wired; the
+   * read-only text agent leaves it undefined.
+   */
+  navigate?: (screen: AppScreen, params?: Record<string, string>) => void;
+  /** The screen the user is currently on, so the agent knows its context. */
+  currentScreen?: () => AppScreen;
 }
 
 const EMPTY_PARAMS = { type: 'object', properties: {} } as const;
