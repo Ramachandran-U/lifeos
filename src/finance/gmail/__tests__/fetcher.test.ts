@@ -103,6 +103,26 @@ describe('fetchEmailBody', () => {
     fetchMock.mockResolvedValueOnce(mockResponse({}, false, 404));
     expect(await fetchEmailBody('tok', 'gone')).toBeNull();
   });
+
+  it('tolerates a malformed Date header instead of throwing (defect D11)', async () => {
+    // A bad Date header used to make new Date(header).toISOString() throw
+    // RangeError, aborting the whole sync batch. Now the email still ingests
+    // with an empty date.
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({
+        payload: {
+          headers: [
+            { name: 'Subject', value: 'Weird date' },
+            { name: 'Date', value: 'not-a-real-date' },
+          ],
+          parts: [{ mimeType: 'text/plain', body: { data: b64url('You spent INR 100') } }],
+        },
+      }),
+    );
+    const msg = await fetchEmailBody('tok', 'm-bad-date');
+    expect(msg?.date).toBe('');
+    expect(msg?.body).toBe('You spent INR 100');
+  });
 });
 
 describe('fetchManyEmailBodies', () => {

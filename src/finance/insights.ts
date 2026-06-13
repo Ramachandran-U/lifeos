@@ -5,6 +5,7 @@
  */
 
 import type { TxRecord } from '@/finance/db/transactionDb';
+import { samePeriodMonthWindows } from '@/finance/analytics';
 
 export interface Insight {
   id: string;
@@ -47,24 +48,32 @@ export function detectSubscriptions(txns: TxRecord[]): Insight | null {
   const debits = txns.filter((t) => t.direction === 'debit');
   const byMerchant = new Map<string, TxRecord[]>();
   for (const t of debits) {
-    const key = `${t.merchant.toLowerCase()}|${t.amount}`;
+    // Key by MERCHANT ONLY (not merchant|amount): a plan price change
+    // (₹649→₹699) or an FX-rounded charge must not fragment the series into
+    // separate buckets and hide the recurring monthly cadence.
+    const key = t.merchant.toLowerCase();
     const bucket = byMerchant.get(key) ?? [];
     bucket.push(t);
     byMerchant.set(key, bucket);
   }
 
   const recurring: Array<{ merchant: string; amount: number; count: number }> = [];
-  for (const [key, list] of byMerchant) {
+  for (const [merchant, list] of byMerchant) {
     if (list.length < 2) continue;
     const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
+    // Only a subscription if amounts are CLOSE (≤25% spread): tolerate a price
+    // bump but reject merchants with wildly varying spend (groceries, fuel) that
+    // merely happen to recur ~monthly.
+    const amounts = sorted.map((t) => t.amount);
+    if (Math.max(...amounts) > Math.min(...amounts) * 1.25) continue;
     let monthlyLike = 0;
     for (let i = 1; i < sorted.length; i++) {
       const days = daysBetween(sorted[i - 1].date, sorted[i].date);
       if (days >= 25 && days <= 35) monthlyLike++;
     }
     if (monthlyLike >= 1) {
-      const [merchant] = key.split('|');
-      recurring.push({ merchant, amount: list[0].amount, count: list.length });
+      // Report the most recent charge as the current price.
+      recurring.push({ merchant, amount: amounts[amounts.length - 1], count: list.length });
     }
   }
 
@@ -91,13 +100,19 @@ export interface SavingsPlan {
 export function detectTrueSavingsRate(
   txns: TxRecord[],
   plan: SavingsPlan | null,
+  now: Date = new Date(),
 ): Insight | null {
   if (!plan || plan.monthlyTarget <= 0 || txns.length === 0) return null;
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const monthEnd = now.toISOString().slice(0, 10);
-  const thisMonth = txns.filter((t) => t.date >= monthStart && t.date <= monthEnd);
+  // LOCAL month-to-date window. The old code formatted the boundaries with
+  // toISOString() (UTC): in a positive-offset timezone (e.g. IST) local midnight
+  // is the previous UTC day, so monthStart could include the previous month's
+  // last day and a UTC-shifted monthEnd could drop a transaction dated "today" —
+  // a wrong net-savings figure (and possibly the wrong ahead/behind verdict).
+  // samePeriodMonthWindows formats local dates (see its docblock) — the same fix
+  // analytics already uses for its period windows.
+  const { thisStart, thisEnd } = samePeriodMonthWindows(now);
+  const thisMonth = txns.filter((t) => t.date >= thisStart && t.date <= thisEnd);
   if (thisMonth.length === 0) return null;
 
   const credits = thisMonth.filter((t) => t.direction === 'credit').reduce((s, t) => s + t.amount, 0);
@@ -144,23 +159,32 @@ export function detectDuplicatePayments(txns: TxRecord[]): Insight | null {
   for (const [key, list] of byKey) {
     if (list.length < 2) continue;
     const sorted = [...list].sort((a, b) => a.date.localeCompare(b.date));
+    // Count EVERY charge that lands within a day of the previous one — these are
+    // the suspected extra (duplicate) charges. The old code hard-coded count:2
+    // and broke after the first pair, so 3+ same-day identical charges were
+    // under-reported and the at-risk total only ever counted one extra charge.
+    let extraCount = 0;
+    let extraAmount = 0;
     for (let i = 1; i < sorted.length; i++) {
-      const gap = daysBetween(sorted[i - 1].date, sorted[i].date);
-      if (gap <= 1) {
-        const [merchant] = key.split('|');
-        dupes.push({ merchant, amount: sorted[i].amount, count: 2 });
-        break;
+      if (daysBetween(sorted[i - 1].date, sorted[i].date) <= 1) {
+        extraCount += 1;
+        extraAmount += sorted[i].amount;
       }
+    }
+    if (extraCount > 0) {
+      const [merchant] = key.split('|');
+      dupes.push({ merchant, amount: extraAmount, count: extraCount });
     }
   }
 
   if (dupes.length === 0) return null;
+  const extraCharges = dupes.reduce((s, d) => s + d.count, 0);
   const total = dupes.reduce((s, d) => s + d.amount, 0);
 
   return {
     id: 'duplicate_payments',
     title: 'Possible duplicate payment',
-    body: `We spotted ${dupes.length} same-amount payments to the same merchant within 24 hours (₹${(total / PAISE).toLocaleString('en-IN')}). Check whether any were charged twice by mistake.`,
+    body: `We spotted ${extraCharges} possible duplicate charge${extraCharges === 1 ? '' : 's'} (same amount, same merchant, within a day) totalling ₹${(total / PAISE).toLocaleString('en-IN')}. Check whether any were charged twice by mistake.`,
     severity: 'alert',
     amount: total,
     actionLabel: 'Review',

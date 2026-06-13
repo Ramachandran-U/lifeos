@@ -570,3 +570,23 @@ export async function initDatabase() {
     DROP TABLE IF EXISTS career_profiles;
   `);
 }
+
+/**
+ * Empty every user table on native (iOS/Android). Used by sign-out so a shared
+ * device never carries one account's data (health logs, blood reports, finance,
+ * goals, gamification, memory, the mutation log, …) into the next sign-in.
+ *
+ * Schema is left intact — we DELETE rows, not DROP tables, so the next account
+ * boots against a ready database. Table names come from sqlite_master (not user
+ * input); internal `sqlite_%` tables are skipped. No-op on web (no SQLite).
+ */
+export async function clearAllNativeTables(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const expo = getExpo();
+  const tables = await expo.getAllAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`,
+  );
+  for (const { name } of tables) {
+    await expo.runAsync(`DELETE FROM "${name.replace(/"/g, '""')}"`);
+  }
+}

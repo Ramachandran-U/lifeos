@@ -108,12 +108,12 @@ describe('OvercommitmentCard', () => {
     });
   });
 
-  it('navigates to /edit-routine and accepts the insight on "Open my plan"', async () => {
+  it('navigates to /edit-priorities and accepts the insight on "Open my plan"', async () => {
     render(<OvercommitmentCard userId="user_fake_1" date="2026-06-05" />);
     await waitFor(() => screen.getByText('Open my plan'));
     fireEvent.press(screen.getByText('Open my plan'));
     expect(mockUpdateInsightStatus).toHaveBeenCalledWith('insight_fake_1', 'accepted');
-    expect(mockPush).toHaveBeenCalledWith('/edit-routine');
+    expect(mockPush).toHaveBeenCalledWith('/edit-priorities');
   });
 
   it('dismisses (and hides) the card on "Not now"', async () => {
