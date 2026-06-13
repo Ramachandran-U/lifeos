@@ -112,6 +112,28 @@ describe('commitActions', () => {
     expect(deps.created).toHaveLength(1);
   });
 
+  it('rejects voice navigation intents — they are handled by the companion, not commit', async () => {
+    const deps = makeDeps();
+    const results = await commitActions(
+      [
+        { kind: 'createGoalFromVision', summary: '', payload: { visionStatement: 'run a marathon' } },
+        {
+          kind: 'generateCareerPath',
+          summary: '',
+          payload: { currentRole: 'SWE', targetRole: 'EM', timelineMonths: 24 },
+        },
+      ],
+      deps,
+    );
+    expect(results.every((r) => !r.ok)).toBe(true);
+    expect(results[0].error).toMatch(/navigation/);
+    expect(results[1].error).toMatch(/navigation/);
+    // Nothing was written to the DB.
+    expect(deps.created).toEqual([]);
+    expect(deps.statuses).toEqual([]);
+    expect(deps.goals).toEqual([]);
+  });
+
   it('isolates failures: one throwing action does not abort the rest', async () => {
     const deps = makeDeps();
     deps.updateRoutineBlockStatus = (id) => {

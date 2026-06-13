@@ -39,6 +39,11 @@ interface AddGoalSheetProps {
   /** Fired with the new goal's title after a successful save, so the parent can
    *  offer to work it into today's plan (gated). */
   onGoalCreated?: (title: string) => void;
+  /** Pre-seed the goal box (e.g. the voice agent opened this with the user's
+   *  spoken vision). */
+  initialVision?: string;
+  /** When opened with `initialVision`, immediately run the break-it-down step. */
+  autoDecompose?: boolean;
 }
 
 // How many milestones the user can edit inline. The full plan (12) is still
@@ -59,7 +64,7 @@ const GOAL_PLACEHOLDERS = [
   'I want to get fit and sleep better',
 ];
 
-export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetProps) {
+export function AddGoalSheet({ visible, onClose, onGoalCreated, initialVision, autoDecompose }: AddGoalSheetProps) {
   const c = useColors();
   const styles = makeStyles(c);
   const getTypeColor = useGoalTypeColor();
@@ -112,8 +117,9 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
     setTimeline(null);
   };
 
-  const handleDecompose = async () => {
-    if (!goalText.trim()) return;
+  const handleDecompose = async (visionText?: string) => {
+    const text = (visionText ?? goalText).trim();
+    if (!text) return;
     cancelledRef.current = false;
     abortRef.current = new AbortController();
     setSlowHint(false);
@@ -121,7 +127,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
     const startedAt = Date.now();
     track(EVENTS.goalDecomposeStarted, {}); // activation funnel — start
     slowTimer.current = setTimeout(() => setSlowHint(true), 8000);
-    const result = await call(() => decomposeGoal({ visionStatement: goalText, name }, { signal: abortRef.current?.signal }));
+    const result = await call(() => decomposeGoal({ visionStatement: text, name }, { signal: abortRef.current?.signal }));
     clearSlowTimer();
     setSlowHint(false);
     setDecomposing(false);
@@ -141,6 +147,19 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
       track(EVENTS.goalDecomposeAbandoned, { reason: 'failed', duration_ms: Date.now() - startedAt });
     }
   };
+
+  // When the voice agent opens this with a spoken vision, seed the box (and
+  // optionally kick off the break-it-down step) once per open. Keyed on the
+  // visibility flip so re-renders don't re-trigger.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!visible) { seededRef.current = false; return; }
+    if (seededRef.current || !initialVision) return;
+    seededRef.current = true;
+    setGoalText(initialVision);
+    if (autoDecompose) void handleDecompose(initialVision);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, initialVision, autoDecompose]);
 
   const handleSave = () => {
     if (!hierarchy || !userId) return;
@@ -251,7 +270,7 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated }: AddGoalSheetPr
             />
 
             {!hierarchy && !decomposing && (
-              <Button3D title="Break it down" tone="goal" onPress={handleDecompose} disabled={!goalText.trim()} />
+              <Button3D title="Break it down" tone="goal" onPress={() => handleDecompose()} disabled={!goalText.trim()} />
             )}
 
             {decomposing && (

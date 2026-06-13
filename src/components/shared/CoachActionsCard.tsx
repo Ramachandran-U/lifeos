@@ -176,6 +176,10 @@ function iconForAction(kind: ProposedAction['kind']): string {
     case 'completeBlock': return 'checkmark-circle-outline';
     case 'skipBlock': return 'close-circle-outline';
     case 'adjustGoalStatus': return 'flag-outline';
+    // Voice-only navigation intents — never proposed by the text coach, but the
+    // ProposedAction union is shared, so the switch must stay exhaustive.
+    case 'createGoalFromVision': return 'sparkles-outline';
+    case 'generateCareerPath': return 'briefcase-outline';
   }
 }
 
@@ -185,6 +189,8 @@ function accentForAction(kind: ProposedAction['kind'], c: AppColors): string {
     case 'completeBlock': return c.success;
     case 'skipBlock': return c.textMuted;
     case 'adjustGoalStatus': return c.goal;
+    case 'createGoalFromVision': return c.goal;
+    case 'generateCareerPath': return c.career;
   }
 }
 
