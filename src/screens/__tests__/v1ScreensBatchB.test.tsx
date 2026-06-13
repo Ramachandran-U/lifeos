@@ -24,7 +24,10 @@ jest.mock('expo-router', () => {
     useFocusEffect: (cb: () => void | (() => void)) => {
       useEffect(() => cb(), [cb]);
     },
-    useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+    useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn(), setParams: jest.fn() }),
+    // Career/Goals read voice deep-link params; no params in this suite, so the
+    // screens' param effects early-return.
+    useLocalSearchParams: () => ({}),
   };
 });
 

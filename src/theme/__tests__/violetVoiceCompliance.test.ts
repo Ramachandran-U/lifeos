@@ -66,7 +66,9 @@ const ALLOWLIST = new Set<string>([
   'app/finance-review.tsx',
   'app/annual-review.tsx',
   'app/evening-reflect.tsx',
-  'src/components/shared/VoiceAssistantSheet.tsx',
+  // VoiceCompanion is the AI's voice surface (successor to the removed
+  // VoiceAssistantSheet) — violet = the AI speaking. 1:1 swap, not growth.
+  'src/components/shared/VoiceCompanion.tsx',
   'src/components/shared/NarrationToggle.tsx',
   // ── The companion (founder call: the AI made visible) + comeback warmth ──
   'src/components/companion/CompanionSheet.tsx',

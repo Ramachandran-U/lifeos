@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
+import { useElevation } from '@/theme/elevation';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
 import { TIMING } from '@/theme/motion';
@@ -87,6 +88,10 @@ function ThinkingDots({ color }: { color: string }) {
  */
 export function VoiceCompanion() {
   const c = useColors();
+  // Tokenised depth (Manifesto: never write a raw shadowColor) — the panel is a
+  // raised floating surface (z3), the collapsed pill a lighter one (z2).
+  const elevation = useElevation('z3');
+  const elevationPill = useElevation('z2');
   const router = useRouter();
   const pathname = usePathname();
   // Read the live route through a ref so the currentScreen tool closure stays
@@ -269,7 +274,7 @@ export function VoiceCompanion() {
       <Animated.View
         entering={FadeIn.duration(TIMING.normal)}
         exiting={FadeOut.duration(TIMING.fast)}
-        style={[styles.pill, { backgroundColor: c.surface, borderColor: c.border }]}
+        style={[styles.pill, elevationPill, { backgroundColor: c.surface, borderColor: c.border }]}
         testID="voice-pill"
       >
         <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
@@ -280,7 +285,7 @@ export function VoiceCompanion() {
         </Pressable>
         {pendingActions.length > 0 && (
           <View style={[styles.badge, { backgroundColor: c.primary }]}>
-            <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>{pendingActions.length}</Caption>
+            <Caption style={{ color: c.onPrimary, fontFamily: fonts.heading }}>{pendingActions.length}</Caption>
           </View>
         )}
         <Pressable onPress={close} hitSlop={8} testID="voice-pill-close">
@@ -295,7 +300,7 @@ export function VoiceCompanion() {
     <Animated.View
       entering={SlideInDown.duration(TIMING.normal)}
       exiting={SlideOutDown.duration(TIMING.fast)}
-      style={[styles.panel, { backgroundColor: c.surface, borderColor: c.border }]}
+      style={[styles.panel, elevation, { backgroundColor: c.surface, borderColor: c.border }]}
       testID="voice-sheet"
     >
       <View style={styles.header}>
@@ -360,7 +365,7 @@ export function VoiceCompanion() {
         <Animated.View
           key={`${action.kind}-${i}`}
           entering={FadeIn.duration(TIMING.fast)}
-          style={[styles.confirmCard, { backgroundColor: c.card, borderColor: c.primary + '55' }]}
+          style={[styles.confirmCard, { backgroundColor: c.card, borderColor: c.border }]}
           testID="voice-confirm-card"
         >
           <Body style={{ color: c.textPrimary, fontSize: fontSizes.sm, flex: 1 }} numberOfLines={2}>
@@ -381,7 +386,7 @@ export function VoiceCompanion() {
               hitSlop={6}
               testID="voice-confirm-apply"
             >
-              <Caption style={{ color: '#fff', fontFamily: fonts.heading }}>Confirm</Caption>
+              <Caption style={{ color: c.onPrimary, fontFamily: fonts.heading }}>Confirm</Caption>
             </Pressable>
           </View>
         </Animated.View>
@@ -404,7 +409,7 @@ export function VoiceCompanion() {
           disabled={httpBusy}
           testID="voice-send"
         >
-          <Ionicons name="arrow-up" size={18} color="#fff" />
+          <Ionicons name="arrow-up" size={18} color={c.onPrimary} />
         </Pressable>
       </View>
     </Animated.View>
@@ -425,11 +430,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     maxHeight: '70%',
     zIndex: 1000,
-    elevation: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
   },
   pill: {
     position: 'absolute',
@@ -444,11 +444,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     zIndex: 1000,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
   pillBody: { flex: 1 },
   badge: {

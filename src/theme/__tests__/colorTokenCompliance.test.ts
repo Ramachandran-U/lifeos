@@ -84,7 +84,8 @@ const ALLOWLIST = new Set<string>([
   'src/components/shared/PriorityChangeSheet.tsx',
   'src/components/shared/ProfileSidebar.tsx',
   'src/components/shared/RoutineBlock.tsx',
-  'src/components/shared/VoiceAssistantSheet.tsx',
+  // VoiceAssistantSheet removed (superseded by VoiceCompanion, which reads
+  // tokens only — no allowlist entry needed). Ratchet −1.
   'src/components/shared/YesterdayLogSheet.tsx',
   'src/components/ui/AuroraGlow.tsx',
   'src/finance/categoryGroups.ts',
