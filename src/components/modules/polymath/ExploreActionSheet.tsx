@@ -25,10 +25,14 @@ interface Props {
   otherInterests: Interest[];
   onDive: (interest: ExploreInterestRef) => void;
   onBridge: (a: ExploreInterestRef, b: ExploreInterestRef) => void;
+  /** Start a 7-step expedition seeded from this interest. */
+  onPlan: (interest: ExploreInterestRef) => void;
+  /** False when at the active-expedition cap — disables "Plan it". */
+  canPlan: boolean;
   onClose: () => void;
 }
 
-export function ExploreActionSheet({ visible, interest, otherInterests, onDive, onBridge, onClose }: Props) {
+export function ExploreActionSheet({ visible, interest, otherInterests, onDive, onBridge, onPlan, canPlan, onClose }: Props) {
   const c = useColors();
   const [picking, setPicking] = useState(false); // false = choose Dive/Bridge, true = pick a bridge target
 
@@ -64,7 +68,24 @@ export function ExploreActionSheet({ visible, interest, otherInterests, onDive, 
               <Ionicons name="arrow-down-circle" size={22} color={c.polymath} />
               <View style={styles.rowText}>
                 <Body style={{ color: c.textPrimary }}>Dive in</Body>
-                <Caption style={{ color: c.textMuted }}>Go deep on {interest.name} — one idea, all the way down.</Caption>
+                <Caption style={{ color: c.textMuted }}>Wander {interest.name} — one idea, all the way down.</Caption>
+              </View>
+            </Pressable>
+
+            <Pressable
+              disabled={!canPlan}
+              onPress={() => { tap(); onPlan(interest); onClose(); }}
+              style={({ pressed }) => [styles.row, { backgroundColor: pressed ? c.card : 'transparent', borderColor: c.border, opacity: canPlan ? 1 : 0.5 }]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canPlan }}
+              accessibilityLabel={`Make a plan for ${interest.name}`}
+            >
+              <Ionicons name="map" size={22} color={c.polymath} />
+              <View style={styles.rowText}>
+                <Body style={{ color: c.textPrimary }}>Plan it</Body>
+                <Caption style={{ color: c.textMuted }}>
+                  {canPlan ? `A 7-step expedition through ${interest.name}.` : 'Finish an active expedition first.'}
+                </Caption>
               </View>
             </Pressable>
 

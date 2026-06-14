@@ -59,3 +59,28 @@ export function buildBridgeParams(a: ExploreInterestRef, b: ExploreInterestRef):
     mode: 'bridge',
   };
 }
+
+/** Stable slug for a free-text phrase, used to build a resumable sparkId. */
+export function slugForPhrase(phrase: string): string {
+  return (
+    phrase
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'idea'
+  );
+}
+
+/** Free-text Dive: a single-idea rabbit hole on an arbitrary phrase (not a tracked interest). */
+export function buildFreeDiveParams(phrase: string): RabbitHoleSeedParams {
+  const name = phrase.trim();
+  return {
+    sparkId: `freetext-${slugForPhrase(name)}`,
+    seedTitle: name,
+    seedBody: `Go deep on "${name}": pull one thread and follow it down to the idea underneath.`,
+    seedInterest: name,
+    seedAdjacent: '',
+    mode: 'dive',
+  };
+}

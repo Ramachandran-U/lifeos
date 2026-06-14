@@ -24,6 +24,7 @@ import { CrossDisciplineCard } from '@/components/modules/polymath/CrossDiscipli
 import { DepthSheet } from '@/components/modules/polymath/DepthSheet';
 import { YouTubeImportCard } from '@/components/modules/polymath/YouTubeImportCard';
 import { ExploreActionSheet } from '@/components/modules/polymath/ExploreActionSheet';
+import { FreeExploreSheet } from '@/components/modules/polymath/FreeExploreSheet';
 import { usePolymathStore, crossIsStale } from '@/store/usePolymathStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
@@ -176,6 +177,7 @@ function ExploreScreenV1() {
   const [activeInterest, setActiveInterest] = useState<Interest | null>(null);
   const [depthFor, setDepthFor] = useState<Interest | null>(null);
   const [exploreFor, setExploreFor] = useState<Interest | null>(null);
+  const [freeExplore, setFreeExplore] = useState(false);
   const pickToExplore = useFlagStore((s) => s.isEnabled('explore_pick_to_explore'));
   const launcher = useExploreLauncher();
 
@@ -359,6 +361,22 @@ function ExploreScreenV1() {
     [totals],
   );
 
+  // Group saved maps by the interest they were seeded from: same-interest maps
+  // cluster together (alphabetical), interest-tagged before free/spark maps,
+  // newest-first within each group. Each card also shows its seed interest.
+  const sortedTrees = useMemo(() => {
+    const seedOf = (row: RabbitHoleTreeRow): string => {
+      try { return (JSON.parse(row.anchorJson) as { seedInterest?: string | null }).seedInterest ?? ''; }
+      catch { return ''; }
+    };
+    return [...rabbitHoleTrees].sort((a, b) => {
+      const sa = seedOf(a), sb = seedOf(b);
+      if (!!sa !== !!sb) return sa ? -1 : 1;             // interest-tagged first
+      if (sa && sb && sa !== sb) return sa.localeCompare(sb); // then by interest
+      return b.createdAt.localeCompare(a.createdAt);      // newest within a group
+    });
+  }, [rabbitHoleTrees]);
+
   // Cross-discipline pair: refresh when the active pair changes.
   const pair = useMemo(() => pickPair(interests), [interests]);
   const currentPairKey = pair ? pairKeyFor(pair[0], pair[1]) : '';
@@ -447,6 +465,44 @@ function ExploreScreenV1() {
     setDepthFor(null);
     Haptics.selectionAsync();
   };
+
+  // ─── Plan-from-interest (Dive → a structured expedition) ────────────────────
+  const handlePlanFromInterest = useCallback(async (interest: { id: string; name: string }) => {
+    if (!userId) return;
+    const active = listActiveExpeditionProgress(userId);
+    if (!canStartExpedition(active.length)) {
+      // Cap reached — the sheet disables this, but guard anyway.
+      track(EVENTS.expeditionStarted, { fromInterest: true, blockedByCap: true, capacity: MAX_ACTIVE_EXPEDITIONS });
+      return;
+    }
+    try {
+      const gen = await generateExpedition({ seedInterest: interest.name, theme: interest.name });
+      const expeditionId = nanoid();
+      createExpedition({
+        id: expeditionId,
+        userId,
+        title: gen.title,
+        theme: gen.theme,
+        domain: 'polymath',
+        steps: gen.steps,
+        totalSteps: gen.steps.length,
+        source: 'interest',
+        seedSparkId: null,
+        createdAt: new Date().toISOString(),
+      });
+      const progress = startExpedition(expeditionId, userId, {
+        now: () => new Date().toISOString(),
+        newId: () => nanoid(),
+      });
+      saveExpeditionProgress(progress);
+      triggerStreak(userId, 'learning');
+      track(EVENTS.expeditionStarted, { fromInterest: true });
+      track(EVENTS.curiosityStreakDay, {});
+      router.push({ pathname: '/expedition-detail', params: { id: expeditionId } });
+    } catch {
+      // Generation failed → no-op; the user can retry from the sheet.
+    }
+  }, [userId, router, triggerStreak]);
 
   // ─── Spark actions ─────────────────────────────────────────────────────────
   const handleSparkAction = useCallback(async (action: 'save' | 'dismiss' | 'pull_thread' | 'start_expedition') => {
@@ -663,11 +719,14 @@ function ExploreScreenV1() {
               entering={FadeIn.delay(stagger(4, MOTION_BUDGET.staggerTight)).duration(scaled(MOTION_BUDGET.reveal))}
             >
               <SectionTitle>Your maps</SectionTitle>
-              {rabbitHoleTrees.map((row) => {
+              {sortedTrees.map((row) => {
                 let mapTitle = row.title ?? '';
                 let nodeCount = 0;
+                let seedInterest = '';
                 try {
-                  if (!mapTitle) mapTitle = (JSON.parse(row.anchorJson) as { title?: string }).title ?? '';
+                  const anchor = JSON.parse(row.anchorJson) as { title?: string; seedInterest?: string | null };
+                  if (!mapTitle) mapTitle = anchor.title ?? '';
+                  seedInterest = anchor.seedInterest ?? '';
                   nodeCount = Object.keys((JSON.parse(row.treeJson) as { nodeMap?: Record<string, unknown> }).nodeMap ?? {}).length;
                 } catch {}
                 const isNamed = !!mapTitle;
@@ -692,7 +751,7 @@ function ExploreScreenV1() {
                             {mapTitle || 'Untitled map'}
                           </Body>
                           <Caption style={{ color: c.textMuted }}>
-                            {nodeCount} node{nodeCount === 1 ? '' : 's'} · {row.createdAt.slice(0, 10)}
+                            {seedInterest ? `${seedInterest} · ` : ''}{nodeCount} node{nodeCount === 1 ? '' : 's'} · {row.createdAt.slice(0, 10)}
                           </Caption>
                           {!isNamed && (
                             <Pressable
@@ -733,6 +792,17 @@ function ExploreScreenV1() {
             >
               Your interests
             </SectionTitle>
+            {pickToExplore && (
+              <Pressable
+                onPress={() => setFreeExplore(true)}
+                style={[styles.freeExploreBtn, { borderColor: c.border }]}
+                accessibilityRole="button"
+                accessibilityLabel="Explore any idea"
+              >
+                <Ionicons name="search" size={16} color={c.polymathText} />
+                <Body style={{ color: c.polymathText }}>Explore any idea…</Body>
+              </Pressable>
+            )}
             {interests.map((interest) => (
               <InterestCard
                 key={interest.id}
@@ -786,7 +856,14 @@ function ExploreScreenV1() {
           )}
           onDive={launcher.dive}
           onBridge={launcher.bridge}
+          onPlan={handlePlanFromInterest}
+          canPlan={expeditionData.length < MAX_ACTIVE_EXPEDITIONS}
           onClose={() => setExploreFor(null)}
+        />
+        <FreeExploreSheet
+          visible={freeExplore}
+          onExplore={launcher.freeDive}
+          onClose={() => setFreeExplore(false)}
         />
       </SafeAreaView>
     </View>
@@ -828,5 +905,14 @@ const styles = StyleSheet.create({
   mapCardInfo: {
     flex: 1,
     gap: 2,
+  },
+  freeExploreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.control,
+    borderWidth: 1,
   },
 });

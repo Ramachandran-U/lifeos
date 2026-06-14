@@ -6,6 +6,7 @@ import { useGameStore } from '@/store/useGameStore';
 import {
   buildDiveParams,
   buildBridgeParams,
+  buildFreeDiveParams,
   type ExploreInterestRef,
 } from '@/explore/exploreLaunch';
 
@@ -40,5 +41,16 @@ export function useExploreLauncher() {
     [router, userId, triggerStreak],
   );
 
-  return { dive, bridge };
+  const freeDive = useCallback(
+    (phrase: string) => {
+      const name = phrase.trim();
+      if (!name) return;
+      track(EVENTS.exploreDiveStarted, { interest: name, freeText: true });
+      if (userId) triggerStreak(userId, 'learning');
+      router.push({ pathname: '/rabbit-hole', params: buildFreeDiveParams(name) });
+    },
+    [router, userId, triggerStreak],
+  );
+
+  return { dive, bridge, freeDive };
 }

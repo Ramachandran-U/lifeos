@@ -4,7 +4,7 @@
  * RabbitHoleNode contract), single-idea vs cross shape, and STABLE synthetic
  * sparkIds (so re-opening resumes the same map instead of duplicating).
  */
-import { buildDiveParams, buildBridgeParams } from '@/explore/exploreLaunch';
+import { buildDiveParams, buildBridgeParams, buildFreeDiveParams, slugForPhrase } from '@/explore/exploreLaunch';
 
 const astro = { id: 'int-astro', name: 'Astronomy' };
 const jazz = { id: 'int-jazz', name: 'Jazz piano' };
@@ -40,5 +40,28 @@ describe('buildBridgeParams (cross-discipline)', () => {
   it('uses a stable pair-derived sparkId, order-sensitive to the primary', () => {
     expect(buildBridgeParams(astro, jazz).sparkId).toBe('bridge-int-astro-int-jazz');
     expect(buildBridgeParams(jazz, astro).sparkId).toBe('bridge-int-jazz-int-astro');
+  });
+});
+
+describe('buildFreeDiveParams (free-text dive)', () => {
+  it('builds a single-idea dive seed from an arbitrary phrase', () => {
+    const p = buildFreeDiveParams('Why do cities grow?');
+    expect(p.seedTitle).toBe('Why do cities grow?');
+    expect(p.seedInterest).toBe('Why do cities grow?');
+    expect(p.seedAdjacent).toBe('');
+    expect(p.mode).toBe('dive');
+    expect(p.seedBody.length).toBeGreaterThanOrEqual(20);
+    expect(p.sparkId).toBe('freetext-why-do-cities-grow');
+  });
+});
+
+describe('slugForPhrase', () => {
+  it('is lowercase, hyphenated, trimmed of stray separators', () => {
+    expect(slugForPhrase('  Hello, World!! ')).toBe('hello-world');
+    expect(slugForPhrase('AI')).toBe('ai');
+  });
+  it('falls back to "idea" when nothing slug-able remains', () => {
+    expect(slugForPhrase('!!!')).toBe('idea');
+    expect(slugForPhrase('   ')).toBe('idea');
   });
 });
