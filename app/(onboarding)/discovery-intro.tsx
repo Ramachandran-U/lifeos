@@ -66,8 +66,15 @@ export default function DiscoveryIntroScreen() {
           <Button
             title="Talk it through with LifeOS →"
             variant="primary"
-            onPress={() => router.push('/(onboarding)/discovery-chat')}
+            onPress={() => router.push('/(onboarding)/discovery-voice')}
           />
+          <Pressable
+            onPress={() => router.push('/(onboarding)/discovery-chat')}
+            style={styles.typeLink}
+            hitSlop={8}
+          >
+            <Caption style={styles.typeLinkText}>Prefer to type? Use the chat</Caption>
+          </Pressable>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(320).duration(500)}>
@@ -126,7 +133,9 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   backText: { color: colors.textSecondary },
   title: { marginTop: spacing.md },
   subtitle: { color: colors.textSecondary, marginTop: spacing.sm },
-  chatCta: { marginTop: spacing.lg },
+  chatCta: { marginTop: spacing.lg, gap: spacing.sm },
+  typeLink: { alignSelf: 'center', paddingVertical: spacing.xs },
+  typeLinkText: { color: colors.textMuted },
   orLabel: { color: colors.textMuted, marginTop: spacing.xl },
   promptCard: {
     marginTop: spacing.xl,
