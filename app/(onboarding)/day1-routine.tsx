@@ -406,9 +406,11 @@ const makePickerStyles = (c: AppColors) => StyleSheet.create({
     borderColor: c.border,
     marginRight: spacing.sm,
   },
+  // Selection state is INK, not violet (manifesto: selected = surfaceAlt fill /
+  // textPrimary), so the wake/sleep picker no longer paints purple.
   pillActive: {
-    backgroundColor: c.primary,
-    borderColor: c.primary,
+    backgroundColor: c.surfaceAlt,
+    borderColor: c.textPrimary,
   },
   text: {
     color: c.textSecondary,

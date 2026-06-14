@@ -93,7 +93,9 @@ const ALLOWLIST = new Set<string>([
   'src/components/ui/Input.tsx',
   'src/components/ui/EmptyState.tsx',
   'src/components/ui/ProgressBar.tsx',
-  'src/components/ui/LoadingDots.tsx',
+  // LoadingDots no longer reads a violet token — it defaults to neutral ink
+  // (violet is the brand/AI voice, not a generic loading colour). Removed from
+  // the allowlist as the ratchet shrinks.
   'src/components/ui/DomainGlyph.tsx',
   'src/components/ui/DomainChip.tsx',
 ]);
