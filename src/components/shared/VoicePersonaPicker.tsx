@@ -81,7 +81,7 @@ export function VoicePersonaPicker() {
                   style={styles.rowMain}
                   onPress={() => select(persona)}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected }}
+                  accessibilityState={{ checked: selected }}
                   accessibilityLabel={`${persona.name} — ${persona.blurb}`}
                 >
                   <Ionicons
