@@ -30,8 +30,15 @@ You can also ACT, not just answer. Rules:
 export interface VoiceSystemOptions {
   /** Whether the agentic (navigate / sync / propose-confirm) tools are wired. */
   agentic: boolean;
+  /**
+   * The selected voice persona's tone directive (see `VoicePersona.personaPrompt`
+   * in `src/ai/voicePersonas.ts`). Appended last so it shapes *manner of speaking*
+   * without overriding the grounding/brevity rules above.
+   */
+  personaPrompt?: string;
 }
 
-export function buildVoiceSystemInstruction({ agentic }: VoiceSystemOptions): string {
-  return agentic ? BASE + AGENTIC : BASE;
+export function buildVoiceSystemInstruction({ agentic, personaPrompt }: VoiceSystemOptions): string {
+  const base = agentic ? BASE + AGENTIC : BASE;
+  return personaPrompt ? `${base}\n\nVoice & manner: ${personaPrompt}` : base;
 }

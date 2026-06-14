@@ -87,6 +87,14 @@ describe('webUpdateUser', () => {
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
+
+  it('persists the selected voice persona id', () => {
+    webCreateUser(user({ id: 'user-a' }));
+    webSetSession('user-a');
+    expect(webGetUser()?.preferredVoiceId).toBeUndefined();
+    webUpdateUser('user-a', { preferredVoiceId: 'sage' });
+    expect(webGetUser()?.preferredVoiceId).toBe('sage');
+  });
 });
 
 describe('webRewriteUserId', () => {

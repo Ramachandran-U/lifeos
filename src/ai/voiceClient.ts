@@ -1,5 +1,6 @@
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
 import type { AgentTool } from './agent/runtime';
+import type { GeminiVoiceName } from './voicePersonas';
 
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true';
@@ -35,7 +36,7 @@ export type VoiceEvent =
 
 export interface VoiceSessionOptions {
   systemInstruction?: string;
-  voice?: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Aoede';
+  voice?: GeminiVoiceName;
   /**
    * Read-only tools the model can call to ground its answers in the user's REAL
    * data (today's routine, goals, spending, …). Wired into the Gemini Live

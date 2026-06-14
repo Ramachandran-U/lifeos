@@ -118,6 +118,7 @@ export function updateUser(
     onboardingStage: number;
     primaryDomains: string[];
     activatedModules: string[];
+    preferredVoiceId: string;
   }>,
 ): void {
   const now = new Date().toISOString();
