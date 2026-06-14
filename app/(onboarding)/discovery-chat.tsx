@@ -297,8 +297,10 @@ const makeStyles = (colors: AppColors) =>
       overflow: 'hidden',
     },
     progressFill: {
+      // Progress is ink on the track — not violet (violet = the AI speaking,
+      // which is the stage pill above, not a paint for the progress bar).
       height: '100%',
-      backgroundColor: colors.primary,
+      backgroundColor: colors.textPrimary,
     },
     scroll: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
     title: { marginTop: spacing.sm },
@@ -316,10 +318,13 @@ const makeStyles = (colors: AppColors) =>
       borderColor: colors.border,
     },
     userBubble: {
+      // The user's own messages are ink (neutral surface), not violet — violet
+      // is reserved for the AI's voice (the aiBubble stays neutral too; the AI's
+      // identity is the stage pill, keeping the thread calm).
       alignSelf: 'flex-end',
-      backgroundColor: colors.primaryDim,
+      backgroundColor: colors.surfaceAlt,
       borderWidth: 1,
-      borderColor: colors.primary,
+      borderColor: colors.border,
     },
     aiText: { color: colors.textPrimary },
     userText: { color: colors.textPrimary },
@@ -366,12 +371,15 @@ const makeStyles = (colors: AppColors) =>
       fontSize: fontSizes.sm,
     },
     sendBtn: {
+      // Default action button takes an ink tone, never violet (Guard E). Inverse
+      // ink (textPrimary fill / background-coloured glyph) is high-contrast in
+      // both themes.
       paddingHorizontal: spacing.lg,
       borderRadius: 16,
-      backgroundColor: colors.primary,
+      backgroundColor: colors.textPrimary,
       alignItems: 'center',
       justifyContent: 'center',
     },
     sendBtnDisabled: { opacity: 0.5 },
-    sendBtnText: { color: '#fff', fontFamily: fonts.bodyMedium },
+    sendBtnText: { color: colors.background, fontFamily: fonts.bodyMedium },
   });
