@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Pressable, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { View, Pressable, StyleSheet, TextInput, ScrollView, Platform } from 'react-native';
 import { useRouter, usePathname, type Href } from 'expo-router';
 import { format } from 'date-fns';
 import Animated, {
@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
   cancelAnimation,
 } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { useElevation } from '@/theme/elevation';
@@ -56,6 +57,17 @@ function routeToScreen(pathname: string): AppScreen {
   return KNOWN_SCREENS.has(seg as AppScreen) ? (seg as AppScreen) : 'today';
 }
 
+// Native-only haptic punctuation. Web is the primary target where the haptics
+// API is a no-op, so guard the platform and swallow any rejection — feedback is
+// a nicety, never load-bearing.
+function tapHaptic(kind: 'select' | 'light' | 'success' | 'error') {
+  if (Platform.OS === 'web') return;
+  if (kind === 'select') void Haptics.selectionAsync().catch(() => {});
+  else if (kind === 'light') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  else if (kind === 'success') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  else void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+}
+
 function ThinkingDots({ color }: { color: string }) {
   const p = useSharedValue(0.3);
   useEffect(() => {
@@ -72,6 +84,51 @@ function ThinkingDots({ color }: { color: string }) {
   );
 }
 
+const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
+
+/**
+ * Audio-reactive ring hugging the surface — the "voice is flowing" affordance
+ * the user asked for (Gemini-style), reconciled to Ink + Signal: it is ink /
+ * state-coloured (never violet), its opacity tracks the live mic/speech level,
+ * and it collapses to nothing the instant the exchange goes quiet — glow never
+ * idles (Manifesto P4). Purely decorative, so it is hidden from a11y.
+ */
+function VoiceHalo({ active, level, color, radius }: { active: boolean; level: number; color: string; radius: number }) {
+  const glow = useSharedValue(0);
+  useEffect(() => {
+    const target = active ? 0.22 + clamp01(level) * 0.55 : 0;
+    glow.value = withTiming(target, { duration: TIMING.fast });
+    return () => cancelAnimation(glow);
+  }, [active, level, glow]);
+  const style = useAnimatedStyle(() => ({
+    opacity: glow.value,
+    transform: [{ scale: 1 + glow.value * 0.03 }],
+  }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.halo, { borderColor: color, borderRadius: radius }, style]}
+    />
+  );
+}
+
+/**
+ * Status dot that gently scales with the live audio level while the exchange is
+ * active and rests perfectly still otherwise (no idle motion). Colour alone
+ * carries the state; the scale just gives a live session a heartbeat.
+ */
+function PulseDot({ color, level, active, testID }: { color: string; level: number; active: boolean; testID?: string }) {
+  const s = useSharedValue(1);
+  useEffect(() => {
+    s.value = withTiming(active ? 1 + clamp01(level) * 0.6 : 1, { duration: TIMING.fast });
+    return () => cancelAnimation(s);
+  }, [active, level, s]);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
+  return <Animated.View style={[styles.statusDot, { backgroundColor: color }, style]} testID={testID} />;
+}
+
 /**
  * The persistent voice companion.
  *
@@ -85,6 +142,10 @@ function ThinkingDots({ color }: { color: string }) {
  * propose-confirm); otherwise it's the read-only grounding assistant in a
  * persistent panel. Writes only happen on confirm — a tap on a card here or the
  * model calling commitProposedActions after a spoken "yes".
+ *
+ * Colour: this is the AI's voice surface, and it speaks in INK — every accent is
+ * an ink / semantic token, never violet (the voice went violet-free; see the
+ * violetVoiceCompliance ratchet, from which this file was removed).
  */
 export function VoiceCompanion() {
   const c = useColors();
@@ -172,7 +233,10 @@ export function VoiceCompanion() {
       }
     }
     useVoiceStore.getState().clearPending();
-    if (actions.length > 0) minimize();
+    if (actions.length > 0) {
+      tapHaptic('success');
+      minimize();
+    }
     return { committed: actions.length };
   }, [executeAction, minimize]);
 
@@ -180,6 +244,7 @@ export function VoiceCompanion() {
   const confirmOne = useCallback(
     async (action: ProposedAction, index: number) => {
       removePendingAction(index);
+      tapHaptic('success');
       await executeAction(action);
       if (action.kind === 'createGoalFromVision' || action.kind === 'generateCareerPath') minimize();
     },
@@ -227,6 +292,30 @@ export function VoiceCompanion() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Reconnect after a surfaced error — resume audio inside the gesture, drop the
+  // dead socket, and open a fresh session.
+  const handleRetry = useCallback(() => {
+    voice.resumeAudio();
+    voice.disconnect();
+    voice.connect();
+  }, [voice]);
+
+  // ── Haptic punctuation on meaningful transitions (native only) ───────────────
+  const prevStatusRef = useRef(voice.status);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = voice.status;
+    if (prev === voice.status) return;
+    if (voice.status === 'listening') tapHaptic('select');
+    else if (voice.status === 'error') tapHaptic('error');
+  }, [voice.status]);
+
+  const prevPendingRef = useRef(pendingActions.length);
+  useEffect(() => {
+    if (pendingActions.length > prevPendingRef.current) tapHaptic('light');
+    prevPendingRef.current = pendingActions.length;
+  }, [pendingActions.length]);
+
   // ── HTTP text fallback (live socket down) — mirrors VoiceAssistantSheet ──────
   const [httpMessages, setHttpMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
   const [httpStreaming, setHttpStreaming] = useState<string | null>(null);
@@ -264,15 +353,21 @@ export function VoiceCompanion() {
 
   if (!open) return null;
 
+  // State reads through ink / semantic tokens only — speaking is ink (the AI's
+  // own voice), the rest are the shared semantic signals.
   const statusColor = voice.error
     ? c.error
     : voice.isSpeaking
-    ? c.primary
+    ? c.textPrimary
     : voice.isThinking
     ? c.warning
     : voice.isListening
     ? c.success
     : c.textMuted;
+
+  // The reactive halo only lives during a genuine exchange; an error or an idle
+  // socket collapses it to nothing (glow never idles).
+  const interacting = !voice.error && (voice.isListening || voice.isSpeaking || voice.isThinking);
 
   // ── Collapsed pill ───────────────────────────────────────────────────────────
   if (minimized) {
@@ -283,18 +378,28 @@ export function VoiceCompanion() {
         style={[styles.pill, elevationPill, { backgroundColor: c.surface, borderColor: c.border }]}
         testID="voice-pill"
       >
-        <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-        <Pressable style={styles.pillBody} onPress={expand} hitSlop={8}>
+        <VoiceHalo active={interacting} level={voice.audioLevel} color={statusColor} radius={999} />
+        <PulseDot color={statusColor} level={voice.audioLevel} active={interacting} />
+        <Pressable
+          style={styles.pillBody}
+          onPress={expand}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Expand voice assistant"
+        >
           <Caption style={{ color: c.textSecondary }} numberOfLines={1}>
             {voice.transcript || voice.userTranscript || 'Voice assistant — tap to expand'}
           </Caption>
         </Pressable>
         {pendingActions.length > 0 && (
-          <View style={[styles.badge, { backgroundColor: c.primary }]}>
-            <Caption style={{ color: c.onPrimary, fontFamily: fonts.heading }}>{pendingActions.length}</Caption>
+          <View
+            style={[styles.badge, { backgroundColor: c.textPrimary }]}
+            accessibilityLabel={`${pendingActions.length} suggestion${pendingActions.length === 1 ? '' : 's'} awaiting confirmation`}
+          >
+            <Caption style={{ color: c.background, fontFamily: fonts.heading }}>{pendingActions.length}</Caption>
           </View>
         )}
-        <Pressable onPress={close} hitSlop={8} testID="voice-pill-close">
+        <Pressable onPress={close} hitSlop={8} testID="voice-pill-close" accessibilityRole="button" accessibilityLabel="Close voice assistant">
           <Ionicons name="close" size={18} color={c.textSecondary} />
         </Pressable>
       </Animated.View>
@@ -309,23 +414,24 @@ export function VoiceCompanion() {
       style={[styles.panel, elevation, { backgroundColor: c.surface, borderColor: c.border }]}
       testID="voice-sheet"
     >
+      <VoiceHalo active={interacting} level={voice.audioLevel} color={statusColor} radius={23} />
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="mic" size={20} color={c.primary} />
+          <Ionicons name="mic" size={20} color={c.textPrimary} />
           <Heading style={{ color: c.textPrimary, fontSize: fontSizes.lg }}>Voice Assistant</Heading>
         </View>
         <View style={styles.headerRight}>
-          <Pressable onPress={minimize} hitSlop={8} testID="voice-minimize">
+          <Pressable onPress={minimize} hitSlop={8} testID="voice-minimize" accessibilityRole="button" accessibilityLabel="Minimize voice assistant">
             <Ionicons name="chevron-down" size={22} color={c.textSecondary} />
           </Pressable>
-          <Pressable onPress={close} hitSlop={8} testID="voice-close">
+          <Pressable onPress={close} hitSlop={8} testID="voice-close" accessibilityRole="button" accessibilityLabel="Close voice assistant">
             <Ionicons name="close" size={22} color={c.textSecondary} />
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.statusRow}>
-        <View style={[styles.statusDot, { backgroundColor: statusColor }]} testID="voice-status-dot" />
+      <View style={styles.statusRow} accessibilityLiveRegion="polite">
+        <PulseDot color={statusColor} level={voice.audioLevel} active={interacting} testID="voice-status-dot" />
         <Label color={c.textSecondary} testID="voice-status">
           {voice.error ? 'ERROR' : voice.status.toUpperCase()}
         </Label>
@@ -363,7 +469,22 @@ export function VoiceCompanion() {
         >
           {voice.transcript || (httpMessages.length === 0 && httpStreaming === null ? 'Speak or type — ask about your day, or tell me what to do.' : '')}
         </Body>
-        {voice.error && <Caption style={{ color: c.error, marginTop: spacing.sm }}>{voice.error}</Caption>}
+        {voice.error && (
+          <View style={styles.errorRow}>
+            <Caption style={{ color: c.error, flex: 1 }}>{voice.error}</Caption>
+            <Pressable
+              onPress={handleRetry}
+              style={[styles.retryBtn, { borderColor: c.border }]}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Retry connection"
+              testID="voice-retry"
+            >
+              <Ionicons name="refresh" size={14} color={c.textSecondary} />
+              <Caption style={{ color: c.textSecondary }}>Retry</Caption>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
 
       {/* Pending writes — confirm cards (the spoken "yes" path commits the same set) */}
@@ -374,6 +495,7 @@ export function VoiceCompanion() {
           style={[styles.confirmCard, { backgroundColor: c.card, borderColor: c.border }]}
           testID="voice-confirm-card"
         >
+          <Ionicons name="sparkles-outline" size={16} color={c.textSecondary} />
           <Body style={{ color: c.textPrimary, fontSize: fontSizes.sm, flex: 1 }} numberOfLines={2}>
             {action.summary}
           </Body>
@@ -383,16 +505,20 @@ export function VoiceCompanion() {
               style={[styles.confirmBtn, { borderColor: c.border, borderWidth: 1 }]}
               hitSlop={6}
               testID="voice-confirm-dismiss"
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss suggestion"
             >
               <Caption style={{ color: c.textSecondary }}>Dismiss</Caption>
             </Pressable>
             <Pressable
               onPress={() => void confirmOne(action, i)}
-              style={[styles.confirmBtn, { backgroundColor: c.primary }]}
+              style={[styles.confirmBtn, { backgroundColor: c.textPrimary }]}
               hitSlop={6}
               testID="voice-confirm-apply"
+              accessibilityRole="button"
+              accessibilityLabel={`Confirm: ${action.summary}`}
             >
-              <Caption style={{ color: c.onPrimary, fontFamily: fonts.heading }}>Confirm</Caption>
+              <Caption style={{ color: c.background, fontFamily: fonts.heading }}>Confirm</Caption>
             </Pressable>
           </View>
         </Animated.View>
@@ -410,12 +536,14 @@ export function VoiceCompanion() {
           testID="voice-input"
         />
         <Pressable
-          style={[styles.sendBtn, { backgroundColor: c.primary }, httpBusy && { opacity: 0.4 }]}
+          style={[styles.sendBtn, { backgroundColor: c.textPrimary }, httpBusy && { opacity: 0.4 }]}
           onPress={handleSend}
           disabled={httpBusy}
           testID="voice-send"
+          accessibilityRole="button"
+          accessibilityLabel="Send message"
         >
-          <Ionicons name="arrow-up" size={18} color={c.onPrimary} />
+          <Ionicons name="arrow-up" size={18} color={c.background} />
         </Pressable>
       </View>
     </Animated.View>
@@ -451,6 +579,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     zIndex: 1000,
   },
+  // The reactive ring sits just outside the surface edge; negative inset + the
+  // matching corner radius keep it concentric. pointerEvents:none so it never
+  // eats taps.
+  halo: {
+    position: 'absolute',
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    borderWidth: 2,
+  },
   pillBody: { flex: 1 },
   badge: {
     minWidth: 20,
@@ -467,6 +606,17 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   transcript: { minHeight: 120, maxHeight: 240, borderWidth: 1, borderRadius: 16 },
   transcriptContent: { padding: spacing.md },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    minHeight: 32,
+  },
   confirmCard: {
     flexDirection: 'row',
     alignItems: 'center',
