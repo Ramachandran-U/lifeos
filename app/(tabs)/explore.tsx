@@ -23,11 +23,13 @@ import { LogExplorationSheet } from '@/components/modules/polymath/LogExploratio
 import { CrossDisciplineCard } from '@/components/modules/polymath/CrossDisciplineCard';
 import { DepthSheet } from '@/components/modules/polymath/DepthSheet';
 import { YouTubeImportCard } from '@/components/modules/polymath/YouTubeImportCard';
+import { ExploreActionSheet } from '@/components/modules/polymath/ExploreActionSheet';
 import { usePolymathStore, crossIsStale } from '@/store/usePolymathStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { tickQuestMetric } from '@/store/useQuestStore';
 import { useAI } from '@/hooks/useAI';
+import { useExploreLauncher } from '@/hooks/useExploreLauncher';
 import { suggestCrossDisciplineLink, suggestMapTitle } from '@/ai/functions';
 import { upsertRabbitHoleTree } from '@/db/queries/rabbitHoleTrees';
 import Svg, { Circle as SvgCircle, Line as SvgLine } from 'react-native-svg';
@@ -173,6 +175,9 @@ function ExploreScreenV1() {
   const [showAdd, setShowAdd] = useState(false);
   const [activeInterest, setActiveInterest] = useState<Interest | null>(null);
   const [depthFor, setDepthFor] = useState<Interest | null>(null);
+  const [exploreFor, setExploreFor] = useState<Interest | null>(null);
+  const pickToExplore = useFlagStore((s) => s.isEnabled('explore_pick_to_explore'));
+  const launcher = useExploreLauncher();
 
   const { call: callCross, loading: crossLoading } = useAI();
   const router = useRouter();
@@ -737,6 +742,7 @@ function ExploreScreenV1() {
                 onDelete={() => handleDelete(interest.id)}
                 onEditDepth={() => setDepthFor(interest)}
                 onToggleProtect={() => handleToggleProtect(interest)}
+                onExplore={pickToExplore ? () => setExploreFor(interest) : undefined}
               />
             ))}
           </Animated.View>
@@ -771,6 +777,16 @@ function ExploreScreenV1() {
           current={(depthFor?.explorationDepth as ExplorationDepth) ?? 'taste'}
           onClose={() => setDepthFor(null)}
           onPick={handlePickDepth}
+        />
+        <ExploreActionSheet
+          visible={!!exploreFor}
+          interest={exploreFor}
+          otherInterests={interests.filter(
+            (i) => i.id !== exploreFor?.id && (i.status === 'active' || i.status === 'exploring'),
+          )}
+          onDive={launcher.dive}
+          onBridge={launcher.bridge}
+          onClose={() => setExploreFor(null)}
         />
       </SafeAreaView>
     </View>

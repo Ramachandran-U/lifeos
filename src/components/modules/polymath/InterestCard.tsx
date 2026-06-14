@@ -32,6 +32,8 @@ interface Props {
   onDelete: () => void;
   onEditDepth: () => void;
   onToggleProtect: () => void;
+  /** Optional "Explore this" action (Dive/Bridge). Rendered only when provided. */
+  onExplore?: () => void;
 }
 
 export function InterestCard({
@@ -41,6 +43,7 @@ export function InterestCard({
   onDelete,
   onEditDepth,
   onToggleProtect,
+  onExplore,
 }: Props) {
   const c = useColors();
   const styles = makeStyles(c);
@@ -101,10 +104,23 @@ export function InterestCard({
       </View>
       <View style={styles.progressRow}>
         <Label>{weeklyActual} / {interest.weeklyMinutesTarget} min this week</Label>
-        <Pressable onPress={onLog} style={styles.logButton}>
-          <Ionicons name="add" size={16} color={c.polymathText} />
-          <Label color={c.polymathText}>Log</Label>
-        </Pressable>
+        <View style={styles.actionsRow}>
+          {onExplore && (
+            <Pressable
+              onPress={onExplore}
+              style={styles.exploreButton}
+              accessibilityRole="button"
+              accessibilityLabel={`Explore ${interest.name}`}
+            >
+              <Ionicons name="compass" size={16} color={c.polymathText} />
+              <Label color={c.polymathText}>Explore</Label>
+            </Pressable>
+          )}
+          <Pressable onPress={onLog} style={styles.logButton}>
+            <Ionicons name="add" size={16} color={c.polymathText} />
+            <Label color={c.polymathText}>Log</Label>
+          </Pressable>
+        </View>
       </View>
     </Card>
   );
@@ -170,5 +186,21 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: 999,
     backgroundColor: colors.polymathDim,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  exploreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });

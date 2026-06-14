@@ -74,6 +74,10 @@ export const EVENTS = {
   expeditionStepCompleted: 'expedition_step_completed',
   expeditionCompleted: 'expedition_completed',
   expeditionAbandoned: 'expedition_abandoned',
+  // Pick-to-explore (Dive vs Bridge) — user-initiated, vs the system-seeded
+  // spark/frontier/chasing above. Add these to the Worker ALLOWED_EVENTS before release.
+  exploreDiveStarted: 'explore_dive_started',
+  exploreBridgeStarted: 'explore_bridge_started',
   constellationSynapseFormed: 'constellation_synapse_formed',
   curiosityStreakDay: 'curiosity_streak_day',
   priorityChange: 'priority_change',
