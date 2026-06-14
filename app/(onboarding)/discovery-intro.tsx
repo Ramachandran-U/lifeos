@@ -58,7 +58,7 @@ export default function DiscoveryIntroScreen() {
         <Animated.View entering={FadeInDown.delay(150).duration(500)}>
           <Heading style={styles.title}>Set up your LifeOS</Heading>
           <Body style={styles.subtitle}>
-            The quickest way is to talk it through — I&apos;ll ask a few short questions about your goals and build your plan from your answers.
+            The quickest way is to talk it through — a couple of quick questions about which parts of your life you want to improve, and I&apos;ll build your starting plan. Under two minutes.
           </Body>
         </Animated.View>
 
