@@ -6,6 +6,21 @@
 
 ---
 
+## Working in parallel — worktree protocol (READ FIRST)
+
+This repo is worked on by **several concurrent sessions** (local **and** cloud). A `git switch` or an edit inside a *shared* checkout rewrites files under whoever else is in that folder — the #1 cause of "files changed under me" collisions and wasted/duplicated work. So: **every session works in its OWN git worktree; the shared root checkout is read-only reference.**
+
+- **Golden rule:** never edit / commit / `git switch` / build in the shared root checkout (`C:\personal\Project X\lifeos`). Leave it on `lifeosv1`.
+- **Session-start self-check (before your first edit):** run `git rev-parse --show-toplevel`. If it ends in `\lifeos` (the shared root), STOP and move into a dedicated worktree first — do not edit there.
+- **Start a new worktree** (do this when asked to "start a new worktree", or before your first edit if you don't have one):
+  1. `git -C "C:/personal/Project X/lifeos" fetch origin`
+  2. `git -C "C:/personal/Project X/lifeos" worktree add "../lifeos-<feature>" -b <branch> origin/lifeosv1` — unique `<feature>` folder + `<branch>` name, based off the latest `origin/lifeosv1`.
+  3. `cd "C:/personal/Project X/lifeos-<feature>"` → `npm ci` → copy `.env` from the shared root (`cp "../lifeos/.env" .env`).
+  4. Verify isolation: `git rev-parse --show-toplevel` ends in `lifeos-<feature>` and `git branch --show-current` is `<branch>`. Work ONLY in this folder for the rest of the session.
+- **Stay in your lane:** never `git switch <branch>` in a folder another session uses; build `dist/` only in your own worktree (never rebuild the shared root's `dist/`); keep edits to shared **hub files** small + additive — `src/store/useUserStore.ts`, `app/_layout.tsx`, `src/store/useFlagStore.ts`, `src/utils/telemetry.ts`, `src/db/schema.ts`, `src/db/index.ts`; rebase onto `origin/lifeosv1` before opening a PR; commit + push your branch early so work is never trapped only in a working tree. Avoid repo-wide git ops (`git stash`, `git gc`, force-push to shared branches) while other sessions are active.
+
+---
+
 ## What We're Building
 
 **LifeOS** is a bold, expressive AI-first life management app. It runs on iOS, Android, **and the web** from one React Native + Expo codebase (the web build ships to Cloudflare Pages). It is not a productivity app. It is a **Digital Life Architect** — a system that understands every dimension of a person's life and synthesises them into a liveable daily structure.
