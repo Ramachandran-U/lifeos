@@ -109,7 +109,7 @@ export default function DiscoveryVoiceScreen() {
   const dotColor = voice.error
     ? c.error
     : voice.isSpeaking
-    ? c.primary
+    ? c.textPrimary
     : voice.isListening
     ? c.success
     : c.textMuted;
@@ -141,7 +141,7 @@ export default function DiscoveryVoiceScreen() {
               accessibilityRole="button"
               accessibilityLabel="Start talking"
             >
-              <Ionicons name="mic" size={36} color={c.onPrimary} />
+              <Ionicons name="mic" size={36} color={c.background} />
             </Pressable>
             <Caption style={styles.micHint}>Tap to start talking</Caption>
           </Animated.View>
@@ -207,7 +207,7 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -235,9 +235,9 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
     marginTop: spacing.xxl,
     minHeight: 56,
     borderRadius: 16,
-    backgroundColor: colors.primaryDim,
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

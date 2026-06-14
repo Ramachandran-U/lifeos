@@ -43,9 +43,6 @@ const ALLOWLIST = new Set<string>([
   'app/(onboarding)/discovery-intro.tsx',
   'app/(onboarding)/discovery-paste.tsx',
   'app/(onboarding)/discovery-chat.tsx',
-  // Spoken onboarding (the AI guide talking the user through setup) — a voice
-  // surface, like discovery-chat above.
-  'app/(onboarding)/discovery-voice.tsx',
   'app/(onboarding)/day1-routine.tsx',
   // ── The planner speaking (eyebrows, proposals, diffs; index.tsx also
   //    carries its frozen flag-off legacy branch — kill-switch path) ──
