@@ -108,7 +108,13 @@ export function VoiceCompanion() {
   const removePendingAction = useVoiceStore((s) => s.removePendingAction);
 
   const userId = useUserStore((s) => s.userId);
-  const agentic = useFlagStore((s) => s.isEnabled('voice_agent_actions'));
+  // Production gates on the runtime flag (Worker /v1/config, default off). But
+  // that flag can't be flipped locally, so ALSO honour a compile-time env
+  // override for dev/QA: EXPO_PUBLIC_FLAG_VOICE_AGENT_ACTIONS=true turns the
+  // agentic tools on in a local/preview build. Additive — it can only enable,
+  // never disable, so it never weakens the production gate.
+  const flagOn = useFlagStore((s) => s.isEnabled('voice_agent_actions'));
+  const agentic = flagOn || process.env.EXPO_PUBLIC_FLAG_VOICE_AGENT_ACTIONS === 'true';
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const [input, setInput] = useState('');
