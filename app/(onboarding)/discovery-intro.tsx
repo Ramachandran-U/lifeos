@@ -56,13 +56,28 @@ export default function DiscoveryIntroScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(150).duration(500)}>
-          <Heading style={styles.title}>Bring your AI's read of you</Heading>
+          <Heading style={styles.title}>Set up your LifeOS</Heading>
           <Body style={styles.subtitle}>
-            If you've already chatted with ChatGPT or Claude about yourself, run this prompt there and paste the response back. LifeOS turns it into your starting plan.
+            The quickest way is to talk it through — I&apos;ll ask a few short questions about your goals and build your plan from your answers.
           </Body>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(300).duration(500)} style={styles.promptCard}>
+        <Animated.View entering={FadeInDown.delay(250).duration(500)} style={styles.chatCta}>
+          <Button
+            title="Talk it through with LifeOS →"
+            variant="primary"
+            onPress={() => router.push('/(onboarding)/discovery-chat')}
+          />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(320).duration(500)}>
+          <Body style={styles.orLabel}>Or, if you&apos;d rather bring an AI&apos;s read of you</Body>
+          <Body style={styles.subtitle}>
+            Already chatted with ChatGPT or Claude about yourself? Run this prompt there and paste the response back.
+          </Body>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(400).duration(500)} style={styles.promptCard}>
           <ScrollView style={styles.promptScroll} nestedScrollEnabled>
             <Body style={styles.promptText} selectable>{DISCOVERY_USER_PROMPT}</Body>
           </ScrollView>
@@ -111,6 +126,8 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   backText: { color: colors.textSecondary },
   title: { marginTop: spacing.md },
   subtitle: { color: colors.textSecondary, marginTop: spacing.sm },
+  chatCta: { marginTop: spacing.lg },
+  orLabel: { color: colors.textMuted, marginTop: spacing.xl },
   promptCard: {
     marginTop: spacing.xl,
     borderRadius: 20,
