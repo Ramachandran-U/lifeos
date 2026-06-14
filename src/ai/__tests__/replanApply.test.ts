@@ -243,6 +243,30 @@ describe('rebalanceRestOfToday', () => {
     expect(mockDeleteRoutineBlock).toHaveBeenCalledWith('d1');
     expect(mockCreateRoutineBlocks).toHaveBeenCalledTimes(1);
   });
+
+  it('includes the IN-PROGRESS block in remainingBlocks even though its startTime is past (D7)', async () => {
+    // Pin the clock to noon so the in-progress block (08:00) is unambiguously in
+    // the past. The old filter (startTime >= now) dropped it, so the replanner
+    // could schedule a new block over what the user is doing right now.
+    jest.useFakeTimers().setSystemTime(new Date('2026-06-09T12:00:00'));
+    try {
+      mockGetRoutineBlocksByDate.mockReturnValue([
+        { id: 'inprog', startTime: '08:00', endTime: '13:00', title: 'Deep work', module: 'career', status: 'in_progress' },
+        { id: 'soon', startTime: '15:00', endTime: '16:00', title: 'Gym', module: 'health', status: 'upcoming' },
+      ]);
+      mockReplanRemainingDay.mockResolvedValue({ drop: [], edits: [], add: [], rationale: 'ok' });
+
+      await rebalanceRestOfToday({ profile });
+
+      const input = mockReplanRemainingDay.mock.calls[0][0];
+      // D7: the in-progress block is sent so the AI sees its window occupied.
+      expect(input.remainingBlocks.some((b: { id: string }) => b.id === 'inprog')).toBe(true);
+      // Upcoming block still included (behaviour unchanged).
+      expect(input.remainingBlocks.some((b: { id: string }) => b.id === 'soon')).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
 
 // ─── generateAndSaveWeek ──────────────────────────────────────────────────────

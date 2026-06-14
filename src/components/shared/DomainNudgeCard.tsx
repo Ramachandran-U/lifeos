@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format, addDays } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -16,14 +15,12 @@ import { detectStagnantDomain, domainToModule } from '@/cognition/domainStagnati
 import { buildDomainSuggestions } from '@/cognition/domainSuggestions';
 import type { InsightSuggestion, CognitiveInsight } from '@/cognition/types';
 import { getGoalsByUser } from '@/db/queries/goals';
-import { getRoutineBlocksByDate } from '@/db/queries/routine';
+import { getRoutineBlocksByDate, createRoutineBlocks } from '@/db/queries/routine';
 import { getEventsLastNDays } from '@/db/queries/behaviour';
 import { recordInsight, updateInsightStatus, isInsightCooldownOk } from '@/db/queries/cognitiveInsights';
-import { webInsertRoutineBlock, type WebRoutineBlock } from '@/db/webStorage/routine';
 import { DOMAIN_META } from '@/constants/gamification';
 import type { DomainId } from '@/store/useUserStore';
 import { track, EVENTS } from '@/utils/telemetry';
-import { nanoid } from '@/utils/id';
 
 interface Props {
   userId: string;
@@ -90,19 +87,20 @@ export function DomainNudgeCard({ userId, tomorrow }: Props) {
     if (!s) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const block: WebRoutineBlock = {
-      id: nanoid(),
+    // Use the platform-aware query (web localStorage / native SQLite) which ALSO
+    // records a mutation — NOT the web-only shim, which silently no-ops on native
+    // and bypasses the sync/audit log. id/createdAt/updatedAt are assigned inside.
+    const startMin = 18 * 60; // 18:00 default focus slot
+    const endMin = startMin + s.durationMin;
+    const endTime = `${String(Math.floor(endMin / 60) % 24).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
+    createRoutineBlocks([{
       date: tomorrow,
       startTime: '18:00',
-      endTime: format(addDays(new Date(`2026-01-01T18:00`), 0).getTime() + s.durationMin * 60000, 'HH:mm'),
+      endTime,
       title: s.title,
       module: s.module,
       linkedEntityId: s.goalId ?? undefined,
-      status: 'upcoming',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    webInsertRoutineBlock(block);
+    }]);
     setAccepted((prev) => new Set(prev).add(idx));
     updateInsightStatus(insight.id, 'accepted');
     track(EVENTS.domainNudgeAccepted ?? 'domain_nudge_accepted', { domain: insight.domain, source: s.source });
