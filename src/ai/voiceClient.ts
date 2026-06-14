@@ -203,7 +203,11 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
         for (const p of parts) {
           if (p.inlineData?.mimeType?.startsWith('audio/')) {
             opts.onEvent({ type: 'audio', pcmBase64: p.inlineData.data });
-          } else if (p.text) {
+          } else if (p.text && !p.thought) {
+            // Skip the model's reasoning: native-audio models stream their
+            // thinking as text parts flagged `thought: true` (e.g. "Defining
+            // user goal…"). The spoken reply is surfaced via outputTranscription
+            // above, so thought text must never leak into the transcript panel.
             opts.onEvent({ type: 'text', text: p.text });
           }
         }
