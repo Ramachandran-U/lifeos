@@ -14,12 +14,13 @@ import type { RabbitHoleSeed } from '@/explore/rabbitHoleActions';
 export default function RabbitHoleRoute() {
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
-  const { sparkId, seedTitle, seedBody, seedInterest, seedAdjacent, treeId } = useLocalSearchParams<{
+  const { sparkId, seedTitle, seedBody, seedInterest, seedAdjacent, mode, treeId } = useLocalSearchParams<{
     sparkId?: string;
     seedTitle?: string;
     seedBody?: string;
     seedInterest?: string;
     seedAdjacent?: string;
+    mode?: string;
     treeId?: string;
   }>();
 
@@ -34,6 +35,7 @@ export default function RabbitHoleRoute() {
         threadStarter: seedTitle,
         seedInterest: seedInterest ?? '',
         adjacentField: seedAdjacent ?? '',
+        mode: mode === 'dive' ? 'dive' : mode === 'bridge' ? 'bridge' : undefined,
       };
     }
     const spark = userId ? getSparkByDate(userId, today) : undefined;
@@ -47,7 +49,7 @@ export default function RabbitHoleRoute() {
           adjacentField: spark.adjacentField,
         }
       : null;
-  }, [seedTitle, seedBody, seedInterest, seedAdjacent, sparkId, userId, today]);
+  }, [seedTitle, seedBody, seedInterest, seedAdjacent, mode, sparkId, userId, today]);
 
   return <RabbitHoleScreen seed={seed} treeId={treeId ?? undefined} onExit={() => router.back()} />;
 }

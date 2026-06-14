@@ -27,6 +27,8 @@ export interface RabbitHoleSeedParams {
   seedBody: string;
   seedInterest: string;
   seedAdjacent: string;
+  /** 'dive' (single-idea) or 'bridge' (cross) — drives sideways behaviour. */
+  mode: string;
   [key: string]: string;
 }
 
@@ -41,7 +43,8 @@ export function buildDiveParams(interest: ExploreInterestRef): RabbitHoleSeedPar
     seedTitle: interest.name,
     seedBody: `Go deep on ${interest.name}: pull one thread and follow it down to the idea underneath.`,
     seedInterest: interest.name,
-    seedAdjacent: '', // single-idea — "branch sideways" stays generic
+    seedAdjacent: '', // single-idea — "branch sideways" stays within the topic
+    mode: 'dive',
   };
 }
 
@@ -53,5 +56,6 @@ export function buildBridgeParams(a: ExploreInterestRef, b: ExploreInterestRef):
     seedBody: `Where do ${a.name} and ${b.name} meet? Find the structure they share and follow it across.`,
     seedInterest: a.name,
     seedAdjacent: b.name,
+    mode: 'bridge',
   };
 }

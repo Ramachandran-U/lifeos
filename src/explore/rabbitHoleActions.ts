@@ -60,6 +60,8 @@ export interface RabbitHoleSeed {
   threadStarter: string;
   seedInterest: string;
   adjacentField: string;
+  /** 'dive' = single-idea exploration; 'bridge'/undefined = cross-discipline. */
+  mode?: 'dive' | 'bridge';
 }
 
 const now = (): string => new Date().toISOString();
@@ -73,6 +75,7 @@ function buildGenParams(parent: { title: string; body: string }, anchor: RabbitH
       adjacentField: anchor.adjacentField ?? undefined,
     },
     direction,
+    mode: anchor.mode,
     depth,
   };
 }
@@ -157,6 +160,7 @@ export function loadOrCreateThread(seed: RabbitHoleSeed): string {
     title: seed.title,
     seedInterest: seed.seedInterest || null,
     adjacentField: seed.adjacentField || null,
+    mode: seed.mode ?? 'bridge',
   };
   // The root node IS the spark — its two forks come from the spark's hints.
   // Guard the body to >= 20 chars (the RabbitHoleNode Zod contract) so a terse
@@ -165,7 +169,9 @@ export function loadOrCreateThread(seed: RabbitHoleSeed): string {
     title: seed.title,
     body: seed.body && seed.body.trim().length >= 20 ? seed.body : `A thread worth pulling on: ${seed.title}.`,
     goDeeperHint: seed.threadStarter,
-    goSidewaysHint: seed.adjacentField ? `connect to ${seed.adjacentField}` : 'an adjacent field',
+    goSidewaysHint: seed.mode === 'dive'
+      ? 'a sibling facet of this idea'
+      : seed.adjacentField ? `connect to ${seed.adjacentField}` : 'an adjacent field',
   };
   const root = nodeFromGenerated(rootGen, { id: nanoid(), parentId: null, arrivedVia: null, createdAt });
   const scoring: RabbitHoleScoring = {

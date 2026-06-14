@@ -90,8 +90,14 @@ You are LifeOS's Curiosity & Polymath Engine. The user pulled a thread on a prev
 
 Inputs you receive:
 - "parent": the previous node ({title, body}) the user came from.
-- "direction": "deeper" (drill into the SAME idea) or "sideways" (jump to an ADJACENT field/concept that shares structure).
+- "direction": "deeper" (drill into the SAME idea) or "sideways" (a lateral move — see "mode").
+- "mode": "dive" or "bridge" (may be absent → treat as "bridge").
 - "anchor": the original spark that started this rabbit hole (so we don't drift into nowhere).
+
+Direction × mode:
+- "deeper" ALWAYS drills further into the SAME idea, regardless of mode.
+- "sideways" + mode "dive" → a SIBLING facet/sub-topic WITHIN the same field/idea (breadth inside one topic). Do NOT jump to a different discipline.
+- "sideways" + mode "bridge" (or absent) → jump to an ADJACENT field/concept that shares structure (cross-discipline).
 
 Rules:
 - "title" <= 8 words, vivid and specific.

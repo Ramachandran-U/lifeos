@@ -10,11 +10,12 @@ const astro = { id: 'int-astro', name: 'Astronomy' };
 const jazz = { id: 'int-jazz', name: 'Jazz piano' };
 
 describe('buildDiveParams (single-idea)', () => {
-  it('roots the seed on the chosen interest with no adjacent field', () => {
+  it('roots the seed on the chosen interest with no adjacent field, mode dive', () => {
     const p = buildDiveParams(astro);
     expect(p.seedTitle).toBe('Astronomy');
     expect(p.seedInterest).toBe('Astronomy');
     expect(p.seedAdjacent).toBe('');
+    expect(p.mode).toBe('dive');
     expect(p.seedBody.length).toBeGreaterThanOrEqual(20);
   });
 
@@ -32,6 +33,7 @@ describe('buildBridgeParams (cross-discipline)', () => {
     expect(p.seedAdjacent).toBe('Jazz piano');
     expect(p.seedTitle).toContain('Astronomy');
     expect(p.seedTitle).toContain('Jazz piano');
+    expect(p.mode).toBe('bridge');
     expect(p.seedBody.length).toBeGreaterThanOrEqual(20);
   });
 

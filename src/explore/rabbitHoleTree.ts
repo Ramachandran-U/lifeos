@@ -47,6 +47,8 @@ export interface RabbitHoleAnchor {
   readonly title: string;
   readonly seedInterest: string | null;
   readonly adjacentField: string | null;
+  /** 'dive' = single-idea (sideways stays in-topic); 'bridge'/undefined = cross. */
+  readonly mode?: 'dive' | 'bridge';
 }
 
 /** The in-memory tree: a normalized node map plus the root and the cursor. This
@@ -111,6 +113,9 @@ export const RabbitHoleAnchorSchema = z.object({
   title: z.string().min(1),
   seedInterest: z.string().nullable(),
   adjacentField: z.string().nullable(),
+  // Optional so anchors persisted before Dive/Bridge still hydrate (→ undefined,
+  // treated as 'bridge'). New dive anchors carry 'dive'.
+  mode: z.enum(['dive', 'bridge']).optional(),
 });
 
 export const RabbitHoleTreeDataSchema = z.object({
