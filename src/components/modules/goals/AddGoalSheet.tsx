@@ -401,6 +401,13 @@ export function AddGoalSheet({ visible, onClose, onGoalCreated, initialVision, a
                 </Animated.View>
 
                 <Animated.View entering={FadeInDown.delay(360).duration(TIMING.normal)} style={styles.actions}>
+                  {/* Voice-originated draft: the assistant only drafts — nothing is
+                      saved until the user taps Save here. Make that step unmissable. */}
+                  {initialVision ? (
+                    <Caption style={[styles.voiceDraftHint, { color: accentTc.text }]}>
+                      Drafted from your voice request — review and tap Save to keep it.
+                    </Caption>
+                  ) : null}
                   <Button3D title="Save goal" tone="goal" onPress={handleSave} />
                   <Button title="Close" variant="ghost" onPress={handleClose} />
                 </Animated.View>
@@ -549,5 +556,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   actions: {
     gap: spacing.sm,
     marginTop: spacing.sm,
+  },
+  voiceDraftHint: {
+    fontFamily: fonts.heading,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
 });
