@@ -34,7 +34,7 @@ export interface Expedition {
   domain: string; // 'polymath' by default
   steps: ExpeditionStep[];
   totalSteps: number;
-  source: 'ai' | 'curated' | 'spark';
+  source: 'ai' | 'curated' | 'spark' | 'interest';
   seedSparkId: string | null;
   createdAt: string;
 }

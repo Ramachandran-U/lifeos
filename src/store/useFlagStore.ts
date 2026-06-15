@@ -65,6 +65,10 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   explore_agentic_thread: true,
   explore_frontier: true,
   rabbit_hole_tree_map: true,
+  // Pick-to-explore (Dive vs Bridge): user-initiated exploration FROM an interest
+  // — Dive = one idea deep, Bridge = two ideas across — both seeding the existing
+  // rabbit-hole engine. Off by default; ships dark for a staged rollout.
+  explore_pick_to_explore: false,
   // Aurora Alive retention mechanics (UI/UX revamp program). Defaults flipped
   // ON 2026-06-14 (founder-directed next-wave rollout; they ran on the dogfood
   // preview since 2026-06-10). Each remains a remote kill switch via a `false`

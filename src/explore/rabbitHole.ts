@@ -30,6 +30,12 @@ export interface RabbitHoleInput {
   /** The original spark that started this thread — keeps wanderings tethered. */
   anchor: { title: string; seedInterest?: string; adjacentField?: string };
   direction: RabbitHoleDirection;
+  /**
+   * Exploration mode. 'dive' = stay within ONE idea (sideways = a sibling facet
+   * of the SAME topic, breadth-in-idea); 'bridge'/undefined = cross-discipline
+   * (sideways jumps to an adjacent field). Defaults to bridge for back-compat.
+   */
+  mode?: 'dive' | 'bridge';
   /** Hop depth of the node being generated (root = 0). Lets the curated fallback
    *  vary by level so a run of AI misses never renders the same card twice, and
    *  gives the live model an explicit "how deep am I" signal. */
@@ -74,6 +80,15 @@ const SIDEWAYS_FRAMES: { title: (t: string, a: string) => string; lead: (t: stri
   { title: (t, a) => `${a}'s version of ${t}`, lead: (t, a) => `${a} solved a problem shaped exactly like "${t}", just with different words` },
   { title: (t, a) => `Where ${t} and ${a} rhyme`, lead: (t, a) => `"${t}" and ${a} rhyme structurally; borrowing one model across the gap clarifies both` },
 ];
+// Dive-mode sideways: stay INSIDE the one idea — a sibling facet / sub-topic, not
+// a jump to another discipline. This is what makes a "Dive" breadth-within-one-idea
+// rather than the cross-discipline wander a spark/frontier seeds.
+const DIVE_SIDEWAYS_FRAMES: { title: (t: string) => string; lead: (t: string) => string }[] = [
+  { title: (t) => `Another face of ${t}`, lead: (t) => `Step sideways within "${t}" to a sibling idea most accounts never connect to it` },
+  { title: (t) => `A quieter corner of ${t}`, lead: (t) => `Inside "${t}" sits a less-told sub-topic that rewards a closer look` },
+  { title: (t) => `${t}, from a new angle`, lead: (t) => `The same "${t}" reads differently from an angle the mainstream version skips` },
+  { title: (t) => `The edge of ${t}`, lead: (t) => `At the edge of "${t}" is a related thread that widens the whole picture without leaving it` },
+];
 
 /** Reduce a parent title to its core concept (strip our own framings) and bound
  * its length, so chained fallbacks stay readable and don't nest prefixes. */
@@ -112,6 +127,17 @@ export function buildMockNode(input: RabbitHoleInput): GeneratedNode {
       goSidewaysHint: `where else this rule shows up`,
     };
   }
+  // Dive mode: a sibling facet of the SAME topic (breadth within one idea).
+  if (input.mode === 'dive') {
+    const f = DIVE_SIDEWAYS_FRAMES[depth % DIVE_SIDEWAYS_FRAMES.length];
+    return {
+      title: f.title(topic),
+      body: `${f.lead(topic)}. It stays inside ${anchor} — widening the idea without leaving it.`,
+      goDeeperHint: `the core mechanism of ${topic}`,
+      goSidewaysHint: `another facet of ${topic}`,
+    };
+  }
+  // Bridge/default mode: cross to the adjacent field that shares structure.
   const f = SIDEWAYS_FRAMES[depth % SIDEWAYS_FRAMES.length];
   return {
     title: f.title(topic, adj),

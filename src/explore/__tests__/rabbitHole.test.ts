@@ -58,6 +58,19 @@ describe('buildMockNode', () => {
     expect(isConcreteNode(n)).toBe(true);
   });
 
+  it('dive mode keeps SIDEWAYS within the same idea (no cross-field jump)', () => {
+    const n = buildMockNode({ ...baseInput, direction: 'sideways', mode: 'dive' });
+    expect(isConcreteNode(n)).toBe(true);
+    const hay = `${n.title} ${n.body}`.toLowerCase();
+    expect(hay).toContain('chess');         // stays on the topic
+    expect(hay).not.toContain('linguistics'); // does NOT jump to the adjacent field
+  });
+
+  it('bridge mode (default) still crosses to the adjacent field on sideways', () => {
+    const n = buildMockNode({ ...baseInput, direction: 'sideways', mode: 'bridge' });
+    expect(n.title.toLowerCase()).toContain('linguistics');
+  });
+
   it('varies title AND body by parent + depth so consecutive fallbacks differ (regression: same card at every depth)', () => {
     const d1 = buildMockNode({ ...baseInput, direction: 'deeper', depth: 1 });
     // Depth 2's parent IS the depth-1 node (same anchor). The old anchor-only

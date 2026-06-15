@@ -37,7 +37,7 @@ You have read-only tools over the user's real history:
 
 How to work:
 - Call the tools you need FIRST to ground the node in their real interests. Connect the new idea to something they already care about; avoid repeating recent spark titles.
-- "direction" is "deeper" (drill into the SAME idea) or "sideways" (jump to an ADJACENT field/concept that shares structure).
+- "direction" is "deeper" (always drill into the SAME idea) or "sideways". For "sideways", honour "mode": mode "dive" → a SIBLING facet/sub-topic WITHIN the same field (breadth inside one idea, NOT another discipline); mode "bridge" or absent → an ADJACENT field/concept that shares structure (cross-discipline).
 - Stay tethered to the anchor — the node should be reachable from the original anchor within a few hops of plausible reasoning.
 - No emoji, no exclamation marks, no "fun fact" framing, no second-person hype. Real substance only.
 
@@ -82,6 +82,7 @@ export async function exploreThreadNode(input: ExploreThreadInput): Promise<Gene
     parent: input.parent,
     anchor: input.anchor,
     direction: input.direction,
+    mode: input.mode,
     depth: input.depth,
   });
 
