@@ -54,6 +54,7 @@ export default function RootLayout() {
   const setPrimaryDomains = useUserStore((s) => s.setPrimaryDomains);
   const markModuleActivated = useUserStore((s) => s.markModuleActivated);
   const setAvatarUri = useUserStore((s) => s.setAvatarUri);
+  const setPreferredVoiceId = useUserStore((s) => s.setPreferredVoiceId);
   const pendingLevelUp = useGameStore((s) => s.pendingLevelUp);
   const dismissLevelUp = useGameStore((s) => s.dismissLevelUp);
   const pendingMilestone = useGameStore((s) => s.pendingMilestone);
@@ -104,6 +105,7 @@ export default function RootLayout() {
         setPrimaryDomains(domains.filter(isDomain));
         activated.filter(isDomain).forEach(markModuleActivated);
         setAvatarUri((user as { avatarUri?: string | null }).avatarUri ?? null);
+        setPreferredVoiceId((user as { preferredVoiceId?: string | null }).preferredVoiceId ?? null);
       }
       // Fetch admin-portal-managed feature flags. Non-blocking — fallback
       // values cover the case where the worker is unreachable. Trigger a sync

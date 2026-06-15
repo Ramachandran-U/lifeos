@@ -538,6 +538,9 @@ export async function initDatabase() {
   await safeAlter(`ALTER TABLE users ADD COLUMN health_goal_type TEXT`);
   await safeAlter(`ALTER TABLE users ADD COLUMN primary_domains TEXT`);
   await safeAlter(`ALTER TABLE users ADD COLUMN activated_modules TEXT`);
+  // Voice companion persona selection (feat/voice-personas). Persona id, not a
+  // raw Gemini voice name — resolved via src/ai/voicePersonas.ts.
+  await safeAlter(`ALTER TABLE users ADD COLUMN preferred_voice_id TEXT`);
   await safeAlter(`ALTER TABLE interests ADD COLUMN time_protected INTEGER NOT NULL DEFAULT 0`);
   await safeAlter(`ALTER TABLE memory_facts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
   // Streak protection (Aurora Alive R0, streak_protection_v1).

@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Body, Heading, Label, Caption } from '@/components/ui/Typography';
 import { SyncStatus } from '@/components/shared/SyncStatus';
+import { VoicePersonaPicker } from '@/components/shared/VoicePersonaPicker';
 import { exportBackup, importBackup } from '@/sync/backup';
 import { useFlagStore } from '@/store/useFlagStore';
 import { useUserStore } from '@/store/useUserStore';
@@ -208,6 +209,14 @@ export default function SettingsScreen() {
           <Body style={styles.infoText}>
             Mode: {process.env.ANTHROPIC_API_KEY ? 'API Key' : process.env.USE_AI_MOCK === 'true' ? 'Mock Mode' : 'CLI Proxy'}
           </Body>
+        </Card>
+
+        <Card style={styles.section}>
+          <Label>Voice</Label>
+          <Body style={styles.infoText}>
+            Choose how your AI companion sounds. Tap a name to switch; tap the speaker to hear a sample.
+          </Body>
+          <VoicePersonaPicker />
         </Card>
 
         <Card style={styles.section}>

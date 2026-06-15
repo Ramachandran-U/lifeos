@@ -30,8 +30,7 @@ import { buildVoiceSystemInstruction } from '@/ai/prompts/voiceAgent';
 import { useVoiceStore } from '@/store/useVoiceStore';
 import { useUserStore } from '@/store/useUserStore';
 import { useFlagStore } from '@/store/useFlagStore';
-import { getUser } from '@/db/queries/users';
-import type { VoiceSessionOptions } from '@/ai/voiceClient';
+import { getVoicePersona } from '@/ai/voicePersonas';
 
 // ── Screen ↔ route mapping ─────────────────────────────────────────────────────
 const ROUTE: Record<AppScreen, string> = {
@@ -271,18 +270,19 @@ export function VoiceCompanion() {
     return agentic ? buildVoiceTools(ctx, { queue, commitPending }) : buildVoiceTools(ctx);
   }, [userId, today, agentic, navigate, currentScreen, queue, commitPending]);
 
+  // The selected voice persona drives BOTH the Gemini voice (timbre) and a tone
+  // directive in the system instruction. Read reactively from the store so a
+  // change in Settings reconnects the session below — the Live API fixes the
+  // voice at setup and can't switch it mid-turn. null ⇒ default persona.
+  const preferredVoiceId = useUserStore((s) => s.preferredVoiceId);
+  const persona = useMemo(() => getVoicePersona(preferredVoiceId), [preferredVoiceId]);
+
   const systemInstruction = useMemo(
-    () => buildVoiceSystemInstruction({ agentic }),
-    [agentic],
+    () => buildVoiceSystemInstruction({ agentic, personaPrompt: persona.personaPrompt }),
+    [agentic, persona.personaPrompt],
   );
 
-  // `preferredVoiceId` is mid-landing — read it via a narrow cast (see VoiceAssistantSheet).
-  const storedUser = getUser() as { preferredVoiceId?: string | null } | null | undefined;
-  const resolvedVoice = (storedUser?.preferredVoiceId ?? undefined) as
-    | VoiceSessionOptions['voice']
-    | undefined;
-
-  const voice = useVoice({ systemInstruction, tools, voice: resolvedVoice });
+  const voice = useVoice({ systemInstruction, tools, voice: persona.voiceName });
 
   // Connect/disconnect follow the store's open flag (NOT screen mount), so the
   // session lives across tab navigation.
@@ -299,6 +299,18 @@ export function VoiceCompanion() {
     voice.disconnect();
     voice.connect();
   }, [voice]);
+
+  // Apply a persona change to an already-open session by bouncing it (voice +
+  // personality are set at setup only). Skip the initial mount — the [open]
+  // effect above already owns the first connect.
+  const didApplyPersona = useRef(false);
+  useEffect(() => {
+    if (!didApplyPersona.current) { didApplyPersona.current = true; return; }
+    if (!open) return;
+    voice.disconnect();
+    voice.connect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persona.id]);
 
   // ── Haptic punctuation on meaningful transitions (native only) ───────────────
   const prevStatusRef = useRef(voice.status);

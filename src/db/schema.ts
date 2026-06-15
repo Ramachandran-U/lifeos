@@ -24,6 +24,7 @@ export const users = sqliteTable('users', {
   onboardingStage: integer('onboarding_stage').notNull().default(0),
   primaryDomains: text('primary_domains'), // JSON string[] — user's chosen focus domains from welcome-intent
   activatedModules: text('activated_modules'), // JSON string[] — modules user has supplied data for
+  preferredVoiceId: text('preferred_voice_id'), // voice companion persona id — see src/ai/voicePersonas.ts
   installDate: text('install_date'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),

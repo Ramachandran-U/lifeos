@@ -65,6 +65,7 @@ export interface WebUser {
   onboardingStage: number;
   primaryDomains?: string[];
   activatedModules?: string[];
+  preferredVoiceId?: string;
   installDate: string;
   createdAt: string;
   updatedAt: string;
