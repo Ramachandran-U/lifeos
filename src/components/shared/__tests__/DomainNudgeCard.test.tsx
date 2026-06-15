@@ -21,7 +21,11 @@ jest.mock('@/cognition/domainSuggestions', () => ({
 
 // Storage read boundaries.
 jest.mock('@/db/queries/goals', () => ({ getGoalsByUser: () => [] }));
-jest.mock('@/db/queries/routine', () => ({ getRoutineBlocksByDate: () => [] }));
+const mockCreateRoutineBlocks = jest.fn();
+jest.mock('@/db/queries/routine', () => ({
+  getRoutineBlocksByDate: () => [],
+  createRoutineBlocks: (...args: unknown[]) => mockCreateRoutineBlocks(...args),
+}));
 jest.mock('@/db/queries/behaviour', () => ({ getEventsLastNDays: () => [] }));
 
 const mockRecordInsight = jest.fn((..._args: unknown[]) => 'insight_fake_1');
@@ -30,11 +34,6 @@ jest.mock('@/db/queries/cognitiveInsights', () => ({
   recordInsight: (...args: unknown[]) => mockRecordInsight(...args),
   updateInsightStatus: (...args: unknown[]) => mockUpdateInsightStatus(...args),
   isInsightCooldownOk: () => true,
-}));
-
-const mockInsertBlock = jest.fn();
-jest.mock('@/db/webStorage/routine', () => ({
-  webInsertRoutineBlock: (...args: unknown[]) => mockInsertBlock(...args),
 }));
 
 import { DomainNudgeCard } from '@/components/shared/DomainNudgeCard';
@@ -80,13 +79,25 @@ describe('DomainNudgeCard', () => {
     expect(screen.getByText('Set a savings micro-goal')).toBeTruthy();
   });
 
-  it('adds a block and confirms when a suggestion chip is accepted', async () => {
+  it('adds a block via the platform-aware createRoutineBlocks and confirms on accept (D8)', async () => {
     render(<DomainNudgeCard userId="user_fake_1" tomorrow="2026-06-05" />);
     await waitFor(() => screen.getByText("Review last week's spending"));
 
     fireEvent.press(screen.getByText("Review last week's spending"));
 
-    expect(mockInsertBlock).toHaveBeenCalledTimes(1);
+    // D8: writes via createRoutineBlocks (web localStorage / native SQLite, and
+    // records a mutation) — NOT the web-only shim that silently no-ops on native.
+    expect(mockCreateRoutineBlocks).toHaveBeenCalledTimes(1);
+    expect(mockCreateRoutineBlocks.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        date: '2026-06-05',
+        title: "Review last week's spending",
+        module: 'finance',
+        linkedEntityId: 'goal_fake_1',
+        startTime: '18:00',
+        endTime: '18:15', // 18:00 + 15-min suggestion duration
+      }),
+    ]);
     expect(mockUpdateInsightStatus).toHaveBeenCalledWith('insight_fake_1', 'accepted');
     await waitFor(() => {
       expect(screen.getByText("Added to tomorrow's plan.")).toBeTruthy();

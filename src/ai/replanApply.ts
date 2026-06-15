@@ -36,7 +36,11 @@ export async function rebalanceRestOfToday(opts: {
   const allBlocks = getRoutineBlocksByDate(today);
 
   const remaining = allBlocks
-    .filter((b) => b.startTime >= now)
+    // Include the IN-PROGRESS block too (its startTime is < now): the replanner
+    // must see that window as OCCUPIED, otherwise it can schedule a new block
+    // on top of what the user is doing right now. Upcoming (startTime >= now)
+    // and past/skipped handling is unchanged.
+    .filter((b) => b.startTime >= now || b.status === 'in_progress')
     .map((b) => ({
       id: b.id,
       startTime: b.startTime,

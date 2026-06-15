@@ -182,6 +182,17 @@
 
 ---
 
+## 14. e2e CUJ coverage gaps (QA)
+
+> Surfaced 2026-06-15 while re-applying the D7/D8 QA fixes (branch `fix/qa-d7-d8`). Both behaviours are now covered at the **jest** level; the gaps below are **e2e (Playwright / `cuj-staging.spec.ts`)** only. They are deferred — not added — because a CI-safe e2e for either depends on deployed feature-flag state and/or wall-clock timing, which would make the staging suite flaky. Pick up only if a regression escapes the unit tests.
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 14.1 🅿️ | **No e2e for the "growth nudge" accept journey** (`DomainNudgeCard` → tap a suggestion → block lands in tomorrow's plan). Covered by jest (`DomainNudgeCard.test.tsx`, D8): accept now calls the platform-aware `createRoutineBlocks` (web + native, records a mutation) instead of the web-only `webInsertRoutineBlock` shim. | A staging e2e needs `domainNudges` + `domainNudgesVisible` ON in the deployed build *and* seeded history that trips `detectStagnantDomain` — flag- and data-state dependent, so flaky against `-eqa`. | When the nudge flags are default-on in the deployed build; then add a CUJ that seeds a stagnant domain and asserts a `lifeos_routine_blocks` row for tomorrow. |
+| 14.2 🅿️ | **No e2e for in-progress-block protection on intra-day replan** (D7). CUJ 17 exercises replan against a *skipped* block; the *in-progress* case (the replanner must not schedule over what the user is doing now) is covered by jest (`replanApply.test.ts`, clock-pinned: an `in_progress` block started at 08:00 still appears in `remainingBlocks` at noon). | Deterministic e2e needs the wall-clock to sit inside a seeded block's window; the suite UTC-pins the clock, but "currently in-progress" is inherently time-sensitive and brittle across CI run-times. | If a replan-overlap regression recurs; then extend CUJ 17 with a seeded `in_progress` block and assert no added block overlaps its window. |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
