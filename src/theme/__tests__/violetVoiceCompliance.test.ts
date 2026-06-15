@@ -66,9 +66,10 @@ const ALLOWLIST = new Set<string>([
   'app/finance-review.tsx',
   'app/annual-review.tsx',
   'app/evening-reflect.tsx',
-  // VoiceCompanion is the AI's voice surface (successor to the removed
-  // VoiceAssistantSheet) — violet = the AI speaking. 1:1 swap, not growth.
-  'src/components/shared/VoiceCompanion.tsx',
+  // VoiceCompanion went violet-free: the AI's voice surface now speaks entirely
+  // in ink / semantic tokens (state colour + audio-reactive ink halo), so it no
+  // longer reads a primary token. Removed from the allowlist as the ratchet
+  // shrinks — never to return without a founder-approved manifesto-change PR.
   'src/components/shared/NarrationToggle.tsx',
   // ── The companion (founder call: the AI made visible) + comeback warmth ──
   'src/components/companion/CompanionSheet.tsx',
