@@ -1191,3 +1191,64 @@ test.describe('CUJ 20 — Completing a health block ticks the workout streak to 
     expect(pageErrors).toEqual([]);
   });
 });
+
+// ── CUJ 21: Cold-start Today — no routine yet → guided "Plan my day", never blank ─
+//
+// Human equivalent: "I'm onboarded but haven't built today's routine yet. Today
+// shouldn't be a dead blank — it should tell me what to do next."
+//
+// Promoted from the 2026-06-16 live-validation pass: a 5-persona simulation
+// claimed Today was an empty skeleton post-onboarding. Live browser proved the
+// opposite — with no blocks Today shows a "PICK YOUR FIRST WIN" hero + a
+// "Let's build your first day → Plan my day" CTA. This locks that guidance so it
+// can never regress to a blank cold-start.
+
+test.describe('CUJ 21 — Cold-start Today guides to planning (never blank)', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedAuthedUser(page, { blocks: [] }); // onboarded, but no routine for today
+  });
+
+  test('with no blocks, Today shows a plan CTA and is not blank', async ({ page }) => {
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/');
+    await expect(page.getByTestId('today-greeting')).toBeVisible({ timeout: 15_000 });
+
+    // Business outcome: the cold-start surface offers a clear next step, not a void.
+    await expect(
+      page.getByText('Plan my day', { exact: true })
+        .or(page.getByText(/build your first day/i))
+        .first(),
+    ).toBeVisible({ timeout: 10_000 });
+
+    const childCount = await assertNotBlank(page);
+    expect(childCount, 'cold-start Today must not be blank').toBeGreaterThan(20);
+    expect(pageErrors).toEqual([]);
+  });
+});
+
+// ── CUJ 22: Finance Transactions empty state guides to Connect Gmail ───────────
+//
+// Human equivalent: "Before I connect anything, the Transactions tab should tell
+// me how to get data in — not show a blank."
+//
+// Promoted from the 2026-06-16 live-validation pass: empty Transactions renders
+// "No transactions yet — Connect Gmail …" with a CTA (a guided empty, not a void).
+
+test.describe('CUJ 22 — Transactions empty state guides to Connect Gmail', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedAuthedUser(page); // no Gmail token seeded → disconnected
+  });
+
+  test('Transactions tab shows the guided empty state, not a blank', async ({ page }) => {
+    const { pageErrors } = captureErrors(page);
+    await navigateTo(page, '/(tabs)/finance');
+    await expect(page.getByText('Finance').first()).toBeVisible({ timeout: 15_000 });
+
+    await page.getByText('Transactions', { exact: true }).first().click();
+
+    // Business outcome: a guided empty state with a clear connect CTA.
+    await expect(page.getByText('No transactions yet')).toBeVisible({ timeout: 12_000 });
+    await expect(page.getByText('Connect Gmail').first()).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+});
