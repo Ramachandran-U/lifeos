@@ -193,6 +193,36 @@
 
 ---
 
+## 15. UX findings — 5-persona simulation + live-browser validation (2026-06-16)
+
+> Method: 5 distinct "25-year-old" personas exercised the app (each fact-checked by a skeptic judge), then a live-browser pass against `-eqa` confirmed/refuted every claim with screenshots. The judge layer caught ~12 hallucinated persona claims; the live pass then flipped the simulation's top "Critical — empty Today" to a working/guided flow. The items below are the findings that **survived** validation. Cold-start guidance is now locked by **CUJ 21 / 22** (PR #204).
+
+**Quick wins (≤ ~1 day):**
+
+| # | Item | Why parked / status | Un-park trigger |
+|---|------|--------------------|-----------------|
+| 15.1 🅿️ | **Small health logs update state but aren't celebrated.** Logging a meal fills the slot, ✓'s the suggestion, and drops the calorie budget — but the +5 XP (`XP_VALUES.logFood`) rises silently (no `AchievementToast`, since it earns no badge). Live-confirmed: xp 0→5, no toast. | Real (sim "H1"). The persona's "nothing happens" was an overstatement — functional feedback exists; only the *celebration* is missing. | Decouple a lightweight ＋XP / micro-celebration from badge milestones for small actions (Health hub + gamification feedback path). |
+| 15.2 🅿️ | **Transactions empty state has no inline manual-add.** It guides to "Connect Gmail" (good) but manual entry lives elsewhere, so Gmail reads as the only path in. Live-confirmed (V3). | Real (sim "C1b / M2"). | Add an inline "add a transaction" affordance + "Gmail is optional" framing to the empty state. |
+| 15.3 🅿️ | **Today opens on the hexagon radar viz; the actionable hero/CTA sits below it.** Both states (blocks / no-blocks) lead with the radar; the "Up now" / "Plan my day" answer is beneath. Manifesto tension: *never open a screen on a visualization; answer first.* Live-confirmed (V1/V2). | Design call, not a bug. | When Today is recomposed: lead with the answer/hero, demote the radar (may need `manifesto-change` sign-off if it touches a guard). |
+
+**Deeper bets:**
+
+| # | Item | Why parked / status | Un-park trigger |
+|---|------|--------------------|-----------------|
+| 15.4 🅿️ | **The AI is walled off from the specifics the user just gave it.** Social "Suggest an opener" never receives the contact's name/history (generic by relationship-tier by design); the Health hero shows "kcal left" without tying it to the goal's pace. Undercuts the "understands every dimension" promise. | Real (sim "H2"). | A product/data-flow decision to give the social + health AI scoped access to individual context (contact recents, goal targets) under the existing privacy model. |
+| 15.5 🅿️ | **Voice advises but cannot act on social.** `buildVoiceTools` has no social write tools, so the companion can't propose social actions at all; agentic propose-confirm is otherwise gated by `voice_agent_actions`. | Real (sim "H3"). Overlaps **3.1 / 3.2** and the voice-create fix (PR #202). | When social write tools are specced + the per-action confirm UI is finished. |
+
+**Validated as WORKING — do NOT re-file (persona claims the judge + live pass debunked):**
+
+| # | Item | Evidence |
+|---|------|----------|
+| 15.6 ✅ | **Cold-start Today is NOT blank** — shows "PICK YOUR FIRST WIN" + a "Plan my day" CTA. | Locked by **CUJ 21**. |
+| 15.7 ✅ | **`MealSuggestionsCard` is fully functional** (renders ideas + macros + add buttons), not "stubbed". | **CUJ 12** + live V4. |
+| 15.8 ✅ | **Priority-change sheet dismisses via Skip** (on a real diff). | **CUJ 6** + live V5. |
+| 15.9 ✅ | **Voice is press-to-open** (header mic; companion closed by default) — it does not auto-appear "without consent". | Live V1/V2. |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
