@@ -1,73 +1,70 @@
 import type { DiscoveryChatInput, DiscoveryChatTurn } from '../types';
 
+type Domain = 'goals' | 'health' | 'finance' | 'career' | 'social' | 'polymath';
+
+// Cheap keyword → domain mapping so the mock's primaryDomains reflect which areas
+// the user said they want to improve (deterministic; mock-mode/e2e only).
+function domainsFrom(text: string): Domain[] {
+  const t = text.toLowerCase();
+  const hits: Domain[] = [];
+  const add = (d: Domain) => { if (!hits.includes(d)) hits.push(d); };
+  if (/health|fit|gym|sleep|weight|run|strong|energy/.test(t)) add('health');
+  if (/money|financ|save|saving|debt|invest|wealth|spend/.test(t)) add('finance');
+  if (/career|job|work|promot|role|business/.test(t)) add('career');
+  if (/relationship|social|friend|family|partner|people/.test(t)) add('social');
+  if (/learn|skill|study|read|curious|language|music|hobby/.test(t)) add('polymath');
+  if (/goal|ambition|ship|launch|build|achieve|project/.test(t)) add('goals');
+  return hits.length ? hits.slice(0, 3) : ['goals', 'health'];
+}
+
+// A ~90-second, AREAS-FIRST onboarding (mirrors the system prompt): one opener
+// that grabs name + the life areas they want to improve, a light "what would
+// better look like", a quick schedule grab, then done. Four turns.
 const SCRIPT: Array<(turnIndex: number, lastUser: string) => DiscoveryChatTurn> = [
   () => ({
-    nextQuestion: "Hey, I'm LifeOS. What should I call you, and what's the one phrase that describes the season of life you're in right now?",
+    nextQuestion:
+      "Hi, I'm LifeOS — I'll keep this quick. What should I call you, and which parts of your life do you most want to improve right now: health, money, career, relationships, learning, or a big personal goal?",
     patch: {},
     stage: 'identity',
     done: false,
   }),
   (_i, lastUser) => ({
-    nextQuestion: 'What are 1–3 things you want to be different about your life 90 days from now? Be as specific as you can.',
+    nextQuestion:
+      "Got it. For those, what would 'better' look like a few months from now? A rough sense is plenty — no need for exact numbers.",
     patch: {
-      identity: {
-        firstName: lastUser.split(/[,.\s]/)[0] || null,
-        seasonOfLife: lastUser.length > 4 ? lastUser.slice(0, 60) : null,
-      },
-      confidenceDeltas: { identity: 0.7 },
+      identity: { firstName: lastUser.split(/[,.\s]/)[0] || null },
+      primaryDomains: domainsFrom(lastUser),
+      // confidence.overall is a WEIGHTED AVERAGE of the slot confidences
+      // (profileMerge.computeOverall) — not an additive `overall` delta. A
+      // completed areas-first run must therefore set the slots it actually
+      // gathers confidently enough to clear ROUTINE_CONFIDENCE_THRESHOLD (0.7),
+      // matching the real prompt (told to push overall past 0.7 before `done`).
+      confidenceDeltas: { identity: 0.9, primaryDomains: 1.0 },
     },
     stage: 'vision',
     done: false,
   }),
   (_i, lastUser) => ({
-    nextQuestion: 'What time do you usually wake up and go to bed? And what are your work hours on a typical weekday?',
+    nextQuestion:
+      'Last quick thing so your plan fits your day — when do you usually wake up and go to bed, and what are your work hours?',
     patch: {
-      vision: { statement: lastUser.slice(0, 200), horizon: '90d', topGoals: [lastUser.slice(0, 80)] },
-      confidenceDeltas: { vision: 0.7 },
+      vision: { statement: lastUser.slice(0, 160), horizon: '90d', topGoals: [] },
+      confidenceDeltas: { vision: 0.9 },
     },
     stage: 'schedule',
-    done: false,
-  }),
-  () => ({
-    nextQuestion: 'Anything immovable in your week — kid pickup, gym class, prayer, a standing meeting? And are you sharper in the morning or later in the day?',
-    patch: {
-      schedule: { wakeTime: '07:00', sleepTime: '23:00', workStartTime: '09:30', workEndTime: '18:30', fixedBlocks: [] },
-      confidenceDeltas: { schedule: 0.6 },
-    },
-    stage: 'schedule',
-    done: false,
-  }),
-  () => ({
-    nextQuestion: "What's a habit you've been holding well, and one you keep dropping?",
-    patch: {
-      chronotype: 'balanced',
-      confidenceDeltas: { schedule: 0.2, chronotype: 0.6 },
-    },
-    stage: 'habits',
-    done: false,
-  }),
-  (_i, lastUser) => ({
-    nextQuestion: "Last one — what do you most want LifeOS to help you with first, and how should I talk to you: direct, warm, playful, or clinical?",
-    patch: {
-      habits: { current: [lastUser.slice(0, 60)], aspirational: [] },
-      constraints: ['no late-night work'],
-      confidenceDeltas: { habits: 0.9, constraints: 0.9 },
-    },
-    stage: 'asks',
     done: false,
   }),
   () => ({
     nextQuestion: '',
     patch: {
-      primaryDomains: ['health', 'career'],
-      communication: { tone: 'direct', avoid: [] },
-      confidenceDeltas: {
-        primaryDomains: 1.0,
-        identity: 0.3,
-        vision: 0.3,
-        schedule: 0.4,
-        chronotype: 0.4,
-      },
+      schedule: { wakeTime: '07:00', sleepTime: '23:00', workStartTime: '09:30', workEndTime: '18:30', fixedBlocks: [] },
+      // Chronotype is derivable from the wake/sleep answer (the prompt detects
+      // it) — 07:00/23:00 reads balanced. Setting it lifts the weighted overall
+      // over the routine threshold without grilling habits/constraints, which the
+      // brief areas-first flow intentionally skips.
+      chronotype: 'balanced',
+      communication: { tone: 'warm', avoid: [] },
+      confidenceDeltas: { schedule: 0.9, chronotype: 0.9 },
     },
     stage: 'done',
     done: true,

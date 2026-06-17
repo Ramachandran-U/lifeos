@@ -56,13 +56,35 @@ export default function DiscoveryIntroScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(150).duration(500)}>
-          <Heading style={styles.title}>Bring your AI's read of you</Heading>
+          <Heading style={styles.title}>Set up your LifeOS</Heading>
           <Body style={styles.subtitle}>
-            If you've already chatted with ChatGPT or Claude about yourself, run this prompt there and paste the response back. LifeOS turns it into your starting plan.
+            The quickest way is to talk it through — a couple of quick questions about which parts of your life you want to improve, and I&apos;ll build your starting plan. Under two minutes.
           </Body>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(300).duration(500)} style={styles.promptCard}>
+        <Animated.View entering={FadeInDown.delay(250).duration(500)} style={styles.chatCta}>
+          <Button
+            title="Talk it through with LifeOS →"
+            variant="primary"
+            onPress={() => router.push('/(onboarding)/discovery-voice')}
+          />
+          <Pressable
+            onPress={() => router.push('/(onboarding)/discovery-chat')}
+            style={styles.typeLink}
+            hitSlop={8}
+          >
+            <Caption style={styles.typeLinkText}>Prefer to type? Use the chat</Caption>
+          </Pressable>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(320).duration(500)}>
+          <Body style={styles.orLabel}>Or, if you&apos;d rather bring an AI&apos;s read of you</Body>
+          <Body style={styles.subtitle}>
+            Already chatted with ChatGPT or Claude about yourself? Run this prompt there and paste the response back.
+          </Body>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(400).duration(500)} style={styles.promptCard}>
           <ScrollView style={styles.promptScroll} nestedScrollEnabled>
             <Body style={styles.promptText} selectable>{DISCOVERY_USER_PROMPT}</Body>
           </ScrollView>
@@ -111,6 +133,10 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   backText: { color: colors.textSecondary },
   title: { marginTop: spacing.md },
   subtitle: { color: colors.textSecondary, marginTop: spacing.sm },
+  chatCta: { marginTop: spacing.lg, gap: spacing.sm },
+  typeLink: { alignSelf: 'center', paddingVertical: spacing.xs },
+  typeLinkText: { color: colors.textMuted },
+  orLabel: { color: colors.textMuted, marginTop: spacing.xl },
   promptCard: {
     marginTop: spacing.xl,
     borderRadius: 20,
