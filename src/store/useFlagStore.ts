@@ -107,6 +107,13 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // Event-triggered InstallSheet + Profile row; off = legacy top-of-flow banner.
   // Fallback-flipped true 2026-06-13 with today_answer_first_v1 (same window).
   install_prompt_v2: true,
+  // Today hero carousel: folds the answer card + Streaks + Today's Quest into
+  // one swipeable hero deck (peek/scale parallax + a pill page indicator),
+  // replacing the three stacked sections. Default ON — additive UI behind a
+  // remote kill switch (a `false` row in the Worker flags table). Still
+  // respects usePreferencesStore.gamification: with gamification !== 'full' the
+  // streak/quest slides drop and it degrades to the answer card alone.
+  today_hero_carousel_v1: true,
 };
 
 interface FlagState {
@@ -183,7 +190,9 @@ export const useFlagStore = create<FlagState>()(
       // existing installs pick up the recompositions.
       // Bumped to v6 (2026-06-14): the six Aurora Alive retention flags
       // flipped default-on; drop persisted `false` values.
-      name: 'lifeos_flags_v6',
+      // Bumped to v7 (2026-06-18): today_hero_carousel_v1 added as default-on
+      // so persisted pre-addition state doesn't shadow the Today hero deck.
+      name: 'lifeos_flags_v7',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },

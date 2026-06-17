@@ -12,7 +12,7 @@
  * XP, streaks, ambient sweep, celebration and telemetry all fire unchanged.
  */
 import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -52,9 +52,18 @@ interface NextMoveHeroProps {
   onPrimary: () => void;
   /** block → scroll to Today's flow; task → open Goals. */
   onSecondary: () => void;
+  /**
+   * Stretch to fill the parent's height and pin the actions to the bottom
+   * (top cluster floats up). Used when the hero is one panel of the Today
+   * carousel, so all panels share a height. Standalone (default) keeps the
+   * content-hugging layout untouched.
+   */
+  fill?: boolean;
+  /** Layout-only override merged into the card (e.g. minHeight in the carousel). */
+  style?: ViewStyle;
 }
 
-export function NextMoveHero({ move, completedCount, blockCount, onPrimary, onSecondary }: NextMoveHeroProps) {
+export function NextMoveHero({ move, completedCount, blockCount, onPrimary, onSecondary, fill = false, style }: NextMoveHeroProps) {
   const c = useColors();
   const motionScale = useMotionScale();
   const spring = useSpringConfig('standard');
@@ -122,7 +131,7 @@ export function NextMoveHero({ move, completedCount, blockCount, onPrimary, onSe
   return (
     <Animated.View
       entering={FadeInDown.delay(120 * motionScale).duration(MOTION_BUDGET.reveal * motionScale)}
-      style={[styles.card, { backgroundColor, borderLeftColor: railColor }]}
+      style={[styles.card, { backgroundColor, borderLeftColor: railColor }, fill && styles.cardFill, style]}
       testID="next-move-hero"
     >
       {/* Keyed swap fades the NEW content in; no `exiting` — on react-native-web
@@ -133,19 +142,21 @@ export function NextMoveHero({ move, completedCount, blockCount, onPrimary, onSe
       <Animated.View
         key={`${move.kind}:${move.title}`}
         entering={FadeIn.duration(MOTION_BUDGET.reveal * motionScale)}
-        style={styles.content}
+        style={[styles.content, fill && styles.contentFill]}
       >
-        <AuroraText variant="micro" color={accent}>
-          {eyebrow}
-        </AuroraText>
-        <AuroraText variant="h2" numberOfLines={2}>
-          {move.title}
-        </AuroraText>
-        {meta !== null && (
-          <AuroraText variant="caption" secondary>
-            {meta}
+        <View style={styles.topCluster}>
+          <AuroraText variant="micro" color={accent}>
+            {eyebrow}
           </AuroraText>
-        )}
+          <AuroraText variant="h2" numberOfLines={2}>
+            {move.title}
+          </AuroraText>
+          {meta !== null && (
+            <AuroraText variant="caption" secondary>
+              {meta}
+            </AuroraText>
+          )}
+        </View>
         <View style={styles.actions}>
           <AnimatedPressable
             onPress={handlePrimary}
@@ -188,7 +199,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderLeftWidth: 4,
   },
+  cardFill: {
+    flex: 1,
+  },
   content: {
+    gap: spacing.sm,
+  },
+  contentFill: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  topCluster: {
     gap: spacing.sm,
   },
   actions: {
