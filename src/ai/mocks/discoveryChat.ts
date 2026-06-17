@@ -34,7 +34,12 @@ const SCRIPT: Array<(turnIndex: number, lastUser: string) => DiscoveryChatTurn> 
     patch: {
       identity: { firstName: lastUser.split(/[,.\s]/)[0] || null },
       primaryDomains: domainsFrom(lastUser),
-      confidenceDeltas: { identity: 0.6, primaryDomains: 0.85 },
+      // confidence.overall is a WEIGHTED AVERAGE of the slot confidences
+      // (profileMerge.computeOverall) — not an additive `overall` delta. A
+      // completed areas-first run must therefore set the slots it actually
+      // gathers confidently enough to clear ROUTINE_CONFIDENCE_THRESHOLD (0.7),
+      // matching the real prompt (told to push overall past 0.7 before `done`).
+      confidenceDeltas: { identity: 0.9, primaryDomains: 1.0 },
     },
     stage: 'vision',
     done: false,
@@ -44,7 +49,7 @@ const SCRIPT: Array<(turnIndex: number, lastUser: string) => DiscoveryChatTurn> 
       'Last quick thing so your plan fits your day — when do you usually wake up and go to bed, and what are your work hours?',
     patch: {
       vision: { statement: lastUser.slice(0, 160), horizon: '90d', topGoals: [] },
-      confidenceDeltas: { vision: 0.6 },
+      confidenceDeltas: { vision: 0.9 },
     },
     stage: 'schedule',
     done: false,
@@ -53,8 +58,13 @@ const SCRIPT: Array<(turnIndex: number, lastUser: string) => DiscoveryChatTurn> 
     nextQuestion: '',
     patch: {
       schedule: { wakeTime: '07:00', sleepTime: '23:00', workStartTime: '09:30', workEndTime: '18:30', fixedBlocks: [] },
+      // Chronotype is derivable from the wake/sleep answer (the prompt detects
+      // it) — 07:00/23:00 reads balanced. Setting it lifts the weighted overall
+      // over the routine threshold without grilling habits/constraints, which the
+      // brief areas-first flow intentionally skips.
+      chronotype: 'balanced',
       communication: { tone: 'warm', avoid: [] },
-      confidenceDeltas: { schedule: 0.7, overall: 0.3 },
+      confidenceDeltas: { schedule: 0.9, chronotype: 0.9 },
     },
     stage: 'done',
     done: true,
