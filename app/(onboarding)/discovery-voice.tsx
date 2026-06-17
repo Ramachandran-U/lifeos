@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,6 +17,7 @@ import { DISCOVERY_VOICE_SYSTEM_PROMPT } from '@/ai/prompts/discoveryChat';
 import { extractDiscoveryProfile } from '@/ai/functions';
 import { saveDiscoveryImport } from '@/db/queries/discovery';
 import { useUserStore } from '@/store/useUserStore';
+import { getVoicePersona } from '@/ai/voicePersonas';
 
 // Hidden first turn we send to make the guide speak its opener (Gemini Live
 // won't generate until prompted). Stripped from the transcript before extraction.
@@ -31,7 +32,21 @@ export default function DiscoveryVoiceScreen() {
   const router = useRouter();
   const userId = useUserStore((s) => s.userId);
 
-  const voice = useVoice({ systemInstruction: DISCOVERY_VOICE_SYSTEM_PROMPT });
+  // Honour the user's chosen voice persona (Settings → Voice) so onboarding
+  // sounds like the rest of the app — same resolution path VoiceCompanion uses.
+  // A brand-new user hasn't picked one yet, so this resolves to the default
+  // persona (Max / Puck — the historical onboarding voice), i.e. no change for
+  // first-timers; a returning user re-running discovery hears their pick.
+  const preferredVoiceId = useUserStore((s) => s.preferredVoiceId);
+  const persona = useMemo(() => getVoicePersona(preferredVoiceId), [preferredVoiceId]);
+  // Persona tone directive appended LAST so it shapes manner-of-speaking only,
+  // never fighting the script's areas-first / brevity rules.
+  const systemInstruction = useMemo(
+    () => `${DISCOVERY_VOICE_SYSTEM_PROMPT}\n\n${persona.personaPrompt}`,
+    [persona.personaPrompt],
+  );
+
+  const voice = useVoice({ systemInstruction, voice: persona.voiceName });
   const [started, setStarted] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
