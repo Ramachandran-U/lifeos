@@ -15,6 +15,32 @@ import { anchorRoutineToWake } from '../routineAnchor';
 const isMock = () =>
   process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
 
+/**
+ * Filter blocks to the [wake, sleep] window, then guarantee the day starts at
+ * wake. Mirrors the real-AI commit path so BOTH mock and real plans honour the
+ * user's schedule — without this, the static MOCK_ROUTINE (anchored at 07:00)
+ * makes a late wake (e.g. 10:00) appear to "start at noon" once the screen's
+ * window-guard drops the early blocks.
+ */
+function windowAndAnchor(
+  blocks: Parameters<typeof anchorRoutineToWake>[0],
+  wakeTime: string,
+  sleepTime: string,
+): Parameters<typeof anchorRoutineToWake>[0] {
+  const toMin = (hhmm: string): number => {
+    const [h, m] = hhmm.split(':').map((s) => parseInt(s, 10));
+    return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+  };
+  const wakeMin = toMin(wakeTime);
+  const sleepMin = toMin(sleepTime);
+  const windowed = blocks.filter((b) => {
+    const s = toMin(b.startTime);
+    const e = toMin(b.endTime);
+    return s >= wakeMin && e <= sleepMin && s < e;
+  });
+  return anchorRoutineToWake(windowed, wakeTime);
+}
+
 export type AgentStep =
   | { kind: 'retrieve'; query: string; hits: Array<{ id: string; score: number; text: string }> }
   | { kind: 'propose'; blockCount: number; rationale: string }
@@ -122,6 +148,11 @@ async function planRoutineAgentInner(
   });
 
   if (isMock()) {
+    // Honour the requested schedule even in mock mode — the static MOCK_ROUTINE
+    // is anchored at 07:00, so window it to [wake, sleep] and anchor to wake,
+    // exactly like the real path below. Without this a late wake (e.g. 10:00)
+    // drops the early mock blocks and the day appears to "start at noon".
+    const blocks = windowAndAnchor(MOCK_ROUTINE.blocks, input.wakeTime, input.sleepTime);
     // Deterministic mock trace: propose → critique → commit
     trace.push({
       kind: 'propose',
@@ -133,7 +164,7 @@ async function planRoutineAgentInner(
       kind: 'commit',
       briefingPreview: MOCK_ROUTINE.briefing.slice(0, 80),
     });
-    return { plan: MOCK_ROUTINE, trace };
+    return { plan: { ...MOCK_ROUTINE, blocks }, trace };
   }
 
   // Step 2 — propose
