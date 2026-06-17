@@ -9,6 +9,7 @@ import { buildNavTools } from './navTools';
 import { buildLifeOsWriteTools } from './writeTools';
 import { buildExploreTools } from './exploreTools';
 import { getAllCareerPaths } from '@/db/careerStorage';
+import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import type { ActionQueue } from './actionQueue';
 import type { AgentTool } from './runtime';
 
@@ -166,6 +167,12 @@ function todayNutritionTool(ctx: ToolContext): AgentTool {
 function asString(v: unknown): string | null {
   return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
 }
+
+function asNumber(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+const INTERACTION_TYPES = ['call', 'message', 'in_person', 'email', 'other'] as const;
 
 /**
  * "Add a goal" tool. Propose-only: it does NOT create anything — it pushes a
@@ -412,6 +419,150 @@ function proposeExploreIdeaTool(queue: ActionQueue): AgentTool {
   };
 }
 
+/**
+ * Read-only contacts list WITH a `ref` per contact (the overdue summary in
+ * buildLifeOsTools exposes names only). The agent needs the ref to log a
+ * reconnect via proposeLogContact, and `overdueByDays` lets it answer "who
+ * should I reach out to?". Social data is sensitive and stays on-device.
+ */
+function contactsTool(ctx: ToolContext): AgentTool {
+  return {
+    declaration: {
+      name: 'getContacts',
+      description:
+        "The user's contacts, each with a `ref` (use it for proposeLogContact), their relationship, " +
+        'and how overdue a reconnect is (overdueByDays > 0 means overdue). Use to find a contact ' +
+        "before logging a reconnect, or to answer who they're due to reach out to.",
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () =>
+      getContactsByUser(ctx.userId).map((cn) => ({
+        ref: cn.id,
+        name: cn.name,
+        relationship: cn.relationshipType,
+        overdueByDays: computeOverdue(cn).overdueBy,
+      })),
+  };
+}
+
+/**
+ * "Log what I ate" tool. Propose-only: pushes a logFood proposal the user
+ * confirms, after which it is SAVED to today's food log (commitActions →
+ * createFoodEntry). One call per food item; the agent supplies the nutrition
+ * estimate (it is the food-logging engine here).
+ */
+function proposeLogFoodTool(queue: ActionQueue, today: string): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeLogFood',
+      description:
+        'Propose logging ONE food or drink item the user said they ate. Does NOT log it — the user ' +
+        'confirms first, then it is saved. Provide your best estimate of grams + calories + macros ' +
+        '(protein/carbs/fat), like a food logger. For a meal with several items, call this once per ' +
+        'item. mealType is breakfast | lunch | dinner | snack (default snack).',
+      parameters: {
+        type: 'object',
+        properties: {
+          foodName: { type: 'string', description: 'The food/drink, e.g. "2 boiled eggs".' },
+          quantityG: { type: 'number', description: 'Approx quantity in grams.' },
+          calories: { type: 'number', description: 'Estimated calories (kcal).' },
+          protein: { type: 'number', description: 'Estimated protein (g).' },
+          carbs: { type: 'number', description: 'Estimated carbs (g).' },
+          fat: { type: 'number', description: 'Estimated fat (g).' },
+          mealType: { type: 'string', description: 'breakfast | lunch | dinner | snack. Default snack.' },
+          date: { type: 'string', description: 'yyyy-MM-dd. Defaults to today.' },
+        },
+        required: ['foodName', 'quantityG', 'calories', 'protein', 'carbs', 'fat'],
+      },
+    },
+    execute: (args) => {
+      const foodName = asString(args.foodName);
+      const quantityG = asNumber(args.quantityG);
+      const calories = asNumber(args.calories);
+      const protein = asNumber(args.protein);
+      const carbs = asNumber(args.carbs);
+      const fat = asNumber(args.fat);
+      if (!foodName || quantityG == null || calories == null || protein == null || carbs == null || fat == null) {
+        return { proposed: false, error: 'foodName + numeric quantityG, calories, protein, carbs, fat are required' };
+      }
+      const mealType = asString(args.mealType) ?? 'snack';
+      const date = asString(args.date) ?? today;
+      queue.propose({
+        kind: 'logFood',
+        summary: `Log ${foodName} (~${Math.round(calories)} kcal)`,
+        payload: { date, mealType, foodName, quantityG, calories, protein, carbs, fat },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/** "Log my weight" tool. Propose-only → saved on confirm (createHealthLog). */
+function proposeLogWeightTool(queue: ActionQueue, today: string): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeLogWeight',
+      description:
+        "Propose logging the user's body weight in kilograms. Does NOT log it — the user confirms " +
+        'first, then it is saved to their health log.',
+      parameters: {
+        type: 'object',
+        properties: {
+          weightKg: { type: 'number', description: 'Body weight in kg, e.g. 70.5.' },
+          date: { type: 'string', description: 'yyyy-MM-dd. Defaults to today.' },
+        },
+        required: ['weightKg'],
+      },
+    },
+    execute: (args) => {
+      const weightKg = asNumber(args.weightKg);
+      if (weightKg == null || weightKg <= 0) return { proposed: false, error: 'a positive weightKg is required' };
+      const date = asString(args.date) ?? today;
+      queue.propose({ kind: 'logWeight', summary: `Log weight ${weightKg} kg`, payload: { date, weightKg } });
+      return { proposed: true };
+    },
+  };
+}
+
+/**
+ * "Log that I reached out" tool. Propose-only → on confirm logs the interaction
+ * AND marks the contact recently-contacted (commitActions → logInteraction).
+ * `ref` comes from getContacts.
+ */
+function proposeLogContactTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeLogContact',
+      description:
+        'Propose logging that the user reached out to a contact (this also marks them recently ' +
+        'contacted, clearing an overdue nudge). Does NOT log it — the user confirms first. `ref` is ' +
+        'the contact ref from getContacts. type is call | message | in_person | email | other.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ref: { type: 'string', description: 'Contact ref from getContacts.' },
+          type: { type: 'string', description: 'call | message | in_person | email | other. Default other.' },
+          notes: { type: 'string', description: 'Optional short note about the interaction.' },
+        },
+        required: ['ref'],
+      },
+    },
+    execute: (args) => {
+      const ref = asString(args.ref);
+      if (!ref) return { proposed: false, error: 'ref is required' };
+      const requested = asString(args.type);
+      const type = (INTERACTION_TYPES as readonly string[]).includes(requested ?? '') ? (requested as string) : 'other';
+      const notes = asString(args.notes) ?? undefined;
+      queue.propose({
+        kind: 'logContactInteraction',
+        summary: `Log a ${type} with a contact`,
+        payload: notes ? { ref, type, notes } : { ref, type },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
 /** Deps the companion injects to turn on the agentic (act-capable) tool set. */
 export interface VoiceAgentDeps {
   /** Queue the propose tools push onto; the companion renders + commits it. */
@@ -439,11 +590,14 @@ export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): Agent
     recentSpendingTool(ctx),
     todayNutritionTool(ctx),
     // Explore (curiosity) + career are now grounded too: interests / sparks /
-    // expeditions and the saved career path(s) — read-only, always on.
+    // expeditions and the saved career path(s) — read-only, always on. Contacts
+    // (with refs) ground "who should I reach out to?" + enable logging below.
     ...buildExploreTools({ userId: ctx.userId }),
     careerStateTool(),
+    contactsTool(ctx),
   ];
   if (!agent) return base;
+  const today = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
   return [
     ...base,
     ...buildNavTools(ctx),
@@ -451,6 +605,9 @@ export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): Agent
     proposeCreateGoalTool(agent.queue),
     proposeCareerPathTool(agent.queue),
     proposeExploreIdeaTool(agent.queue),
+    proposeLogFoodTool(agent.queue, today),
+    proposeLogWeightTool(agent.queue, today),
+    proposeLogContactTool(agent.queue),
     syncGoogleFitTool(),
     commitPendingActionsTool(agent.commitPending),
   ];

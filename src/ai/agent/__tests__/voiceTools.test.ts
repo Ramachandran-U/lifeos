@@ -20,7 +20,7 @@ jest.mock('@/db/queries/health', () => ({
 
 import { financeDb, upsertTransactions, type TxRecord } from '@/finance/db/transactionDb';
 import { buildVoiceTools, type VoiceAgentDeps } from '@/ai/agent/voiceTools';
-import { createActionQueue, commitActions, type ProposedAction } from '@/ai/agent/actionQueue';
+import { createActionQueue, commitActions, type ProposedAction, type CommitDeps } from '@/ai/agent/actionQueue';
 import { getUser } from '@/db/queries/users';
 import { getRecentWeightLogs, getFoodEntriesByDate } from '@/db/queries/health';
 
@@ -75,9 +75,11 @@ describe('buildVoiceTools', () => {
     expect(names).not.toContain('syncGoogleFit');
   });
 
-  it('grounds explore (interests/expeditions) and career too — read-only', () => {
+  it('grounds explore, career and contacts too — read-only', () => {
     const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
-    expect(names).toEqual(expect.arrayContaining(['getMyInterests', 'getMyExpeditions', 'getCareerState']));
+    expect(names).toEqual(
+      expect.arrayContaining(['getMyInterests', 'getMyExpeditions', 'getCareerState', 'getContacts']),
+    );
   });
 
   it('getCareerState reports no path when none is saved', () => {
@@ -119,10 +121,33 @@ describe('buildVoiceTools (agentic)', () => {
         'proposeCreateGoal',
         'proposeGenerateCareerPath',
         'proposeExploreIdea',
+        'proposeLogFood',
+        'proposeLogWeight',
+        'proposeLogContact',
         'syncGoogleFit',
         'commitProposedActions',
       ]),
     );
+  });
+
+  it('proposeLogFood / proposeLogWeight / proposeLogContact stage logging actions', () => {
+    const { tools, queue } = agenticTools();
+    const find = (n: string) => tools.find((t) => t.declaration.name === n)!;
+    expect(find('proposeLogFood').execute({ foodName: '2 eggs', quantityG: 100, calories: 150, protein: 12, carbs: 1, fat: 10 })).toEqual({ proposed: true });
+    expect(find('proposeLogWeight').execute({ weightKg: 70.5 })).toEqual({ proposed: true });
+    expect(find('proposeLogContact').execute({ ref: 'c1', type: 'call' })).toEqual({ proposed: true });
+    expect(queue.list().map((a) => a.kind)).toEqual(
+      expect.arrayContaining(['logFood', 'logWeight', 'logContactInteraction']),
+    );
+    // logFood needs all macros — a missing one is rejected (drives the model to estimate it).
+    const bad = find('proposeLogFood').execute({ foodName: 'x', quantityG: 100, calories: 150, protein: 12, carbs: 1 }) as { proposed: boolean };
+    expect(bad.proposed).toBe(false);
+    // proposeLogContact defaults an unknown type to "other".
+    find('proposeLogContact').execute({ ref: 'c2', type: 'telepathy' });
+    const c2 = queue.list().find(
+      (a) => a.kind === 'logContactInteraction' && (a.payload as { ref: string }).ref === 'c2',
+    );
+    expect(c2 && (c2.payload as { type: string }).type).toBe('other');
   });
 
   it('proposeExploreIdea stages an exploreIdea action — single idea and bridge', () => {
@@ -143,6 +168,44 @@ describe('buildVoiceTools (agentic)', () => {
     ]);
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/navigation/i);
+  });
+
+  describe('logging writes commit to the right DB path', () => {
+    function stubDeps() {
+      const calls = { food: [] as unknown[], weight: [] as unknown[], contact: [] as unknown[] };
+      const deps: CommitDeps = {
+        createRoutineBlock: () => {},
+        updateRoutineBlockStatus: () => {},
+        updateGoalStatus: () => {},
+        routineBlockExists: () => true,
+        goalExists: () => true,
+        createFoodEntry: (d) => { calls.food.push(d); },
+        createHealthLog: (d) => { calls.weight.push(d); },
+        logContactInteraction: (d) => { calls.contact.push(d); },
+        contactExists: (id) => id !== 'gone',
+      };
+      return { deps, calls };
+    }
+
+    it('logFood → createFoodEntry; logWeight → createHealthLog({weight})', async () => {
+      const { deps, calls } = stubDeps();
+      const r1 = (await commitActions([{ kind: 'logFood', summary: 'x', payload: { date: '2026-06-18', mealType: 'lunch', foodName: 'eggs', quantityG: 100, calories: 150, protein: 12, carbs: 1, fat: 10 } }], deps))[0];
+      expect(r1.ok).toBe(true);
+      expect(calls.food).toHaveLength(1);
+      const r2 = (await commitActions([{ kind: 'logWeight', summary: 'x', payload: { date: '2026-06-18', weightKg: 70 } }], deps))[0];
+      expect(r2.ok).toBe(true);
+      expect(calls.weight[0]).toEqual({ date: '2026-06-18', weight: 70 });
+    });
+
+    it('logContactInteraction commits for a live ref, fails on a stale one', async () => {
+      const { deps, calls } = stubDeps();
+      const ok = (await commitActions([{ kind: 'logContactInteraction', summary: 'x', payload: { ref: 'c1', type: 'call' } }], deps))[0];
+      expect(ok.ok).toBe(true);
+      expect(calls.contact[0]).toMatchObject({ contactId: 'c1', type: 'call' });
+      const stale = (await commitActions([{ kind: 'logContactInteraction', summary: 'x', payload: { ref: 'gone', type: 'call' } }], deps))[0];
+      expect(stale.ok).toBe(false);
+      expect(stale.error).toMatch(/no longer exists/i);
+    });
   });
 
   it('proposeCreateGoal stages a createGoalFromVision action (no immediate write)', () => {

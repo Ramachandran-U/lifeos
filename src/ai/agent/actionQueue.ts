@@ -15,6 +15,8 @@ import { updateRoutineBlockStatus as dbUpdateRoutineBlockStatus } from '@/db/que
 import { getRoutineBlockById as dbGetRoutineBlockById } from '@/db/queries/routine';
 import { updateGoalStatus as dbUpdateGoalStatus } from '@/db/queries/goals';
 import { getGoalById as dbGetGoalById } from '@/db/queries/goals';
+import { createFoodEntry as dbCreateFoodEntry, createHealthLog as dbCreateHealthLog } from '@/db/queries/health';
+import { logInteraction as dbLogInteraction, getContact as dbGetContact, type InteractionType } from '@/db/queries/social';
 
 export type GoalStatus = 'active' | 'completed' | 'paused' | 'abandoned';
 
@@ -34,6 +36,24 @@ export type ProposedAction =
   | { kind: 'completeBlock'; summary: string; payload: { ref: string } }
   | { kind: 'skipBlock'; summary: string; payload: { ref: string } }
   | { kind: 'adjustGoalStatus'; summary: string; payload: { ref: string; status: GoalStatus } }
+  // ── Logging writes (health / social) — committed via commitActions, like the
+  // routine/goal writes above. These DO save on confirm (no navigation). ────────
+  | {
+      kind: 'logFood';
+      summary: string;
+      payload: {
+        date: string;
+        mealType: string;
+        foodName: string;
+        quantityG: number;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+      };
+    }
+  | { kind: 'logWeight'; summary: string; payload: { date: string; weightKg: number } }
+  | { kind: 'logContactInteraction'; summary: string; payload: { ref: string; type: string; notes?: string } }
   // ── Voice-agent navigation intents ──────────────────────────────────────────
   // These are proposed by the voice agent and, on confirm, are handled by the
   // companion: it navigates to the domain screen (or rabbit-hole) with the
@@ -105,6 +125,20 @@ export interface CommitDeps {
   routineBlockExists: (id: string) => boolean;
   /** Does this goal still exist? Re-checked at commit time. */
   goalExists: (id: string) => boolean;
+  createFoodEntry: (data: {
+    date: string;
+    mealType: string;
+    foodName: string;
+    quantityG: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }) => void;
+  createHealthLog: (data: { date: string; weight: number }) => void;
+  logContactInteraction: (data: { contactId: string; type: string; notes?: string }) => void;
+  /** Does this contact still exist? Re-checked at commit time. */
+  contactExists: (id: string) => boolean;
 }
 
 const defaultDeps: CommitDeps = {
@@ -119,6 +153,16 @@ const defaultDeps: CommitDeps = {
   },
   routineBlockExists: (id) => dbGetRoutineBlockById(id) != null,
   goalExists: (id) => dbGetGoalById(id) != null,
+  createFoodEntry: (data) => {
+    dbCreateFoodEntry(data);
+  },
+  createHealthLog: (data) => {
+    dbCreateHealthLog(data);
+  },
+  logContactInteraction: (data) => {
+    dbLogInteraction({ contactId: data.contactId, type: data.type as InteractionType, notes: data.notes });
+  },
+  contactExists: (id) => dbGetContact(id) != null,
 };
 
 /** User-facing reason a confirmed action couldn't be applied to a stale ref. */
@@ -158,6 +202,20 @@ export async function commitActions(
         case 'adjustGoalStatus':
           if (!deps.goalExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
           deps.updateGoalStatus(action.payload.ref, action.payload.status);
+          break;
+        case 'logFood':
+          deps.createFoodEntry(action.payload);
+          break;
+        case 'logWeight':
+          deps.createHealthLog({ date: action.payload.date, weight: action.payload.weightKg });
+          break;
+        case 'logContactInteraction':
+          if (!deps.contactExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
+          deps.logContactInteraction({
+            contactId: action.payload.ref,
+            type: action.payload.type,
+            notes: action.payload.notes,
+          });
           break;
         case 'createGoalFromVision':
         case 'generateCareerPath':

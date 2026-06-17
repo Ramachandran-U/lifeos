@@ -181,6 +181,9 @@ function iconForAction(kind: ProposedAction['kind']): string {
     case 'createGoalFromVision': return 'sparkles-outline';
     case 'generateCareerPath': return 'briefcase-outline';
     case 'exploreIdea': return 'compass-outline';
+    case 'logFood': return 'restaurant-outline';
+    case 'logWeight': return 'barbell-outline';
+    case 'logContactInteraction': return 'people-outline';
   }
 }
 
@@ -193,6 +196,9 @@ function accentForAction(kind: ProposedAction['kind'], c: AppColors): string {
     case 'createGoalFromVision': return c.goal;
     case 'generateCareerPath': return c.career;
     case 'exploreIdea': return c.polymath;
+    case 'logFood': return c.health;
+    case 'logWeight': return c.health;
+    case 'logContactInteraction': return c.social;
   }
 }
 
