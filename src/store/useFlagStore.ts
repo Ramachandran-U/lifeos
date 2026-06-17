@@ -58,6 +58,12 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // behaviour-preserving. Navigation/sync execute instantly; anything that
   // creates/generates/saves goes through propose→confirm. Worker is the kill switch.
   voice_agent_actions: false,
+  // Read-only voice finance lookup: "how much have I sent to / received from
+  // <person or business> over <period>?" Sums matched-payee transactions (sent
+  // debits + received credits) from the on-device finance store. Off by default
+  // — flip on per cohort/region from the Worker /v1/config to VALIDATE the
+  // feature before GA. Read-only, runs locally; independent of voice_agent_actions.
+  voice_finance_payee: false,
   // Explore GA flags — all default-on; Worker is the remote kill switch.
   // These graduated out of flags.ts (typed compile-time) into the runtime store
   // so a broken feature can be flipped off from /v1/config without a deploy.
