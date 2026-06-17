@@ -7,6 +7,8 @@ import { calorieTargets } from '@/utils/health';
 import { buildLifeOsTools, type ToolContext } from './tools';
 import { buildNavTools } from './navTools';
 import { buildLifeOsWriteTools } from './writeTools';
+import { buildExploreTools } from './exploreTools';
+import { getAllCareerPaths } from '@/db/careerStorage';
 import type { ActionQueue } from './actionQueue';
 import type { AgentTool } from './runtime';
 
@@ -326,6 +328,90 @@ function commitPendingActionsTool(commitPending: () => Promise<{ committed: numb
   };
 }
 
+/**
+ * Read-only "what's my career plan?" tool. Returns the user's saved career
+ * path(s) — current/target role, timeline, current skills, and the top skill
+ * gaps to close — so the agent can talk about an EXISTING plan, not just offer
+ * to generate a new one. (Career paths persist on web; native returns none.)
+ */
+function careerStateTool(): AgentTool {
+  return {
+    declaration: {
+      name: 'getCareerState',
+      description:
+        "The user's saved career path(s): current role, target role, timeline, current skills, " +
+        'and the top skill gaps to close. Use this to answer questions about their career plan, ' +
+        'what skills they need, or how their plan looks. Empty means no path yet — offer to build one.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () => {
+      const paths = getAllCareerPaths();
+      if (paths.length === 0) {
+        return {
+          hasPath: false,
+          note: "No career path saved yet — offer to build one (proposeGenerateCareerPath) or open the Career screen.",
+        };
+      }
+      const sorted = [...paths].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+      return {
+        hasPath: true,
+        count: sorted.length,
+        paths: sorted.slice(0, 3).map((p) => ({
+          name: p.name,
+          currentRole: p.currentRole,
+          targetRole: p.targetRole,
+          timelineMonths: p.timelineMonths,
+          currentSkills: p.currentSkills,
+          topGaps: [...p.analysis.gaps]
+            .sort((a, b) => a.priority - b.priority)
+            .slice(0, 5)
+            .map((g) => ({ skill: g.skill, from: g.currentLevel, to: g.requiredLevel })),
+          savedAt: p.savedAt.slice(0, 10),
+        })),
+      };
+    },
+  };
+}
+
+/**
+ * "Explore this idea" tool. Propose-only: it does NOT open anything — it pushes
+ * a proposal the user confirms, after which the companion opens the Explore
+ * rabbit hole on that idea (a single-idea Dive, or a cross-discipline Bridge
+ * when `bridgeWith` is given). Reuses the same launch path as the Explore tab.
+ */
+function proposeExploreIdeaTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeExploreIdea',
+      description:
+        'Propose opening a deep-dive exploration (a "rabbit hole") on an idea the user is curious ' +
+        'about. Does NOT open it — the user confirms first, then the Explore rabbit hole opens and ' +
+        'they can branch deeper. Pass `topic` for one idea; also pass `bridgeWith` to connect TWO ' +
+        'ideas across disciplines (e.g. topic "cooking", bridgeWith "chemistry"). Use when the user ' +
+        'wants to explore / dig into / get curious about something.',
+      parameters: {
+        type: 'object',
+        properties: {
+          topic: { type: 'string', description: 'The idea to explore, in the user\'s words, e.g. "how cities grow".' },
+          bridgeWith: { type: 'string', description: 'Optional second idea to bridge with, for a cross-discipline exploration.' },
+        },
+        required: ['topic'],
+      },
+    },
+    execute: (args) => {
+      const topic = asString(args.topic);
+      if (!topic) return { proposed: false, error: 'topic is required' };
+      const bridgeWith = asString(args.bridgeWith) ?? undefined;
+      queue.propose({
+        kind: 'exploreIdea',
+        summary: bridgeWith ? `Explore "${topic}" × "${bridgeWith}"` : `Explore "${topic}"`,
+        payload: bridgeWith ? { topic, bridgeWith } : { topic },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
 /** Deps the companion injects to turn on the agentic (act-capable) tool set. */
 export interface VoiceAgentDeps {
   /** Queue the propose tools push onto; the companion renders + commits it. */
@@ -348,7 +434,15 @@ export interface VoiceAgentDeps {
  * propose→confirm; navigation and Fit-sync are instant. All tools run on-device.
  */
 export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): AgentTool[] {
-  const base = [...buildLifeOsTools(ctx), recentSpendingTool(ctx), todayNutritionTool(ctx)];
+  const base = [
+    ...buildLifeOsTools(ctx),
+    recentSpendingTool(ctx),
+    todayNutritionTool(ctx),
+    // Explore (curiosity) + career are now grounded too: interests / sparks /
+    // expeditions and the saved career path(s) — read-only, always on.
+    ...buildExploreTools({ userId: ctx.userId }),
+    careerStateTool(),
+  ];
   if (!agent) return base;
   return [
     ...base,
@@ -356,6 +450,7 @@ export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): Agent
     ...buildLifeOsWriteTools({ today: ctx.today }, agent.queue),
     proposeCreateGoalTool(agent.queue),
     proposeCareerPathTool(agent.queue),
+    proposeExploreIdeaTool(agent.queue),
     syncGoogleFitTool(),
     commitPendingActionsTool(agent.commitPending),
   ];

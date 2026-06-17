@@ -35,13 +35,13 @@ export type ProposedAction =
   | { kind: 'skipBlock'; summary: string; payload: { ref: string } }
   | { kind: 'adjustGoalStatus'; summary: string; payload: { ref: string; status: GoalStatus } }
   // ── Voice-agent navigation intents ──────────────────────────────────────────
-  // These two are proposed by the voice agent and, on confirm, are handled by the
-  // companion: it navigates to the domain screen with the collected inputs as
-  // params and lets that screen run its existing generate flow (with its own
-  // loading UI). They are NOT committed through `commitActions` — kicking off a
-  // ~20s AI generation inside the commit would block the spoken turn, and the
-  // screen already owns the loading/skeleton UX. `commitActions` rejects them so
-  // a stray commit can't silently no-op.
+  // These are proposed by the voice agent and, on confirm, are handled by the
+  // companion: it navigates to the domain screen (or rabbit-hole) with the
+  // collected inputs as params and lets that screen run its existing generate
+  // flow (with its own loading UI). They are NOT committed through
+  // `commitActions` — kicking off generation inside the commit would block the
+  // spoken turn, and the screen already owns the loading/skeleton UX.
+  // `commitActions` rejects them so a stray commit can't silently no-op.
   | { kind: 'createGoalFromVision'; summary: string; payload: { visionStatement: string } }
   | {
       kind: 'generateCareerPath';
@@ -53,6 +53,13 @@ export type ProposedAction =
         weeklyHours?: number;
         constraints?: string;
       };
+    }
+  | {
+      kind: 'exploreIdea';
+      summary: string;
+      // Single-idea Dive on `topic`; cross-discipline Bridge if `bridgeWith` set.
+      // On confirm the companion opens the Explore rabbit hole on it.
+      payload: { topic: string; bridgeWith?: string };
     };
 
 export interface ActionQueue {
@@ -154,6 +161,7 @@ export async function commitActions(
           break;
         case 'createGoalFromVision':
         case 'generateCareerPath':
+        case 'exploreIdea':
           // Navigation intents are executed by the voice companion (navigate +
           // screen-driven generation), never here. Reaching this is a wiring bug.
           throw new Error(`${action.kind} is handled by navigation, not commitActions`);

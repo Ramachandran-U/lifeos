@@ -20,7 +20,7 @@ jest.mock('@/db/queries/health', () => ({
 
 import { financeDb, upsertTransactions, type TxRecord } from '@/finance/db/transactionDb';
 import { buildVoiceTools, type VoiceAgentDeps } from '@/ai/agent/voiceTools';
-import { createActionQueue, type ProposedAction } from '@/ai/agent/actionQueue';
+import { createActionQueue, commitActions, type ProposedAction } from '@/ai/agent/actionQueue';
 import { getUser } from '@/db/queries/users';
 import { getRecentWeightLogs, getFoodEntriesByDate } from '@/db/queries/health';
 
@@ -71,7 +71,22 @@ describe('buildVoiceTools', () => {
     const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
     expect(names).not.toContain('navigateTo');
     expect(names).not.toContain('proposeCreateGoal');
+    expect(names).not.toContain('proposeExploreIdea');
     expect(names).not.toContain('syncGoogleFit');
+  });
+
+  it('grounds explore (interests/expeditions) and career too — read-only', () => {
+    const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
+    expect(names).toEqual(expect.arrayContaining(['getMyInterests', 'getMyExpeditions', 'getCareerState']));
+  });
+
+  it('getCareerState reports no path when none is saved', () => {
+    const tool = buildVoiceTools({ userId: 'u1', today: TODAY }).find(
+      (t) => t.declaration.name === 'getCareerState',
+    )!;
+    const res = tool.execute({}) as { hasPath: boolean; note?: string };
+    expect(res.hasPath).toBe(false);
+    expect(res.note).toMatch(/build one|Career/i);
   });
 });
 
@@ -103,10 +118,31 @@ describe('buildVoiceTools (agentic)', () => {
         'proposeCreateRoutineBlock', // from buildLifeOsWriteTools
         'proposeCreateGoal',
         'proposeGenerateCareerPath',
+        'proposeExploreIdea',
         'syncGoogleFit',
         'commitProposedActions',
       ]),
     );
+  });
+
+  it('proposeExploreIdea stages an exploreIdea action — single idea and bridge', () => {
+    const { tools, queue } = agenticTools();
+    const explore = tools.find((t) => t.declaration.name === 'proposeExploreIdea')!;
+    expect(explore.execute({ topic: 'how cities grow' })).toEqual({ proposed: true });
+    expect(queue.list()[0]).toMatchObject({ kind: 'exploreIdea', payload: { topic: 'how cities grow' } });
+    explore.execute({ topic: 'cooking', bridgeWith: 'chemistry' });
+    expect(queue.list()[1]).toMatchObject({
+      kind: 'exploreIdea',
+      payload: { topic: 'cooking', bridgeWith: 'chemistry' },
+    });
+  });
+
+  it('commitActions refuses exploreIdea — it is a navigation intent, not a DB write', async () => {
+    const [res] = await commitActions([
+      { kind: 'exploreIdea', summary: 'Explore space', payload: { topic: 'space' } },
+    ]);
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/navigation/i);
   });
 
   it('proposeCreateGoal stages a createGoalFromVision action (no immediate write)', () => {
