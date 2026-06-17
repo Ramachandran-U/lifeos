@@ -1215,6 +1215,7 @@ exports[`legacy module screens — pre-recomposition render baseline (AC12) Care
                         jestAnimatedStyle={
                           {
                             "value": {
+                              "backgroundColor": "rgba(139, 124, 255, 1)",
                               "transform": [
                                 {
                                   "translateY": 0,
@@ -1232,7 +1233,6 @@ exports[`legacy module screens — pre-recomposition render baseline (AC12) Care
                               "paddingHorizontal": 24,
                             },
                             {
-                              "backgroundColor": "#8B7CFF",
                               "borderRadius": 14,
                               "marginBottom": 6,
                             },
@@ -1248,11 +1248,11 @@ exports[`legacy module screens — pre-recomposition render baseline (AC12) Care
                               "paddingHorizontal": 24,
                             },
                             {
-                              "backgroundColor": "#8B7CFF",
                               "borderRadius": 14,
                               "marginBottom": 6,
                             },
                             {
+                              "backgroundColor": "rgba(139, 124, 255, 1)",
                               "transform": [
                                 {
                                   "translateY": 0,

@@ -65,7 +65,14 @@ export const AMBIENT = {
 //   spring.soft     → large surfaces (bottom sheet enter, modal scale)
 //   spring.snappy   → reward beats (XP toast, badge mint)
 //   spring.gentle   → breath (hero radar entry, once-per-view)
+//   spring.press    → physical key bottoming-out: fast, firm, no overshoot
+//   spring.release  → springy pop back up after a press (slight overshoot)
 //
+// The press/release pair is intentionally ASYMMETRIC — the tactile-button
+// research (Josh Comeau's 3D button, Duolingo/Brilliant) shows a real button
+// snaps DOWN firmly and instantly, then springs UP with a little bounce. Using
+// one spring both ways reads as uniform/mushy; the split is what makes it feel
+// pressed. See docs/research/ui-ux-gamification-2026.md §2 and Button3D.tsx.
 //   timing.fast   150ms · ease-out         → tap feedback
 //   timing.normal 300ms · cubic [.4,0,.2,1] → tab swap, sheet fade
 //   timing.slow   600ms · cubic [.2,.7,.3,1]→ hero entry, briefing reveal
@@ -80,6 +87,9 @@ export const SPRING = {
   soft:     { stiffness: 120, damping: 18 },
   snappy:   { stiffness: 260, damping: 24 },
   gentle:   { stiffness:  90, damping: 16 },
+  // Tactile-button pair (asymmetric — see note above).
+  press:    { stiffness: 900, damping: 56 },  // ζ≈0.93 — firm, fast, no bounce on the way down
+  release:  { stiffness: 380, damping: 17 },  // ζ≈0.44 — pops back up with a small overshoot
 } as const;
 
 export type SpringToken = keyof typeof SPRING;
