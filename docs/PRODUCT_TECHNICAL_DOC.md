@@ -46,12 +46,14 @@ lifeos/
 │   │   └── sign-up.tsx            # Email/password sign-up
 │   ├── welcome-intent.tsx         # New-flow entry: pick 1–3 domains that matter this season; "Import from ChatGPT/Claude" shortcut
 │   ├── evening-reflect.tsx        # Nightly 60s ritual: review today's blocks → mood → AI tweak for tomorrow
-│   ├── (onboarding)/              # 3-screen progressive onboarding (+ discovery import sub-flow)
+│   ├── (onboarding)/              # 3-screen progressive onboarding (+ discovery sub-flows: text + voice)
 │   │   ├── day1-vision.tsx        # Vision → AI goal decomposition
 │   │   ├── day1-career.tsx        # Career → AI skill gap analysis
 │   │   ├── day1-routine.tsx       # Schedule → AI routine generation
 │   │   ├── discovery-intro.tsx    # Show canned Discovery prompt + Copy / Open ChatGPT / Open Claude
 │   │   ├── discovery-paste.tsx    # Paste Discovery Prompt output from ChatGPT/Claude
+│   │   ├── discovery-chat.tsx     # Areas-first AI Q&A (text "talk it through", no-mic fallback)
+│   │   ├── discovery-voice.tsx    # Spoken "talk it through" — Gemini Live, persona-aware; same extract pipeline
 │   │   └── discovery-confirm.tsx  # Preview of extracted profile (grouped sections + confidence dots)
 │   ├── (tabs)/                    # Main app (7 tabs)
 │   │   ├── index.tsx              # Today: AvatarRing + HexRadar + streaks + quests + routine
@@ -134,6 +136,16 @@ lifeos/
 | 3 | `app/(onboarding)/day1-routine.tsx` | `generateRoutine()` | Schedule → 24 time-blocked routine blocks for today |
 
 Routing logic in `app/_layout.tsx`: no user → auth, stage < 100 → onboarding, stage 100 → tabs.
+
+**Fast-start discovery flows** (alternative entry, both yield the same extracted profile → `discovery-confirm`):
+
+| Flow | Screens | Path |
+|------|---------|------|
+| Text import | `discovery-intro` → `discovery-paste` | paste a ChatGPT/Claude self-description → `extractDiscoveryProfile()` |
+| Talk it through (text) | `discovery-chat` | areas-first AI Q&A, no-mic fallback |
+| Talk it through (voice) | `discovery-voice` | a real Gemini Live conversation in the user's chosen voice **persona** → same extract pipeline |
+
+The voice surfaces (spoken onboarding + the persistent companion), personas, and the voice tools are documented in [`docs/VOICE_FEATURES.md`](VOICE_FEATURES.md).
 
 ### 3.2 Today Screen (`app/(tabs)/index.tsx`)
 
