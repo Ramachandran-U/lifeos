@@ -160,12 +160,16 @@ export function WheelTimePicker({ label, options, selected, onSelect, formatValu
           })}
         </ScrollView>
 
-        {/* Center selection hairlines — active selection is data: solid border, neutral fill. */}
-        <View pointerEvents="none" style={[styles.centerBand, {
+        {/* Center selection frame — two hairlines marking the selected row.
+            This overlay is the LAST child, so it paints ON TOP of the scroll
+            content: it must stay TRANSPARENT. An opaque fill here (surfaceAlt
+            is a solid token) covers the centred value and makes the selected
+            wake/sleep/work time invisible. The viewport already supplies the
+            surfaceAlt ground beneath the row, so the frame is just hairlines. */}
+        <View pointerEvents="none" testID="wheel-center-frame" style={[styles.centerBand, {
           top: CENTER_INDEX * ITEM_HEIGHT,
           height: ITEM_HEIGHT,
           borderColor: c.textPrimary,
-          backgroundColor: c.surfaceAlt,
         }]} />
       </View>
     </View>
