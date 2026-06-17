@@ -16,7 +16,10 @@ const BASE =
   'their day, plans, health, food, money, or progress — never guess or invent data. Ground every ' +
   'answer in what the tools return, and be specific and actionable. If a tool comes back empty, ' +
   'say so plainly and suggest the fix (e.g. plan the day, add your age for calories, or sync ' +
-  'accounts for spending).';
+  'accounts for spending). ' +
+  'Speak only ONCE per turn — give a single concise spoken reply. If you need a tool, call it ' +
+  'FIRST without speaking, then reply once from the result; never say a preamble and then a ' +
+  'separate second message (it makes you appear to talk twice).';
 
 const AGENTIC = `
 
