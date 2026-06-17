@@ -4,13 +4,29 @@
  */
 import { base64ToFloat32 } from '@/ai/pcmPlayer';
 import { base64ToBytes, bytesToBase64, pcmChunksToWavBase64 } from '@/ai/pcmCodec';
-import type { VoiceEvent } from '@/ai/voiceClient';
+import { stripNonSpeechTokens, type VoiceEvent } from '@/ai/voiceClient';
 
 function int16ToBase64(samples: number[]): string {
   const buf = Buffer.alloc(samples.length * 2);
   samples.forEach((s, i) => buf.writeInt16LE(s, i * 2));
   return buf.toString('base64');
 }
+
+describe('stripNonSpeechTokens (transcript cleanup)', () => {
+  it('removes native-audio control / non-speech markers', () => {
+    expect(stripNonSpeechTokens('Hello <noise> there')).toBe('Hello there');
+    expect(stripNonSpeechTokens('Plan <ctrl46> your day')).toBe('Plan your day');
+    expect(stripNonSpeechTokens('done</s>')).toBe('done');
+    expect(stripNonSpeechTokens('<sil>okay')).toBe('okay');
+  });
+  it('reduces a token-only chunk to empty (skipped upstream)', () => {
+    expect(stripNonSpeechTokens('<ctrl46>').trim()).toBe('');
+  });
+  it('leaves ordinary text and comparison operators intact', () => {
+    expect(stripNonSpeechTokens('Save 10 minutes today.')).toBe('Save 10 minutes today.');
+    expect(stripNonSpeechTokens('if a < b and c > d')).toBe('if a < b and c > d');
+  });
+});
 
 describe('base64ToFloat32 (model audio decode)', () => {
   it('decodes little-endian PCM16 into normalised floats', () => {

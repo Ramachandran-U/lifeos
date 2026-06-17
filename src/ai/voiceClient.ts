@@ -59,6 +59,16 @@ export interface VoiceSession {
   isOpen: () => boolean;
 }
 
+// Gemini native-audio transcription emits non-speech / control markers inline
+// with the spoken text — e.g. "<noise>", "<ctrl46>", "<sil>", "</s>". They are
+// transcription artifacts, not words, so strip these short angle-bracket tokens
+// before anything reaches the transcript panel. Conservative by design: only
+// matches `<...>` runs of ≤16 word-chars (no spaces), so real speech is untouched.
+const NON_SPEECH_TOKEN = /<\/?[a-z0-9_]{1,16}>/gi;
+export function stripNonSpeechTokens(text: string): string {
+  return text.replace(NON_SPEECH_TOKEN, '').replace(/[ \t]{2,}/g, ' ');
+}
+
 export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
   if (USE_MOCK) return createMockSession(opts);
 
@@ -198,18 +208,25 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
           opts.onEvent({ type: 'inputTranscript', text: sc.inputTranscription.text });
         }
         if (sc?.outputTranscription?.text) {
-          opts.onEvent({ type: 'text', text: sc.outputTranscription.text });
+          // Strip non-speech / control markers (e.g. "<noise>", "<ctrl46>") the
+          // transcription emits inline, so they never reach the transcript panel.
+          const spoken = stripNonSpeechTokens(sc.outputTranscription.text);
+          if (spoken) opts.onEvent({ type: 'text', text: spoken });
         }
         const parts = sc?.modelTurn?.parts ?? [];
         for (const p of parts) {
-          if (p.inlineData?.mimeType?.startsWith('audio/')) {
+          if (p.inlineData?.mimeType?.startsWith('audio/') && !p.thought) {
+            // `!p.thought`: never PLAY the model's reasoning as audio — only the
+            // spoken reply. Without this guard a thinking/preamble pass is spoken
+            // before the answer, so the agent appears to "speak twice". (Mirrors
+            // the text-side guard below, which #196 added but the audio branch missed.)
             opts.onEvent({ type: 'audio', pcmBase64: p.inlineData.data });
           } else if (p.text && !p.thought) {
-            // Skip the model's reasoning: native-audio models stream their
-            // thinking as text parts flagged `thought: true` (e.g. "Defining
-            // user goal…"). The spoken reply is surfaced via outputTranscription
-            // above, so thought text must never leak into the transcript panel.
-            opts.onEvent({ type: 'text', text: p.text });
+            // Skip the model's reasoning text: native-audio models stream thinking
+            // as text parts flagged `thought: true`. The spoken reply is surfaced
+            // via outputTranscription above; strip any inline control markers too.
+            const spoken = stripNonSpeechTokens(p.text);
+            if (spoken) opts.onEvent({ type: 'text', text: spoken });
           }
         }
         if (sc?.turnComplete) opts.onEvent({ type: 'turnComplete' });
