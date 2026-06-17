@@ -226,6 +226,12 @@ export function VoiceCompanion() {
           router.push({ pathname: '/rabbit-hole', params });
           break;
         }
+        case 'replanToday':
+          navigate('today', { autorun: 'replan' });
+          break;
+        case 'planAhead':
+          navigate('today', { autorun: 'planWeek' });
+          break;
         default:
           await commitActions([action]);
       }
@@ -258,7 +264,14 @@ export function VoiceCompanion() {
       removePendingAction(index);
       tapHaptic('success');
       await executeAction(action);
-      if (action.kind === 'createGoalFromVision' || action.kind === 'generateCareerPath' || action.kind === 'exploreIdea') minimize();
+      if (
+        action.kind === 'createGoalFromVision' ||
+        action.kind === 'generateCareerPath' ||
+        action.kind === 'exploreIdea' ||
+        action.kind === 'replanToday' ||
+        action.kind === 'planAhead'
+      )
+        minimize();
     },
     [executeAction, removePendingAction, minimize],
   );

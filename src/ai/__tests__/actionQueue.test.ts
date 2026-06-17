@@ -37,6 +37,7 @@ function makeDeps(): CommitDeps & {
     routineBlockExists: () => true,
     goalExists: () => true,
     contactExists: () => true,
+    createFinancialGoal: () => {},
   };
 }
 

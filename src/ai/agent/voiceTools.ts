@@ -10,6 +10,7 @@ import { buildLifeOsWriteTools } from './writeTools';
 import { buildExploreTools } from './exploreTools';
 import { getAllCareerPaths } from '@/db/careerStorage';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
+import { getFinancialGoals } from '@/db/queries/finance';
 import type { ActionQueue } from './actionQueue';
 import type { AgentTool } from './runtime';
 
@@ -563,6 +564,111 @@ function proposeLogContactTool(queue: ActionQueue): AgentTool {
   };
 }
 
+/** Read-only "what are my money goals?" tool — the user's active financial goals. */
+function financialGoalsTool(): AgentTool {
+  return {
+    declaration: {
+      name: 'getFinancialGoals',
+      description:
+        "The user's active financial goals: title, type, target amount + currency, target date, and " +
+        'planned monthly savings. Use this to discuss money goals or before setting a new one. Empty ⇒ none yet.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () =>
+      (getFinancialGoals() as Array<{
+        title: string;
+        goalType: string;
+        targetAmount?: number | null;
+        currency?: string | null;
+        targetDate?: string | null;
+        monthlySavings?: number | null;
+      }>).map((g) => ({
+        title: g.title,
+        goalType: g.goalType,
+        targetAmount: g.targetAmount ?? null,
+        currency: g.currency ?? null,
+        targetDate: g.targetDate ?? null,
+        monthlySavings: g.monthlySavings ?? null,
+      })),
+  };
+}
+
+/** "Set a financial goal" tool. Propose-only → saved on confirm (createFinancialGoal). */
+function proposeSetFinancialGoalTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeSetFinancialGoal',
+      description:
+        'Propose creating a financial goal (emergency fund, house down payment, paying off debt, …). ' +
+        'Does NOT create it — the user confirms first, then it is saved. goalType is a short slug like ' +
+        '"emergency_fund" | "savings" | "home" | "debt" | "retirement". Ask for a target amount, and ' +
+        '(optionally) a target date and monthly savings, if the user did not give them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short name, e.g. "6-month emergency fund".' },
+          goalType: { type: 'string', description: 'Slug: emergency_fund | savings | home | debt | retirement | other.' },
+          targetAmount: { type: 'number', description: 'Target amount (in the user\'s currency).' },
+          currency: { type: 'string', description: 'ISO currency, e.g. "INR" or "USD". Default USD.' },
+          targetDate: { type: 'string', description: 'yyyy-MM-dd target date (optional).' },
+          monthlySavings: { type: 'number', description: 'Planned monthly contribution (optional).' },
+        },
+        required: ['title', 'goalType'],
+      },
+    },
+    execute: (args) => {
+      const title = asString(args.title);
+      const goalType = asString(args.goalType);
+      if (!title || !goalType) return { proposed: false, error: 'title and goalType are required' };
+      const targetAmount = asNumber(args.targetAmount) ?? undefined;
+      const currency = asString(args.currency) ?? undefined;
+      const targetDate = asString(args.targetDate) ?? undefined;
+      const monthlySavings = asNumber(args.monthlySavings) ?? undefined;
+      queue.propose({
+        kind: 'setFinancialGoal',
+        summary: `Set a financial goal: ${title}`,
+        payload: { title, goalType, targetAmount, currency, targetDate, monthlySavings },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/** "Re-plan today" tool. Propose-only → on confirm the Today screen re-plans the rest of the day. */
+function replanTodayTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeReplanToday',
+      description:
+        "Propose re-planning the REST of today's routine (e.g. after the user skipped things or their " +
+        'day changed). Does NOT replan — the user confirms, then the Today screen rebuilds the rest of ' +
+        'the day with its own loading. Use for "redo / rebalance / replan today".',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () => {
+      queue.propose({ kind: 'replanToday', summary: 'Re-plan the rest of today', payload: {} });
+      return { proposed: true };
+    },
+  };
+}
+
+/** "Plan the days ahead" tool. Propose-only → on confirm the Today screen builds the next several days. */
+function planAheadTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposePlanAhead',
+      description:
+        'Propose generating the plan for the days ahead (the next several days). Does NOT generate it — ' +
+        'the user confirms, then the Today screen builds it. Use for "plan my week / plan ahead / plan tomorrow".',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () => {
+      queue.propose({ kind: 'planAhead', summary: 'Plan the days ahead', payload: {} });
+      return { proposed: true };
+    },
+  };
+}
+
 /** Deps the companion injects to turn on the agentic (act-capable) tool set. */
 export interface VoiceAgentDeps {
   /** Queue the propose tools push onto; the companion renders + commits it. */
@@ -595,6 +701,7 @@ export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): Agent
     ...buildExploreTools({ userId: ctx.userId }),
     careerStateTool(),
     contactsTool(ctx),
+    financialGoalsTool(),
   ];
   if (!agent) return base;
   const today = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
@@ -608,6 +715,9 @@ export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): Agent
     proposeLogFoodTool(agent.queue, today),
     proposeLogWeightTool(agent.queue, today),
     proposeLogContactTool(agent.queue),
+    proposeSetFinancialGoalTool(agent.queue),
+    replanTodayTool(agent.queue),
+    planAheadTool(agent.queue),
     syncGoogleFitTool(),
     commitPendingActionsTool(agent.commitPending),
   ];

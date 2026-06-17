@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -410,6 +410,22 @@ export default function TodayScreen() {
     refresh: loadData,
   });
   const { replanning, planningWeek, rationale: replanRationale, showReplanCta, handleReplan, handlePlanWeek } = replanFlow;
+
+  // Voice-agent autorun: the companion navigates here with ?autorun=replan|planWeek
+  // (from proposeReplanToday / proposePlanAhead) to kick off the existing replan
+  // flow, which owns its own loading + rationale UI. Fire exactly once.
+  const { autorun: autorunParam } = useLocalSearchParams<{ autorun?: string }>();
+  const autorunFiredRef = useRef(false);
+  useEffect(() => {
+    if (autorunFiredRef.current || !autorunParam) return;
+    if (autorunParam === 'replan') {
+      autorunFiredRef.current = true;
+      void handleReplan();
+    } else if (autorunParam === 'planWeek') {
+      autorunFiredRef.current = true;
+      void handlePlanWeek();
+    }
+  }, [autorunParam, handleReplan, handlePlanWeek]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();

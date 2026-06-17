@@ -17,6 +17,7 @@ import { updateGoalStatus as dbUpdateGoalStatus } from '@/db/queries/goals';
 import { getGoalById as dbGetGoalById } from '@/db/queries/goals';
 import { createFoodEntry as dbCreateFoodEntry, createHealthLog as dbCreateHealthLog } from '@/db/queries/health';
 import { logInteraction as dbLogInteraction, getContact as dbGetContact, type InteractionType } from '@/db/queries/social';
+import { createFinancialGoal as dbCreateFinancialGoal } from '@/db/queries/finance';
 
 export type GoalStatus = 'active' | 'completed' | 'paused' | 'abandoned';
 
@@ -54,6 +55,18 @@ export type ProposedAction =
     }
   | { kind: 'logWeight'; summary: string; payload: { date: string; weightKg: number } }
   | { kind: 'logContactInteraction'; summary: string; payload: { ref: string; type: string; notes?: string } }
+  | {
+      kind: 'setFinancialGoal';
+      summary: string;
+      payload: {
+        title: string;
+        goalType: string;
+        targetAmount?: number;
+        currency?: string;
+        targetDate?: string;
+        monthlySavings?: number;
+      };
+    }
   // ── Voice-agent navigation intents ──────────────────────────────────────────
   // These are proposed by the voice agent and, on confirm, are handled by the
   // companion: it navigates to the domain screen (or rabbit-hole) with the
@@ -80,7 +93,12 @@ export type ProposedAction =
       // Single-idea Dive on `topic`; cross-discipline Bridge if `bridgeWith` set.
       // On confirm the companion opens the Explore rabbit hole on it.
       payload: { topic: string; bridgeWith?: string };
-    };
+    }
+  // Routine re-plans are ~20s generations that run on the Today screen (its own
+  // loading + diff UI) — nav intents, not commit writes. The companion navigates
+  // to Today with an autorun param; commitActions rejects them.
+  | { kind: 'replanToday'; summary: string; payload: Record<string, never> }
+  | { kind: 'planAhead'; summary: string; payload: Record<string, never> };
 
 export interface ActionQueue {
   propose(action: ProposedAction): void;
@@ -139,6 +157,14 @@ export interface CommitDeps {
   logContactInteraction: (data: { contactId: string; type: string; notes?: string }) => void;
   /** Does this contact still exist? Re-checked at commit time. */
   contactExists: (id: string) => boolean;
+  createFinancialGoal: (data: {
+    title: string;
+    goalType: string;
+    targetAmount?: number;
+    currency?: string;
+    targetDate?: string;
+    monthlySavings?: number;
+  }) => void;
 }
 
 const defaultDeps: CommitDeps = {
@@ -163,6 +189,9 @@ const defaultDeps: CommitDeps = {
     dbLogInteraction({ contactId: data.contactId, type: data.type as InteractionType, notes: data.notes });
   },
   contactExists: (id) => dbGetContact(id) != null,
+  createFinancialGoal: (data) => {
+    dbCreateFinancialGoal(data);
+  },
 };
 
 /** User-facing reason a confirmed action couldn't be applied to a stale ref. */
@@ -217,9 +246,14 @@ export async function commitActions(
             notes: action.payload.notes,
           });
           break;
+        case 'setFinancialGoal':
+          deps.createFinancialGoal(action.payload);
+          break;
         case 'createGoalFromVision':
         case 'generateCareerPath':
         case 'exploreIdea':
+        case 'replanToday':
+        case 'planAhead':
           // Navigation intents are executed by the voice companion (navigate +
           // screen-driven generation), never here. Reaching this is a wiring bug.
           throw new Error(`${action.kind} is handled by navigation, not commitActions`);

@@ -75,10 +75,10 @@ describe('buildVoiceTools', () => {
     expect(names).not.toContain('syncGoogleFit');
   });
 
-  it('grounds explore, career and contacts too — read-only', () => {
+  it('grounds explore, career, contacts and money goals too — read-only', () => {
     const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
     expect(names).toEqual(
-      expect.arrayContaining(['getMyInterests', 'getMyExpeditions', 'getCareerState', 'getContacts']),
+      expect.arrayContaining(['getMyInterests', 'getMyExpeditions', 'getCareerState', 'getContacts', 'getFinancialGoals']),
     );
   });
 
@@ -124,10 +124,26 @@ describe('buildVoiceTools (agentic)', () => {
         'proposeLogFood',
         'proposeLogWeight',
         'proposeLogContact',
+        'proposeSetFinancialGoal',
+        'proposeReplanToday',
+        'proposePlanAhead',
         'syncGoogleFit',
         'commitProposedActions',
       ]),
     );
+  });
+
+  it('proposeSetFinancialGoal / proposeReplanToday / proposePlanAhead stage their actions', () => {
+    const { tools, queue } = agenticTools();
+    const find = (n: string) => tools.find((t) => t.declaration.name === n)!;
+    expect(find('proposeSetFinancialGoal').execute({ title: 'Emergency fund', goalType: 'emergency_fund', targetAmount: 500000 })).toEqual({ proposed: true });
+    find('proposeReplanToday').execute({});
+    find('proposePlanAhead').execute({});
+    expect(queue.list().map((a) => a.kind)).toEqual(
+      expect.arrayContaining(['setFinancialGoal', 'replanToday', 'planAhead']),
+    );
+    // title + goalType are required for a financial goal.
+    expect(find('proposeSetFinancialGoal').execute({ goalType: 'savings' })).toMatchObject({ proposed: false });
   });
 
   it('proposeLogFood / proposeLogWeight / proposeLogContact stage logging actions', () => {
@@ -172,7 +188,7 @@ describe('buildVoiceTools (agentic)', () => {
 
   describe('logging writes commit to the right DB path', () => {
     function stubDeps() {
-      const calls = { food: [] as unknown[], weight: [] as unknown[], contact: [] as unknown[] };
+      const calls = { food: [] as unknown[], weight: [] as unknown[], contact: [] as unknown[], finance: [] as unknown[] };
       const deps: CommitDeps = {
         createRoutineBlock: () => {},
         updateRoutineBlockStatus: () => {},
@@ -183,6 +199,7 @@ describe('buildVoiceTools (agentic)', () => {
         createHealthLog: (d) => { calls.weight.push(d); },
         logContactInteraction: (d) => { calls.contact.push(d); },
         contactExists: (id) => id !== 'gone',
+        createFinancialGoal: (d) => { calls.finance.push(d); },
       };
       return { deps, calls };
     }
@@ -205,6 +222,22 @@ describe('buildVoiceTools (agentic)', () => {
       const stale = (await commitActions([{ kind: 'logContactInteraction', summary: 'x', payload: { ref: 'gone', type: 'call' } }], deps))[0];
       expect(stale.ok).toBe(false);
       expect(stale.error).toMatch(/no longer exists/i);
+    });
+
+    it('setFinancialGoal → createFinancialGoal', async () => {
+      const { deps, calls } = stubDeps();
+      const r = (await commitActions([{ kind: 'setFinancialGoal', summary: 'x', payload: { title: 'Emergency fund', goalType: 'emergency_fund', targetAmount: 500000 } }], deps))[0];
+      expect(r.ok).toBe(true);
+      expect(calls.finance[0]).toMatchObject({ title: 'Emergency fund', goalType: 'emergency_fund' });
+    });
+
+    it('replanToday / planAhead are navigation intents — commitActions refuses them', async () => {
+      const { deps } = stubDeps();
+      for (const kind of ['replanToday', 'planAhead'] as const) {
+        const [res] = await commitActions([{ kind, summary: 'x', payload: {} }], deps);
+        expect(res.ok).toBe(false);
+        expect(res.error).toMatch(/navigation/i);
+      }
     });
   });
 
