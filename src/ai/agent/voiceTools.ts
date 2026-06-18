@@ -287,6 +287,22 @@ function asNumber(v: unknown): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
 }
 
+/**
+ * Compact money label for a proposal SUMMARY, so the confirm card shows the
+ * actual number a user is approving (e.g. "₹500,000"). Whole units (not paise);
+ * symbol for the common currencies, ISO code otherwise. Grouping is done with a
+ * manual regex (NOT toLocaleString) so it's identical across engines — Hermes
+ * lacks full Intl and would otherwise drop the thousands separators on native.
+ */
+function moneyLabel(amount: number, currency?: string): string {
+  const symbols: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£' };
+  const sym = currency ? symbols[currency.toUpperCase()] : undefined;
+  const n = Math.round(amount)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return sym ? `${sym}${n}` : `${currency ? `${currency} ` : ''}${n}`;
+}
+
 const INTERACTION_TYPES = ['call', 'message', 'in_person', 'email', 'other'] as const;
 
 /**
@@ -790,9 +806,13 @@ function proposeSetFinancialGoalTool(queue: ActionQueue): AgentTool {
       const currency = asString(args.currency) ?? undefined;
       const targetDate = asString(args.targetDate) ?? undefined;
       const monthlySavings = asNumber(args.monthlySavings) ?? undefined;
+      // Surface the numbers in the summary so the confirm card shows the actual
+      // target (and monthly, if given) the user is approving — not just a name.
+      const target = targetAmount !== undefined ? ` — target ${moneyLabel(targetAmount, currency)}` : '';
+      const monthly = monthlySavings !== undefined ? ` (${moneyLabel(monthlySavings, currency)}/mo)` : '';
       queue.propose({
         kind: 'setFinancialGoal',
-        summary: `Set a financial goal: ${title}`,
+        summary: `Set a financial goal: ${title}${target}${monthly}`,
         payload: { title, goalType, targetAmount, currency, targetDate, monthlySavings },
       });
       return { proposed: true };

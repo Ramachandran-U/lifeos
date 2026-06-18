@@ -126,26 +126,36 @@ describe('commitActions', () => {
     expect(deps.created).toHaveLength(1);
   });
 
-  it('rejects voice navigation intents — they are handled by the companion, not commit', async () => {
+  it('rejects EVERY voice navigation intent — they are handled by the companion, not commit', async () => {
     const deps = makeDeps();
-    const results = await commitActions(
-      [
-        { kind: 'createGoalFromVision', summary: '', payload: { visionStatement: 'run a marathon' } },
-        {
-          kind: 'generateCareerPath',
-          summary: '',
-          payload: { currentRole: 'SWE', targetRole: 'EM', timelineMonths: 24 },
-        },
-      ],
-      deps,
-    );
+    // The full nav-intent set on commitActions' reject branch. A confirmed nav
+    // action must FAIL the commit (so the companion dispatches it) rather than
+    // silently no-op — guard all five kinds, not just the original two.
+    const navIntents: ProposedAction[] = [
+      { kind: 'createGoalFromVision', summary: '', payload: { visionStatement: 'run a marathon' } },
+      {
+        kind: 'generateCareerPath',
+        summary: '',
+        payload: { currentRole: 'SWE', targetRole: 'EM', timelineMonths: 24 },
+      },
+      { kind: 'exploreIdea', summary: '', payload: { topic: 'how cities grow' } },
+      { kind: 'replanToday', summary: '', payload: {} },
+      { kind: 'planAhead', summary: '', payload: {} },
+    ];
+    const results = await commitActions(navIntents, deps);
+
+    expect(results).toHaveLength(navIntents.length);
     expect(results.every((r) => !r.ok)).toBe(true);
-    expect(results[0].error).toMatch(/navigation/);
-    expect(results[1].error).toMatch(/navigation/);
+    for (const r of results) {
+      expect(r.error).toMatch(/navigation/);
+    }
     // Nothing was written to the DB.
     expect(deps.created).toEqual([]);
     expect(deps.statuses).toEqual([]);
     expect(deps.goals).toEqual([]);
+    expect(deps.foods).toEqual([]);
+    expect(deps.weights).toEqual([]);
+    expect(deps.interactions).toEqual([]);
   });
 
   it('isolates failures: one throwing action does not abort the rest', async () => {
