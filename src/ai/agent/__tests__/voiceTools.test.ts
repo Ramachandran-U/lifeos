@@ -198,8 +198,27 @@ describe('buildVoiceTools (agentic)', () => {
     expect(queue.list().map((a) => a.kind)).toEqual(
       expect.arrayContaining(['setFinancialGoal', 'replanToday', 'planAhead']),
     );
+    // The summary carries the amount so the confirm card shows what's approved.
+    const goalAction = queue.list().find((a) => a.kind === 'setFinancialGoal')!;
+    expect(goalAction.summary).toContain('Emergency fund');
+    expect(goalAction.summary).toMatch(/500,?000/);
     // title + goalType are required for a financial goal.
     expect(find('proposeSetFinancialGoal').execute({ goalType: 'savings' })).toMatchObject({ proposed: false });
+  });
+
+  it('proposeSetFinancialGoal shows currency symbol + monthly in the summary', () => {
+    const { tools, queue } = agenticTools();
+    const find = (n: string) => tools.find((t) => t.declaration.name === n)!;
+    find('proposeSetFinancialGoal').execute({
+      title: '6-month fund',
+      goalType: 'emergency_fund',
+      targetAmount: 600000,
+      currency: 'INR',
+      monthlySavings: 50000,
+    });
+    const action = queue.list().find((a) => a.kind === 'setFinancialGoal')!;
+    expect(action.summary).toContain('₹600,000');
+    expect(action.summary).toContain('₹50,000/mo');
   });
 
   it('proposeLogFood / proposeLogWeight / proposeLogContact stage logging actions', () => {
