@@ -1,4 +1,5 @@
 import { format, subDays, parseISO } from 'date-fns';
+import { Platform } from 'react-native';
 import { getTransactionsInRange } from '@/finance/db/transactionDb';
 import { merchantRollups } from '@/finance/analytics';
 import { getUser } from '@/db/queries/users';
@@ -309,6 +310,58 @@ function syncGoogleFitTool(): AgentTool {
             err instanceof Error
               ? err.message
               : 'Could not sync — the user may need to connect Google Fit on the Health screen.',
+        };
+      }
+    },
+  };
+}
+
+/**
+ * "Sync my finances from Gmail" tool. INSTANT (idempotent, low-risk) — it pulls
+ * recent transaction emails, parses + categorizes them, and upserts into the
+ * on-device finance store, then returns a compact summary the agent narrates
+ * ("ingested 12 transactions"). Mirrors the Finance screen's Sync button via the
+ * shared `syncFinanceFromGmail` orchestrator. Web-only (the finance store is
+ * Dexie/IndexedDB) and requires Gmail to be connected.
+ */
+function syncFinanceTool(): AgentTool {
+  return {
+    declaration: {
+      name: 'syncFinance',
+      description:
+        "Sync the user's finances from Gmail now and get a summary (how many transactions were " +
+        'ingested). Use when the user asks to sync their finances/spending/bank/UPI or to refresh ' +
+        'their transactions. Runs immediately — no confirmation needed.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: async () => {
+      if (Platform.OS !== 'web') {
+        return { synced: false, error: 'Finance sync from Gmail is only available on web.' };
+      }
+      const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        return { synced: false, error: 'Google is not configured on this build.' };
+      }
+      // Lazy import so the gmail + parsers + finance-db graph only loads when the
+      // user actually syncs — keeps the tool module light to import.
+      const { isGmailConnected } = await import('@/finance/gmail/oauth');
+      if (!isGmailConnected()) {
+        return {
+          synced: false,
+          error: 'Gmail is not connected. The user can connect it on the Finance screen.',
+        };
+      }
+      try {
+        const { syncFinanceFromGmail } = await import('@/finance/gmail/sync');
+        const summary = await syncFinanceFromGmail(clientId);
+        return { synced: true, ...summary };
+      } catch (err) {
+        return {
+          synced: false,
+          error:
+            err instanceof Error
+              ? err.message
+              : 'Could not sync — the user may need to connect Gmail on the Finance screen.',
         };
       }
     },
@@ -719,6 +772,7 @@ export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): Agent
     replanTodayTool(agent.queue),
     planAheadTool(agent.queue),
     syncGoogleFitTool(),
+    syncFinanceTool(),
     commitPendingActionsTool(agent.commitPending),
   ];
 }

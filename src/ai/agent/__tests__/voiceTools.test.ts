@@ -18,6 +18,18 @@ jest.mock('@/db/queries/health', () => ({
   getFoodEntriesByDate: jest.fn(() => []),
 }));
 
+// syncFinance lazy-imports the gmail oauth check + the shared orchestrator. Mock
+// both so the tool's guard + happy path are exercised without a real Gmail /
+// network round-trip. (`mock`-prefixed so jest's hoist guard allows the closure.)
+let mockGmailConnected = true;
+jest.mock('@/finance/gmail/oauth', () => ({
+  isGmailConnected: () => mockGmailConnected,
+}));
+jest.mock('@/finance/gmail/sync', () => ({
+  syncFinanceFromGmail: jest.fn(async () => ({ total: 3, parsed: 2, skipped: 1, ingested: 2 })),
+}));
+
+import { Platform } from 'react-native';
 import { financeDb, upsertTransactions, type TxRecord } from '@/finance/db/transactionDb';
 import { buildVoiceTools, type VoiceAgentDeps } from '@/ai/agent/voiceTools';
 import { createActionQueue, commitActions, type ProposedAction, type CommitDeps } from '@/ai/agent/actionQueue';
@@ -128,9 +140,44 @@ describe('buildVoiceTools (agentic)', () => {
         'proposeReplanToday',
         'proposePlanAhead',
         'syncGoogleFit',
+        'syncFinance',
         'commitProposedActions',
       ]),
     );
+  });
+
+  it('syncFinance is web+config+connection guarded and returns an instant summary on success', async () => {
+    const prevEnv = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    const prevOS = Platform.OS;
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = 'client-123';
+    Platform.OS = 'web'; // finance sync is web-only (Dexie store)
+    try {
+      const res = await tool('syncFinance').execute({});
+      // Gmail mocked as connected; orchestrator mocked → pass-through summary.
+      expect(res).toEqual({ synced: true, total: 3, parsed: 2, skipped: 1, ingested: 2 });
+    } finally {
+      Platform.OS = prevOS;
+      if (prevEnv === undefined) delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      else process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = prevEnv;
+    }
+  });
+
+  it('syncFinance reports a friendly error when Gmail is not connected', async () => {
+    const prevEnv = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    const prevOS = Platform.OS;
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = 'client-123';
+    Platform.OS = 'web';
+    mockGmailConnected = false;
+    try {
+      const res = await tool('syncFinance').execute({});
+      expect(res).toMatchObject({ synced: false });
+      expect((res as { error: string }).error).toMatch(/Finance screen/);
+    } finally {
+      mockGmailConnected = true;
+      Platform.OS = prevOS;
+      if (prevEnv === undefined) delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      else process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = prevEnv;
+    }
   });
 
   it('proposeSetFinancialGoal / proposeReplanToday / proposePlanAhead stage their actions', () => {
