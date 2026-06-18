@@ -1,4 +1,4 @@
-import { pickProvider, pickMaxTokens } from '../modelRouter';
+import { pickProvider, pickMaxTokens, pickModel, MODELS } from '../modelRouter';
 
 describe('pickProvider (cheap-tier provider routing)', () => {
   const ORIG = process.env.EXPO_PUBLIC_CHEAP_PROVIDER;
@@ -51,5 +51,34 @@ describe('pickMaxTokens (per-task output budget default)', () => {
     expect(pickMaxTokens(undefined)).toBe(1200);
     expect(pickMaxTokens('agent.whatNext')).toBe(1200);
     expect(pickMaxTokens('not-a-real-task')).toBe(1200);
+  });
+});
+
+describe('pickModel (per-task model selection)', () => {
+  const ORIG = process.env.EXPO_PUBLIC_MODEL_OVERRIDE;
+  afterEach(() => {
+    if (ORIG === undefined) delete process.env.EXPO_PUBLIC_MODEL_OVERRIDE;
+    else process.env.EXPO_PUBLIC_MODEL_OVERRIDE = ORIG;
+  });
+
+  it('routes each tier to its configured model', () => {
+    delete process.env.EXPO_PUBLIC_MODEL_OVERRIDE;
+    expect(pickModel('categorizeMerchant')).toBe(MODELS.cheap); // cheap tier
+    expect(pickModel('generateRoutine')).toBe(MODELS.planning); // planning tier
+    expect(pickModel('parseBloodReport')).toBe(MODELS.reasoning); // reasoning tier
+  });
+
+  it('honours EXPO_PUBLIC_MODEL_OVERRIDE for every task (eval/benchmark hook)', () => {
+    process.env.EXPO_PUBLIC_MODEL_OVERRIDE = 'gemini-3.1-flash-live-preview';
+    expect(pickModel('categorizeMerchant')).toBe('gemini-3.1-flash-live-preview');
+    expect(pickModel('parseBloodReport')).toBe('gemini-3.1-flash-live-preview');
+  });
+
+  it('every routed model is a gemini-* id (the worker only honours gemini-*)', () => {
+    delete process.env.EXPO_PUBLIC_MODEL_OVERRIDE;
+    for (const model of Object.values(MODELS)) expect(model).toMatch(/^gemini-/);
+    for (const task of ['categorizeMerchant', 'generateRoutine', 'parseBloodReport', 'agent.whatNext'] as const) {
+      expect(pickModel(task)).toMatch(/^gemini-/);
+    }
   });
 });
