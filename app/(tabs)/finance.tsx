@@ -51,7 +51,7 @@ import {
 import { buildMockFinancialPlan } from '@/ai/mocks/finance';
 import type { FinancialPlan, WeeklyFinanceInsight, TransactionCategory } from '@/ai/types';
 import { TRANSACTION_CATEGORIES } from '@/ai/types';
-import { useTransactionStore } from '@/finance/store/useTransactionStore';
+import { useTransactionStore, type ManualTxInput } from '@/finance/store/useTransactionStore';
 import { startGmailOAuth } from '@/finance/gmail/oauth';
 import {
   isConsumptionSpend,
@@ -62,7 +62,7 @@ import {
 import { CATEGORY_COLORS, formatInr, prettyCategory } from '@/finance/display';
 import { runAllDetectors, type Insight } from '@/finance/insights';
 import { splitTxByPeriod } from '@/finance/analytics';
-import type { TxRecord } from '@/finance/db/transactionDb';
+import type { TxRecord, TxDirection } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
 import { useFlagStore } from '@/store/useFlagStore';
@@ -161,6 +161,7 @@ function FinanceScreenV1() {
     load,
     refreshConnection,
     sync,
+    addManual,
     setCategory,
     disconnect,
   } = useTransactionStore();
@@ -187,6 +188,9 @@ function FinanceScreenV1() {
 
   // Gmail press-target sheet (§3.0.3: Disconnect lives one level in).
   const [gmailSheetOpen, setGmailSheetOpen] = useState(false);
+
+  // Manual add-transaction sheet (Gmail is optional — you can type one in).
+  const [manualOpen, setManualOpen] = useState(false);
 
   const awardXp = useCallback(
     (amount: number) => {
@@ -274,6 +278,15 @@ function FinanceScreenV1() {
     if (inserted > 0) {
       awardXp(wasConnected ? 25 : 75); // first connect gets 50 + first sync 25
     }
+  };
+
+  const handleAddManual = async (input: ManualTxInput): Promise<boolean> => {
+    const ok = await addManual(input);
+    if (ok) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      awardXp(5);
+    }
+    return ok;
   };
 
   const handleDismissInsight = (id: string) => {
@@ -582,6 +595,7 @@ function FinanceScreenV1() {
             transactions={transactions}
             gmailConnected={gmailConnected}
             onConnect={handleConnect}
+            onAddManual={() => setManualOpen(true)}
             onEditTx={setEditTx}
           />
         )}
@@ -614,6 +628,14 @@ function FinanceScreenV1() {
         c={c}
         onClose={() => setEditTx(null)}
         onPick={(cat) => editTx && handleSetCategory(editTx, cat)}
+      />
+
+      {/* Manual add-transaction sheet — the "Gmail is optional" path in. */}
+      <ManualTransactionModal
+        visible={manualOpen}
+        c={c}
+        onClose={() => setManualOpen(false)}
+        onSubmit={handleAddManual}
       />
 
       {/* Gmail row press target (§3.0.3): Sync now + Disconnect live one level
@@ -962,6 +984,7 @@ function TransactionsTab({
   transactions,
   gmailConnected,
   onConnect,
+  onAddManual,
   onEditTx,
 }: {
   c: ReturnType<typeof useColors>;
@@ -969,23 +992,28 @@ function TransactionsTab({
   transactions: TxRecord[];
   gmailConnected: boolean;
   onConnect: () => void;
+  onAddManual: () => void;
   onEditTx: (tx: TxRecord) => void;
 }) {
   const [filter, setFilter] = useState<TxFilter>('all');
   const [query, setQuery] = useState('');
 
   if (!gmailConnected && transactions.length === 0) {
+    const isWeb = Platform.OS === 'web';
     return (
       <EmptyState
         icon="receipt-outline"
         title="No transactions yet"
-        caption="Connect Gmail on the Overview tab to start ingesting bank alert emails."
-        accent={c.finance}
-        cta={
-          Platform.OS === 'web'
-            ? { label: 'Connect Gmail', onPress: onConnect }
-            : undefined
+        // Action-first + Gmail reframed as the optional bulk path, not the only
+        // way in (PARKED_ITEMS §15.2): lead with "add one yourself".
+        caption={
+          isWeb
+            ? 'Add one yourself in a few taps — or connect Gmail to auto-import bank & UPI alerts. Gmail is optional.'
+            : 'Transactions live on the web app — open LifeOS on the web to add or import them.'
         }
+        accent={c.finance}
+        cta={isWeb ? { label: 'Add a transaction', onPress: onAddManual } : undefined}
+        secondaryCta={isWeb ? { label: 'Connect Gmail instead', onPress: onConnect } : undefined}
       />
     );
   }
@@ -1046,6 +1074,18 @@ function TransactionsTab({
             </Caption>
           </Pressable>
         ))}
+        {/* Manual add stays reachable once there are rows too (web-only). */}
+        {Platform.OS === 'web' && (
+          <Pressable
+            onPress={onAddManual}
+            style={[styles.addTxBtn, { borderColor: c.finance }]}
+            accessibilityRole="button"
+            accessibilityLabel="Add a transaction"
+          >
+            <Ionicons name="add" size={14} color={c.financeText} />
+            <Caption style={{ color: c.financeText, fontWeight: '700' }}>Add</Caption>
+          </Pressable>
+        )}
       </View>
 
       {filtered.length === 0 ? (
@@ -1309,6 +1349,157 @@ function CategoryPickerModal({
   );
 }
 
+// ─── Manual add-transaction modal ─────────────────────────────────────────────
+
+// PARKED_ITEMS §15.2: Gmail is optional — a user can type a transaction in. A
+// small bottom sheet: direction, amount, payee, category → store.addManual.
+function ManualTransactionModal({
+  visible,
+  c,
+  onClose,
+  onSubmit,
+}: {
+  visible: boolean;
+  c: ReturnType<typeof useColors>;
+  onClose: () => void;
+  onSubmit: (input: ManualTxInput) => Promise<boolean>;
+}) {
+  const [direction, setDirection] = useState<TxDirection>('debit');
+  const [amount, setAmount] = useState('');
+  const [merchant, setMerchant] = useState('');
+  const [category, setCategory] = useState<TransactionCategory>('other');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const amountNum = Number(amount);
+  const valid = Number.isFinite(amountNum) && amountNum > 0;
+
+  const reset = () => {
+    setDirection('debit');
+    setAmount('');
+    setMerchant('');
+    setCategory('other');
+    setError(null);
+    setSubmitting(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const ok = await onSubmit({ amountRupees: amountNum, direction, merchant, category });
+    if (ok) {
+      reset();
+      onClose();
+    } else {
+      setSubmitting(false);
+      setError('Could not add the transaction. Try again.');
+    }
+  };
+
+  if (!visible) return null;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={[modalStyles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
+        <Pressable style={[modalStyles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Body style={{ fontFamily: fonts.bodyMedium, color: c.financeText }}>Add transaction</Body>
+
+          {/* Direction — Spent (debit) / Received (credit). */}
+          <View style={modalStyles.dirRow}>
+            {(['debit', 'credit'] as TxDirection[]).map((d) => {
+              const active = direction === d;
+              return (
+                <Pressable
+                  key={d}
+                  onPress={() => setDirection(d)}
+                  accessibilityRole="button"
+                  accessibilityLabel={d === 'debit' ? 'Spent' : 'Received'}
+                  style={[
+                    modalStyles.dirPill,
+                    { borderColor: active ? c.finance : c.border, backgroundColor: active ? c.financeDim : c.surface },
+                  ]}
+                >
+                  <Ionicons
+                    name={d === 'debit' ? 'arrow-up' : 'arrow-down'}
+                    size={14}
+                    color={active ? c.financeText : c.textSecondary}
+                  />
+                  <Caption style={{ color: active ? c.financeText : c.textSecondary, fontWeight: '700' }}>
+                    {d === 'debit' ? 'Spent' : 'Received'}
+                  </Caption>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Amount */}
+          <View style={[modalStyles.field, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Body style={{ color: c.textSecondary, fontSize: fontSizes.lg }}>{getCurrency().symbol}</Body>
+            <TextInput
+              style={[modalStyles.fieldInput, { color: c.textPrimary }]}
+              value={amount}
+              onChangeText={(t) => setAmount(String(parseMoneyInput(t)))}
+              keyboardType="numeric"
+              placeholder="Amount"
+              placeholderTextColor={c.textMuted}
+              accessibilityLabel="Amount"
+            />
+          </View>
+
+          {/* Payee / merchant */}
+          <View style={[modalStyles.field, { backgroundColor: c.card, borderColor: c.border }]}>
+            <Ionicons name="storefront-outline" size={16} color={c.textMuted} />
+            <TextInput
+              style={[modalStyles.fieldInput, { color: c.textPrimary }]}
+              value={merchant}
+              onChangeText={setMerchant}
+              placeholder="Where? (e.g. Swiggy, rent)"
+              placeholderTextColor={c.textMuted}
+              accessibilityLabel="Payee or merchant"
+            />
+          </View>
+
+          {/* Category */}
+          <ScrollView style={modalStyles.catList} contentContainerStyle={modalStyles.catListContent}>
+            {TRANSACTION_CATEGORIES.map((cat) => {
+              const isActive = cat === category;
+              const col = CATEGORY_COLORS[cat];
+              return (
+                <Pressable
+                  key={cat}
+                  style={[
+                    modalStyles.catChip,
+                    { borderColor: isActive ? col : c.border, backgroundColor: isActive ? c.surfaceAlt : c.surface },
+                  ]}
+                  onPress={() => setCategory(cat)}
+                >
+                  <View style={[modalStyles.catChipDot, { backgroundColor: col }]} />
+                  <Caption style={{ color: isActive ? col : c.textPrimary, fontWeight: '600' }}>
+                    {prettyCategory(cat)}
+                  </Caption>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {error ? <Caption style={{ color: c.error }}>{error}</Caption> : null}
+
+          <Button3D
+            title="Add transaction"
+            loadingTitle="Adding…"
+            loading={submitting}
+            tone="finance"
+            disabled={!valid}
+            onPress={handleSubmit}
+            fullWidth
+            style={modalStyles.submitBtn}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function severityColor(s: Insight['severity'], c: ReturnType<typeof useColors>): string {
@@ -1550,6 +1741,16 @@ function makeStyles(c: ReturnType<typeof useColors>) {
       borderColor: c.finance,
     },
     filterTextActive: { color: c.financeText, fontWeight: '700' },
+    addTxBtn: {
+      marginLeft: 'auto',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
     dateGroup: { gap: spacing.xs },
     txRow: {
       flexDirection: 'row',
@@ -1623,4 +1824,34 @@ const modalStyles = StyleSheet.create({
   catChipDot: {
     width: 8, height: 8, borderRadius: 4,
   },
+  // Manual add-transaction sheet
+  dirRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  dirPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+  },
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  fieldInput: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    paddingVertical: 0,
+    ...webTextInputOutline,
+  },
+  submitBtn: { marginTop: spacing.md },
 });

@@ -139,6 +139,17 @@ export async function upsertTransactions(records: TxRecord[]): Promise<number> {
   return fresh.length;
 }
 
+/**
+ * Insert a single user-entered ("manual") transaction. Unlike upsertTransactions
+ * (the Gmail-sync path, which dedups by `rawEmailId` and upgrades 'other' rows),
+ * this is a direct put keyed by the row's own id — the caller supplies a unique
+ * id. Manual rows carry `source: 'manual'` + `userCorrected: true`, so a later
+ * Gmail sync never touches them.
+ */
+export async function addManualTransaction(rec: TxRecord): Promise<void> {
+  await financeDb.transactions.put(rec);
+}
+
 export async function getAllTransactions(): Promise<TxRecord[]> {
   return financeDb.transactions.orderBy('date').reverse().toArray();
 }

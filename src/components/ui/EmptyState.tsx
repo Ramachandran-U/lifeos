@@ -1,4 +1,4 @@
-import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Pressable, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -15,13 +15,16 @@ interface EmptyStateProps {
   /** Privacy/trust clause rendered above the CTA (Ink + Signal §3.0.4). */
   trustNote?: string;
   cta?: { label: string; onPress: () => void; loading?: boolean };
+  /** A lower-emphasis alternative below the primary CTA — a text button in the
+   *  accent hue (e.g. "Connect Gmail" under a primary "Add a transaction"). */
+  secondaryCta?: { label: string; onPress: () => void };
   style?: StyleProp<ViewStyle>;
 }
 
 // The single empty-state pattern across the app: an accent-tinted icon bubble,
 // a heading, an optional caption, and an optional call-to-action. Replaces the
 // ad-hoc icon+text blocks each screen used to hand-roll.
-export function EmptyState({ icon, title, caption, accent, trustNote, cta, style }: EmptyStateProps) {
+export function EmptyState({ icon, title, caption, accent, trustNote, cta, secondaryCta, style }: EmptyStateProps) {
   const c = useColors();
   const hue = accent ?? c.primary;
   return (
@@ -48,6 +51,16 @@ export function EmptyState({ icon, title, caption, accent, trustNote, cta, style
           loading={cta.loading}
           style={styles.cta}
         />
+      ) : null}
+      {secondaryCta ? (
+        <Pressable
+          onPress={secondaryCta.onPress}
+          hitSlop={8}
+          accessibilityRole="button"
+          style={styles.secondaryCta}
+        >
+          <Caption style={[styles.secondaryLabel, { color: hue }]}>{secondaryCta.label}</Caption>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -79,4 +92,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   cta: { alignSelf: 'stretch', marginTop: spacing.sm },
+  secondaryCta: { marginTop: spacing.xs, paddingVertical: spacing.xs },
+  secondaryLabel: { fontWeight: '700' },
 });

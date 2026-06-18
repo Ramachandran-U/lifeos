@@ -57,6 +57,7 @@ jest.mock('@/finance/store/useTransactionStore', () => {
       load: async () => {},
       refreshConnection: () => {},
       sync: async () => 0,
+      addManual: async () => true,
       setCategory: async () => {},
       disconnect: async () => {},
     })),
@@ -242,6 +243,28 @@ describe('Finance V1 — connected Overview (§3.5 / §3.0.3)', () => {
     expect(screen.getByText('Disconnect Gmail')).toBeTruthy();
     // Sync now appears twice while open: the row action + the sheet row.
     expect(screen.getAllByText('Sync now').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('Finance V1 — Transactions empty state (PARKED_ITEMS §15.2)', () => {
+  it('leads with "Add a transaction" and frames Gmail as optional', () => {
+    render(<FinanceScreen />);
+    fireEvent.press(screen.getByText('Transactions'));
+    // Action-first: the manual-add CTA is primary; Gmail is the secondary path.
+    expect(screen.getByText('Add a transaction')).toBeTruthy();
+    expect(screen.getByText('Connect Gmail instead')).toBeTruthy();
+    expect(screen.getByText(/Gmail is optional/)).toBeTruthy();
+  });
+
+  it('the manual sheet opens with amount + payee + a category and an Add button', () => {
+    render(<FinanceScreen />);
+    fireEvent.press(screen.getByText('Transactions'));
+    fireEvent.press(screen.getByText('Add a transaction'));
+    // Sheet content: the title + the Add submit button both read "Add transaction".
+    expect(screen.getAllByText('Add transaction').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Spent')).toBeTruthy();
+    expect(screen.getByText('Received')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Where? (e.g. Swiggy, rent)')).toBeTruthy();
   });
 });
 
