@@ -3,14 +3,28 @@ import { Platform } from 'react-native';
 import {
   financeDb,
   getAllTransactions,
+  addManualTransaction,
   updateTransactionCategory as dbUpdateCategory,
   type TxRecord,
+  type TxDirection,
 } from '@/finance/db/transactionDb';
 import { isGmailConnected, clearGmailTokens } from '@/finance/gmail/oauth';
 import { syncFinanceFromGmail } from '@/finance/gmail/sync';
 import { normalizeUpiMerchant } from '@/finance/parsers/emailParsers';
 import { categorizeByRule } from '@/finance/categorizer';
+import { nanoid } from '@/utils/id';
 import type { TransactionCategory } from '@/ai/types';
+
+/** A user-entered transaction (the manual-add path, web-only). Amount is in
+ *  whole rupees as typed; the store converts to the paise the table stores. */
+export interface ManualTxInput {
+  amountRupees: number;
+  direction: TxDirection;
+  merchant: string;
+  category: TransactionCategory;
+  /** YYYY-MM-DD; defaults to today. */
+  date?: string;
+}
 
 interface TransactionState {
   transactions: TxRecord[];
@@ -24,6 +38,7 @@ interface TransactionState {
   load: () => Promise<void>;
   refreshConnection: () => void;
   sync: (clientId: string) => Promise<number>;
+  addManual: (input: ManualTxInput) => Promise<boolean>;
   setCategory: (id: string, category: TransactionCategory) => Promise<void>;
   disconnect: () => Promise<void>;
 }
@@ -137,6 +152,37 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
       set({ syncing: false, syncError: message });
       return 0;
     }
+  },
+
+  addManual: async (input) => {
+    if (Platform.OS !== 'web') {
+      set({ syncError: 'Manual entry is only available on web.' });
+      return false;
+    }
+    const amountPaise = Math.round(input.amountRupees * 100);
+    if (!Number.isFinite(amountPaise) || amountPaise <= 0) {
+      set({ syncError: 'Enter an amount greater than zero.' });
+      return false;
+    }
+    // A unique id doubles as rawEmailId so a manual row can never collide with a
+    // synced bank-email row (upsertTransactions dedups on rawEmailId).
+    const id = `manual-${nanoid()}`;
+    const rec: TxRecord = {
+      id,
+      date: input.date || new Date().toISOString().slice(0, 10),
+      amount: amountPaise,
+      direction: input.direction,
+      merchant: input.merchant.trim() || 'Manual entry',
+      category: input.category,
+      source: 'manual',
+      rawEmailId: id,
+      confidence: 1,
+      userCorrected: true,
+    };
+    await addManualTransaction(rec);
+    const all = await getAllTransactions();
+    set({ transactions: all, syncError: null });
+    return true;
   },
 
   setCategory: async (id, category) => {

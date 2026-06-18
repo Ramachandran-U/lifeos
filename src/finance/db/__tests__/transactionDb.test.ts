@@ -16,6 +16,7 @@ import {
   setCachedCategory,
   setCachedCategoriesBulk,
   upsertTransactions,
+  addManualTransaction,
   getAllTransactions,
   getTransactionsInRange,
   updateTransactionCategory,
@@ -146,6 +147,32 @@ describe('upsertTransactions', () => {
     expect(inserted).toBe(1);
     expect((await financeDb.transactions.get('a'))?.category).toBe('transport');
     expect((await financeDb.transactions.get('b'))?.category).toBe('groceries');
+  });
+});
+
+describe('addManualTransaction', () => {
+  it('inserts a single user-entered row retrievable by id', async () => {
+    await addManualTransaction(makeTx({ id: 'm1', source: 'manual', userCorrected: true }));
+
+    const row = await financeDb.transactions.get('m1');
+    expect(row?.source).toBe('manual');
+    expect(row?.userCorrected).toBe(true);
+    expect(await financeDb.transactions.count()).toBe(1);
+  });
+
+  it('does not dedup on rawEmailId — two manual rows with distinct ids both persist', async () => {
+    await addManualTransaction(makeTx({ id: 'm1', rawEmailId: 'm1' }));
+    await addManualTransaction(makeTx({ id: 'm2', rawEmailId: 'm2' }));
+
+    expect(await financeDb.transactions.count()).toBe(2);
+  });
+
+  it('lands alongside synced rows in getAllTransactions (newest-first)', async () => {
+    await upsertTransactions([makeTx({ id: 'synced', rawEmailId: 'e-1', date: '2026-05-01' })]);
+    await addManualTransaction(makeTx({ id: 'manual', rawEmailId: 'manual', date: '2026-05-09' }));
+
+    const rows = await getAllTransactions();
+    expect(rows.map((r) => r.id)).toEqual(['manual', 'synced']);
   });
 });
 
