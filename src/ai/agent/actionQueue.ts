@@ -15,6 +15,9 @@ import { updateRoutineBlockStatus as dbUpdateRoutineBlockStatus } from '@/db/que
 import { getRoutineBlockById as dbGetRoutineBlockById } from '@/db/queries/routine';
 import { updateGoalStatus as dbUpdateGoalStatus } from '@/db/queries/goals';
 import { getGoalById as dbGetGoalById } from '@/db/queries/goals';
+import { createFoodEntry as dbCreateFoodEntry, createHealthLog as dbCreateHealthLog } from '@/db/queries/health';
+import { logInteraction as dbLogInteraction, getContact as dbGetContact, type InteractionType } from '@/db/queries/social';
+import { createFinancialGoal as dbCreateFinancialGoal } from '@/db/queries/finance';
 
 export type GoalStatus = 'active' | 'completed' | 'paused' | 'abandoned';
 
@@ -34,14 +37,44 @@ export type ProposedAction =
   | { kind: 'completeBlock'; summary: string; payload: { ref: string } }
   | { kind: 'skipBlock'; summary: string; payload: { ref: string } }
   | { kind: 'adjustGoalStatus'; summary: string; payload: { ref: string; status: GoalStatus } }
+  // ── Logging writes (health / social) — committed via commitActions, like the
+  // routine/goal writes above. These DO save on confirm (no navigation). ────────
+  | {
+      kind: 'logFood';
+      summary: string;
+      payload: {
+        date: string;
+        mealType: string;
+        foodName: string;
+        quantityG: number;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+      };
+    }
+  | { kind: 'logWeight'; summary: string; payload: { date: string; weightKg: number } }
+  | { kind: 'logContactInteraction'; summary: string; payload: { ref: string; type: string; notes?: string } }
+  | {
+      kind: 'setFinancialGoal';
+      summary: string;
+      payload: {
+        title: string;
+        goalType: string;
+        targetAmount?: number;
+        currency?: string;
+        targetDate?: string;
+        monthlySavings?: number;
+      };
+    }
   // ── Voice-agent navigation intents ──────────────────────────────────────────
-  // These two are proposed by the voice agent and, on confirm, are handled by the
-  // companion: it navigates to the domain screen with the collected inputs as
-  // params and lets that screen run its existing generate flow (with its own
-  // loading UI). They are NOT committed through `commitActions` — kicking off a
-  // ~20s AI generation inside the commit would block the spoken turn, and the
-  // screen already owns the loading/skeleton UX. `commitActions` rejects them so
-  // a stray commit can't silently no-op.
+  // These are proposed by the voice agent and, on confirm, are handled by the
+  // companion: it navigates to the domain screen (or rabbit-hole) with the
+  // collected inputs as params and lets that screen run its existing generate
+  // flow (with its own loading UI). They are NOT committed through
+  // `commitActions` — kicking off generation inside the commit would block the
+  // spoken turn, and the screen already owns the loading/skeleton UX.
+  // `commitActions` rejects them so a stray commit can't silently no-op.
   | { kind: 'createGoalFromVision'; summary: string; payload: { visionStatement: string } }
   | {
       kind: 'generateCareerPath';
@@ -53,7 +86,19 @@ export type ProposedAction =
         weeklyHours?: number;
         constraints?: string;
       };
-    };
+    }
+  | {
+      kind: 'exploreIdea';
+      summary: string;
+      // Single-idea Dive on `topic`; cross-discipline Bridge if `bridgeWith` set.
+      // On confirm the companion opens the Explore rabbit hole on it.
+      payload: { topic: string; bridgeWith?: string };
+    }
+  // Routine re-plans are ~20s generations that run on the Today screen (its own
+  // loading + diff UI) — nav intents, not commit writes. The companion navigates
+  // to Today with an autorun param; commitActions rejects them.
+  | { kind: 'replanToday'; summary: string; payload: Record<string, never> }
+  | { kind: 'planAhead'; summary: string; payload: Record<string, never> };
 
 export interface ActionQueue {
   propose(action: ProposedAction): void;
@@ -98,6 +143,28 @@ export interface CommitDeps {
   routineBlockExists: (id: string) => boolean;
   /** Does this goal still exist? Re-checked at commit time. */
   goalExists: (id: string) => boolean;
+  createFoodEntry: (data: {
+    date: string;
+    mealType: string;
+    foodName: string;
+    quantityG: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }) => void;
+  createHealthLog: (data: { date: string; weight: number }) => void;
+  logContactInteraction: (data: { contactId: string; type: string; notes?: string }) => void;
+  /** Does this contact still exist? Re-checked at commit time. */
+  contactExists: (id: string) => boolean;
+  createFinancialGoal: (data: {
+    title: string;
+    goalType: string;
+    targetAmount?: number;
+    currency?: string;
+    targetDate?: string;
+    monthlySavings?: number;
+  }) => void;
 }
 
 const defaultDeps: CommitDeps = {
@@ -112,6 +179,19 @@ const defaultDeps: CommitDeps = {
   },
   routineBlockExists: (id) => dbGetRoutineBlockById(id) != null,
   goalExists: (id) => dbGetGoalById(id) != null,
+  createFoodEntry: (data) => {
+    dbCreateFoodEntry(data);
+  },
+  createHealthLog: (data) => {
+    dbCreateHealthLog(data);
+  },
+  logContactInteraction: (data) => {
+    dbLogInteraction({ contactId: data.contactId, type: data.type as InteractionType, notes: data.notes });
+  },
+  contactExists: (id) => dbGetContact(id) != null,
+  createFinancialGoal: (data) => {
+    dbCreateFinancialGoal(data);
+  },
 };
 
 /** User-facing reason a confirmed action couldn't be applied to a stale ref. */
@@ -152,8 +232,28 @@ export async function commitActions(
           if (!deps.goalExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
           deps.updateGoalStatus(action.payload.ref, action.payload.status);
           break;
+        case 'logFood':
+          deps.createFoodEntry(action.payload);
+          break;
+        case 'logWeight':
+          deps.createHealthLog({ date: action.payload.date, weight: action.payload.weightKg });
+          break;
+        case 'logContactInteraction':
+          if (!deps.contactExists(action.payload.ref)) throw new Error(STALE_REF_ERROR);
+          deps.logContactInteraction({
+            contactId: action.payload.ref,
+            type: action.payload.type,
+            notes: action.payload.notes,
+          });
+          break;
+        case 'setFinancialGoal':
+          deps.createFinancialGoal(action.payload);
+          break;
         case 'createGoalFromVision':
         case 'generateCareerPath':
+        case 'exploreIdea':
+        case 'replanToday':
+        case 'planAhead':
           // Navigation intents are executed by the voice companion (navigate +
           // screen-driven generation), never here. Reaching this is a wiring bug.
           throw new Error(`${action.kind} is handled by navigation, not commitActions`);

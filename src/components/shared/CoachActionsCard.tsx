@@ -180,6 +180,13 @@ function iconForAction(kind: ProposedAction['kind']): string {
     // ProposedAction union is shared, so the switch must stay exhaustive.
     case 'createGoalFromVision': return 'sparkles-outline';
     case 'generateCareerPath': return 'briefcase-outline';
+    case 'exploreIdea': return 'compass-outline';
+    case 'logFood': return 'restaurant-outline';
+    case 'logWeight': return 'barbell-outline';
+    case 'logContactInteraction': return 'people-outline';
+    case 'setFinancialGoal': return 'cash-outline';
+    case 'replanToday': return 'refresh-outline';
+    case 'planAhead': return 'calendar-outline';
   }
 }
 
@@ -191,6 +198,13 @@ function accentForAction(kind: ProposedAction['kind'], c: AppColors): string {
     case 'adjustGoalStatus': return c.goal;
     case 'createGoalFromVision': return c.goal;
     case 'generateCareerPath': return c.career;
+    case 'exploreIdea': return c.polymath;
+    case 'logFood': return c.health;
+    case 'logWeight': return c.health;
+    case 'logContactInteraction': return c.social;
+    case 'setFinancialGoal': return c.finance;
+    case 'replanToday': return c.primary;
+    case 'planAhead': return c.primary;
   }
 }
 

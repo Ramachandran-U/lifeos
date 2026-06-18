@@ -3,14 +3,13 @@ import { Platform } from 'react-native';
 import {
   financeDb,
   getAllTransactions,
-  upsertTransactions,
   updateTransactionCategory as dbUpdateCategory,
   type TxRecord,
 } from '@/finance/db/transactionDb';
 import { isGmailConnected, clearGmailTokens } from '@/finance/gmail/oauth';
-import { syncRecentEmails } from '@/finance/gmail/fetcher';
-import { parseTransactionEmail, normalizeUpiMerchant } from '@/finance/parsers/emailParsers';
-import { categorizeBatch, categorizeByRule } from '@/finance/categorizer';
+import { syncFinanceFromGmail } from '@/finance/gmail/sync';
+import { normalizeUpiMerchant } from '@/finance/parsers/emailParsers';
+import { categorizeByRule } from '@/finance/categorizer';
 import type { TransactionCategory } from '@/ai/types';
 
 interface TransactionState {
@@ -118,47 +117,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     }
     set({ syncing: true, syncError: null, ingestedCount: 0, skippedCount: 0 });
     try {
-      const messages = await syncRecentEmails(clientId);
-
-      const parsed = messages
-        .map((m) => {
-          const tx = parseTransactionEmail(m.from, `${m.subject}\n${m.body}`);
-          if (!tx) return null;
-          return { message: m, tx };
-        })
-        .filter((x): x is { message: (typeof messages)[number]; tx: NonNullable<ReturnType<typeof parseTransactionEmail>> } => x !== null);
-
-      const skipped = messages.filter((m) => !parseTransactionEmail(m.from, `${m.subject}\n${m.body}`));
-      if (skipped.length) {
-        console.group(`[finance] ${skipped.length} email(s) failed to parse`);
-        skipped.slice(0, 3).forEach((m, i) => {
-          console.log(`--- skipped #${i + 1} ---`);
-          console.log('from:', m.from);
-          console.log('subject:', m.subject);
-          console.log('body (first 600 chars):', m.body.slice(0, 600));
-        });
-        console.groupEnd();
-      }
-
-      const categories = await categorizeBatch(
-        parsed.map(({ tx }) => ({ merchant: tx.merchant, amount: tx.amount, direction: tx.direction, channel: tx.channel })),
-        { maxAiItems: 50, batchSize: 25 },
-      );
-
-      const records: TxRecord[] = parsed.map(({ message, tx }, i) => ({
-        id: message.id,
-        date: message.date || new Date().toISOString().slice(0, 10),
-        amount: tx.amount,
-        direction: tx.direction,
-        merchant: tx.merchant,
-        category: categories[i] ?? 'other',
-        source: tx.source,
-        rawEmailId: message.id,
-        confidence: tx.confidence,
-        userCorrected: false,
-      }));
-
-      const inserted = await upsertTransactions(records);
+      // The fetch→parse→categorize→upsert pipeline lives in syncFinanceFromGmail
+      // (the single source of truth, shared with the voice agent's syncFinance
+      // tool). The store owns only the UI state around it.
+      const result = await syncFinanceFromGmail(clientId);
       const all = await getAllTransactions();
       const now = new Date().toISOString();
       writeLastSync(now);
@@ -166,10 +128,10 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
         transactions: all,
         lastSyncedAt: now,
         syncing: false,
-        ingestedCount: inserted,
-        skippedCount: messages.length - parsed.length,
+        ingestedCount: result.ingested,
+        skippedCount: result.skipped,
       });
-      return inserted;
+      return result.ingested;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Sync failed';
       set({ syncing: false, syncError: message });

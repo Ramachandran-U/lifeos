@@ -1,4 +1,5 @@
 import { format, subDays, parseISO } from 'date-fns';
+import { Platform } from 'react-native';
 import { getTransactionsInRange, type TxRecord } from '@/finance/db/transactionDb';
 import { merchantRollups } from '@/finance/analytics';
 import { normalizeMerchantForCache } from '@/finance/merchantKey';
@@ -8,6 +9,10 @@ import { calorieTargets } from '@/utils/health';
 import { buildLifeOsTools, type ToolContext } from './tools';
 import { buildNavTools } from './navTools';
 import { buildLifeOsWriteTools } from './writeTools';
+import { buildExploreTools } from './exploreTools';
+import { getAllCareerPaths } from '@/db/careerStorage';
+import { getContactsByUser, computeOverdue } from '@/db/queries/social';
+import { getFinancialGoals } from '@/db/queries/finance';
 import type { ActionQueue } from './actionQueue';
 import type { AgentTool } from './runtime';
 
@@ -278,6 +283,12 @@ function asString(v: unknown): string | null {
   return typeof v === 'string' && v.trim().length > 0 ? v.trim() : null;
 }
 
+function asNumber(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+const INTERACTION_TYPES = ['call', 'message', 'in_person', 'email', 'other'] as const;
+
 /**
  * "Add a goal" tool. Propose-only: it does NOT create anything — it pushes a
  * proposal the user confirms, after which the companion opens the Goals tab
@@ -419,6 +430,58 @@ function syncGoogleFitTool(): AgentTool {
 }
 
 /**
+ * "Sync my finances from Gmail" tool. INSTANT (idempotent, low-risk) — it pulls
+ * recent transaction emails, parses + categorizes them, and upserts into the
+ * on-device finance store, then returns a compact summary the agent narrates
+ * ("ingested 12 transactions"). Mirrors the Finance screen's Sync button via the
+ * shared `syncFinanceFromGmail` orchestrator. Web-only (the finance store is
+ * Dexie/IndexedDB) and requires Gmail to be connected.
+ */
+function syncFinanceTool(): AgentTool {
+  return {
+    declaration: {
+      name: 'syncFinance',
+      description:
+        "Sync the user's finances from Gmail now and get a summary (how many transactions were " +
+        'ingested). Use when the user asks to sync their finances/spending/bank/UPI or to refresh ' +
+        'their transactions. Runs immediately — no confirmation needed.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: async () => {
+      if (Platform.OS !== 'web') {
+        return { synced: false, error: 'Finance sync from Gmail is only available on web.' };
+      }
+      const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        return { synced: false, error: 'Google is not configured on this build.' };
+      }
+      // Lazy import so the gmail + parsers + finance-db graph only loads when the
+      // user actually syncs — keeps the tool module light to import.
+      const { isGmailConnected } = await import('@/finance/gmail/oauth');
+      if (!isGmailConnected()) {
+        return {
+          synced: false,
+          error: 'Gmail is not connected. The user can connect it on the Finance screen.',
+        };
+      }
+      try {
+        const { syncFinanceFromGmail } = await import('@/finance/gmail/sync');
+        const summary = await syncFinanceFromGmail(clientId);
+        return { synced: true, ...summary };
+      } catch (err) {
+        return {
+          synced: false,
+          error:
+            err instanceof Error
+              ? err.message
+              : 'Could not sync — the user may need to connect Gmail on the Finance screen.',
+        };
+      }
+    },
+  };
+}
+
+/**
  * Spoken-confirm commit. The user can tap a confirm card OR just say "yes/do
  * it" — in the latter case the model calls this to apply everything it has
  * proposed this turn. The actual commit (DB writes via commitActions, or
@@ -436,6 +499,339 @@ function commitPendingActionsTool(commitPending: () => Promise<{ committed: numb
       parameters: { type: 'object', properties: {} },
     },
     execute: async () => commitPending(),
+  };
+}
+
+/**
+ * Read-only "what's my career plan?" tool. Returns the user's saved career
+ * path(s) — current/target role, timeline, current skills, and the top skill
+ * gaps to close — so the agent can talk about an EXISTING plan, not just offer
+ * to generate a new one. (Career paths persist on web; native returns none.)
+ */
+function careerStateTool(): AgentTool {
+  return {
+    declaration: {
+      name: 'getCareerState',
+      description:
+        "The user's saved career path(s): current role, target role, timeline, current skills, " +
+        'and the top skill gaps to close. Use this to answer questions about their career plan, ' +
+        'what skills they need, or how their plan looks. Empty means no path yet — offer to build one.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () => {
+      const paths = getAllCareerPaths();
+      if (paths.length === 0) {
+        return {
+          hasPath: false,
+          note: "No career path saved yet — offer to build one (proposeGenerateCareerPath) or open the Career screen.",
+        };
+      }
+      const sorted = [...paths].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+      return {
+        hasPath: true,
+        count: sorted.length,
+        paths: sorted.slice(0, 3).map((p) => ({
+          name: p.name,
+          currentRole: p.currentRole,
+          targetRole: p.targetRole,
+          timelineMonths: p.timelineMonths,
+          currentSkills: p.currentSkills,
+          topGaps: [...p.analysis.gaps]
+            .sort((a, b) => a.priority - b.priority)
+            .slice(0, 5)
+            .map((g) => ({ skill: g.skill, from: g.currentLevel, to: g.requiredLevel })),
+          savedAt: p.savedAt.slice(0, 10),
+        })),
+      };
+    },
+  };
+}
+
+/**
+ * "Explore this idea" tool. Propose-only: it does NOT open anything — it pushes
+ * a proposal the user confirms, after which the companion opens the Explore
+ * rabbit hole on that idea (a single-idea Dive, or a cross-discipline Bridge
+ * when `bridgeWith` is given). Reuses the same launch path as the Explore tab.
+ */
+function proposeExploreIdeaTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeExploreIdea',
+      description:
+        'Propose opening a deep-dive exploration (a "rabbit hole") on an idea the user is curious ' +
+        'about. Does NOT open it — the user confirms first, then the Explore rabbit hole opens and ' +
+        'they can branch deeper. Pass `topic` for one idea; also pass `bridgeWith` to connect TWO ' +
+        'ideas across disciplines (e.g. topic "cooking", bridgeWith "chemistry"). Use when the user ' +
+        'wants to explore / dig into / get curious about something.',
+      parameters: {
+        type: 'object',
+        properties: {
+          topic: { type: 'string', description: 'The idea to explore, in the user\'s words, e.g. "how cities grow".' },
+          bridgeWith: { type: 'string', description: 'Optional second idea to bridge with, for a cross-discipline exploration.' },
+        },
+        required: ['topic'],
+      },
+    },
+    execute: (args) => {
+      const topic = asString(args.topic);
+      if (!topic) return { proposed: false, error: 'topic is required' };
+      const bridgeWith = asString(args.bridgeWith) ?? undefined;
+      queue.propose({
+        kind: 'exploreIdea',
+        summary: bridgeWith ? `Explore "${topic}" × "${bridgeWith}"` : `Explore "${topic}"`,
+        payload: bridgeWith ? { topic, bridgeWith } : { topic },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/**
+ * Read-only contacts list WITH a `ref` per contact (the overdue summary in
+ * buildLifeOsTools exposes names only). The agent needs the ref to log a
+ * reconnect via proposeLogContact, and `overdueByDays` lets it answer "who
+ * should I reach out to?". Social data is sensitive and stays on-device.
+ */
+function contactsTool(ctx: ToolContext): AgentTool {
+  return {
+    declaration: {
+      name: 'getContacts',
+      description:
+        "The user's contacts, each with a `ref` (use it for proposeLogContact), their relationship, " +
+        'and how overdue a reconnect is (overdueByDays > 0 means overdue). Use to find a contact ' +
+        "before logging a reconnect, or to answer who they're due to reach out to.",
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () =>
+      getContactsByUser(ctx.userId).map((cn) => ({
+        ref: cn.id,
+        name: cn.name,
+        relationship: cn.relationshipType,
+        overdueByDays: computeOverdue(cn).overdueBy,
+      })),
+  };
+}
+
+/**
+ * "Log what I ate" tool. Propose-only: pushes a logFood proposal the user
+ * confirms, after which it is SAVED to today's food log (commitActions →
+ * createFoodEntry). One call per food item; the agent supplies the nutrition
+ * estimate (it is the food-logging engine here).
+ */
+function proposeLogFoodTool(queue: ActionQueue, today: string): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeLogFood',
+      description:
+        'Propose logging ONE food or drink item the user said they ate. Does NOT log it — the user ' +
+        'confirms first, then it is saved. Provide your best estimate of grams + calories + macros ' +
+        '(protein/carbs/fat), like a food logger. For a meal with several items, call this once per ' +
+        'item. mealType is breakfast | lunch | dinner | snack (default snack).',
+      parameters: {
+        type: 'object',
+        properties: {
+          foodName: { type: 'string', description: 'The food/drink, e.g. "2 boiled eggs".' },
+          quantityG: { type: 'number', description: 'Approx quantity in grams.' },
+          calories: { type: 'number', description: 'Estimated calories (kcal).' },
+          protein: { type: 'number', description: 'Estimated protein (g).' },
+          carbs: { type: 'number', description: 'Estimated carbs (g).' },
+          fat: { type: 'number', description: 'Estimated fat (g).' },
+          mealType: { type: 'string', description: 'breakfast | lunch | dinner | snack. Default snack.' },
+          date: { type: 'string', description: 'yyyy-MM-dd. Defaults to today.' },
+        },
+        required: ['foodName', 'quantityG', 'calories', 'protein', 'carbs', 'fat'],
+      },
+    },
+    execute: (args) => {
+      const foodName = asString(args.foodName);
+      const quantityG = asNumber(args.quantityG);
+      const calories = asNumber(args.calories);
+      const protein = asNumber(args.protein);
+      const carbs = asNumber(args.carbs);
+      const fat = asNumber(args.fat);
+      if (!foodName || quantityG == null || calories == null || protein == null || carbs == null || fat == null) {
+        return { proposed: false, error: 'foodName + numeric quantityG, calories, protein, carbs, fat are required' };
+      }
+      const mealType = asString(args.mealType) ?? 'snack';
+      const date = asString(args.date) ?? today;
+      queue.propose({
+        kind: 'logFood',
+        summary: `Log ${foodName} (~${Math.round(calories)} kcal)`,
+        payload: { date, mealType, foodName, quantityG, calories, protein, carbs, fat },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/** "Log my weight" tool. Propose-only → saved on confirm (createHealthLog). */
+function proposeLogWeightTool(queue: ActionQueue, today: string): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeLogWeight',
+      description:
+        "Propose logging the user's body weight in kilograms. Does NOT log it — the user confirms " +
+        'first, then it is saved to their health log.',
+      parameters: {
+        type: 'object',
+        properties: {
+          weightKg: { type: 'number', description: 'Body weight in kg, e.g. 70.5.' },
+          date: { type: 'string', description: 'yyyy-MM-dd. Defaults to today.' },
+        },
+        required: ['weightKg'],
+      },
+    },
+    execute: (args) => {
+      const weightKg = asNumber(args.weightKg);
+      if (weightKg == null || weightKg <= 0) return { proposed: false, error: 'a positive weightKg is required' };
+      const date = asString(args.date) ?? today;
+      queue.propose({ kind: 'logWeight', summary: `Log weight ${weightKg} kg`, payload: { date, weightKg } });
+      return { proposed: true };
+    },
+  };
+}
+
+/**
+ * "Log that I reached out" tool. Propose-only → on confirm logs the interaction
+ * AND marks the contact recently-contacted (commitActions → logInteraction).
+ * `ref` comes from getContacts.
+ */
+function proposeLogContactTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeLogContact',
+      description:
+        'Propose logging that the user reached out to a contact (this also marks them recently ' +
+        'contacted, clearing an overdue nudge). Does NOT log it — the user confirms first. `ref` is ' +
+        'the contact ref from getContacts. type is call | message | in_person | email | other.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ref: { type: 'string', description: 'Contact ref from getContacts.' },
+          type: { type: 'string', description: 'call | message | in_person | email | other. Default other.' },
+          notes: { type: 'string', description: 'Optional short note about the interaction.' },
+        },
+        required: ['ref'],
+      },
+    },
+    execute: (args) => {
+      const ref = asString(args.ref);
+      if (!ref) return { proposed: false, error: 'ref is required' };
+      const requested = asString(args.type);
+      const type = (INTERACTION_TYPES as readonly string[]).includes(requested ?? '') ? (requested as string) : 'other';
+      const notes = asString(args.notes) ?? undefined;
+      queue.propose({
+        kind: 'logContactInteraction',
+        summary: `Log a ${type} with a contact`,
+        payload: notes ? { ref, type, notes } : { ref, type },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/** Read-only "what are my money goals?" tool — the user's active financial goals. */
+function financialGoalsTool(): AgentTool {
+  return {
+    declaration: {
+      name: 'getFinancialGoals',
+      description:
+        "The user's active financial goals: title, type, target amount + currency, target date, and " +
+        'planned monthly savings. Use this to discuss money goals or before setting a new one. Empty ⇒ none yet.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () =>
+      (getFinancialGoals() as Array<{
+        title: string;
+        goalType: string;
+        targetAmount?: number | null;
+        currency?: string | null;
+        targetDate?: string | null;
+        monthlySavings?: number | null;
+      }>).map((g) => ({
+        title: g.title,
+        goalType: g.goalType,
+        targetAmount: g.targetAmount ?? null,
+        currency: g.currency ?? null,
+        targetDate: g.targetDate ?? null,
+        monthlySavings: g.monthlySavings ?? null,
+      })),
+  };
+}
+
+/** "Set a financial goal" tool. Propose-only → saved on confirm (createFinancialGoal). */
+function proposeSetFinancialGoalTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeSetFinancialGoal',
+      description:
+        'Propose creating a financial goal (emergency fund, house down payment, paying off debt, …). ' +
+        'Does NOT create it — the user confirms first, then it is saved. goalType is a short slug like ' +
+        '"emergency_fund" | "savings" | "home" | "debt" | "retirement". Ask for a target amount, and ' +
+        '(optionally) a target date and monthly savings, if the user did not give them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short name, e.g. "6-month emergency fund".' },
+          goalType: { type: 'string', description: 'Slug: emergency_fund | savings | home | debt | retirement | other.' },
+          targetAmount: { type: 'number', description: 'Target amount (in the user\'s currency).' },
+          currency: { type: 'string', description: 'ISO currency, e.g. "INR" or "USD". Default USD.' },
+          targetDate: { type: 'string', description: 'yyyy-MM-dd target date (optional).' },
+          monthlySavings: { type: 'number', description: 'Planned monthly contribution (optional).' },
+        },
+        required: ['title', 'goalType'],
+      },
+    },
+    execute: (args) => {
+      const title = asString(args.title);
+      const goalType = asString(args.goalType);
+      if (!title || !goalType) return { proposed: false, error: 'title and goalType are required' };
+      const targetAmount = asNumber(args.targetAmount) ?? undefined;
+      const currency = asString(args.currency) ?? undefined;
+      const targetDate = asString(args.targetDate) ?? undefined;
+      const monthlySavings = asNumber(args.monthlySavings) ?? undefined;
+      queue.propose({
+        kind: 'setFinancialGoal',
+        summary: `Set a financial goal: ${title}`,
+        payload: { title, goalType, targetAmount, currency, targetDate, monthlySavings },
+      });
+      return { proposed: true };
+    },
+  };
+}
+
+/** "Re-plan today" tool. Propose-only → on confirm the Today screen re-plans the rest of the day. */
+function replanTodayTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposeReplanToday',
+      description:
+        "Propose re-planning the REST of today's routine (e.g. after the user skipped things or their " +
+        'day changed). Does NOT replan — the user confirms, then the Today screen rebuilds the rest of ' +
+        'the day with its own loading. Use for "redo / rebalance / replan today".',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () => {
+      queue.propose({ kind: 'replanToday', summary: 'Re-plan the rest of today', payload: {} });
+      return { proposed: true };
+    },
+  };
+}
+
+/** "Plan the days ahead" tool. Propose-only → on confirm the Today screen builds the next several days. */
+function planAheadTool(queue: ActionQueue): AgentTool {
+  return {
+    declaration: {
+      name: 'proposePlanAhead',
+      description:
+        'Propose generating the plan for the days ahead (the next several days). Does NOT generate it — ' +
+        'the user confirms, then the Today screen builds it. Use for "plan my week / plan ahead / plan tomorrow".',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: () => {
+      queue.propose({ kind: 'planAhead', summary: 'Plan the days ahead', payload: {} });
+      return { proposed: true };
+    },
   };
 }
 
@@ -471,18 +867,38 @@ export function buildVoiceTools(
   agent?: VoiceAgentDeps,
   opts?: VoiceToolOptions,
 ): AgentTool[] {
-  const base = [...buildLifeOsTools(ctx), recentSpendingTool(ctx), todayNutritionTool(ctx)];
+  const base = [
+    ...buildLifeOsTools(ctx),
+    recentSpendingTool(ctx),
+    todayNutritionTool(ctx),
+    // Explore (curiosity) + career are now grounded too: interests / sparks /
+    // expeditions and the saved career path(s) — read-only, always on. Contacts
+    // (with refs) ground "who should I reach out to?" + enable logging below.
+    ...buildExploreTools({ userId: ctx.userId }),
+    careerStateTool(),
+    contactsTool(ctx),
+    financialGoalsTool(),
+  ];
   // Read-only + flag-gated: available even when the agentic tools are off, so a
   // user can ask "how much did I send to X?" without the full act-capable mode.
   if (opts?.financePayeeQuery) base.push(moneyWithPayeeTool(ctx));
   if (!agent) return base;
+  const today = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
   return [
     ...base,
     ...buildNavTools(ctx),
     ...buildLifeOsWriteTools({ today: ctx.today }, agent.queue),
     proposeCreateGoalTool(agent.queue),
     proposeCareerPathTool(agent.queue),
+    proposeExploreIdeaTool(agent.queue),
+    proposeLogFoodTool(agent.queue, today),
+    proposeLogWeightTool(agent.queue, today),
+    proposeLogContactTool(agent.queue),
+    proposeSetFinancialGoalTool(agent.queue),
+    replanTodayTool(agent.queue),
+    planAheadTool(agent.queue),
     syncGoogleFitTool(),
+    syncFinanceTool(),
     commitPendingActionsTool(agent.commitPending),
   ];
 }

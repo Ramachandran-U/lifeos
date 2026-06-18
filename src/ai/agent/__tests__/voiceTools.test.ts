@@ -18,9 +18,21 @@ jest.mock('@/db/queries/health', () => ({
   getFoodEntriesByDate: jest.fn(() => []),
 }));
 
+// syncFinance lazy-imports the gmail oauth check + the shared orchestrator. Mock
+// both so the tool's guard + happy path are exercised without a real Gmail /
+// network round-trip. (`mock`-prefixed so jest's hoist guard allows the closure.)
+let mockGmailConnected = true;
+jest.mock('@/finance/gmail/oauth', () => ({
+  isGmailConnected: () => mockGmailConnected,
+}));
+jest.mock('@/finance/gmail/sync', () => ({
+  syncFinanceFromGmail: jest.fn(async () => ({ total: 3, parsed: 2, skipped: 1, ingested: 2 })),
+}));
+
+import { Platform } from 'react-native';
 import { financeDb, upsertTransactions, type TxRecord } from '@/finance/db/transactionDb';
 import { buildVoiceTools, type VoiceAgentDeps } from '@/ai/agent/voiceTools';
-import { createActionQueue, type ProposedAction } from '@/ai/agent/actionQueue';
+import { createActionQueue, commitActions, type ProposedAction, type CommitDeps } from '@/ai/agent/actionQueue';
 import { getUser } from '@/db/queries/users';
 import { getRecentWeightLogs, getFoodEntriesByDate } from '@/db/queries/health';
 
@@ -71,7 +83,15 @@ describe('buildVoiceTools', () => {
     const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
     expect(names).not.toContain('navigateTo');
     expect(names).not.toContain('proposeCreateGoal');
+    expect(names).not.toContain('proposeExploreIdea');
     expect(names).not.toContain('syncGoogleFit');
+  });
+
+  it('grounds explore, career, contacts and money goals too — read-only', () => {
+    const names = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
+    expect(names).toEqual(
+      expect.arrayContaining(['getMyInterests', 'getMyExpeditions', 'getCareerState', 'getContacts', 'getFinancialGoals']),
+    );
   });
 
   it('gates getMoneyWithPayee behind the financePayeeQuery option', () => {
@@ -81,6 +101,15 @@ describe('buildVoiceTools', () => {
       financePayeeQuery: true,
     }).map((t) => t.declaration.name);
     expect(on).toContain('getMoneyWithPayee');
+  });
+
+  it('getCareerState reports no path when none is saved', () => {
+    const tool = buildVoiceTools({ userId: 'u1', today: TODAY }).find(
+      (t) => t.declaration.name === 'getCareerState',
+    )!;
+    const res = tool.execute({}) as { hasPath: boolean; note?: string };
+    expect(res.hasPath).toBe(false);
+    expect(res.note).toMatch(/build one|Career/i);
   });
 });
 
@@ -112,10 +141,160 @@ describe('buildVoiceTools (agentic)', () => {
         'proposeCreateRoutineBlock', // from buildLifeOsWriteTools
         'proposeCreateGoal',
         'proposeGenerateCareerPath',
+        'proposeExploreIdea',
+        'proposeLogFood',
+        'proposeLogWeight',
+        'proposeLogContact',
+        'proposeSetFinancialGoal',
+        'proposeReplanToday',
+        'proposePlanAhead',
         'syncGoogleFit',
+        'syncFinance',
         'commitProposedActions',
       ]),
     );
+  });
+
+  it('syncFinance is web+config+connection guarded and returns an instant summary on success', async () => {
+    const prevEnv = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    const prevOS = Platform.OS;
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = 'client-123';
+    Platform.OS = 'web'; // finance sync is web-only (Dexie store)
+    try {
+      const res = await tool('syncFinance').execute({});
+      // Gmail mocked as connected; orchestrator mocked → pass-through summary.
+      expect(res).toEqual({ synced: true, total: 3, parsed: 2, skipped: 1, ingested: 2 });
+    } finally {
+      Platform.OS = prevOS;
+      if (prevEnv === undefined) delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      else process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = prevEnv;
+    }
+  });
+
+  it('syncFinance reports a friendly error when Gmail is not connected', async () => {
+    const prevEnv = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+    const prevOS = Platform.OS;
+    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = 'client-123';
+    Platform.OS = 'web';
+    mockGmailConnected = false;
+    try {
+      const res = await tool('syncFinance').execute({});
+      expect(res).toMatchObject({ synced: false });
+      expect((res as { error: string }).error).toMatch(/Finance screen/);
+    } finally {
+      mockGmailConnected = true;
+      Platform.OS = prevOS;
+      if (prevEnv === undefined) delete process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+      else process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = prevEnv;
+    }
+  });
+
+  it('proposeSetFinancialGoal / proposeReplanToday / proposePlanAhead stage their actions', () => {
+    const { tools, queue } = agenticTools();
+    const find = (n: string) => tools.find((t) => t.declaration.name === n)!;
+    expect(find('proposeSetFinancialGoal').execute({ title: 'Emergency fund', goalType: 'emergency_fund', targetAmount: 500000 })).toEqual({ proposed: true });
+    find('proposeReplanToday').execute({});
+    find('proposePlanAhead').execute({});
+    expect(queue.list().map((a) => a.kind)).toEqual(
+      expect.arrayContaining(['setFinancialGoal', 'replanToday', 'planAhead']),
+    );
+    // title + goalType are required for a financial goal.
+    expect(find('proposeSetFinancialGoal').execute({ goalType: 'savings' })).toMatchObject({ proposed: false });
+  });
+
+  it('proposeLogFood / proposeLogWeight / proposeLogContact stage logging actions', () => {
+    const { tools, queue } = agenticTools();
+    const find = (n: string) => tools.find((t) => t.declaration.name === n)!;
+    expect(find('proposeLogFood').execute({ foodName: '2 eggs', quantityG: 100, calories: 150, protein: 12, carbs: 1, fat: 10 })).toEqual({ proposed: true });
+    expect(find('proposeLogWeight').execute({ weightKg: 70.5 })).toEqual({ proposed: true });
+    expect(find('proposeLogContact').execute({ ref: 'c1', type: 'call' })).toEqual({ proposed: true });
+    expect(queue.list().map((a) => a.kind)).toEqual(
+      expect.arrayContaining(['logFood', 'logWeight', 'logContactInteraction']),
+    );
+    // logFood needs all macros — a missing one is rejected (drives the model to estimate it).
+    const bad = find('proposeLogFood').execute({ foodName: 'x', quantityG: 100, calories: 150, protein: 12, carbs: 1 }) as { proposed: boolean };
+    expect(bad.proposed).toBe(false);
+    // proposeLogContact defaults an unknown type to "other".
+    find('proposeLogContact').execute({ ref: 'c2', type: 'telepathy' });
+    const c2 = queue.list().find(
+      (a) => a.kind === 'logContactInteraction' && (a.payload as { ref: string }).ref === 'c2',
+    );
+    expect(c2 && (c2.payload as { type: string }).type).toBe('other');
+  });
+
+  it('proposeExploreIdea stages an exploreIdea action — single idea and bridge', () => {
+    const { tools, queue } = agenticTools();
+    const explore = tools.find((t) => t.declaration.name === 'proposeExploreIdea')!;
+    expect(explore.execute({ topic: 'how cities grow' })).toEqual({ proposed: true });
+    expect(queue.list()[0]).toMatchObject({ kind: 'exploreIdea', payload: { topic: 'how cities grow' } });
+    explore.execute({ topic: 'cooking', bridgeWith: 'chemistry' });
+    expect(queue.list()[1]).toMatchObject({
+      kind: 'exploreIdea',
+      payload: { topic: 'cooking', bridgeWith: 'chemistry' },
+    });
+  });
+
+  it('commitActions refuses exploreIdea — it is a navigation intent, not a DB write', async () => {
+    const [res] = await commitActions([
+      { kind: 'exploreIdea', summary: 'Explore space', payload: { topic: 'space' } },
+    ]);
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/navigation/i);
+  });
+
+  describe('logging writes commit to the right DB path', () => {
+    function stubDeps() {
+      const calls = { food: [] as unknown[], weight: [] as unknown[], contact: [] as unknown[], finance: [] as unknown[] };
+      const deps: CommitDeps = {
+        createRoutineBlock: () => {},
+        updateRoutineBlockStatus: () => {},
+        updateGoalStatus: () => {},
+        routineBlockExists: () => true,
+        goalExists: () => true,
+        createFoodEntry: (d) => { calls.food.push(d); },
+        createHealthLog: (d) => { calls.weight.push(d); },
+        logContactInteraction: (d) => { calls.contact.push(d); },
+        contactExists: (id) => id !== 'gone',
+        createFinancialGoal: (d) => { calls.finance.push(d); },
+      };
+      return { deps, calls };
+    }
+
+    it('logFood → createFoodEntry; logWeight → createHealthLog({weight})', async () => {
+      const { deps, calls } = stubDeps();
+      const r1 = (await commitActions([{ kind: 'logFood', summary: 'x', payload: { date: '2026-06-18', mealType: 'lunch', foodName: 'eggs', quantityG: 100, calories: 150, protein: 12, carbs: 1, fat: 10 } }], deps))[0];
+      expect(r1.ok).toBe(true);
+      expect(calls.food).toHaveLength(1);
+      const r2 = (await commitActions([{ kind: 'logWeight', summary: 'x', payload: { date: '2026-06-18', weightKg: 70 } }], deps))[0];
+      expect(r2.ok).toBe(true);
+      expect(calls.weight[0]).toEqual({ date: '2026-06-18', weight: 70 });
+    });
+
+    it('logContactInteraction commits for a live ref, fails on a stale one', async () => {
+      const { deps, calls } = stubDeps();
+      const ok = (await commitActions([{ kind: 'logContactInteraction', summary: 'x', payload: { ref: 'c1', type: 'call' } }], deps))[0];
+      expect(ok.ok).toBe(true);
+      expect(calls.contact[0]).toMatchObject({ contactId: 'c1', type: 'call' });
+      const stale = (await commitActions([{ kind: 'logContactInteraction', summary: 'x', payload: { ref: 'gone', type: 'call' } }], deps))[0];
+      expect(stale.ok).toBe(false);
+      expect(stale.error).toMatch(/no longer exists/i);
+    });
+
+    it('setFinancialGoal → createFinancialGoal', async () => {
+      const { deps, calls } = stubDeps();
+      const r = (await commitActions([{ kind: 'setFinancialGoal', summary: 'x', payload: { title: 'Emergency fund', goalType: 'emergency_fund', targetAmount: 500000 } }], deps))[0];
+      expect(r.ok).toBe(true);
+      expect(calls.finance[0]).toMatchObject({ title: 'Emergency fund', goalType: 'emergency_fund' });
+    });
+
+    it('replanToday / planAhead are navigation intents — commitActions refuses them', async () => {
+      const { deps } = stubDeps();
+      for (const kind of ['replanToday', 'planAhead'] as const) {
+        const [res] = await commitActions([{ kind, summary: 'x', payload: {} }], deps);
+        expect(res.ok).toBe(false);
+        expect(res.error).toMatch(/navigation/i);
+      }
+    });
   });
 
   it('proposeCreateGoal stages a createGoalFromVision action (no immediate write)', () => {

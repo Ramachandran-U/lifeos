@@ -10,20 +10,34 @@ function makeDeps(): CommitDeps & {
   created: unknown[];
   statuses: Array<[string, string]>;
   goals: Array<[string, string]>;
+  foods: unknown[];
+  weights: unknown[];
+  interactions: unknown[];
 } {
   const created: unknown[] = [];
   const statuses: Array<[string, string]> = [];
   const goals: Array<[string, string]> = [];
+  const foods: unknown[] = [];
+  const weights: unknown[] = [];
+  const interactions: unknown[] = [];
   return {
     created,
     statuses,
     goals,
+    foods,
+    weights,
+    interactions,
     createRoutineBlock: (d) => created.push(d),
     updateRoutineBlockStatus: (id, status) => statuses.push([id, status]),
     updateGoalStatus: (id, status) => goals.push([id, status]),
+    createFoodEntry: (d) => foods.push(d),
+    createHealthLog: (d) => weights.push(d),
+    logContactInteraction: (d) => interactions.push(d),
     // Default: refs are valid. Stale-ref tests override these.
     routineBlockExists: () => true,
     goalExists: () => true,
+    contactExists: () => true,
+    createFinancialGoal: () => {},
   };
 }
 

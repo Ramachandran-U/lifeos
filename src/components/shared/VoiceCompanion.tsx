@@ -25,6 +25,7 @@ import { useVoice } from '@/hooks/useVoice';
 import { callAIStream } from '@/ai/client';
 import { buildVoiceTools } from '@/ai/agent/voiceTools';
 import { commitActions, type ActionQueue, type ProposedAction } from '@/ai/agent/actionQueue';
+import { buildFreeDiveParams, buildBridgeParams, slugForPhrase } from '@/explore/exploreLaunch';
 import type { ToolContext, AppScreen } from '@/ai/agent/tools';
 import { buildVoiceSystemInstruction } from '@/ai/prompts/voiceAgent';
 import { useVoiceStore } from '@/store/useVoiceStore';
@@ -218,11 +219,29 @@ export function VoiceCompanion() {
           navigate('career', params);
           break;
         }
+        case 'exploreIdea': {
+          // Open the Explore rabbit hole on the idea — a single-idea Dive, or a
+          // cross-discipline Bridge when bridgeWith is set. Reuses the exact
+          // launch params the Explore tab uses (rabbit-hole is a standalone
+          // route, so push it directly rather than via the tab `navigate`).
+          const { topic, bridgeWith } = action.payload;
+          const params = bridgeWith
+            ? buildBridgeParams({ id: slugForPhrase(topic), name: topic }, { id: slugForPhrase(bridgeWith), name: bridgeWith })
+            : buildFreeDiveParams(topic);
+          router.push({ pathname: '/rabbit-hole', params });
+          break;
+        }
+        case 'replanToday':
+          navigate('today', { autorun: 'replan' });
+          break;
+        case 'planAhead':
+          navigate('today', { autorun: 'planWeek' });
+          break;
         default:
           await commitActions([action]);
       }
     },
-    [navigate],
+    [navigate, router],
   );
 
   // Spoken-yes path: apply everything proposed, then collapse so the user sees
@@ -250,7 +269,14 @@ export function VoiceCompanion() {
       removePendingAction(index);
       tapHaptic('success');
       await executeAction(action);
-      if (action.kind === 'createGoalFromVision' || action.kind === 'generateCareerPath') minimize();
+      if (
+        action.kind === 'createGoalFromVision' ||
+        action.kind === 'generateCareerPath' ||
+        action.kind === 'exploreIdea' ||
+        action.kind === 'replanToday' ||
+        action.kind === 'planAhead'
+      )
+        minimize();
     },
     [executeAction, removePendingAction, minimize],
   );
