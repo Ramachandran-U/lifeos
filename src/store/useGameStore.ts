@@ -17,7 +17,7 @@ import {
   bumpDomainScore,
   STREAK_META,
 } from '@/utils/gamification';
-import { useRewardQueueStore } from './useRewardQueueStore';
+import { useRewardQueueStore, enqueueXPReward } from './useRewardQueueStore';
 import {
   advanceStreak,
   restoreFromLoss,
@@ -420,6 +420,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastKnownLevel: newLevel,
       pendingLevelUp: newLevel > lastKnownLevel ? newLevel : get().pendingLevelUp,
     });
+
+    // +XP micro-celebration (PARKED §15.1): small actions — food/weight logs,
+    // explore saves, finance, expeditions — credit XP via addXP→grantXP but had
+    // NO visible feedback (the +XP rose silently because they earn no badge).
+    // Surface the flyaway chip here, the single XP-credit path. Quests and chests
+    // already enqueue their own (domain-hued) chip at the call site, so skip
+    // those two to avoid a double chip. enqueueXPReward no-ops on amount ≤ 0.
+    if (input.source !== 'quest' && input.source !== 'chest') {
+      enqueueXPReward(input.amount);
+    }
   },
 
   triggerStreak: (userId, streakType) => {

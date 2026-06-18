@@ -11,6 +11,7 @@
  * test exercises pure store logic, and reset the store via setState before each.
  */
 import { useGameStore } from '../useGameStore';
+import { useRewardQueueStore } from '../useRewardQueueStore';
 import { XP_VALUES, GOAL_LEVEL_BUMP, type Streaks } from '@/utils/gamification';
 import { format, subDays } from 'date-fns';
 
@@ -231,5 +232,29 @@ describe('addXP', () => {
     useGameStore.setState({ totalXP: 0, weeklyXP: 0, lastKnownLevel: 1, pendingLevelUp: null });
     useGameStore.getState().addXP('u1', 10);
     expect(useGameStore.getState().pendingLevelUp).toBeNull();
+  });
+});
+
+describe('+XP micro-celebration (15.1)', () => {
+  beforeEach(() => useRewardQueueStore.setState({ active: null, queue: [] }));
+
+  it('addXP enqueues a flyaway +XP chip (small actions are no longer silent)', () => {
+    useGameStore.getState().addXP('u1', XP_VALUES.logFood);
+    expect(useRewardQueueStore.getState().active).toMatchObject({
+      type: 'xp',
+      amount: XP_VALUES.logFood,
+    });
+  });
+
+  it('does NOT enqueue for quest/chest grants — they fire their own chip at the call site', () => {
+    useGameStore.getState().grantXP('u1', { amount: 40, source: 'quest', domain: 'health' });
+    expect(useRewardQueueStore.getState().active).toBeNull();
+    useGameStore.getState().grantXP('u1', { amount: 25, source: 'chest' });
+    expect(useRewardQueueStore.getState().active).toBeNull();
+  });
+
+  it('a generic grant (non quest/chest) still celebrates', () => {
+    useGameStore.getState().grantXP('u1', { amount: 15, source: 'food' });
+    expect(useRewardQueueStore.getState().active).toMatchObject({ type: 'xp', amount: 15 });
   });
 });
