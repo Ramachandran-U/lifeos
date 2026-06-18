@@ -45,6 +45,7 @@ import { useAI } from '@/hooks/useAI';
 import { generateConversationStarters } from '@/ai/functions';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
+import { useFlagStore } from '@/store/useFlagStore';
 import { tickQuestMetric } from '@/store/useQuestStore';
 import type { ConversationStarters } from '@/ai/types';
 
@@ -60,6 +61,12 @@ export default function ContactDetailScreen() {
   const userId = useUserStore((s) => s.userId);
   const triggerStreak = useGameStore((s) => s.triggerStreak);
   const awardBadge = useGameStore((s) => s.awardBadge);
+  // Personalised openers send a scoped projection of THIS contact to the AI —
+  // off by default (privacy-posture change), flipped per cohort via the Worker.
+  // The env override mirrors the voice flags so dev/QA can exercise it locally.
+  const scopedOpenerFlag = useFlagStore((s) => s.isEnabled('social_opener_scoped'));
+  const scopedOpeners =
+    scopedOpenerFlag || process.env.EXPO_PUBLIC_FLAG_SOCIAL_OPENER_SCOPED === 'true';
 
   const [contact, setContact] = useState<Contact | undefined>(undefined);
   const [interactions, setInteractions] = useState<ContactInteraction[]>([]);
@@ -116,10 +123,20 @@ export default function ContactDetailScreen() {
 
   const handleGetStarters = async () => {
     if (!overdue) return;
+    // Scoped mode adds the contact's FIRST NAME + the type of the most recent
+    // interaction (interactions are newest-first) — nothing else. Off → the
+    // existing generic-by-tier opener, no contact specifics leave the device.
+    const scoped = scopedOpeners
+      ? {
+          firstName: contact.name.split(' ')[0],
+          lastInteractionType: interactions[0]?.type,
+        }
+      : {};
     const result = await call(() =>
       generateConversationStarters({
         relationshipType: contact.relationshipType as RelationshipType,
         daysSinceContact: overdue.daysSinceContact ?? 0,
+        ...scoped,
       }),
     );
     if (result) setStarters(result);
