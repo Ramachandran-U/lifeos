@@ -1,6 +1,5 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
 import { useColors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fonts, fontSizes } from '@/theme/typography';
@@ -9,8 +8,16 @@ import { DomainGlyph, type DomainKey } from '@/components/ui/DomainGlyph';
 import { MOTION_BUDGET, SPRING, useStaggerDelay } from '@/theme/motion';
 import { useSheetLifecycle } from '@/hooks/useSheetLifecycle';
 
+export type HubRoute =
+  | '/(tabs)/goals'
+  | '/(tabs)/health'
+  | '/(tabs)/finance'
+  | '/(tabs)/career'
+  | '/(tabs)/social'
+  | '/(tabs)/explore';
+
 type Hub = {
-  route: '/(tabs)/goals' | '/(tabs)/health' | '/(tabs)/finance' | '/(tabs)/career' | '/(tabs)/social' | '/(tabs)/explore';
+  route: HubRoute;
   label: string;
   colorKey: DomainKey;
   caption: string;
@@ -29,20 +36,25 @@ const HUBS: Hub[] = [
 
 interface LifeHubSheetProps {
   visible: boolean;
+  /** Dismissed without choosing a module (scrim / back / ✕). */
   onClose: () => void;
+  /** Chose a module — the parent navigates and suppresses the dismiss bounce. */
+  onPick: (route: HubRoute) => void;
 }
 
-export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
+export function LifeHubSheet({ visible, onClose, onPick }: LifeHubSheetProps) {
   const c = useColors();
-  const router = useRouter();
   // 50 ms step matches the MOTION scene-06 chart for inner grid cascade.
   const stagger = useStaggerDelay();
   // M0.4: keeps the Modal mounted through the exit animations — see the hook.
   const sheet = useSheetLifecycle(visible, onClose);
 
-  const handlePick = (route: Hub['route']) => {
-    sheet.requestClose();
-    router.push(route);
+  // Picking a module is NOT a dismiss: delegate to the parent (which navigates
+  // and flips `visible` false). Calling sheet.requestClose() here would fire
+  // onClose — the dismiss path that bounces back to Today — racing the push and
+  // landing the user on Today instead of the domain (the redirect bug).
+  const handlePick = (route: HubRoute) => {
+    onPick(route);
   };
 
   return (
@@ -53,7 +65,11 @@ export function LifeHubSheet({ visible, onClose }: LifeHubSheetProps) {
         exiting={FadeOut.duration(MOTION_BUDGET.scrimExit).delay(80)}
         style={StyleSheet.absoluteFill}
       >
-        <Pressable style={[styles.overlay, { backgroundColor: c.overlay }]} onPress={sheet.requestClose} />
+        <Pressable
+          testID="life-hub-scrim"
+          style={[styles.overlay, { backgroundColor: c.overlay }]}
+          onPress={sheet.requestClose}
+        />
       </Animated.View>
       )}
       {!sheet.closing && (
