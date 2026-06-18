@@ -1,7 +1,8 @@
 import { format, subDays, parseISO } from 'date-fns';
 import { Platform } from 'react-native';
-import { getTransactionsInRange } from '@/finance/db/transactionDb';
+import { getTransactionsInRange, type TxRecord } from '@/finance/db/transactionDb';
 import { merchantRollups } from '@/finance/analytics';
+import { normalizeMerchantForCache } from '@/finance/merchantKey';
 import { getUser } from '@/db/queries/users';
 import { getRecentWeightLogs, getFoodEntriesByDate } from '@/db/queries/health';
 import { calorieTargets } from '@/utils/health';
@@ -95,6 +96,118 @@ function recentSpendingTool(ctx: ToolContext): AgentTool {
         totalSpentRupees: toRupees(total),
         byCategory,
         topMerchants,
+      };
+    },
+  };
+}
+
+/**
+ * A read-only "how much have I sent to / received from <person or business>?"
+ * tool. Sums the user's transactions whose payee/merchant matches a name, over a
+ * recent window, split into money SENT (debits) and RECEIVED (credits) — so it
+ * answers both "how much did I send Anjali?" and "how much has my landlord taken
+ * this year?". Names match against the same normalized merchant key the finance
+ * store dedupes on, so "ANJALI HARI" across many UPI payments collapses to one
+ * payee. Amounts are INR rupees.
+ *
+ * Flag-gated (`voice_finance_payee`) so it can be rolled out to a cohort/region
+ * and validated before GA. Finance data is sensitive and never leaves the
+ * device — this runs locally beside the data.
+ */
+function moneyWithPayeeTool(ctx: ToolContext): AgentTool {
+  return {
+    declaration: {
+      name: 'getMoneyWithPayee',
+      description:
+        'How much money the user has SENT TO or RECEIVED FROM a specific person or business ' +
+        '(payee) over a time window, from their linked bank/UPI accounts. Returns money sent ' +
+        '(debits) and received (credits) separately, the net, and the number of payments — in ' +
+        'INR rupees. Use for "how much have I sent to <name>?", "how much did I pay <business>?", ' +
+        'or "how much has <name> sent me?". IMPORTANT: if the user has not said over WHAT PERIOD, ' +
+        'ASK them first (this month, the last 30 days, or a specific range) — do not assume one. ' +
+        'If several different payees match the name, tell the user and ask which they mean.',
+      parameters: {
+        type: 'object',
+        properties: {
+          payeeQuery: {
+            type: 'string',
+            description: "The person or business name to look up, e.g. 'Anjali' or 'Swiggy'.",
+          },
+          days: {
+            type: 'number',
+            description:
+              `How many days back to cover — map the user's period to days ("this month" ≈ days ` +
+              `since the 1st, "last 30 days" = 30, "this year" ≈ 365). Default ${DEFAULT_WINDOW_DAYS}.`,
+          },
+        },
+        required: ['payeeQuery'],
+      },
+    },
+    execute: async (args) => {
+      const payeeQuery = asString(args.payeeQuery);
+      if (!payeeQuery) return { found: false, error: 'payeeQuery is required' };
+      const normalizedQuery = normalizeMerchantForCache(payeeQuery);
+      if (!normalizedQuery) return { found: false, error: 'payeeQuery did not contain a usable name' };
+
+      const requested =
+        typeof args.days === 'number' && args.days > 0 ? args.days : DEFAULT_WINDOW_DAYS;
+      const days = Math.min(requested, MAX_WINDOW_DAYS);
+      const end = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
+      const start = format(subDays(parseISO(end), days - 1), 'yyyy-MM-dd');
+
+      const txns = await getTransactionsInRange(start, end);
+      // Bidirectional substring match on the normalized key so a short query
+      // ("anjali") matches a fuller merchant label ("anjali hari") and vice versa.
+      const matched = txns.filter((t) => {
+        const m = normalizeMerchantForCache(t.merchant);
+        return m.length > 0 && (m.includes(normalizedQuery) || normalizedQuery.includes(m));
+      });
+
+      if (matched.length === 0) {
+        return {
+          currency: 'INR',
+          windowDays: days,
+          payeeQuery,
+          found: false,
+          note:
+            `No payments to or from anyone matching "${payeeQuery}" in this window. The name may ` +
+            'differ from how the bank labels it, or the user may not have synced their accounts (Gmail) yet.',
+        };
+      }
+
+      const toRupees = (paise: number) => Math.round(paise / 100);
+      const sumPaise = (rows: TxRecord[]) => rows.reduce((s, t) => s + t.amount, 0);
+      const sent = matched.filter((t) => t.direction === 'debit');
+      const received = matched.filter((t) => t.direction === 'credit');
+      const sentPaise = sumPaise(sent);
+      const receivedPaise = sumPaise(received);
+
+      // Distinct payees by NORMALIZED key — so "ANJALI HARI" / "Anjali Hari" /
+      // "UPI/123/ANJALI HARI" collapse to ONE payee (keeping a readable label),
+      // and only genuinely different names ("Anjali Hari" vs "Anjali Stores") read
+      // as ambiguous for the model to disambiguate.
+      const byKey = new Map<string, string>();
+      for (const t of matched) {
+        const k = normalizeMerchantForCache(t.merchant);
+        if (!byKey.has(k)) byKey.set(k, t.merchant);
+      }
+      const matchedPayees = Array.from(byKey.values());
+      const dates = matched.map((t) => t.date).sort();
+
+      return {
+        currency: 'INR',
+        windowDays: days,
+        payeeQuery,
+        found: true,
+        matchedPayees,
+        ambiguous: matchedPayees.length > 1,
+        sentRupees: toRupees(sentPaise),
+        sentCount: sent.length,
+        receivedRupees: toRupees(receivedPaise),
+        receivedCount: received.length,
+        netSentRupees: toRupees(sentPaise - receivedPaise),
+        firstDate: dates[0],
+        lastDate: dates[dates.length - 1],
       };
     },
   };
@@ -743,7 +856,17 @@ export interface VoiceAgentDeps {
  * propose/sync/commit tools. Everything that writes still goes through
  * propose→confirm; navigation and Fit-sync are instant. All tools run on-device.
  */
-export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): AgentTool[] {
+/** Per-build feature toggles — flag-gated tools the companion opts into. */
+export interface VoiceToolOptions {
+  /** Adds the read-only "money sent to / received from a payee" tool (flag: `voice_finance_payee`). */
+  financePayeeQuery?: boolean;
+}
+
+export function buildVoiceTools(
+  ctx: ToolContext,
+  agent?: VoiceAgentDeps,
+  opts?: VoiceToolOptions,
+): AgentTool[] {
   const base = [
     ...buildLifeOsTools(ctx),
     recentSpendingTool(ctx),
@@ -756,6 +879,9 @@ export function buildVoiceTools(ctx: ToolContext, agent?: VoiceAgentDeps): Agent
     contactsTool(ctx),
     financialGoalsTool(),
   ];
+  // Read-only + flag-gated: available even when the agentic tools are off, so a
+  // user can ask "how much did I send to X?" without the full act-capable mode.
+  if (opts?.financePayeeQuery) base.push(moneyWithPayeeTool(ctx));
   if (!agent) return base;
   const today = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
   return [

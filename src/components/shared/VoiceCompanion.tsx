@@ -176,6 +176,11 @@ export function VoiceCompanion() {
   // never disable, so it never weakens the production gate.
   const flagOn = useFlagStore((s) => s.isEnabled('voice_agent_actions'));
   const agentic = flagOn || process.env.EXPO_PUBLIC_FLAG_VOICE_AGENT_ACTIONS === 'true';
+  // Read-only finance "money sent to / received from a payee" tool — gated for a
+  // staged rollout (Worker /v1/config), with the same dev/QA env override pattern.
+  const financePayeeFlag = useFlagStore((s) => s.isEnabled('voice_finance_payee'));
+  const financePayeeQuery =
+    financePayeeFlag || process.env.EXPO_PUBLIC_FLAG_VOICE_FINANCE_PAYEE === 'true';
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const [input, setInput] = useState('');
@@ -293,8 +298,11 @@ export function VoiceCompanion() {
       navigate: agentic ? navigate : undefined,
       currentScreen: agentic ? currentScreen : undefined,
     };
-    return agentic ? buildVoiceTools(ctx, { queue, commitPending }) : buildVoiceTools(ctx);
-  }, [userId, today, agentic, navigate, currentScreen, queue, commitPending]);
+    const opts = { financePayeeQuery };
+    return agentic
+      ? buildVoiceTools(ctx, { queue, commitPending }, opts)
+      : buildVoiceTools(ctx, undefined, opts);
+  }, [userId, today, agentic, financePayeeQuery, navigate, currentScreen, queue, commitPending]);
 
   // The selected voice persona drives BOTH the Gemini voice (timbre) and a tone
   // directive in the system instruction. Read reactively from the store so a

@@ -94,6 +94,15 @@ describe('buildVoiceTools', () => {
     );
   });
 
+  it('gates getMoneyWithPayee behind the financePayeeQuery option', () => {
+    const off = buildVoiceTools({ userId: 'u1', today: TODAY }).map((t) => t.declaration.name);
+    expect(off).not.toContain('getMoneyWithPayee');
+    const on = buildVoiceTools({ userId: 'u1', today: TODAY }, undefined, {
+      financePayeeQuery: true,
+    }).map((t) => t.declaration.name);
+    expect(on).toContain('getMoneyWithPayee');
+  });
+
   it('getCareerState reports no path when none is saved', () => {
     const tool = buildVoiceTools({ userId: 'u1', today: TODAY }).find(
       (t) => t.declaration.name === 'getCareerState',
@@ -368,6 +377,82 @@ describe('getRecentSpending', () => {
     expect(result.byCategory).toEqual([]);
     expect(result.topMerchants).toEqual([]);
     expect(result.note).toMatch(/sync/i);
+  });
+});
+
+function payeeTool() {
+  const tool = buildVoiceTools({ userId: 'u1', today: TODAY }, undefined, {
+    financePayeeQuery: true,
+  }).find((t) => t.declaration.name === 'getMoneyWithPayee');
+  if (!tool) throw new Error('getMoneyWithPayee tool not found');
+  return tool;
+}
+
+describe('getMoneyWithPayee', () => {
+  it('splits sent (debit) and received (credit) for a normalized payee match, in rupees', async () => {
+    await upsertTransactions([
+      makeTx({ id: 'a', rawEmailId: 'e-a', date: '2026-05-20', amount: 50000, direction: 'debit', merchant: 'Anjali Hari' }),
+      // UPI-noisy label for the SAME person → normalizes to the same key.
+      makeTx({ id: 'b', rawEmailId: 'e-b', date: '2026-05-22', amount: 30000, direction: 'debit', merchant: 'UPI/123456789/ANJALI HARI' }),
+      makeTx({ id: 'c', rawEmailId: 'e-c', date: '2026-05-25', amount: 20000, direction: 'credit', merchant: 'Anjali Hari' }),
+      // different payee — excluded by name
+      makeTx({ id: 'd', rawEmailId: 'e-d', date: '2026-05-21', amount: 10000, direction: 'debit', merchant: 'Swiggy' }),
+      // out of the 30-day window — excluded
+      makeTx({ id: 'old', rawEmailId: 'e-old', date: '2026-01-01', amount: 99999, direction: 'debit', merchant: 'Anjali Hari' }),
+    ]);
+
+    const res = (await payeeTool().execute({ payeeQuery: 'Anjali', days: 30 })) as {
+      found: boolean; currency: string; windowDays: number;
+      sentRupees: number; sentCount: number; receivedRupees: number; receivedCount: number;
+      netSentRupees: number; matchedPayees: string[]; ambiguous: boolean;
+      firstDate: string; lastDate: string;
+    };
+
+    expect(res.found).toBe(true);
+    expect(res.currency).toBe('INR');
+    expect(res.windowDays).toBe(30);
+    // 50000 + 30000 paise sent = ₹800 over 2 payments; the noisy UPI label collapses to one payee.
+    expect(res.sentRupees).toBe(800);
+    expect(res.sentCount).toBe(2);
+    expect(res.receivedRupees).toBe(200);
+    expect(res.receivedCount).toBe(1);
+    expect(res.netSentRupees).toBe(600);
+    expect(res.ambiguous).toBe(false);
+    expect(res.matchedPayees).toHaveLength(1);
+    expect(res.firstDate).toBe('2026-05-20');
+    expect(res.lastDate).toBe('2026-05-25');
+  });
+
+  it('flags ambiguity when genuinely different payees match the same query', async () => {
+    await upsertTransactions([
+      makeTx({ id: 'p1', rawEmailId: 'e-p1', date: '2026-05-20', amount: 50000, direction: 'debit', merchant: 'Anjali Hari' }),
+      makeTx({ id: 'p2', rawEmailId: 'e-p2', date: '2026-05-21', amount: 70000, direction: 'debit', merchant: 'Anjali Stores' }),
+    ]);
+
+    const res = (await payeeTool().execute({ payeeQuery: 'Anjali' })) as {
+      found: boolean; ambiguous: boolean; matchedPayees: string[]; sentRupees: number;
+    };
+
+    expect(res.found).toBe(true);
+    expect(res.ambiguous).toBe(true);
+    expect(res.matchedPayees).toEqual(expect.arrayContaining(['Anjali Hari', 'Anjali Stores']));
+    expect(res.sentRupees).toBe(1200);
+  });
+
+  it('returns found:false with a helpful note when nobody matches', async () => {
+    await upsertTransactions([
+      makeTx({ id: 's', rawEmailId: 'e-s', date: '2026-05-20', amount: 10000, direction: 'debit', merchant: 'Swiggy' }),
+    ]);
+
+    const res = (await payeeTool().execute({ payeeQuery: 'Bob' })) as { found: boolean; note?: string };
+    expect(res.found).toBe(false);
+    expect(res.note).toMatch(/no payments|sync/i);
+  });
+
+  it('requires a payee name', async () => {
+    const res = (await payeeTool().execute({})) as { found: boolean; error?: string };
+    expect(res.found).toBe(false);
+    expect(res.error).toMatch(/payeeQuery/i);
   });
 });
 

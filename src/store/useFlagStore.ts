@@ -58,6 +58,12 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // behaviour-preserving. Navigation/sync execute instantly; anything that
   // creates/generates/saves goes through propose→confirm. Worker is the kill switch.
   voice_agent_actions: false,
+  // Read-only voice finance lookup: "how much have I sent to / received from
+  // <person or business> over <period>?" Sums matched-payee transactions (sent
+  // debits + received credits) from the on-device finance store. Off by default
+  // — flip on per cohort/region from the Worker /v1/config to VALIDATE the
+  // feature before GA. Read-only, runs locally; independent of voice_agent_actions.
+  voice_finance_payee: false,
   // Explore GA flags — all default-on; Worker is the remote kill switch.
   // These graduated out of flags.ts (typed compile-time) into the runtime store
   // so a broken feature can be flipped off from /v1/config without a deploy.
@@ -101,6 +107,13 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // Event-triggered InstallSheet + Profile row; off = legacy top-of-flow banner.
   // Fallback-flipped true 2026-06-13 with today_answer_first_v1 (same window).
   install_prompt_v2: true,
+  // Today hero carousel: folds the answer card + Streaks + Today's Quest into
+  // one swipeable hero deck (peek/scale parallax + a pill page indicator),
+  // replacing the three stacked sections. Default ON — additive UI behind a
+  // remote kill switch (a `false` row in the Worker flags table). Still
+  // respects usePreferencesStore.gamification: with gamification !== 'full' the
+  // streak/quest slides drop and it degrades to the answer card alone.
+  today_hero_carousel_v1: true,
 };
 
 interface FlagState {
@@ -177,7 +190,9 @@ export const useFlagStore = create<FlagState>()(
       // existing installs pick up the recompositions.
       // Bumped to v6 (2026-06-14): the six Aurora Alive retention flags
       // flipped default-on; drop persisted `false` values.
-      name: 'lifeos_flags_v6',
+      // Bumped to v7 (2026-06-18): today_hero_carousel_v1 added as default-on
+      // so persisted pre-addition state doesn't shadow the Today hero deck.
+      name: 'lifeos_flags_v7',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },

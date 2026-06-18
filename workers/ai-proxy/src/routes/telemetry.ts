@@ -77,6 +77,9 @@ const ALLOWED_EVENTS = new Set([
   // today_answer_first_v1 cohort flip, or these 400 server-side.
   'next_move_shown',
   'next_move_completed',
+  // Voice tool usage — the validation signal for flag-gated voice tools
+  // (e.g. getMoneyWithPayee). Props: { tool, ok, found?, ambiguous? } — PII-free.
+  'voice_tool_invoked',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;

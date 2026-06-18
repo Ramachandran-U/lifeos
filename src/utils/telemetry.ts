@@ -109,6 +109,11 @@ export const EVENTS = {
   // Deploy the Worker allowlist with these names BEFORE any cohort flip.
   nextMoveShown: 'next_move_shown',
   nextMoveCompleted: 'next_move_completed',
+  // Voice tool usage (PII-free: tool name + ok/found/ambiguous booleans only).
+  // The validation signal for flag-gated voice tools like getMoneyWithPayee —
+  // emitted from voiceClient's toolCall path. Worker ALLOWED_EVENTS carries the
+  // matching name, so it's live the moment a cohort flips the flag on.
+  voiceToolInvoked: 'voice_tool_invoked',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

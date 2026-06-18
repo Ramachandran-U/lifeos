@@ -1,6 +1,8 @@
 import { getSupabaseAccessToken } from '@/integrations/supabase/session';
+import { track, EVENTS } from '@/utils/telemetry';
 import type { AgentTool } from './agent/runtime';
 import type { GeminiVoiceName } from './voicePersonas';
+import { voiceToolTelemetryProps } from './voiceToolTelemetry';
 
 const PROXY_URL = process.env.EXPO_PUBLIC_AI_PROXY_URL || 'http://localhost:8787';
 const USE_MOCK = process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true';
@@ -197,6 +199,9 @@ export function createVoiceSession(opts: VoiceSessionOptions): VoiceSession {
               }
             }
             functionResponses.push({ id: call.id, name: call.name, response });
+            // Validation signal (opt-in, PII-free): which voice tools get called,
+            // how often, and how often they actually find data. No args/results.
+            track(EVENTS.voiceToolInvoked, voiceToolTelemetryProps(call.name, response));
           }
           ws?.send(JSON.stringify({ toolResponse: { functionResponses } }));
           return;

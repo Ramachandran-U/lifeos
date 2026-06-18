@@ -35,6 +35,9 @@ import { StarterLine } from '@/components/shared/StarterLine';
 import { RadarMeaningCaption } from '@/components/shared/RadarMeaningCaption';
 import { TodayHeader } from '@/components/shared/TodayHeader';
 import { NextMoveHero } from '@/components/shared/NextMoveHero';
+import { LifeHeroCarousel, HERO_PANEL_HEIGHT, type HeroPanelSpec } from '@/components/shared/LifeHeroCarousel';
+import { HeroStreaksPanel } from '@/components/shared/HeroStreaksPanel';
+import { HeroQuestPanel } from '@/components/shared/HeroQuestPanel';
 import { InstallSheet } from '@/components/shared/InstallSheet';
 import { useNextMove } from '@/hooks/useNextMove';
 import { useAddToHomeScreen, shouldOfferInstall } from '@/hooks/useAddToHomeScreen';
@@ -145,6 +148,7 @@ export default function TodayScreen() {
   // Answer-first Today (W3): one boolean, one branch — the flag-off branch
   // preserves the legacy JSX verbatim (dilution-trap counter-rule).
   const answerFirst = useFlagStore((s) => s.isEnabled('today_answer_first_v1'));
+  const heroCarousel = useFlagStore((s) => s.isEnabled('today_hero_carousel_v1'));
   const installV2 = useFlagStore((s) => s.isEnabled('install_prompt_v2'));
   // The acting coach supersedes the read-only "what next" card when enabled, so
   // only one of the two shows.
@@ -622,6 +626,65 @@ export default function TodayScreen() {
     return any ? out : null;
   }, [historyEntries]);
 
+  // Today hero deck (today_hero_carousel_v1): the answer card + Streaks +
+  // Today's Quest, folded into one swipeable carousel. Slides past the answer
+  // appear only with gamification 'full' and live data — otherwise the deck is
+  // just the answer card (no carousel chrome). Built per-render (1–3 tiny specs
+  // with render closures — cheaper than memo bookkeeping).
+  const heroStreaks = topStreaks
+    .filter((s) => (s.count ?? 0) > 0)
+    .map((s) => ({ key: s.key, count: s.count ?? 0, graceUsed: s.graceUsed ?? false }));
+  const heroQuests: Quest[] = dailyQuests.enabled
+    ? dailyQuests.quests
+        .filter((q) => q.status !== 'rerolled' && q.status !== 'claimed')
+        .slice(0, 3)
+        .map(toLegacyQuest)
+    : quests.slice(0, 3);
+  const showStreaksSlide = gamification === 'full' && heroStreaks.length > 0;
+  const showQuestsSlide = gamification === 'full' && heroQuests.length > 0;
+  const heroPanels: HeroPanelSpec[] = [
+    {
+      key: 'next-move',
+      accessibilityLabel: 'Your next move',
+      render: () => (
+        <NextMoveHero
+          fill
+          move={nextMove}
+          completedCount={completedCount}
+          blockCount={blocks.length}
+          onPrimary={handleNextMovePrimary}
+          onSecondary={handleNextMoveSecondary}
+        />
+      ),
+    },
+    ...(showStreaksSlide
+      ? [
+          {
+            key: 'streaks',
+            accessibilityLabel: 'Your streaks',
+            render: () => (
+              <HeroStreaksPanel streaks={heroStreaks} onPress={() => router.push('/(tabs)/rewards')} />
+            ),
+          } as HeroPanelSpec,
+        ]
+      : []),
+    ...(showQuestsSlide
+      ? [
+          {
+            key: 'quests',
+            accessibilityLabel: "Today's quests",
+            render: () => (
+              <HeroQuestPanel
+                quests={heroQuests}
+                onQuestPress={(q) => setOpenQuest(q)}
+                onClaim={dailyQuests.enabled ? (q) => dailyQuests.claim(q.id) : undefined}
+              />
+            ),
+          } as HeroPanelSpec,
+        ]
+      : []),
+  ];
+
   return (
     <View style={styles.root}>
       <InkCanvas scrollY={scrollY} allBlocksDone={allComplete} />
@@ -680,16 +743,22 @@ export default function TodayScreen() {
             )}
           </Animated.View>
 
-          {/* §3.5 row 3 — the answer. Wrapper captures y for the hub's
-              DAY 1 scroll-to. */}
+          {/* §3.5 row 3 — the answer. With today_hero_carousel_v1 it's the
+              first slide of the hero deck (Streaks + Today's Quest fold in as
+              slides 2–3, replacing rows 7–8 below); otherwise the standalone
+              answer card. Wrapper captures y for the hub's DAY 1 scroll-to. */}
           <View onLayout={(e) => setHeroCardY(e.nativeEvent.layout.y)}>
-            <NextMoveHero
-              move={nextMove}
-              completedCount={completedCount}
-              blockCount={blocks.length}
-              onPrimary={handleNextMovePrimary}
-              onSecondary={handleNextMoveSecondary}
-            />
+            {heroCarousel ? (
+              <LifeHeroCarousel panels={heroPanels} height={HERO_PANEL_HEIGHT} />
+            ) : (
+              <NextMoveHero
+                move={nextMove}
+                completedCount={completedCount}
+                blockCount={blocks.length}
+                onPrimary={handleNextMovePrimary}
+                onSecondary={handleNextMoveSecondary}
+              />
+            )}
           </View>
 
           {/* §3.5 row 4 — DailyBriefing (commentary, below the answer). */}
@@ -752,8 +821,9 @@ export default function TodayScreen() {
             />
           )}
 
-          {/* §3.5 row 7 — streak rail (gamification 'full', unchanged). */}
-          {gamification === 'full' && topStreaks.some((s) => (s.count ?? 0) > 0) && (
+          {/* §3.5 row 7 — streak rail (gamification 'full'). Folded into the
+              hero deck when today_hero_carousel_v1 is on. */}
+          {!heroCarousel && gamification === 'full' && topStreaks.some((s) => (s.count ?? 0) > 0) && (
             <View style={styles.streaksSection}>
               <SectionLabel>{`STREAKS · ${topStreaks.filter((s) => (s.count ?? 0) > 0).length}`}</SectionLabel>
               <View style={styles.streakGrid}>
@@ -787,8 +857,9 @@ export default function TodayScreen() {
             </View>
           )}
 
-          {/* §3.5 row 8 — quests (gamification 'full', unchanged). */}
-          {gamification === 'full' && dailyQuests.enabled && dailyQuests.quests.length > 0 && (
+          {/* §3.5 row 8 — quests (gamification 'full'). Folded into the hero
+              deck when today_hero_carousel_v1 is on. */}
+          {!heroCarousel && gamification === 'full' && dailyQuests.enabled && dailyQuests.quests.length > 0 && (
             <View style={styles.questsSection}>
               <Body style={styles.sectionLabel}>TODAY'S QUESTS</Body>
               <View style={styles.questList}>
@@ -810,7 +881,7 @@ export default function TodayScreen() {
               </View>
             </View>
           )}
-          {gamification === 'full' && !dailyQuests.enabled && quests.length > 0 && (
+          {!heroCarousel && gamification === 'full' && !dailyQuests.enabled && quests.length > 0 && (
             <View style={styles.questsSection}>
               <Body style={styles.sectionLabel}>ACTIVE QUESTS</Body>
               <View style={styles.questList}>

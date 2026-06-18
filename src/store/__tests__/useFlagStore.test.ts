@@ -76,9 +76,15 @@ describe('FALLBACK_FLAGS baseline', () => {
 });
 
 describe('persist key (AC-11, R12)', () => {
-  it('the store persists under lifeos_flags_v6 — bumped at the 2026-06-14 Aurora defaults flip', () => {
+  it('the store persists under lifeos_flags_v7 — bumped at the 2026-06-18 Today hero deck add', () => {
     const { useFlagStore } = loadStore(undefined);
-    expect(useFlagStore.persist.getOptions().name).toBe('lifeos_flags_v6');
+    expect(useFlagStore.persist.getOptions().name).toBe('lifeos_flags_v7');
+  });
+
+  it('today_hero_carousel_v1 defaults ON in the fallback baseline', () => {
+    const { useFlagStore } = loadStore(undefined);
+    expect(useFlagStore.getState().flags.today_hero_carousel_v1).toBe(true);
+    expect(useFlagStore.getState().isEnabled('today_hero_carousel_v1')).toBe(true);
   });
 
   it('the 2026-06-13 rollout flags default ON in the fallback baseline', () => {

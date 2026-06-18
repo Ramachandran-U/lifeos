@@ -8,7 +8,12 @@ import {
   type PressableProps,
   type ViewStyle,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/theme/colors';
 import { useSpringConfig } from '@/theme/motion';
@@ -28,8 +33,19 @@ import { Body } from './Typography';
  * recalculation, and renders identically on iOS / Android / react-native-web
  * (unlike `boxShadow` inset, whose web parity the research flagged as unverified).
  *
- * Honors reduce-motion / motion-intensity for free via `useSpringConfig` (the
- * spring collapses to a near-instant overdamped landing when motion is off).
+ * Tactile feel — two refinements over a naive slide, both straight from the
+ * physical-button research (Josh Comeau's 3D button; Duolingo/Brilliant):
+ *   1. ASYMMETRIC motion. The down-stroke uses a firm, fast, overshoot-free
+ *      spring (`press`) so it "bottoms out" like a real key; the up-stroke uses
+ *      a springier one (`release`) so it pops back with a little bounce. One
+ *      spring both ways feels uniform and mushy — the split is the whole trick.
+ *   2. The face DARKENS slightly while held (interpolated toward its own rim
+ *      shade), reading as the surface sinking into shadow. Snaps back to full
+ *      colour on release.
+ *
+ * Both honour reduce-motion / motion-intensity for free via `useSpringConfig`
+ * (springs collapse to a near-instant overdamped landing when motion is off;
+ * the colour shift simply lands in one frame).
  */
 
 type Button3DTone =
@@ -116,28 +132,35 @@ export function Button3D({
 
   const faceColor = c[TONE_TO_TOKEN[tone]];
   const rimColor = darken(faceColor, 0.28);
+  // Held face shade — sinks ~10% toward the rim so the surface reads as
+  // dropping into its own shadow under the finger (lighter than the rim, so
+  // face/rim contrast survives even at full travel).
+  const facePressedColor = darken(faceColor, 0.1);
   // Domain hues are bright in both modes → inkOnColor; brand/danger/xp fills
   // are per-mode → onPrimary (light primary and the deep light-mode xp gold
   // are too dark for near-black ink).
   const labelColor = tone === 'primary' || tone === 'danger' || tone === 'xp' ? c.onPrimary : c.inkOnColor;
 
   // 0 = at rest (face lifted, rim showing), 1 = fully pressed (face covers rim).
+  // Asymmetric springs: firm/instant on the way down, springy on the way up.
   const pressed = useSharedValue(0);
-  const springCfg = useSpringConfig('snappy');
+  const pressCfg = useSpringConfig('press');
+  const releaseCfg = useSpringConfig('release');
 
   const faceStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: pressed.value * depth }],
+    backgroundColor: interpolateColor(pressed.value, [0, 1], [faceColor, facePressedColor]),
   }));
 
   const handlePressIn = (e: GestureResponderEvent) => {
     if (!isInteractive) return;
-    pressed.value = withSpring(1, springCfg);
+    pressed.value = withSpring(1, pressCfg);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     onPressIn?.(e);
   };
 
   const handlePressOut = (e: GestureResponderEvent) => {
-    pressed.value = withSpring(0, springCfg);
+    pressed.value = withSpring(0, releaseCfg);
     onPressOut?.(e);
   };
 
@@ -163,11 +186,12 @@ export function Button3D({
           style={[styles.rim, { backgroundColor: rimColor, borderRadius: radii.control }]}
         />
         {/* Face — lifted by `depth` (marginBottom reserves the rim strip so
-            layout stays stable when it translates down on press). */}
+            layout stays stable when it translates down on press). Background is
+            owned by `faceStyle` (animated press shade). */}
         <Animated.View
           style={[
             styles.face,
-            { backgroundColor: faceColor, borderRadius: radii.control, marginBottom: depth },
+            { borderRadius: radii.control, marginBottom: depth },
             faceStyle,
           ]}
         >

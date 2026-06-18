@@ -44,3 +44,14 @@ describe('next-move telemetry events stay in sync with the worker allowlist', ()
     },
   );
 });
+
+// Voice tool usage — the validation signal for flag-gated voice tools (e.g.
+// getMoneyWithPayee). Worker allowlist must carry it or it 400s silently.
+describe('voice telemetry events stay in sync with the worker allowlist', () => {
+  it('client EVENTS declares voice_tool_invoked', () => {
+    expect(clientSrc).toContain(`'voice_tool_invoked'`);
+  });
+  it('worker ALLOWED_EVENTS includes voice_tool_invoked', () => {
+    expect(workerSrc).toContain(`'voice_tool_invoked'`);
+  });
+});
