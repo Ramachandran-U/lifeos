@@ -259,6 +259,12 @@ export interface ConversationStartersInput {
   relationshipType: z.infer<typeof RelationshipTypeEnum>;
   daysSinceContact: number;
   contextNote?: string; // optional user-supplied context — must not include the contact's name
+  // Scoped personalization, populated ONLY when the `social_opener_scoped` flag
+  // is on (a deliberate privacy-posture change). The function re-projects these
+  // to the minimum before sending: firstName → first token, capped; never the
+  // full name, nickname, notes, or birthday.
+  firstName?: string;
+  lastInteractionType?: string; // call | message | in_person | email | other
 }
 
 // --- Polymath / Curiosity Types ---

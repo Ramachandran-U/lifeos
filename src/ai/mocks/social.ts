@@ -49,14 +49,17 @@ export function buildMockConversationStarters(input: ConversationStartersInput):
   const pool = BY_RELATIONSHIP[input.relationshipType] ?? BY_RELATIONSHIP.close_friend;
   const openers = pool[0];
 
-  // Sprinkle the "been a while" framing when overdue is significant.
-  if (input.daysSinceContact >= 30) {
-    return {
-      openers: [
-        "It's been longer than I'd like — wanted to say hi properly rather than just react to a story.",
-        ...openers.slice(1),
-      ],
-    };
-  }
-  return { openers };
+  // Scoped mode (firstName provided): demonstrate the name landing naturally in
+  // the lead opener so mock-mode UI shows the personalised shape.
+  const name = input.firstName?.trim().split(/\s+/)[0];
+  const lead =
+    input.daysSinceContact >= 30
+      ? name
+        ? `Hey ${name} — it's been longer than I'd like. Wanted to say hi properly, not just react to a story.`
+        : "It's been longer than I'd like — wanted to say hi properly rather than just react to a story."
+      : name
+        ? `Hey ${name} — you crossed my mind. How've you been?`
+        : openers[0];
+
+  return { openers: [lead, ...openers.slice(1)] };
 }

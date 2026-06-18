@@ -766,12 +766,19 @@ export async function generateTomorrowRoutine(input: GenerateTomorrowRoutineInpu
 export async function generateConversationStarters(input: ConversationStartersInput): Promise<ConversationStarters> {
   if (isMock) return buildMockConversationStarters(input);
 
-  // Privacy guard — strip anything that might leak a name from the optional
-  // context note before sending. Names are NEVER part of the payload.
+  // Privacy guard — the payload is an explicit allow-list projection. Sensitive
+  // contact fields (full name, nickname, notes, birthday, phone/email) are never
+  // part of ConversationStartersInput, so they cannot be sent. The scoped
+  // personalization fields (off unless `social_opener_scoped` is on at the call
+  // site) are re-minimised here as defence-in-depth: firstName is reduced to its
+  // first token and length-capped even if a full name is passed by mistake.
+  const firstName = input.firstName?.trim().split(/\s+/)[0]?.slice(0, 40) || undefined;
   const safePayload = {
     relationshipType: input.relationshipType,
     daysSinceContact: input.daysSinceContact,
     contextNote: input.contextNote ? input.contextNote.slice(0, 200) : undefined,
+    firstName,
+    lastInteractionType: input.lastInteractionType,
   };
 
   const response = await callAI({

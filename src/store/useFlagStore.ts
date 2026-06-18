@@ -64,6 +64,13 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // — flip on per cohort/region from the Worker /v1/config to VALIDATE the
   // feature before GA. Read-only, runs locally; independent of voice_agent_actions.
   voice_finance_payee: false,
+  // Personalised reconnect openers: sends a SCOPED projection of the contact to
+  // the opener generator — first name + the type of the last contact ONLY (never
+  // the full name, nickname, notes, or birthday). A deliberate privacy-posture
+  // change (contact data normally never leaves the device), so OFF by default and
+  // flipped per cohort from the Worker /v1/config. Flag off = the existing
+  // generic-by-relationship-tier opener (no contact specifics leave the device).
+  social_opener_scoped: false,
   // Explore GA flags — all default-on; Worker is the remote kill switch.
   // These graduated out of flags.ts (typed compile-time) into the runtime store
   // so a broken feature can be flipped off from /v1/config without a deploy.
