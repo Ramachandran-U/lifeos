@@ -30,7 +30,11 @@ jest.mock('expo-haptics', () => ({
 const mockCallAIStream = jest.fn((..._args: unknown[]) => Promise.resolve());
 jest.mock('@/ai/client', () => ({ callAIStream: (...a: unknown[]) => mockCallAIStream(...a) }));
 jest.mock('@/ai/agent/voiceTools', () => ({ buildVoiceTools: () => [] }));
-const mockCommitActions = jest.fn((..._args: unknown[]) => Promise.resolve());
+// commitActions returns a per-action result array; default to success. Failure
+// tests override it to return [{ ok: false, error }].
+const mockCommitActions = jest.fn(
+  (..._args: unknown[]): Promise<{ ok: boolean; error?: string }[]> => Promise.resolve([{ ok: true }]),
+);
 jest.mock('@/ai/agent/actionQueue', () => ({ commitActions: (...a: unknown[]) => mockCommitActions(...a) }));
 jest.mock('@/db/queries/users', () => ({ getUser: () => null }));
 
@@ -76,6 +80,13 @@ const VISION_ACTION: ProposedAction = {
   kind: 'createGoalFromVision',
   summary: 'Turn "run a marathon" into a goal',
   payload: { visionStatement: 'Run a marathon' },
+};
+
+// A DB write (not a navigation intent) — its confirm goes through commitActions.
+const WEIGHT_ACTION: ProposedAction = {
+  kind: 'logWeight',
+  summary: 'Log weight 70 kg',
+  payload: { date: '2026-06-18', weightKg: 70 },
 };
 
 describe('VoiceCompanion', () => {
@@ -157,6 +168,30 @@ describe('VoiceCompanion', () => {
     fireEvent.press(screen.getByTestId('voice-confirm-dismiss'));
     expect(mockPush).not.toHaveBeenCalled();
     expect(useVoiceStore.getState().pendingActions).toHaveLength(0);
+  });
+
+  it('a confirmed DB write that succeeds is committed and consumes the card', async () => {
+    mockCommitActions.mockResolvedValueOnce([{ ok: true }]);
+    useVoiceStore.setState({ open: true, pendingActions: [WEIGHT_ACTION] });
+    render(<VoiceCompanion />);
+    fireEvent.press(screen.getByTestId('voice-confirm-apply'));
+
+    await waitFor(() => expect(mockCommitActions).toHaveBeenCalledWith([WEIGHT_ACTION]));
+    await waitFor(() => expect(useVoiceStore.getState().pendingActions).toHaveLength(0));
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('voice-commit-error')).toBeNull();
+  });
+
+  it('a confirmed DB write that FAILS keeps the card and surfaces the reason', async () => {
+    mockCommitActions.mockResolvedValueOnce([{ ok: false, error: 'That block no longer exists.' }]);
+    useVoiceStore.setState({ open: true, pendingActions: [WEIGHT_ACTION] });
+    render(<VoiceCompanion />);
+    fireEvent.press(screen.getByTestId('voice-confirm-apply'));
+
+    // The failure is shown; the card is NOT consumed (no silent false success).
+    await waitFor(() => expect(screen.getByTestId('voice-commit-error')).toHaveTextContent('That block no longer exists.'));
+    expect(useVoiceStore.getState().pendingActions).toHaveLength(1);
+    expect(screen.getByTestId('voice-confirm-card')).toBeTruthy();
   });
 
   it('collapses to a pill that shows the pending-action count', () => {

@@ -57,6 +57,15 @@ function routeToScreen(pathname: string): AppScreen {
   return KNOWN_SCREENS.has(seg as AppScreen) ? (seg as AppScreen) : 'today';
 }
 
+// The propose kinds that OPEN a screen (and generate there) rather than writing
+// to the DB. They can't "fail" in the commit sense, so confirming one always
+// consumes the card and navigates; the rest go through commitActions, which CAN
+// fail (e.g. a stale ref) — and that failure must be surfaced, not swallowed.
+const NAV_INTENT_KINDS = new Set<ProposedAction['kind']>([
+  'createGoalFromVision', 'generateCareerPath', 'exploreIdea', 'replanToday', 'planAhead',
+]);
+const isNavIntent = (kind: ProposedAction['kind']): boolean => NAV_INTENT_KINDS.has(kind);
+
 // Native-only haptic punctuation. Web is the primary target where the haptics
 // API is a no-op, so guard the platform and swallow any rejection — feedback is
 // a nicety, never load-bearing.
@@ -184,6 +193,9 @@ export function VoiceCompanion() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const [input, setInput] = useState('');
+  // Surfaced when a confirmed DB write fails (e.g. a stale ref) — so a failed
+  // commit shows the reason instead of vanishing as if it had saved.
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   // ── Navigation + screen-context (injected into the agentic tools) ───────────
   const navigate = useCallback(
@@ -199,13 +211,14 @@ export function VoiceCompanion() {
 
   // Execute a single confirmed action: navigation intents open the domain screen
   // pre-filled (its own loading UI runs the generation); everything else is a DB
-  // write via the existing commitActions path.
+  // write via the existing commitActions path. Returns the outcome so the caller
+  // can drop the card on success and surface the reason on failure.
   const executeAction = useCallback(
-    async (action: ProposedAction) => {
+    async (action: ProposedAction): Promise<{ ok: boolean; error?: string }> => {
       switch (action.kind) {
         case 'createGoalFromVision':
           navigate('goals', { voiceVision: action.payload.visionStatement, autorun: '1' });
-          break;
+          return { ok: true };
         case 'generateCareerPath': {
           const p = action.payload;
           const params: Record<string, string> = {
@@ -217,7 +230,7 @@ export function VoiceCompanion() {
           if (p.weeklyHours) params.weeklyHours = String(p.weeklyHours);
           if (p.constraints) params.constraints = p.constraints;
           navigate('career', params);
-          break;
+          return { ok: true };
         }
         case 'exploreIdea': {
           // Open the Explore rabbit hole on the idea — a single-idea Dive, or a
@@ -229,28 +242,33 @@ export function VoiceCompanion() {
             ? buildBridgeParams({ id: slugForPhrase(topic), name: topic }, { id: slugForPhrase(bridgeWith), name: bridgeWith })
             : buildFreeDiveParams(topic);
           router.push({ pathname: '/rabbit-hole', params });
-          break;
+          return { ok: true };
         }
         case 'replanToday':
           navigate('today', { autorun: 'replan' });
-          break;
+          return { ok: true };
         case 'planAhead':
           navigate('today', { autorun: 'planWeek' });
-          break;
-        default:
-          await commitActions([action]);
+          return { ok: true };
+        default: {
+          const [result] = await commitActions([action]);
+          return result ?? { ok: false, error: 'Could not apply that — try again.' };
+        }
       }
     },
     [navigate, router],
   );
 
   // Spoken-yes path: apply everything proposed, then collapse so the user sees
-  // the screen we landed on. Returns a count so the model can acknowledge.
+  // the screen we landed on. Returns the count that ACTUALLY committed (not the
+  // count attempted) so the model acknowledges honestly.
   const commitPending = useCallback(async () => {
     const actions = useVoiceStore.getState().pendingActions;
+    let committed = 0;
     for (const a of actions) {
       try {
-        await executeAction(a);
+        const res = await executeAction(a);
+        if (res.ok) committed += 1;
       } catch {
         // Per-action failure is non-fatal; the rest still apply.
       }
@@ -260,23 +278,31 @@ export function VoiceCompanion() {
       tapHaptic('success');
       minimize();
     }
-    return { committed: actions.length };
+    return { committed };
   }, [executeAction, minimize]);
 
-  // Card-tap path for a single proposal.
+  // Card-tap path for a single proposal. Navigation intents always consume the
+  // card and open their screen. A DB write only consumes the card on SUCCESS —
+  // on failure it stays put and the reason is surfaced, so a confirmed write
+  // never silently no-ops while looking like it saved.
   const confirmOne = useCallback(
     async (action: ProposedAction, index: number) => {
-      removePendingAction(index);
-      tapHaptic('success');
-      await executeAction(action);
-      if (
-        action.kind === 'createGoalFromVision' ||
-        action.kind === 'generateCareerPath' ||
-        action.kind === 'exploreIdea' ||
-        action.kind === 'replanToday' ||
-        action.kind === 'planAhead'
-      )
+      setCommitError(null);
+      if (isNavIntent(action.kind)) {
+        removePendingAction(index);
+        tapHaptic('success');
+        await executeAction(action);
         minimize();
+        return;
+      }
+      const res = await executeAction(action);
+      if (res.ok) {
+        tapHaptic('success');
+        removePendingAction(index);
+      } else {
+        tapHaptic('error');
+        setCommitError(res.error ?? "Couldn't apply that — try again.");
+      }
     },
     [executeAction, removePendingAction, minimize],
   );
@@ -358,7 +384,10 @@ export function VoiceCompanion() {
 
   const prevPendingRef = useRef(pendingActions.length);
   useEffect(() => {
-    if (pendingActions.length > prevPendingRef.current) tapHaptic('light');
+    if (pendingActions.length > prevPendingRef.current) {
+      tapHaptic('light');
+      setCommitError(null); // a fresh proposal supersedes a prior failure notice
+    }
     prevPendingRef.current = pendingActions.length;
   }, [pendingActions.length]);
 
@@ -533,6 +562,16 @@ export function VoiceCompanion() {
         )}
       </ScrollView>
 
+      {/* A confirmed write that failed (e.g. a stale ref) — surfaced, not swallowed. */}
+      {commitError && (
+        <View style={styles.errorRow} accessibilityLiveRegion="polite">
+          <Ionicons name="alert-circle-outline" size={16} color={c.error} />
+          <Caption style={{ color: c.error, flex: 1 }} testID="voice-commit-error">
+            {commitError}
+          </Caption>
+        </View>
+      )}
+
       {/* Pending writes — confirm cards (the spoken "yes" path commits the same set) */}
       {pendingActions.map((action, i) => (
         <Animated.View
@@ -547,7 +586,7 @@ export function VoiceCompanion() {
           </Body>
           <View style={styles.confirmActions}>
             <Pressable
-              onPress={() => removePendingAction(i)}
+              onPress={() => { setCommitError(null); removePendingAction(i); }}
               style={[styles.confirmBtn, { borderColor: c.border, borderWidth: 1 }]}
               hitSlop={6}
               testID="voice-confirm-dismiss"
