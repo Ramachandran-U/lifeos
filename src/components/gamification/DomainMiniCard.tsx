@@ -35,19 +35,22 @@ export function DomainMiniCard({ domainKey, score, delta, history, onPress }: Pr
           <View style={[styles.iconBox, { backgroundColor: c.surfaceAlt }]}>
             <Text style={{ fontSize: 16 }}>{dm.emoji}</Text>
           </View>
-          <View>
-            <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 12, color: c.textSecondary }}>{dm.label}</Text>
-            <Text style={{ fontFamily: fonts.heading, fontSize: 22, color: ink, lineHeight: 24 }}>{score}</Text>
-          </View>
+          <Text
+            numberOfLines={1}
+            style={{ fontFamily: fonts.bodyMedium, fontSize: 12, color: c.textSecondary, flexShrink: 1 }}
+          >
+            {dm.label}
+          </Text>
         </View>
-        <View style={styles.rightGroup}>
-          <View style={[styles.deltaChip, { backgroundColor: c.surfaceAlt }]}>
-            <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11, color: deltaColor }}>
-              {positive ? '↑' : '↓'}{Math.abs(delta)}
-            </Text>
-          </View>
-          <Sparkline data={history} color={color} width={72} height={24} />
+        <View style={[styles.deltaChip, { backgroundColor: c.surfaceAlt }]}>
+          <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11, color: deltaColor }}>
+            {positive ? '↑' : '↓'}{Math.abs(delta)}
+          </Text>
         </View>
+      </View>
+      <View style={styles.scoreRow}>
+        <Text style={{ fontFamily: fonts.heading, fontSize: 28, color: ink, lineHeight: 32 }}>{score}</Text>
+        <Sparkline data={history} color={color} width={72} height={24} />
       </View>
       <XpBar pct={score / 100} color={color} height={5} />
     </Pressable>
@@ -62,10 +65,10 @@ const styles = StyleSheet.create({
     gap: 12,
     minHeight: 120,
   },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  leftGroup: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  leftGroup: { flexDirection: 'row', gap: 8, alignItems: 'center', flexShrink: 1 },
   iconBox: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  rightGroup: { alignItems: 'flex-end', gap: 6 },
+  scoreRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   deltaChip: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
 });
 

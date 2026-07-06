@@ -516,7 +516,9 @@ function makeStyles(c: ReturnType<typeof useColors>) {
     tabBar: { flexDirection: 'row', gap: 4, borderBottomWidth: 1 },
     tabBtn: { paddingHorizontal: 12, paddingTop: 8 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    gridCell: { width: '48%', minWidth: 240, flexGrow: 1 },
+    // 47% (not 48) keeps two columns + the 12px gap inside a 320px-wide
+    // viewport; flexGrow then stretches the pair to fill the row.
+    gridCell: { width: '47%', flexGrow: 1 },
     badgeCell: { width: '30%', minWidth: 140, flexGrow: 1 },
   });
 }
