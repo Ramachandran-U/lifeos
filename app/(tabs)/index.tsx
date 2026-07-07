@@ -227,6 +227,10 @@ export default function TodayScreen() {
     }
   };
 
+  // True once the sync engine has finished its first drain this session. Gates
+  // the roll-forward clone below so it never races an in-flight pull (see there).
+  const syncHydrated = useSyncStore((s) => s.hydrated);
+
   const loadData = useCallback(() => {
     // Re-derive the current date on every load so a focus that crossed
     // midnight rolls forward instead of writing to yesterday.
@@ -234,8 +238,18 @@ export default function TodayScreen() {
     if (currentToday !== today) setToday(currentToday);
     // Daily roll-forward — if today has no blocks but yesterday did, clone
     // yesterday's schedule to today with fresh (unchecked) status. Idempotent.
+    //
+    // Gated on `syncHydrated`: the clone mints fresh nanoid ids, so if it runs
+    // while a sync pull is still in flight it fills the apparent gap with a
+    // local copy that the pull then can't dedupe against the server's copy of
+    // today (keyed by id) — you get today's plan twice ("repeating blocks").
+    // Waiting for the engine's first drain means: if the server has today's
+    // plan we already applied it (no clone), and if it genuinely doesn't we
+    // seed once and push that as the canonical set. When sync is disabled /
+    // signed-out / tokenless the engine flips hydrated on its first pass too,
+    // so this stays a no-op wait, never a hang.
     let todayBlocks = getRoutineBlocksByDate(currentToday);
-    if (todayBlocks.length === 0) {
+    if (todayBlocks.length === 0 && syncHydrated) {
       const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
       cloneRoutineToDate(currentToday, yesterday);
       todayBlocks = getRoutineBlocksByDate(currentToday);
@@ -259,7 +273,7 @@ export default function TodayScreen() {
     // P3-04: re-run behaviour pattern detectors after any block list refresh.
     useBehaviourSuggestionsStore.getState().refresh();
     setLoaded(true);
-  }, [today, userId, loadGame]);
+  }, [today, userId, loadGame, syncHydrated]);
 
   const topStreaks = useMemo(() => {
     return (Object.keys(STREAK_META) as StreakKey[])
