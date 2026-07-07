@@ -39,7 +39,16 @@ import { recordMutation } from '@/sync/runtime';
 
 const recordMutationMock = recordMutation as jest.MockedFunction<typeof recordMutation>;
 
-const DATE = '2026-05-27';
+// A recent date within readBlockSnapshot's ~31-day web scan window, so by-id
+// snapshot lookups (update/delete `before`) resolve. Built from LOCAL date parts
+// — toISOString would shift the day under +ve TZ offsets (e.g. IST) near midnight.
+const DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+})();
 
 function insert(over: Partial<{
   date: string; startTime: string; endTime: string; title: string;
