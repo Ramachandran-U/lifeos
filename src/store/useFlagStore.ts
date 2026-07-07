@@ -42,6 +42,13 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // proxy's Gemini function-calling passthrough. Logged to ai_suggestions
   // (task 'what_next') for outcome tracking.
   agent_what_next: false,
+  // Durable memory in AI context: adds the read-only `getMemories` tool to the
+  // agent tool set (what-next / coach / voice all compose buildLifeOsTools) and
+  // a "LifeOS remembers" section to the chatbot's context block — both backed
+  // by the memory_facts store ("What LifeOS remembers"). OFF by default: ships
+  // dark for a staged rollout; flip per cohort from the Worker /v1/config.
+  // Read-only — the tool never writes; forget/pin stay on the memory screen.
+  agent_memory_tool: false,
   // Propose-and-confirm "coach": the what-next agent can also PROPOSE actions
   // (add a block, mark complete/skipped, adjust a goal) that the user confirms
   // per-item. Default ON (2026-06-05) — supersedes the read-only WhatNextCard on

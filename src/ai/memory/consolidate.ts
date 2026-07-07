@@ -75,7 +75,18 @@ function buildWindowSignal(windowDays: number): string {
     const events = getEventsLastNDays(windowDays);
     const counts: Record<string, number> = {};
     for (const ev of events) {
-      const key = `${ev.eventType}${ev.module && ev.module !== 'goal' ? ` (${ev.module})` : ''}`;
+      // Decisions carry their verb in metadata.action — surface it, or the
+      // signal collapses every choice into an opaque "N× decision".
+      let type = ev.eventType;
+      if (type === 'decision' && ev.metadata) {
+        try {
+          const action = (JSON.parse(ev.metadata) as { action?: string }).action;
+          if (action) type = `decision:${action}`;
+        } catch {
+          /* keep the bare type */
+        }
+      }
+      const key = `${type}${ev.module && ev.module !== 'goal' ? ` (${ev.module})` : ''}`;
       counts[key] = (counts[key] ?? 0) + 1;
     }
     for (const [key, n] of Object.entries(counts)) lines.push(`${n}× ${key}`);

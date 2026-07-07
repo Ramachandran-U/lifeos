@@ -39,7 +39,12 @@ import { recordMutation } from '@/sync/runtime';
 
 const recordMutationMock = recordMutation as jest.MockedFunction<typeof recordMutation>;
 
-const DATE = '2026-05-27';
+// Dynamic, always-recent date: readBlockSnapshot's web branch only scans the
+// last 31 days from the REAL clock, so a hardcoded date here is a time bomb —
+// the before/after snapshot tests started failing ~5 weeks after it was
+// written (found 2026-07-07). Today keeps the fixture inside the scan window
+// forever; the range-ordering tests below pass their own explicit dates.
+const DATE = new Date().toISOString().slice(0, 10);
 
 function insert(over: Partial<{
   date: string; startTime: string; endTime: string; title: string;

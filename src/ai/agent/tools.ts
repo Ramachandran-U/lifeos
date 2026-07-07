@@ -6,6 +6,14 @@ import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getContactsByUser, computeOverdue } from '@/db/queries/social';
 import { fetchTodayCalendarEvents } from '@/ai/calendarContext';
 import { getUpcomingBillsForAgent } from '@/ai/billsContext';
+import {
+  searchFacts,
+  getFactsByUser,
+  isFactLive,
+  effectiveSalience,
+  relativeSince,
+} from '@/ai/rag/memoryStore';
+import { useFlagStore } from '@/store/useFlagStore';
 import type { AgentTool } from './runtime';
 
 /**
@@ -62,11 +70,68 @@ function safeParse<T>(json: string | null | undefined, fallback: T): T {
  * All tools here are READ-ONLY by design. The agent observes; it does not
  * mutate. Mutation only happens via propose-then-confirm — see writeTools.ts.
  */
+/** Is the durable-memory tool enabled? Read at build time, per agent run. */
+export function isMemoryToolEnabled(): boolean {
+  try {
+    return useFlagStore.getState().isEnabled('agent_memory_tool');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Read-only durable-memory tool (flag `agent_memory_tool`, default off). Reads
+ * the consolidation store behind "What LifeOS remembers": with a `topic` it
+ * ranks facts by relevance (searchFacts); without one it returns the strongest
+ * live facts by decayed salience. Compact rows only — never raw embeddings.
+ */
+function memoriesTool(userId: string): AgentTool {
+  return {
+    declaration: {
+      name: 'getMemories',
+      description:
+        "LifeOS's durable long-term memory about the user: preferences, behaviour patterns, " +
+        'milestones, and constraints distilled from weeks of history (beyond today\'s data). ' +
+        'Use it to personalise recommendations — e.g. respect a known constraint, or lean on ' +
+        'a pattern like "completes morning focus blocks". Pass `topic` to search memories ' +
+        'relevant to a subject; omit it for the strongest overall memories.',
+      parameters: {
+        type: 'object',
+        properties: {
+          topic: {
+            type: 'string',
+            description: 'Optional subject to search memories for (e.g. "workouts", "money habits").',
+          },
+        },
+      },
+    },
+    execute: async (args) => {
+      const now = Date.now();
+      const toRow = (f: { kind: string; text: string; lastSeenAt: string }) => ({
+        kind: f.kind,
+        text: f.text,
+        lastSeen: relativeSince(f.lastSeenAt, now),
+      });
+      if (typeof args.topic === 'string' && args.topic.trim()) {
+        return (await searchFacts(userId, args.topic.trim(), 6, now)).map(toRow);
+      }
+      return getFactsByUser(userId)
+        .filter((f) => isFactLive(f, now))
+        .sort((a, b) => effectiveSalience(b, now) - effectiveSalience(a, now))
+        .slice(0, 8)
+        .map(toRow);
+    },
+  };
+}
+
 export function buildLifeOsTools(ctx: ToolContext): AgentTool[] {
   const today = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
   const { userId } = ctx;
 
+  const memory = isMemoryToolEnabled() ? [memoriesTool(userId)] : [];
+
   return [
+    ...memory,
     {
       declaration: {
         name: 'getGoals',

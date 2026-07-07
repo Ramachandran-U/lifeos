@@ -30,6 +30,22 @@ export function logBehaviourEvent(eventType: string, module: string, metadata?: 
   db.insert(behaviourEvents).values(record).run();
 }
 
+/**
+ * A decision the user made, recorded as a behaviour event (eventType
+ * 'decision') so it flows into the existing signal stream: memory
+ * consolidation reads it (buildWindowSignal surfaces the action), and a future
+ * decision-review surface can query it. `action` is a stable snake_case verb
+ * ('goal_paused', 'tweak_accepted', 'coach_action_confirmed', …); `reason` is
+ * the user's optional one-line why.
+ */
+export function logDecisionEvent(
+  action: string,
+  module: string,
+  metadata?: Record<string, unknown> & { reason?: string },
+) {
+  logBehaviourEvent('decision', module, { action, ...metadata });
+}
+
 export function getEventsLastNDays(days: number): WebBehaviourEvent[] {
   if (isWeb) return webGetBehaviourEventsLastNDays(days);
   const cutoff = format(subDays(new Date(), days), 'yyyy-MM-dd');

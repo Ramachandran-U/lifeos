@@ -5,7 +5,7 @@
  * snoozed hero slot is empty and the next overdue contact is NOT promoted),
  * and AC11 (no `streak`/`XP` strings in either tree, gamification on or off).
  *
- * Mock seams mirror src/screens/legacy/__tests__/legacySnapshots.test.tsx,
+ * Mock seams mirror the (since-deleted) legacy snapshot suite,
  * with two differences: useFocusEffect RUNS its callback (as useEffect) so the
  * screens load data, and getContactsByUser is stubbed over the otherwise-real
  * @/db/queries/social module so the Social tree renders a seeded fixture.
