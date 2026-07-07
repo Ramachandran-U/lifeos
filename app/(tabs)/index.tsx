@@ -30,6 +30,8 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Text as AuroraText } from '@/components/ui/Text';
 import { RoutineBlock } from '@/components/shared/RoutineBlock';
+import { CompletedSummaryStrip } from '@/components/shared/CompletedSummaryStrip';
+import { segmentTodayBlocks, isFinished } from '@/utils/todayCollapse';
 import { InkCanvas } from '@/components/shared/InkCanvas';
 import { StarterLine } from '@/components/shared/StarterLine';
 import { RadarMeaningCaption } from '@/components/shared/RadarMeaningCaption';
@@ -148,6 +150,14 @@ export default function TodayScreen() {
   // Answer-first Today (W3): one boolean, one branch — the flag-off branch
   // preserves the legacy JSX verbatim (dilution-trap counter-rule).
   const answerFirst = useFlagStore((s) => s.isEnabled('today_answer_first_v1'));
+  const collapseDone = useFlagStore((s) => s.isEnabled('today_collapse_done_v1'));
+  // Collapse-completed state (PARKED 16.11): ids finished at LOAD time are
+  // collapsible; a block completed during this visit stays expanded
+  // (celebration + undo) and folds on the next focus, when loadData
+  // re-captures the set.
+  const [collapsibleIds, setCollapsibleIds] = useState<Set<string>>(new Set());
+  const [expandedRuns, setExpandedRuns] = useState<Set<string>>(new Set());
+  const [allDoneExpanded, setAllDoneExpanded] = useState(false);
   const heroCarousel = useFlagStore((s) => s.isEnabled('today_hero_carousel_v1'));
   const installV2 = useFlagStore((s) => s.isEnabled('install_prompt_v2'));
   // The acting coach supersedes the read-only "what next" card when enabled, so
@@ -241,6 +251,7 @@ export default function TodayScreen() {
       todayBlocks = getRoutineBlocksByDate(currentToday);
     }
     setBlocks(todayBlocks);
+    setCollapsibleIds(new Set(todayBlocks.filter((b) => isFinished(b.status)).map((b) => b.id)));
     // §3.2: the hero's task source — the exact Goals-tab daily filter, lifted.
     // Synchronous on web per the localStorage shim.
     const goalRows: Array<ReturnType<typeof getGoalsByUser>[number]> = userId ? getGoalsByUser(userId) : [];
@@ -260,6 +271,28 @@ export default function TodayScreen() {
     useBehaviourSuggestionsStore.getState().refresh();
     setLoaded(true);
   }, [today, userId, loadGame]);
+
+  // Render segments for Today's flow: finished runs fold into summary strips
+  // when the flag is on; identity passthrough otherwise. Shared by the V1 and
+  // legacy lists so the kill-switch path behaves identically.
+  const flowSegments = useMemo(() => {
+    const sorted = [...blocks].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    return segmentTodayBlocks(
+      sorted,
+      collapseDone ? collapsibleIds : new Set<string>(),
+      expandedRuns,
+      allDoneExpanded,
+    );
+  }, [blocks, collapseDone, collapsibleIds, expandedRuns, allDoneExpanded]);
+  const hasCollapsedRuns = flowSegments.some((seg) => seg.kind === 'collapsed');
+  const toggleRun = useCallback((key: string) => {
+    setExpandedRuns((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   const topStreaks = useMemo(() => {
     return (Object.keys(STREAK_META) as StreakKey[])
@@ -920,6 +953,18 @@ export default function TodayScreen() {
                   <AuroraText variant="micro" numeric color={c.success}>
                     {`${completedCount}/${blocks.length} DONE`}
                   </AuroraText>
+                  {collapseDone && (hasCollapsedRuns || allDoneExpanded) ? (
+                    <Pressable
+                      onPress={() => { setAllDoneExpanded((v) => !v); setExpandedRuns(new Set()); }}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={allDoneExpanded ? 'Collapse finished blocks' : 'Expand all finished blocks'}
+                    >
+                      <Caption style={{ color: c.textMuted, fontFamily: fonts.heading }}>
+                        {allDoneExpanded ? 'Hide done' : 'Show done'}
+                      </Caption>
+                    </Pressable>
+                  ) : null}
                 </View>
                 <Pressable
                   style={[styles.editRoutineBtn, { borderColor: c.border, backgroundColor: c.surface }]}
@@ -969,25 +1014,50 @@ export default function TodayScreen() {
                 </Card>
               ) : null}
 
-              {blocks
-                .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                .map((block, i) => (
+              {flowSegments.map((seg, i) =>
+                seg.kind === 'block' ? (
                   <Animated.View
-                    key={block.id}
+                    key={seg.block.id}
                     entering={FadeIn.delay(420 + stagger(i)).duration(420)}
                   >
                     <RoutineBlock
-                      id={block.id}
-                      startTime={block.startTime}
-                      endTime={block.endTime}
-                      title={block.title}
-                      module={block.module}
-                      status={block.status}
+                      id={seg.block.id}
+                      startTime={seg.block.startTime}
+                      endTime={seg.block.endTime}
+                      title={seg.block.title}
+                      module={seg.block.module}
+                      status={seg.block.status}
                       onComplete={handleComplete}
                       onUncomplete={handleUncomplete}
                     />
                   </Animated.View>
-                ))}
+                ) : (
+                  <Animated.View key={`run-${seg.key}`} entering={FadeIn.delay(420 + stagger(i)).duration(420)}>
+                    <CompletedSummaryStrip
+                      doneCount={seg.doneCount}
+                      skippedCount={seg.skippedCount}
+                      totalMinutes={seg.totalMinutes}
+                      expanded={seg.expanded}
+                      onToggle={() => toggleRun(seg.key)}
+                    />
+                    {seg.expanded
+                      ? seg.blocks.map((block) => (
+                          <RoutineBlock
+                            key={block.id}
+                            id={block.id}
+                            startTime={block.startTime}
+                            endTime={block.endTime}
+                            title={block.title}
+                            module={block.module}
+                            status={block.status}
+                            onComplete={handleComplete}
+                            onUncomplete={handleUncomplete}
+                          />
+                        ))
+                      : null}
+                  </Animated.View>
+                ),
+              )}
             </View>
           ) : null}
 
@@ -1553,6 +1623,18 @@ export default function TodayScreen() {
                   <AuroraText variant="micro" numeric color={c.success}>
                     {`${completedCount}/${blocks.length} DONE`}
                   </AuroraText>
+                  {collapseDone && (hasCollapsedRuns || allDoneExpanded) ? (
+                    <Pressable
+                      onPress={() => { setAllDoneExpanded((v) => !v); setExpandedRuns(new Set()); }}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={allDoneExpanded ? 'Collapse finished blocks' : 'Expand all finished blocks'}
+                    >
+                      <Caption style={{ color: c.textMuted, fontFamily: fonts.heading }}>
+                        {allDoneExpanded ? 'Hide done' : 'Show done'}
+                      </Caption>
+                    </Pressable>
+                  ) : null}
                 </View>
                 <Pressable
                   style={[styles.editRoutineBtn, { borderColor: c.border, backgroundColor: c.surface }]}
@@ -1649,25 +1731,50 @@ export default function TodayScreen() {
                 </Card>
               ) : null}
 
-              {blocks
-                .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                .map((block, i) => (
+              {flowSegments.map((seg, i) =>
+                seg.kind === 'block' ? (
                   <Animated.View
-                    key={block.id}
+                    key={seg.block.id}
                     entering={FadeIn.delay(420 + stagger(i)).duration(420)}
                   >
                     <RoutineBlock
-                      id={block.id}
-                      startTime={block.startTime}
-                      endTime={block.endTime}
-                      title={block.title}
-                      module={block.module}
-                      status={block.status}
+                      id={seg.block.id}
+                      startTime={seg.block.startTime}
+                      endTime={seg.block.endTime}
+                      title={seg.block.title}
+                      module={seg.block.module}
+                      status={seg.block.status}
                       onComplete={handleComplete}
                       onUncomplete={handleUncomplete}
                     />
                   </Animated.View>
-                ))}
+                ) : (
+                  <Animated.View key={`run-${seg.key}`} entering={FadeIn.delay(420 + stagger(i)).duration(420)}>
+                    <CompletedSummaryStrip
+                      doneCount={seg.doneCount}
+                      skippedCount={seg.skippedCount}
+                      totalMinutes={seg.totalMinutes}
+                      expanded={seg.expanded}
+                      onToggle={() => toggleRun(seg.key)}
+                    />
+                    {seg.expanded
+                      ? seg.blocks.map((block) => (
+                          <RoutineBlock
+                            key={block.id}
+                            id={block.id}
+                            startTime={block.startTime}
+                            endTime={block.endTime}
+                            title={block.title}
+                            module={block.module}
+                            status={block.status}
+                            onComplete={handleComplete}
+                            onUncomplete={handleUncomplete}
+                          />
+                        ))
+                      : null}
+                  </Animated.View>
+                ),
+              )}
             </View>
           ) : (
             <EmptyState

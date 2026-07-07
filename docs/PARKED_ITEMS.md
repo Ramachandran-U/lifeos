@@ -223,6 +223,26 @@
 
 ---
 
+## 16. Founder feature backlog — 2026-07-07 session (11 items, validated with Claude)
+
+> All eleven feature ideas raised in the 2026-07-07 session, with the validation verdict each got. Items marked **decision** need a founder ruling before build; items marked **buildable** are greenlightable as-is. PRs #225 (feedback triage notes) + #226 (transition buffers) already shipped #1 and #6.
+
+| # | Feature | Verdict / status | Key notes |
+|---|---------|------------------|-----------|
+| 16.1 ✅ | **Commute + wind-down transition buffers in the planner.** | SHIPPED — PR #226. | `schedule.commuteMinutes` / `transitionMinutes`, prompt rule 15 expansion, deterministic `findTransitionIssues` → critique grounding. |
+| 16.2 🅿️ | **Vacation / sick snooze mode + absence-reason nudges.** | Buildable (~40% exists: `comeback_v1`, streak freezes, `snoozeGoal`). | Missing: whole-app pause (freeze streaks/planner/nudges to a date) + ask-don't-diagnose outreach copy. **Decision:** nudge copy tone needs founder sign-off (must pass the anti-loss-aversion notification guards). |
+| 16.3 🅿️ | **Vertical-scroll audit + condensation (Goals, Today first).** | Buildable as a design-audit PR. | Best practice = answer within one screen-height + progressive disclosure (already the manifesto's direction). 16.11 is the flagship instance. |
+| 16.4 🅿️ | **8 Ball Pool-style rewards deep dive.** | Split verdict. Event weeks (2-week themed quest events on `quests_v2`) = YES, fits values. Timed-unlock boxes + slot scarcity = **CONFLICTS with the ratified "additive only, no timers" chest decision** (`variable_rewards_v1`). | **Decision:** founder must explicitly overturn the no-timers ruling before timed boxes are built. Event-weeks design proposal is buildable now. |
+| 16.5 🅿️ | **Richer companion/pet animation.** | Blocked on the `companion.riv` Rive asset (design-tool work, human) — runtime flag `riveCompanion` is already ON, dev-client only. | Buildable now: richer Skia/Reanimated code fallback (idle breathing, reward reactions) for web/Expo Go. |
+| 16.6 ✅ | **Feedback-loop visibility/streamlining.** | SHIPPED — PR #225. Loop was ~90% pre-built (status workflow + audited PATCH + admin tab); the gap was the notes UI, now added. | Deferred: tags column, new-feedback digest. |
+| 16.7 🅿️ | **Admin console: signups / last-active / streak visibility.** | Buildable (~4-5 sessions). Users tab already has signups + last-active; streaks/gamification are derivable server-side from synced `gamification`/`xp_events` mutations. | Caveat: telemetry DAU is device-based + opt-in; Users.last_active is the reliable signal. |
+| 16.8 🅿️ | **Leaderboard + friends via contacts.** | **Decision first:** reverses two written commitments (contacts never leave device; "multi-user/sharing" deliberate non-goal). Phased path if reversed: (1) global weekly XP league — `xp_events` was designed for exactly this ("pure GROUP BY over synced rows"); (2) friend codes / invite links (no contact upload); (3) contact matching only via PSI, never naive hashing (FTC: hashed phone numbers are not anonymous). | Phases 1-2 are low-hassle builds once the non-goal is retired in writing. |
+| 16.9 🅿️ | **Social reach-out engine: tier cadences + rotating user-authored starters.** | Buildable (~4-6 sessions) with one amendment: **no auto-send** (platform-impossible on iOS/WhatsApp; Play-policy-blocked on Android; violates propose-confirm + authenticity). Reframed: cadence nudge → rotating starter from the user's per-contact library (AI-seeded via the existing `social_opener_scoped` plumbing) → one tap opens prefilled SMS/WhatsApp composer. | This is the "invest" answer to the Social-module decision; tier defaults overlay existing `preferredCadenceDays` + `relationshipType`. |
+| 16.10 🅿️ | **"Life happened" today's-flow editor.** Edit-routine fork popup ("Just today" vs "My usual routine"); quick-add sheet (presets: break/tea/errand/emergency), domain-tagged + timed, deterministic overlap resolution, then OFFER the existing surgical replan (diff + undo). | Buildable (~4-6 sessions); the replan engine, diff preview, and undo all exist. Include a "clear the rest of today" escape hatch (bridge to 16.2). Must be a sheet, not a new stacked Today section (see 16.3). |
+| 16.11 🅿️ | **Collapse completed blocks on Today.** Consecutive done/skipped blocks roll into one summary strip ("✓ 4 done this morning · 2h 35m") with expand-in-place + expand-all; blocks completed this session stay visible until next mount (protects the completion beat + undo). Flag-gated with a block-completion watch (precedent: `today_answer_first_v1`). | IN PROGRESS this session (branch `today-collapse`). Flagship instance of 16.3. |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)
