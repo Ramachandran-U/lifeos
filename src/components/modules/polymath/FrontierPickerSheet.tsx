@@ -9,8 +9,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '@/utils/haptics';
 import { useColors } from '@/theme/colors';
+import { radii } from '@/theme/radii';
 import { spacing } from '@/theme/spacing';
 import { Body, Caption, Heading } from '@/components/ui/Typography';
 import { Input } from '@/components/ui/Input';
@@ -53,7 +54,7 @@ export function FrontierPickerSheet({
   const [custom, setCustom] = useState('');
 
   const pick = (name: string | null) => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.selection();
     setCustom('');
     onPick(name);
   };
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.md,
-    borderRadius: 14,
+    borderRadius: radii.control,
     borderWidth: 1,
     marginBottom: spacing.xs,
   },

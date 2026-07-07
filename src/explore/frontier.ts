@@ -127,17 +127,18 @@ export function isValidFrontier(
   if (isSolo(constraints)) {
     if (f.interestB !== null) return false;
   } else {
-    if (f.interestB === null) return false;
-    if (!interestNames.has(f.interestB)) return false;
-    if (f.interestA === f.interestB) return false;
+    const bName = f.interestB;
+    if (bName === null) return false;
+    if (!interestNames.has(bName)) return false;
+    if (f.interestA === bName) return false;
     if (
       constraints?.excludePairs?.some(
-        ([a, b]) => frontierPairKey(a, b) === frontierPairKey(f.interestA, f.interestB as string),
+        ([a, b]) => frontierPairKey(a, b) === frontierPairKey(f.interestA, bName),
       )
     ) {
       return false;
     }
-    if (constraints?.pinB && f.interestB !== constraints.pinB) return false;
+    if (constraints?.pinB && bName !== constraints.pinB) return false;
   }
 
   if (constraints?.pinA && f.interestA !== constraints.pinA) return false;

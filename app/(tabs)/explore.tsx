@@ -48,6 +48,7 @@ import { WeekStatLine } from '@/components/modules/polymath/WeekStatLine';
 import { generateChasingNow, type ChasingSignal, type ChasingThread } from '@/explore/chasing';
 import { FrontierCard } from '@/components/modules/polymath/FrontierCard';
 import {
+  frontierPairKey,
   generateFrontier,
   type Frontier,
   type FrontierConstraints,
@@ -365,7 +366,17 @@ function ExploreScreenV1() {
       try {
         const f = await generateFrontier(buildFrontierSignal(), constraints);
         if (f) {
-          if (f.interestB !== null) seenFrontierPairs.current.push([f.interestA, f.interestB]);
+          // Dedupe: regenerate keeps returning the pinned pair — don't let it
+          // pile duplicates into the shuffle-exclusion list.
+          const bName = f.interestB;
+          if (
+            bName !== null &&
+            !seenFrontierPairs.current.some(
+              ([a, b]) => frontierPairKey(a, b) === frontierPairKey(f.interestA, bName),
+            )
+          ) {
+            seenFrontierPairs.current.push([f.interestA, bName]);
+          }
           track(EVENTS.frontierShown, { a: f.interestA, b: f.interestB ?? '' });
           setFrontier(f);
         } else if (!keepOnNull) {
@@ -386,6 +397,9 @@ function ExploreScreenV1() {
   useEffect(() => {
     if (!userId || !frontierEnabled) return;
     if (frontier !== null) return;
+    // An interests/log change while the first generation is still in flight
+    // must not start a second, racing generation.
+    if (frontierBusy) return;
     if (interests.length < 2) return;
     runFrontier();
     // eslint-disable-next-line react-hooks/exhaustive-deps

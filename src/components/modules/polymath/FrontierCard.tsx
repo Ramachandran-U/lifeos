@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '@/utils/haptics';
 import { useColors, type AppColors } from '@/theme/colors';
 import { fonts, fontSizes } from '@/theme/typography';
 import { spacing } from '@/theme/spacing';
@@ -26,10 +26,6 @@ interface Props {
   onPickEndpoint?: (slot: 'a' | 'b', name: string | null) => void;
 }
 
-const tap = () => {
-  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-};
-
 /**
  * "The frontier" — the discovery surface of the redesigned Explore tab.
  * Instead of a grid of adjacent topics to add, it shows the single most
@@ -53,13 +49,13 @@ export function FrontierCard({
   const solo = frontier.interestB === null;
 
   const handleExplore = () => {
-    tap();
+    haptic.light();
     onExplore(frontier);
   };
 
   const openPicker = (slot: 'a' | 'b') => {
     if (!interactive || busy) return;
-    tap();
+    haptic.light();
     setPickerSlot(slot);
   };
 
@@ -96,7 +92,7 @@ export function FrontierCard({
         <View style={styles.headerActions}>
           {onRegenerate ? (
             <Pressable
-              onPress={() => { tap(); onRegenerate(); }}
+              onPress={() => { haptic.light(); onRegenerate(); }}
               disabled={busy}
               hitSlop={8}
               accessibilityRole="button"
@@ -108,7 +104,7 @@ export function FrontierCard({
           ) : null}
           {onShuffle ? (
             <Pressable
-              onPress={() => { tap(); onShuffle(); }}
+              onPress={() => { haptic.light(); onShuffle(); }}
               disabled={busy}
               hitSlop={8}
               accessibilityRole="button"
