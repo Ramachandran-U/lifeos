@@ -6,9 +6,11 @@
 >
 > **Status caveat:** open checkboxes below reflect the state at the dates noted, not live verification — confirm against the Supabase/Cloudflare dashboards before trusting any unchecked box.
 
-Last updated: 2026-05-08 (paths refreshed 2026-05-30; parked-items follow-ups added 2026-06-03)
+Last updated: 2026-07-07 (memory-loop / episodic session — §🔵 added; sync-live status noted on 2.1)
 
 > **2026-06-04 re-verification (Claude, read-only):** checked live state via `wrangler secret list` + `wrangler deployments list` (Worker `lifeos-ai-proxy`, authed as ramachandranu.96@gmail.com) and `gh secret list` + `gh run list`. Items confirmed done are now ticked and marked **✓v 2026-06-04** with the evidence. Items I **could not** verify without dashboard/DB access (Supabase migrations actually applied, Vercel redirect URLs, admin MFA/password, SMTP) are left **unchecked** — treat those as the genuine remaining human actions.
+>
+> **2026-07-07 re-verification (Claude, read-only):** checked live `GET /v1/config` on the Worker. The admin flags table is serving overrides — notably **`sync_engine_enabled: true`, i.e. the cross-device sync engine is LIVE in prod** (the client fallback is still `false`; the remote row wins). Also confirmed no `module_hierarchy_v1` kill row was ever set — the precondition used to execute the PARKED §13.1 legacy deletion in PR #223. No dashboard/DB items could be verified from here; nothing previously unchecked could be ticked.
 
 ---
 
@@ -103,14 +105,35 @@ These map to the 🟠 High tier in [PRE_PRODUCTION_CHECKLIST.md](PRE_PRODUCTION_
 
 - [ ] **1.4 — Publish Google OAuth consent screen to Production.** *Highest value, zero code* — fixes the ~7-day Gmail-reconnect papercut. Console only: APIs & Services → OAuth consent screen → **Publish app**, then enable Gmail/Calendar/Fitness APIs and confirm prod redirect URIs. ([runbook §1.4](PARKED_ITEMS_RUNBOOK.md#14--publish-google-oauth-consent-screen-to-production-))
 - [ ] **1.1 — Deploy the apex Pages site** (decision-gated; only if you want users on `lifeos-6r5.pages.dev`). `npm run web:export` → `npx wrangler pages deploy dist --project-name=lifeos --branch=<prod-branch>`. CORS already allowlisted. ([runbook §1.1](PARKED_ITEMS_RUNBOOK.md#11--deploy-the-apex-cloudflare-pages-site-))
-- [ ] **1.2 — First native EAS build** (needs Expo + Apple Developer + Google Play credentials). `npx eas login` → `eas init` → `eas build -p ios/android --profile production`. Watch out for the `expo-health` `0.0.0` placeholder dep. ([runbook §1.2](PARKED_ITEMS_RUNBOOK.md#12--first-native-iosandroid-build-via-eas-))
+- [ ] **1.2 — First native EAS build** (needs Expo + Apple Developer + Google Play credentials). `npx eas login` → `eas init` → `eas build -p ios/android --profile production`. Watch out for the `expo-health` `0.0.0` placeholder dep. ([runbook §1.2](PARKED_ITEMS_RUNBOOK.md#12--first-native-iosandroid-build-via-eas-)) **⚠ The 2026-07-06 due-diligence audit ranked this the single most urgent non-code risk** — "runs on iOS and Android" is untested until it runs, and it gates 2.5/1.3 below plus the T10 native fixes.
 - [ ] **1.6 — Local Supabase stack** (only when you need local *auth* dev; app data does NOT flow through it). Start Docker daemon → `npx supabase init` → `start` → `status`. ([runbook §1.6](PARKED_ITEMS_RUNBOOK.md#16--local-supabase-stack-))
 - [ ] **5.2 — O*NET + Adzuna keys** (optional/future career grounding). Register both (free), then `npx wrangler secret put` the four keys from `workers/ai-proxy/`. Hand off to Claude for wiring. ([runbook §5.2](PARKED_ITEMS_RUNBOOK.md#52--onet--adzuna-api-keys-optionalfuture-))
 - [ ] **2.5 — Two-device native backup/compaction smoke test** *(gated: needs 2.4 fix + a native build first)*. Export on device A → restore on B → verify merge + compaction + wrong-passphrase abort. ([runbook §B step 3](PARKED_ITEMS_RUNBOOK.md#step-3--25-two-device-native-smoke-test--needs-a-native-build-from-12-first))
 - [ ] **1.3 — Flip `compaction_enabled` / `backup_enabled` per-cohort** *(gated: needs 2.4 + 2.5 + 2.6)*. Seed the flag rows + a `flag_overrides` row in Supabase SQL Editor (no admin API creates them). ([runbook §B step 4](PARKED_ITEMS_RUNBOOK.md#step-4--13-flip-the-flags-per-cohort-))
-- **2.1 — Sync monitoring** (ongoing, not a one-off): Settings sync pill + the `mutations`-table SQL queries + the kill switch. ([runbook §2.1](PARKED_ITEMS_RUNBOOK.md#21--monitor-the-now-globally-on-sync-engine-ongoing-))
+- **2.1 — Sync monitoring** (ongoing, not a one-off): Settings sync pill + the `mutations`-table SQL queries + the kill switch. ([runbook §2.1](PARKED_ITEMS_RUNBOOK.md#21--monitor-the-now-globally-on-sync-engine-ongoing-)) **✓v 2026-07-07: `/v1/config` confirms `sync_engine_enabled: true` is live.** Note: once PR #223 merges, `memory_facts` + `memory_suppressions` join the synced entity set — expect their rows in the `mutations` table.
 - [ ] **Register the YouTube + Contacts OAuth redirect URIs** (activates the shipped #114 / #128 Connect flows on prod). Google Cloud Console → Credentials → the OAuth client: add `https://lifeos-6r5-eqa.pages.dev/youtube-callback` and `https://lifeos-6r5-eqa.pages.dev/google-contacts-callback`; enable **YouTube Data API v3** + **People API**. Until added, those Connect buttons 400 with `redirect_uri_mismatch`.
 - [ ] **10.2 — Activate cheap-tier Groq routing** (optional latency win; infra shipped #145, OFF by default). `npx wrangler secret put GROQ_API_KEY` on the Worker **and** build the client with `EXPO_PUBLIC_CHEAP_PROVIDER=groq`. Inert until both are set; the Worker auto-falls-back to Gemini on a Groq 429. ([PARKED §10.2](PARKED_ITEMS.md))
+
+---
+
+## 🔵 Memory/episodic PRs + 2026-07 audit follow-ups (added 2026-07-07)
+
+> The 2026-07-06 due-diligence audit and the two PRs that came out of it. The PRs are **stacked** — review/merge #223 first; #224 retargets to `lifeosv1` automatically.
+
+### Review & merge (human decisions inside)
+- [ ] **Review PR #223 — "close the memory loop"** (https://github.com/Ramachandran-U/lifeos/pull/223). ⚠ **Decision inside:** `memory_facts` + `memory_suppressions` (incl. the text of "forgotten" facts) start syncing to Supabase **the moment this merges**, because `sync_engine_enabled` is already live-on remotely (verified 2026-07-07). Same channel that already carries reflections/profiles — approve as-is, or ask for a per-entity memory-sync gate first.
+- [ ] **Review PR #224 — episodic memory + journal + trend tools** (https://github.com/Ramachandran-U/lifeos/pull/224). Note: the evening-reflect **journal input is live on merge** (deliberately unflagged — plain optional field on an existing column); everything else ships dark.
+- [ ] **After both merge: redeploy the web build** (`npm run web:export` + Pages deploy per the usual recipe — remember `--clear` if `.env`/`EXPO_PUBLIC_*` changed) so the journal input and the flag plumbing reach users.
+
+### Flag flips (Worker flags table / `/v1/config` rows — no rebuild needed)
+- [ ] **Flip `episodic_memory` ON — do this one FIRST and soon after merge.** Starts writing one narrative day-record per user per evening (one cheap-tier AI call/day; deterministic fallback). Every day it stays off is a day of the user's life that is never recorded.
+- [ ] **~1 week later: flip `agent_trend_tools` + `agent_memory_tool` together.** Turns on the "it actually knows me" layer: coach/chat/voice consult long-term memories, answer "how has my sleep been?", and recall what recent days were like. Waiting a week lets episodic data accumulate so `getRecentDays` isn't empty on day one.
+
+### Product decisions from the audit (Claude can build; only you can decide)
+- [ ] **Decide: surface the cognition layer.** `domainNudges(Visible)` / `overcommitment(Visible)` are compile-time flags currently OFF — the built "LifeOS noticed your Health went quiet" cards are invisible. Flipping them is a code-default change + web redeploy; say the word and it's a small PR.
+- [ ] **Decide: one assistant or three.** Chat (`chatbot_beta`), VoiceCompanion, and the coach card don't share a brain. The audit recommends unifying on the memory layer (~5–8 sessions). Approve/park.
+- [ ] **Decide: Social module investment vs. quiet park.** The audit scored Social weakest of the six engines (no AI on the tab). Options: build relationship-drift intelligence v1, or park the tab and keep contacts as planner signal.
+- [ ] **9.1 — ED-safety human sign-off** (clinical copy review + range-display decision) — the audit flagged this as the gate blocking adaptive-TDEE health personalisation (PARKED §9.1/9.2). This one is genuinely yours: it needs a human (ideally clinical) reviewer, not code.
 
 ---
 
@@ -124,6 +147,7 @@ These map to the 🟠 High tier in [PRE_PRODUCTION_CHECKLIST.md](PRE_PRODUCTION_
 
 ## Done log (so we remember what we already cleared)
 
+- 2026-07-07 — Memory/episodic session: PRs #223 (memory loop: web memory search, memory sync, decision log, PARKED §13.1 legacy deletion executed, docs provider drift fixed) + #224 (episodic day summaries, reflect journal, trend tools) opened for review. Read-only verification: `/v1/config` live — flags table serving `sync_engine_enabled: true` (sync IS live); no `module_hierarchy_v1` kill row. Added §🔵 above (PR reviews, post-merge flag-flip order, audit product decisions). Also fixed on those branches: the `routine.test.ts` fixture time-bomb that had trunk red since ~06-27.
 - 2026-06-04 — Read-only re-verification of the 🔴 blocking + Phase 4b sections via `wrangler`/`gh`: all four Worker secrets (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EVAL_REPORTER_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`) set; Worker deployed 2026-05-27; `EXPO_PUBLIC_GOOGLE_CLIENT_SECRET` already gone from `.env`; GitHub eval-reporter secrets set; `evals.yml` green. Ticked the confirmed boxes. Remaining open items are all dashboard/DB/native (Supabase migrations confirmation, MFA/password, Vercel redirect URLs, SMTP) or decision-gated parked items.
 - 2026-05-08 — Closed checklist blockers #1, #2, #3, #4, #5, #6, #7 in code. Created `docs/SECURITY.md`, `admin/middleware.ts`, Worker `/v1/google/token` route, multi-origin CORS, Wrangler 4.90.0. Manual follow-ups for those moved into the lists above.
 - 2026-04-28 — Original checklist drafted.
