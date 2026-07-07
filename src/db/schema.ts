@@ -466,6 +466,28 @@ export const rabbitHoleTrees = sqliteTable('rabbit_hole_trees', {
   deletedAt: text('deleted_at'), // soft delete; 90-day prune
 });
 
+// --- Day Summaries (episodic memory — one narrative record per lived day) ---
+// Written at evening-reflect (flag `episodic_memory`, default off) by
+// src/ai/episodic/daySummary.ts: an AI-written paragraph of what actually
+// happened (deterministic fallback on any AI failure) + the day's stats.
+// This is the recallable "what did last Tuesday look like?" record the
+// behaviour_events counters can't answer. LOCAL ONLY v1 — summaries are
+// derived from already-synced reflections/blocks and are regenerable, so they
+// bypass the mutation log (same posture as behaviour_events / rabbit holes).
+// Web uses Dexie (src/db/webStorage/daySummariesDexie.ts), NOT localStorage —
+// a paragraph per day for years must not eat the 5MB per-entity quota — so the
+// query API (src/db/queries/daySummaries.ts) is async on BOTH platforms.
+export const daySummaries = sqliteTable('day_summaries', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD; unique per user via index
+  summary: text('summary').notNull(), // the narrative paragraph
+  statsJson: text('stats_json').notNull(), // JSON DaySummaryStats (blocks done/skipped, mood, decisions, ...)
+  source: text('source').notNull(), // 'ai' | 'fallback'
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
 // --- Constellation Edges (Explore v3 — local edge source for the star-map) ---
 // Rabbit-hole journeys emit led_to / synapse edges here on qualifying milestones;
 // projectConstellation() reads them as an EXTRA edge source. Local + rebuildable;

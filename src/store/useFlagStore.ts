@@ -49,6 +49,18 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // dark for a staged rollout; flip per cohort from the Worker /v1/config.
   // Read-only — the tool never writes; forget/pin stay on the memory screen.
   agent_memory_tool: false,
+  // Episodic memory: one AI-written (cheap tier, deterministic fallback)
+  // narrative record per lived day in `day_summaries`, generated at
+  // evening-reflect; consumed by consolidation, the planner's retrieval pool,
+  // and the getRecentDays recall tool. OFF by default — flipping it adds one
+  // cheap AI call per day. Flip early: days that pass unflagged are
+  // unrecorded forever.
+  episodic_memory: false,
+  // Trend tools: read-only "how has my sleep/mood/completion trended?" +
+  // "what did recent days look like?" agent tools (what-next / coach / voice
+  // via buildLifeOsTools). Pure local reads, no writes, no AI cost of their
+  // own. OFF by default; flip per cohort from the Worker /v1/config.
+  agent_trend_tools: false,
   // Propose-and-confirm "coach": the what-next agent can also PROPOSE actions
   // (add a block, mark complete/skipped, adjust a goal) that the user confirms
   // per-item. Default ON (2026-06-05) — supersedes the read-only WhatNextCard on

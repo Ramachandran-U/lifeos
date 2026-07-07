@@ -1,7 +1,7 @@
 import { pickModel } from '../modelRouter';
 import { logAiSuggestion } from '@/db/queries/aiSuggestions';
 import { runToolAgent, type ToolAgentStep } from './runtime';
-import { buildLifeOsTools, isMemoryToolEnabled } from './tools';
+import { buildLifeOsTools, isMemoryToolEnabled, isTrendToolsEnabled } from './tools';
 import { buildLifeOsWriteTools } from './writeTools';
 import { createActionQueue, type ProposedAction } from './actionQueue';
 
@@ -30,15 +30,24 @@ How to answer:
 - Be specific and brief (2-4 sentences). No hype, no lists of options — one clear next step.
 `.trim();
 
-// Appended only when the flag-gated getMemories tool is actually in the tool
+// Hints appended only when their flag-gated tools are actually in the tool
 // set — a prompt that references an absent tool invites hallucinated calls.
 const MEMORY_HINT =
   '- You also have getMemories: durable long-term facts about this user (preferences, ' +
   'patterns, constraints). Consult it so your recommendation fits who they are — never ' +
   'recommend something that contradicts a known constraint.';
 
+const TRENDS_HINT =
+  '- You also have trend tools (getSleepTrend, getMoodTrend, getCompletionTrend, ' +
+  'getRecentDays). Prefer a trend over a single data point when judging state — one bad ' +
+  'night is noise; two declining weeks is signal. getRecentDays tells you what recent ' +
+  'days were actually like.';
+
 function withMemoryHint(system: string): string {
-  return isMemoryToolEnabled() ? `${system}\n${MEMORY_HINT}` : system;
+  const hints: string[] = [];
+  if (isMemoryToolEnabled()) hints.push(MEMORY_HINT);
+  if (isTrendToolsEnabled()) hints.push(TRENDS_HINT);
+  return hints.length ? `${system}\n${hints.join('\n')}` : system;
 }
 
 export interface WhatNextResult {

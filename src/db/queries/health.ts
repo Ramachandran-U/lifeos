@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { format } from 'date-fns';
 import { eq, desc, isNotNull } from 'drizzle-orm';
 import { nanoid } from '@/utils/id';
 import { db } from '../index';
@@ -133,6 +134,33 @@ export function getLatestSleepHours(maxAgeDays = 3): number | null {
   const ageDays = Math.floor((Date.now() - new Date(`${latest.date}T00:00:00`).getTime()) / 86_400_000);
   if (ageDays > maxAgeDays) return null;
   return latest.sleepHours ?? null;
+}
+
+/**
+ * Sleep as a queryable time series (oldest first) over the last `days` days.
+ * One point per date (latest log wins); dates without sleep data are omitted.
+ */
+export function getSleepSeries(days: number): Array<{ date: string; sleepHours: number }> {
+  // Local formatting, not toISOString — UTC conversion shifts local dates back
+  // a day in positive-offset timezones (IST).
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = format(cutoff, 'yyyy-MM-dd');
+  const rows = isWeb
+    ? webGetAllHealthLogs()
+    : (db.select().from(healthLogs).orderBy(desc(healthLogs.date)).all() as Array<{
+        date: string;
+        sleepHours: number | null;
+      }>);
+  const byDate = new Map<string, number>();
+  for (const r of rows) {
+    if (r.date < cutoffStr) continue;
+    if (r.sleepHours === null || r.sleepHours === undefined || r.sleepHours <= 0) continue;
+    if (!byDate.has(r.date)) byDate.set(r.date, r.sleepHours);
+  }
+  return Array.from(byDate.entries())
+    .map(([date, sleepHours]) => ({ date, sleepHours }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 // --- Food Entries ---

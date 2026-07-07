@@ -148,6 +148,18 @@ export function getRecentReflections(days: number): Reflection[] {
   }));
 }
 
+/**
+ * Mood as a queryable time series (oldest first) — the reflection data was
+ * always per-day, but nothing read it AS a series until the trend tools.
+ * Days without a mood are omitted, not zero-filled.
+ */
+export function getMoodSeries(days: number): Array<{ date: string; mood: number }> {
+  return getRecentReflections(days)
+    .filter((r): r is Reflection & { mood: number } => r.mood !== null)
+    .map((r) => ({ date: r.date, mood: r.mood }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
 export function getReflectionStreak(): number {
   const reflections = isWeb
     ? webGetRecentReflections(60).map(fromWeb)
