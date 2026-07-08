@@ -167,6 +167,11 @@ export function GoalDetailSheet({
       <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.box, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <ScrollView
+            contentContainerStyle={styles.boxContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
           <Label color={typeColor.text}>{typeColor.label.toUpperCase()}</Label>
           <Body style={[styles.title, { color: c.textPrimary }]}>{goalTitle}</Body>
 
@@ -203,7 +208,7 @@ export function GoalDetailSheet({
 
           <View style={styles.section}>
             <Caption style={{ color: c.textSecondary, letterSpacing: 1, fontFamily: fonts.heading }}>COMMENTS ({comments.length})</Caption>
-            <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+            <View style={styles.listContent}>
               {comments.length === 0 && (
                 <Caption style={{ color: c.textMuted }}>No comments yet. Add the first note below.</Caption>
               )}
@@ -218,7 +223,7 @@ export function GoalDetailSheet({
                   </Pressable>
                 </View>
               ))}
-            </ScrollView>
+            </View>
           </View>
 
           <View style={styles.inputRow}>
@@ -431,6 +436,7 @@ export function GoalDetailSheet({
           <Pressable style={styles.closeBtn} onPress={onClose}>
             <Caption style={{ color: c.textSecondary }}>Close</Caption>
           </Pressable>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -439,10 +445,10 @@ export function GoalDetailSheet({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.72)', padding: spacing.xl },
-  box: { width: '100%', maxWidth: 480, borderRadius: 20, borderWidth: 1, padding: spacing.xl, gap: spacing.lg, maxHeight: '85%' },
+  box: { width: '100%', maxWidth: 480, borderRadius: 20, borderWidth: 1, maxHeight: '85%', overflow: 'hidden' },
+  boxContent: { padding: spacing.xl, gap: spacing.lg },
   title: { fontFamily: fonts.heading, fontSize: fontSizes.xl, lineHeight: fontSizes.xl * 1.3 },
-  section: { gap: spacing.sm, flexShrink: 1 },
-  list: { maxHeight: 260 },
+  section: { gap: spacing.sm },
   listContent: { gap: spacing.sm, paddingVertical: spacing.xs },
   commentRow: { flexDirection: 'row', gap: spacing.sm, borderWidth: 1, borderRadius: 12, padding: spacing.sm, alignItems: 'flex-start' },
   commentBody: { flex: 1, gap: 2 },
