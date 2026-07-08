@@ -505,6 +505,21 @@ export async function initDatabase() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS xp_events_user_day_idx ON xp_events (user_id, day_local);
+
+    -- Episodic memory: one narrative record per lived day (flag
+    -- episodic_memory; src/ai/episodic/daySummary.ts). LOCAL ONLY v1 —
+    -- regenerable from synced reflections/blocks, bypasses the mutation log.
+    CREATE TABLE IF NOT EXISTS day_summaries (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      stats_json TEXT NOT NULL,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS day_summaries_user_date_idx ON day_summaries (user_id, date);
   `);
 
   // Lightweight migrations for columns added after initial release.

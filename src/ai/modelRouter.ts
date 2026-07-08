@@ -57,6 +57,7 @@ export type AITask =
   | 'generateAnnualReview'
   | 'generateMoneyReview'
   | 'consolidateMemory'
+  | 'summarizeDay'
   | 'rebalanceGoals'
   | 'recoverGoal'
   | 'agent.propose'
@@ -91,6 +92,7 @@ const TASK_TIER: Record<AITask, Tier> = {
   generateAnnualReview: 'reasoning',
   generateMoneyReview: 'planning',
   consolidateMemory: 'planning', // one summarisation pass over the window — quality matters
+  summarizeDay: 'cheap', // one short narrative paragraph per day; deterministic fallback exists
   rebalanceGoals: 'planning', // reallocates weekly hours across goals — reasoning-ish
   recoverGoal: 'planning',   // 7-day catch-up plan for a stalled goal
   'agent.brief': 'cheap',

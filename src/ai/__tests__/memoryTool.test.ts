@@ -22,10 +22,20 @@ jest.mock('@/ai/rag/memoryStore', () => ({
 }));
 
 let flagEnabled = false;
+let trendsEnabled = false;
 jest.mock('@/store/useFlagStore', () => ({
   useFlagStore: {
-    getState: () => ({ isEnabled: (key: string) => key === 'agent_memory_tool' && flagEnabled }),
+    getState: () => ({
+      isEnabled: (key: string) =>
+        (key === 'agent_memory_tool' && flagEnabled) || (key === 'agent_trend_tools' && trendsEnabled),
+    }),
   },
+}));
+jest.mock('@/db/queries/daySummaries', () => ({ getRecentDaySummaries: jest.fn(async () => []) }));
+jest.mock('../agent/trends', () => ({
+  buildSleepTrend: jest.fn(() => ({ count: 0, average: null, direction: 'flat', changePct: null, series: [] })),
+  buildMoodTrend: jest.fn(() => ({ count: 0, average: null, direction: 'flat', changePct: null, series: [] })),
+  buildCompletionTrend: jest.fn(() => ({ weekly: [], totalCompleted: 0, direction: 'flat' })),
 }));
 
 import { buildLifeOsTools } from '../agent/tools';
@@ -50,6 +60,7 @@ const fact = (id: string, text: string, salience = 1) => ({
 beforeEach(() => {
   jest.clearAllMocks();
   flagEnabled = false;
+  trendsEnabled = false;
 });
 
 describe('buildLifeOsTools × agent_memory_tool', () => {
@@ -85,5 +96,52 @@ describe('buildLifeOsTools × agent_memory_tool', () => {
     expect(rows).toHaveLength(8);
     expect(rows[0]!.text).toBe('strong 0');
     expect(rows.map((r) => r.text)).not.toContain('weak fact');
+  });
+});
+
+
+describe('buildLifeOsTools × agent_trend_tools', () => {
+  const TREND_NAMES = ['getSleepTrend', 'getMoodTrend', 'getCompletionTrend', 'getRecentDays'];
+
+  it('flag OFF (default): no trend tools in the set', () => {
+    const names = buildLifeOsTools({ userId: 'u1' }).map((t) => t.declaration.name);
+    for (const n of TREND_NAMES) expect(names).not.toContain(n);
+  });
+
+  it('flag ON: all four trend tools join, independently of the memory flag', () => {
+    trendsEnabled = true;
+    const names = buildLifeOsTools({ userId: 'u1' }).map((t) => t.declaration.name);
+    for (const n of TREND_NAMES) expect(names).toContain(n);
+    expect(names).not.toContain('getMemories'); // memory flag still off
+  });
+
+  it('getSleepTrend clamps the days window and delegates to the assembler', async () => {
+    trendsEnabled = true;
+    const { buildSleepTrend } = require('../agent/trends') as { buildSleepTrend: jest.Mock };
+    const tool = buildLifeOsTools({ userId: 'u1' }).find((t) => t.declaration.name === 'getSleepTrend')!;
+    await tool.execute({ days: 500 });
+    expect(buildSleepTrend).toHaveBeenCalledWith(90); // clamped to max
+    await tool.execute({});
+    expect(buildSleepTrend).toHaveBeenCalledWith(14); // default
+  });
+
+  it('getRecentDays maps summaries to compact rows', async () => {
+    trendsEnabled = true;
+    const { getRecentDaySummaries } = require('@/db/queries/daySummaries') as {
+      getRecentDaySummaries: jest.Mock;
+    };
+    getRecentDaySummaries.mockResolvedValue([
+      {
+        date: '2026-07-05',
+        summary: 'They ran and worked.',
+        stats: { mood: 4, blocksCompleted: 3, blocksTotal: 4, blocksSkipped: 1, decisions: [], journalExcerpt: null },
+      },
+    ]);
+    const tool = buildLifeOsTools({ userId: 'u1' }).find((t) => t.declaration.name === 'getRecentDays')!;
+    const rows = (await tool.execute({})) as Array<Record<string, unknown>>;
+    expect(getRecentDaySummaries).toHaveBeenCalledWith('u1', 7);
+    expect(rows).toEqual([
+      { date: '2026-07-05', summary: 'They ran and worked.', mood: 4, blocksCompleted: 3, blocksTotal: 4 },
+    ]);
   });
 });

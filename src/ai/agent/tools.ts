@@ -13,6 +13,8 @@ import {
   effectiveSalience,
   relativeSince,
 } from '@/ai/rag/memoryStore';
+import { getRecentDaySummaries } from '@/db/queries/daySummaries';
+import { buildSleepTrend, buildMoodTrend, buildCompletionTrend } from './trends';
 import { useFlagStore } from '@/store/useFlagStore';
 import type { AgentTool } from './runtime';
 
@@ -124,14 +126,99 @@ function memoriesTool(userId: string): AgentTool {
   };
 }
 
+/** Are the temporal trend tools enabled? Read at build time, per agent run. */
+export function isTrendToolsEnabled(): boolean {
+  try {
+    return useFlagStore.getState().isEnabled('agent_trend_tools');
+  } catch {
+    return false;
+  }
+}
+
+const DAYS_PARAM = (fallback: number, what: string) => ({
+  type: 'object' as const,
+  properties: {
+    days: { type: 'number', description: `How many days back to look at ${what}. Default ${fallback}.` },
+  },
+});
+
+const clampDays = (v: unknown, fallback: number, max: number) =>
+  Math.min(typeof v === 'number' && v > 0 ? Math.floor(v) : fallback, max);
+
+/**
+ * Read-only temporal trend tools (flag `agent_trend_tools`, default off) —
+ * "how has my sleep/mood/completion trended?" plus narrative recall of recent
+ * days from episodic memory. Pure local reads, compact JSON out.
+ */
+function trendTools(userId: string): AgentTool[] {
+  return [
+    {
+      declaration: {
+        name: 'getSleepTrend',
+        description:
+          "The user's sleep over time: per-date hours, the average, and whether it's trending " +
+          'up, down, or flat. Use for "how has my sleep been?" and to justify a restorative ' +
+          'recommendation with actual data instead of a single night.',
+        parameters: DAYS_PARAM(14, 'sleep'),
+      },
+      execute: (args) => buildSleepTrend(clampDays(args.days, 14, 90)),
+    },
+    {
+      declaration: {
+        name: 'getMoodTrend',
+        description:
+          "The user's evening-reflection moods (1-5) over time: per-date values, the average, " +
+          'and the direction of travel. Use for "how have I been feeling?" and to notice a ' +
+          'slide the user may not have named.',
+        parameters: DAYS_PARAM(14, 'mood'),
+      },
+      execute: (args) => buildMoodTrend(clampDays(args.days, 14, 90)),
+    },
+    {
+      declaration: {
+        name: 'getCompletionTrend',
+        description:
+          'Routine blocks completed per week over a recent window, with the direction across ' +
+          'full weeks. Use for "am I doing more or less than before?" — momentum in numbers.',
+        parameters: DAYS_PARAM(28, 'completed blocks'),
+      },
+      execute: (args) => buildCompletionTrend(clampDays(args.days, 28, 180)),
+    },
+    {
+      declaration: {
+        name: 'getRecentDays',
+        description:
+          'Narrative records of what the user\'s recent days were actually like (episodic ' +
+          'memory): one factual paragraph per day plus mood and completion stats. Use for ' +
+          '"what did last Tuesday look like?" or to ground advice in how the week really went. ' +
+          'Empty when episodic memory is off or nothing is recorded yet.',
+        parameters: DAYS_PARAM(7, 'day records'),
+      },
+      execute: async (args) => {
+        const days = clampDays(args.days, 7, 30);
+        const summaries = await getRecentDaySummaries(userId, days);
+        return summaries.map((s) => ({
+          date: s.date,
+          summary: s.summary,
+          mood: s.stats.mood,
+          blocksCompleted: s.stats.blocksCompleted,
+          blocksTotal: s.stats.blocksTotal,
+        }));
+      },
+    },
+  ];
+}
+
 export function buildLifeOsTools(ctx: ToolContext): AgentTool[] {
   const today = ctx.today ?? format(new Date(), 'yyyy-MM-dd');
   const { userId } = ctx;
 
   const memory = isMemoryToolEnabled() ? [memoriesTool(userId)] : [];
+  const trends = isTrendToolsEnabled() ? trendTools(userId) : [];
 
   return [
     ...memory,
+    ...trends,
     {
       declaration: {
         name: 'getGoals',

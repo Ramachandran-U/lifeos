@@ -19,6 +19,8 @@ import { getEventsLastNDays } from '@/db/queries/behaviour';
 import { getRecentReflections } from '@/db/queries/reflections';
 import { upsertFact, isEmbeddingSuppressed, type MemoryFactKind } from '../rag/memoryStore';
 import { embedText } from '../rag/embed';
+import { getRecentDaySummaries } from '@/db/queries/daySummaries';
+import { isEpisodicMemoryEnabled } from '../episodic/daySummary';
 
 const isMock = () =>
   process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
@@ -67,9 +69,21 @@ export async function runConsolidation(deps: ConsolidateDeps): Promise<Consolida
   return { written: written.length, facts: written };
 }
 
-/** Build the compact window summary from behaviour events + reflections. */
-function buildWindowSignal(windowDays: number): string {
+/**
+ * Build the compact window summary from behaviour events + reflections, plus
+ * (when episodic memory is on) the most recent day-summary narratives —
+ * qualitative texture the count lines can't carry. `episodes` is pre-fetched
+ * by the caller: the day-summary store is async while this stays sync.
+ */
+function buildWindowSignal(
+  windowDays: number,
+  episodes: Array<{ date: string; summary: string }> = [],
+): string {
   const lines: string[] = [];
+
+  for (const ep of episodes.slice(0, 7)) {
+    lines.push(`Day ${ep.date}: ${ep.summary.slice(0, 200)}`);
+  }
 
   try {
     const events = getEventsLastNDays(windowDays);
@@ -147,6 +161,20 @@ export async function consolidateMemory(
   const today = opts.today ?? format(new Date(), 'yyyy-MM-dd');
   const sourceWindow = `${format(subDays(new Date(today), windowDays), 'yyyy-MM-dd')}..${today}`;
 
+  // Episodic texture (flag `episodic_memory`): pre-fetch the last week of
+  // day-summary narratives for the (sync) signal builder. Never fatal.
+  let episodes: Array<{ date: string; summary: string }> = [];
+  try {
+    if (isEpisodicMemoryEnabled()) {
+      episodes = (await getRecentDaySummaries(userId, 7)).map((s) => ({
+        date: s.date,
+        summary: s.summary,
+      }));
+    }
+  } catch {
+    /* episodic store unavailable — consolidate from counts alone */
+  }
+
   // Embed each proposed fact's text only once, shared between the suppression
   // check and the upsert (both need the same embedding).
   const embedCache = new Map<string, number[]>();
@@ -160,7 +188,7 @@ export async function consolidateMemory(
   };
 
   return runConsolidation({
-    gatherSignal: () => buildWindowSignal(windowDays),
+    gatherSignal: () => buildWindowSignal(windowDays, episodes),
     consolidate: consolidateViaAI,
     shouldSuppress: async (fact) => isEmbeddingSuppressed(userId, await embedOnce(fact.text)),
     upsert: async (fact) => {

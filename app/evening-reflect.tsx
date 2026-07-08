@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Platform, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Platform, Alert, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format, addDays } from 'date-fns';
@@ -21,6 +21,7 @@ import { logBehaviourEvent, logDecisionEvent } from '@/db/queries/behaviour';
 import { track, EVENTS } from '@/utils/telemetry';
 import { suggestTomorrowTweak } from '@/ai/functions';
 import { consolidateMemory } from '@/ai/memory/consolidate';
+import { runDaySummaryForToday } from '@/ai/episodic/daySummary';
 import type { TomorrowTweak } from '@/ai/types';
 import { useUserStore } from '@/store/useUserStore';
 import { useFlagStore } from '@/store/useFlagStore';
@@ -75,6 +76,7 @@ export default function EveningReflectScreen() {
   const [step, setStep] = useState<Step>('blocks');
   const [blockReviews, setBlockReviews] = useState<Record<string, BlockReview>>({});
   const [mood, setMood] = useState<number | null>(null);
+  const [journal, setJournal] = useState('');
   const [tweak, setTweak] = useState<TomorrowTweak | null>(null);
   const [tweakLoading, setTweakLoading] = useState(false);
   const [tweakError, setTweakError] = useState<string | null>(null);
@@ -95,6 +97,7 @@ export default function EveningReflectScreen() {
     if (existing) {
       setBlockReviews(existing.blockReviews);
       setMood(existing.mood);
+      setJournal(existing.notes ?? '');
     } else {
       const seed: Record<string, BlockReview> = {};
       todayBlocks.forEach((b) => {
@@ -135,13 +138,18 @@ export default function EveningReflectScreen() {
   // Persist an in-progress draft so a mid-flow refresh (before "Finish")
   // doesn't lose Did/Skipped/Moved selections. Idempotent upsert — no
   // behaviour event fires here (those are gated to finish()). (BUG-015)
-  const persistDraft = (nextReviews: Record<string, BlockReview>, nextMood: number | null) => {
+  const persistDraft = (
+    nextReviews: Record<string, BlockReview>,
+    nextMood: number | null,
+    nextJournal?: string,
+  ) => {
     upsertReflection({
       date: today,
       mood: nextMood,
       blockReviews: nextReviews,
       tweakAccepted,
       tweakPayload: tweak,
+      notes: (nextJournal ?? journal).trim() || undefined,
     });
   };
 
@@ -254,6 +262,7 @@ export default function EveningReflectScreen() {
           blockReviews,
           tweakAccepted,
           tweakPayload: tweak,
+          notes: journal.trim() || undefined,
         });
       } catch (err) {
         // Save failure leaves the user stranded with no signal. Surface it and
@@ -274,10 +283,16 @@ export default function EveningReflectScreen() {
       // quests_v2: a finished reflection is the 'journal' metric (no-op flag-off).
       if (userId) tickQuestMetric(userId, 'journal', 1);
 
-      // Piggyback the durable-memory consolidation on end-of-day (no background
-      // daemon on RN). Fire-and-forget: a consolidation failure must never block
-      // or break the reflection flow. Dedup in the store keeps daily runs clean.
-      if (userId) void consolidateMemory(userId).catch(() => {});
+      // Piggyback episodic day-summary + durable-memory consolidation on
+      // end-of-day (no background daemon on RN). Sequenced so today's summary
+      // exists before consolidation reads the episodic window; both are
+      // fire-and-forget and must never block or break the reflection flow.
+      // (runDaySummaryForToday is a no-op unless `episodic_memory` is on.)
+      if (userId) {
+        void runDaySummaryForToday(userId)
+          .then(() => consolidateMemory(userId))
+          .catch(() => {});
+      }
 
       // Onboarding v2: regenerate tomorrow's full routine from the rich profile,
       // softened if the user looks depleted. Failures are non-fatal — the legacy
@@ -420,6 +435,18 @@ export default function EveningReflectScreen() {
                 );
               })}
             </View>
+            <Label color={c.textMuted} style={styles.journalLabel}>IN YOUR OWN WORDS</Label>
+            <TextInput
+              style={styles.journalInput}
+              value={journal}
+              onChangeText={setJournal}
+              onBlur={() => persistDraft(blockReviews, mood, journal)}
+              placeholder="Anything about today worth remembering? (optional)"
+              placeholderTextColor={c.textMuted}
+              multiline
+              maxLength={2000}
+              accessibilityLabel="Journal entry for today"
+            />
             <Button3D title="Continue" tone="goal" onPress={goToTomorrow} disabled={mood === null} />
             <Pressable onPress={goToTomorrow} style={styles.skip}>
               <Caption style={{ color: c.textMuted }}>Skip</Caption>
@@ -625,6 +652,19 @@ const makeStyles = (colors: AppColors) => StyleSheet.create({
   },
   moodEmoji: { fontSize: 28 },
   skip: { alignSelf: 'center', padding: spacing.sm },
+  journalLabel: { letterSpacing: 1, marginTop: spacing.sm },
+  journalInput: {
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    color: colors.textPrimary,
+    fontFamily: fonts.body,
+    fontSize: fontSizes.md,
+    padding: spacing.md,
+    textAlignVertical: 'top',
+  },
   tweakCard: { gap: spacing.sm },
   tweakHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   tweakRationale: { color: colors.textPrimary, fontSize: fontSizes.md, lineHeight: 22 },

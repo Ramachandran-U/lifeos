@@ -18,6 +18,7 @@ import { planRoutineAgent, type AgentResult } from './agent/planner';
 import { buildHistoryContext } from './historyContext';
 import { buildCalendarContext } from './calendarContext';
 import { buildBillsContext } from './billsContext';
+import { buildEpisodicContext } from './episodicContext';
 
 export async function planRoutineWithContext(input: RoutineInput): Promise<GeneratedRoutine> {
   const result = await planRoutineWithContextDetailed(input);
@@ -49,6 +50,14 @@ export async function planRoutineWithContextDetailed(input: RoutineInput): Promi
   const billItems = await buildBillsContext();
   if (billItems.length) {
     contextItems = [...contextItems, ...billItems];
+  }
+
+  // Fold in recent day summaries (episodic memory, flag `episodic_memory`) so
+  // retrieval can rank whole lived days — not just event counts — against the
+  // plan query. Never throws; [] when the flag is off or nothing is recorded.
+  const episodeItems = await buildEpisodicContext();
+  if (episodeItems.length) {
+    contextItems = [...contextItems, ...episodeItems];
   }
 
   // Adaptive-rebalance signal — only inject when the caller didn't already
