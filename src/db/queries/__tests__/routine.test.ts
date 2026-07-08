@@ -36,10 +36,18 @@ import {
 } from '../routine';
 import { webUpsertRoutineBlockById, type WebRoutineBlock } from '../../webStorage';
 import { recordMutation } from '@/sync/runtime';
+import { format, subDays } from 'date-fns';
 
 const recordMutationMock = recordMutation as jest.MockedFunction<typeof recordMutation>;
 
-const DATE = '2026-05-27';
+// Relative to "now" (not a hardcoded date) so it always falls inside the ~31-day
+// window readBlockSnapshot scans on web. A fixed past date is a time-bomb: once
+// it ages out of that window, the by-id snapshot reads null and the
+// update/delete/calendar tests fail with no code change (previously 2026-05-27).
+// Anchored a few days back — not exactly today — because readBlockSnapshot bounds
+// its window with toISOString() (UTC) while blocks store local dates, so a
+// local "today" can sort past the UTC window end near midnight in +UTC zones.
+const DATE = format(subDays(new Date(), 3), 'yyyy-MM-dd');
 
 function insert(over: Partial<{
   date: string; startTime: string; endTime: string; title: string;

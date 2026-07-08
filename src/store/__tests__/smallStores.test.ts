@@ -110,7 +110,7 @@ describe('usePreferencesStore', () => {
 
 describe('useSyncStore', () => {
   beforeEach(() => {
-    useSyncStore.setState({ appliedTick: 0, lastAppliedAt: null, phase: 'idle', lastSyncedAt: null });
+    useSyncStore.setState({ appliedTick: 0, lastAppliedAt: null, phase: 'idle', lastSyncedAt: null, hydrated: false });
   });
   afterEach(() => {
     jest.restoreAllMocks();
@@ -139,6 +139,19 @@ describe('useSyncStore', () => {
     jest.spyOn(Date, 'now').mockReturnValue(1_700_000_111_000);
     useSyncStore.getState().noteSynced();
     expect(useSyncStore.getState().lastSyncedAt).toBe(1_700_000_111_000);
+  });
+
+  it('markHydrated flips hydrated once and is idempotent; resetHydration clears it', () => {
+    // Gate for the Today roll-forward clone: it must not seed today until the
+    // engine has drained once, or it duplicates the server's synced copy.
+    expect(useSyncStore.getState().hydrated).toBe(false);
+    useSyncStore.getState().markHydrated();
+    expect(useSyncStore.getState().hydrated).toBe(true);
+    const ref = useSyncStore.getState();
+    useSyncStore.getState().markHydrated(); // no state churn once already true
+    expect(useSyncStore.getState()).toBe(ref);
+    useSyncStore.getState().resetHydration(); // sign-out → next user re-hydrates
+    expect(useSyncStore.getState().hydrated).toBe(false);
   });
 });
 
