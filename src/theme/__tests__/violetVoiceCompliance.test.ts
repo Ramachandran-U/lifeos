@@ -120,9 +120,6 @@ function findViolations(): string[] {
     for (const file of walk(dir)) {
       const rel = path.relative(REPO_ROOT, file).split(path.sep).join('/');
       if (rel.startsWith('src/theme/')) continue; // token definitions
-      // Frozen flag-off trees, deletion-bound (PARKED 13.1) — not worth
-      // re-toning code that dies on graduation.
-      if (rel.startsWith('src/screens/legacy/')) continue;
       if (ALLOWLIST.has(rel)) continue;
       const lines = fs.readFileSync(file, 'utf8').split('\n');
       lines.forEach((line, i) => {

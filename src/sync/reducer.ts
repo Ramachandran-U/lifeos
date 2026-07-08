@@ -13,9 +13,9 @@
  * If they did, applying a remote change would emit a new local mutation, which
  * would be pushed back, pulled again, and loop forever.
  *
- * Only goals / routine_blocks / daily_reflections are materialized (the only
- * synced entities today). Unknown entities are still stored for fold but not
- * written, so adding a new synced entity is just a new case here.
+ * Only entities in MATERIALIZED below are written to local tables. Unknown
+ * entities are still stored for fold but not written, so adding a new synced
+ * entity is just a new case here.
  */
 import { Platform } from 'react-native';
 import { eq, and } from 'drizzle-orm';
@@ -23,9 +23,13 @@ import { db } from '@/db';
 import {
   goals, routineBlocks, dailyReflections, gamification,
   interests, explorationLog, expeditions, expeditionProgress, sparks,
-  userProfiles, users,
+  userProfiles, users, memoryFacts, memorySuppressions,
 } from '@/db/schema';
 import {
+  webUpsertFactById,
+  webDeleteFact,
+  webUpsertSuppressionById,
+  webDeleteSuppression,
   webUpsertGoalById,
   webSoftDeleteGoal,
   webUpsertRoutineBlockById,
@@ -47,6 +51,8 @@ import {
   type WebExpedition,
   type WebExpeditionProgress,
   type WebSpark,
+  type WebMemoryFact,
+  type WebMemorySuppression,
 } from '@/db/webStorage';
 import { getOrCreateGamification } from '@/db/queries/gamification';
 import { getLocalSink, type LocalSink } from './sink';
@@ -63,7 +69,7 @@ const isWeb = () => Platform.OS === 'web';
 const MATERIALIZED = new Set([
   'goals', 'routine_blocks', 'daily_reflections', 'gamification',
   'interests', 'exploration_log', 'expeditions', 'expedition_progress', 'sparks',
-  'user_profiles', 'users',
+  'user_profiles', 'users', 'memory_facts', 'memory_suppressions',
 ]);
 
 /**
@@ -116,6 +122,10 @@ function applyState(entity: string, entityId: string, state: EntitySnapshot): vo
       return applyUserProfile(entityId, state);
     case 'users':
       return applyUser(entityId, state);
+    case 'memory_facts':
+      return applyMemoryFact(entityId, state);
+    case 'memory_suppressions':
+      return applyMemorySuppression(entityId, state);
     default:
       return;
   }
@@ -249,6 +259,37 @@ function applyExpeditionProgress(state: EntitySnapshot): void {
     .get();
   if (existing) db.update(expeditionProgress).set(row).where(eq(expeditionProgress.id, existing.id)).run();
   else db.insert(expeditionProgress).values(row).run();
+}
+
+// ── memory: durable facts + suppression tombstones (hard-delete on tombstone) ──
+// Writes go through the low-level web/drizzle paths only — memoryStore's own
+// functions record mutations and would echo-loop.
+function applyMemoryFact(id: string, state: EntitySnapshot): void {
+  if (state === null) {
+    if (isWeb()) webDeleteFact(id);
+    else db.delete(memoryFacts).where(eq(memoryFacts.id, id)).run();
+    return;
+  }
+  if (isWeb()) {
+    webUpsertFactById(state as unknown as WebMemoryFact);
+  } else {
+    const row = state as unknown as typeof memoryFacts.$inferInsert;
+    db.insert(memoryFacts).values(row).onConflictDoUpdate({ target: memoryFacts.id, set: row }).run();
+  }
+}
+
+function applyMemorySuppression(id: string, state: EntitySnapshot): void {
+  if (state === null) {
+    if (isWeb()) webDeleteSuppression(id);
+    else db.delete(memorySuppressions).where(eq(memorySuppressions.id, id)).run();
+    return;
+  }
+  if (isWeb()) {
+    webUpsertSuppressionById(state as unknown as WebMemorySuppression);
+  } else {
+    const row = state as unknown as typeof memorySuppressions.$inferInsert;
+    db.insert(memorySuppressions).values(row).onConflictDoUpdate({ target: memorySuppressions.id, set: row }).run();
+  }
 }
 
 // ── profile: per-user singletons keyed by userId ─────────────────────────────

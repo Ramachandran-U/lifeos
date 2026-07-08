@@ -63,7 +63,6 @@ import { startExpedition, canStartExpedition, MAX_ACTIVE_EXPEDITIONS } from '@/e
 import { track, EVENTS } from '@/utils/telemetry';
 import { nanoid } from '@/utils/id';
 import type { ConstellationInput } from '@/explore/constellation';
-import { ExploreScreenLegacy } from '@/screens/legacy/ExploreScreen.legacy';
 
 // §3.2 hero fallback chain: the skeleton never lives forever — generation is
 // raced against this timeout, after which the slot re-resolves down the chain.
@@ -143,13 +142,9 @@ function pickPair(interests: Interest[]): [Interest, Interest] | null {
   return [active[0], active[1]];
 }
 
-// Ink + Signal §3.0.1: the route branches exactly once on module_hierarchy_v1.
-// Flag off → the byte-identical legacy tree; flag on → the recomposed
-// hero-first tree below. The legacy file is deleted (not edited) when the flag
-// graduates — see docs/PARKED_ITEMS.md §13.
+// Ink + Signal §3.0.1: module_hierarchy_v1 graduated (100% since 2026-06-13;
+// legacy tree deleted per docs/PARKED_ITEMS.md §13.1). Hero-first is the only path.
 export default function ExploreScreen() {
-  const hierarchyV1 = useFlagStore((s) => s.isEnabled('module_hierarchy_v1'));
-  if (!hierarchyV1) return <ExploreScreenLegacy />;
   return <ExploreScreenV1 />;
 }
 

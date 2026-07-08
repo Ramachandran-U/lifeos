@@ -25,6 +25,19 @@ export function webGetFactsByUser(userId: string): WebMemoryFact[] {
   return load<WebMemoryFact>(MEMORY_FACTS_KEY).filter((r) => r.userId === userId);
 }
 
+export function webGetFactById(id: string): WebMemoryFact | null {
+  return load<WebMemoryFact>(MEMORY_FACTS_KEY).find((r) => r.id === id) ?? null;
+}
+
+/** Insert-or-replace by id — the sync reducer's echo-safe write path. */
+export function webUpsertFactById(row: WebMemoryFact): void {
+  const all = load<WebMemoryFact>(MEMORY_FACTS_KEY);
+  const idx = all.findIndex((r) => r.id === row.id);
+  if (idx === -1) all.push(row);
+  else all[idx] = row;
+  save(MEMORY_FACTS_KEY, all);
+}
+
 export function webInsertFact(row: WebMemoryFact): void {
   const all = load<WebMemoryFact>(MEMORY_FACTS_KEY);
   all.push(row);
@@ -65,4 +78,20 @@ export function webInsertSuppression(row: WebMemorySuppression): void {
   const all = load<WebMemorySuppression>(MEMORY_SUPPRESSIONS_KEY);
   all.push(row);
   save(MEMORY_SUPPRESSIONS_KEY, all);
+}
+
+/** Insert-or-replace by id — the sync reducer's echo-safe write path. */
+export function webUpsertSuppressionById(row: WebMemorySuppression): void {
+  const all = load<WebMemorySuppression>(MEMORY_SUPPRESSIONS_KEY);
+  const idx = all.findIndex((r) => r.id === row.id);
+  if (idx === -1) all.push(row);
+  else all[idx] = row;
+  save(MEMORY_SUPPRESSIONS_KEY, all);
+}
+
+export function webDeleteSuppression(id: string): void {
+  save(
+    MEMORY_SUPPRESSIONS_KEY,
+    load<WebMemorySuppression>(MEMORY_SUPPRESSIONS_KEY).filter((r) => r.id !== id),
+  );
 }

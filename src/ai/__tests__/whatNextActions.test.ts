@@ -3,7 +3,7 @@ import { whatShouldIDoNextWithActions } from '../agent/whatNext';
 // Mock the read tools + runtime + logging, but use the REAL writeTools +
 // actionQueue so the propose→capture wiring is exercised end-to-end.
 jest.mock('../agent/runtime', () => ({ runToolAgent: jest.fn() }));
-jest.mock('../agent/tools', () => ({ buildLifeOsTools: jest.fn(() => []) }));
+jest.mock('../agent/tools', () => ({ buildLifeOsTools: jest.fn(() => []), isMemoryToolEnabled: jest.fn(() => false) }));
 jest.mock('@/db/queries/aiSuggestions', () => ({ logAiSuggestion: jest.fn(() => Promise.resolve('id')) }));
 
 import { runToolAgent } from '../agent/runtime';
