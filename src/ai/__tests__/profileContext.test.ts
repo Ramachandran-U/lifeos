@@ -232,3 +232,23 @@ describe('buildProfileContext', () => {
     });
   });
 });
+
+// ── "LifeOS remembers" section (memory-loop PR) ──────────────────────────────
+describe('memoryFacts section', () => {
+  it('renders durable facts with their kind, capped at 8', () => {
+    const memoryFacts = Array.from({ length: 10 }, (_, i) => ({
+      kind: 'pattern',
+      text: `fact number ${i}`,
+    }));
+    const out = buildProfileContext(p(withName), { memoryFacts });
+    expect(out).toContain('LifeOS remembers:');
+    expect(out).toContain('- [pattern] fact number 0');
+    expect(out).toContain('- [pattern] fact number 7');
+    expect(out).not.toContain('fact number 8');
+  });
+
+  it('omits the section entirely when there are no facts', () => {
+    expect(buildProfileContext(p(withName), { memoryFacts: [] })).not.toContain('LifeOS remembers');
+    expect(buildProfileContext(p(withName))).not.toContain('LifeOS remembers');
+  });
+});

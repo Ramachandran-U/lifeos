@@ -1,7 +1,7 @@
 import { pickModel } from '../modelRouter';
 import { logAiSuggestion } from '@/db/queries/aiSuggestions';
 import { runToolAgent, type ToolAgentStep } from './runtime';
-import { buildLifeOsTools } from './tools';
+import { buildLifeOsTools, isMemoryToolEnabled } from './tools';
 import { buildLifeOsWriteTools } from './writeTools';
 import { createActionQueue, type ProposedAction } from './actionQueue';
 
@@ -29,6 +29,17 @@ How to answer:
 - Recommend ONE concrete next action, with a one-sentence reason grounded in what you found.
 - Be specific and brief (2-4 sentences). No hype, no lists of options — one clear next step.
 `.trim();
+
+// Appended only when the flag-gated getMemories tool is actually in the tool
+// set — a prompt that references an absent tool invites hallucinated calls.
+const MEMORY_HINT =
+  '- You also have getMemories: durable long-term facts about this user (preferences, ' +
+  'patterns, constraints). Consult it so your recommendation fits who they are — never ' +
+  'recommend something that contradicts a known constraint.';
+
+function withMemoryHint(system: string): string {
+  return isMemoryToolEnabled() ? `${system}\n${MEMORY_HINT}` : system;
+}
 
 export interface WhatNextResult {
   answer: string;
@@ -70,7 +81,7 @@ export async function whatShouldIDoNext(input: WhatNextInput): Promise<WhatNextR
 
   const tools = buildLifeOsTools({ userId: input.userId, today: input.today });
   const result = await runToolAgent({
-    system: WHAT_NEXT_SYSTEM,
+    system: withMemoryHint(WHAT_NEXT_SYSTEM),
     userMessage: 'What should I do next to improve my life right now?',
     tools,
     model: pickModel('agent.whatNext'),
@@ -147,7 +158,7 @@ export async function whatShouldIDoNextWithActions(
     ...buildLifeOsWriteTools({ today: input.today }, queue),
   ];
   const result = await runToolAgent({
-    system: WHAT_NEXT_ACTIONS_SYSTEM,
+    system: withMemoryHint(WHAT_NEXT_ACTIONS_SYSTEM),
     userMessage: 'What should I do next to improve my life right now?',
     tools,
     model: pickModel('agent.whatNext'),

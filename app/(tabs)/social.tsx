@@ -13,7 +13,6 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { InkCanvas } from '@/components/shared/InkCanvas';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
-import { useFlagStore } from '@/store/useFlagStore';
 import { useHeroSnoozeStore } from '@/store/useHeroSnoozeStore';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import {
@@ -32,16 +31,11 @@ import { ContactRow } from '@/components/modules/social/ContactRow';
 import { AddContactSheet } from '@/components/modules/social/AddContactSheet';
 import { ContactsImportCard } from '@/components/modules/social/ContactsImportCard';
 import { UpcomingBirthdaysCard } from '@/components/modules/social/UpcomingBirthdaysCard';
-import { SocialScreenLegacy } from '@/screens/legacy/SocialScreen.legacy';
 import { refreshSocialOverdueBody } from '@/hooks/useNotifications';
 
-// Ink + Signal §3.0.1: the route branches exactly once on module_hierarchy_v1.
-// Flag off → the byte-identical legacy tree; flag on → the recomposed
-// hero-first tree below. The legacy file is deleted (not edited) when the flag
-// graduates — see docs/PARKED_ITEMS.md §13.
+// Ink + Signal §3.0.1: module_hierarchy_v1 graduated (100% since 2026-06-13;
+// legacy tree deleted per docs/PARKED_ITEMS.md §13.1). Hero-first is the only path.
 export default function SocialScreen() {
-  const hierarchyV1 = useFlagStore((s) => s.isEnabled('module_hierarchy_v1'));
-  if (!hierarchyV1) return <SocialScreenLegacy />;
   return <SocialScreenV1 />;
 }
 

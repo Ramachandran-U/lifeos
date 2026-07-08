@@ -30,6 +30,9 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  // Draft triage notes per row, keyed by id. The column + PATCH support have
+  // existed since migration 0004 — this is the first UI that exposes them.
+  const [noteDrafts, setNoteDrafts] = useState<Record<number, string>>({});
 
   const load = async () => {
     setError(null);
@@ -54,6 +57,25 @@ export default function FeedbackPage() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'patch failed');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const saveNote = async (id: number) => {
+    const draft = noteDrafts[id];
+    if (draft === undefined) return;
+    setBusyId(id);
+    try {
+      await patchFeedback(id, { notes: draft });
+      setNoteDrafts((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'note save failed');
     } finally {
       setBusyId(null);
     }
@@ -127,6 +149,35 @@ export default function FeedbackPage() {
                     }}>
                       {r.body}
                     </pre>
+                    <div style={{ margin: '0 0 12px' }}>
+                      <div style={{ fontSize: 11, color: '#6B6B88', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                        Triage note (admin-only)
+                      </div>
+                      <textarea
+                        value={noteDrafts[r.id] ?? r.notes ?? ''}
+                        onChange={(e) => setNoteDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                        placeholder="Why it was triaged this way, links, follow-ups…"
+                        rows={2}
+                        style={{
+                          width: '100%', boxSizing: 'border-box', background: '#1A1A2E',
+                          color: '#F4EFFF', border: '1px solid #2E2E4A', borderRadius: 6,
+                          padding: 8, fontSize: 13, resize: 'vertical',
+                        }}
+                      />
+                      {noteDrafts[r.id] !== undefined && noteDrafts[r.id] !== (r.notes ?? '') ? (
+                        <button
+                          onClick={() => saveNote(r.id)}
+                          disabled={busyId === r.id}
+                          style={{
+                            marginTop: 6, padding: '6px 12px', background: 'transparent',
+                            color: '#7FB8FF', border: '1px solid #7FB8FF', borderRadius: 6,
+                            cursor: 'pointer', fontSize: 12,
+                          }}
+                        >
+                          {busyId === r.id ? 'Saving…' : 'Save note'}
+                        </button>
+                      ) : null}
+                    </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {(['triaged', 'responded', 'closed'] as FeedbackStatus[])
                         .filter((s) => s !== r.status)

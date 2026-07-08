@@ -12,7 +12,7 @@ import type { MutationRecord } from '../mutationLog';
 
 let mockFlagsOn = true;
 let mockUserId: string | null = 'u1';
-const mockSyncStore = { setPhase: jest.fn(), noteSynced: jest.fn(), markApplied: jest.fn() };
+const mockSyncStore = { setPhase: jest.fn(), noteSynced: jest.fn(), markApplied: jest.fn(), markHydrated: jest.fn(), resetHydration: jest.fn() };
 const mockSink = {
   readPending: jest.fn(),
   markSynced: jest.fn(),
@@ -184,6 +184,9 @@ describe('syncEngine start/stop/flush/status', () => {
     syncEngine.stop();
     expect(remove).toHaveBeenCalled();
     expect(syncEngine.status().started).toBe(false);
+    // Sign-out path clears hydration so the next user re-hydrates before any
+    // gap-filling seed (Today's roll-forward clone) runs.
+    expect(mockSyncStore.resetHydration).toHaveBeenCalled();
     jest.useRealTimers();
   });
 

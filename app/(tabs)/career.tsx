@@ -21,13 +21,11 @@ import { CareerStrategyView } from '@/components/modules/career/CareerStrategyVi
 import { CareerPathHero } from '@/components/modules/career/CareerPathHero';
 import { CareerSetupSheet, type CareerSetupSegment } from '@/components/modules/career/CareerSetupSheet';
 import { SavePathModal } from '@/components/modules/career/SavePathModal';
-import { CareerScreenLegacy } from '@/screens/legacy/CareerScreen.legacy';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
 import { useAI } from '@/hooks/useAI';
 import { analyseSkillGap, generateCareerStrategy } from '@/ai/functions';
 import { createGoal } from '@/db/queries/goals';
 import { useUserStore } from '@/store/useUserStore';
-import { useFlagStore } from '@/store/useFlagStore';
 import {
   getAllCareerPaths,
   saveCareerPath,
@@ -36,13 +34,9 @@ import {
 } from '@/db/careerStorage';
 import type { SkillGapAnalysis, CareerStrategy } from '@/ai/types';
 
-// Ink + Signal §3.0.1: the route branches exactly once on module_hierarchy_v1.
-// Flag off → the byte-identical legacy tree; flag on → the recomposed
-// hero-first tree below. The legacy file is deleted (not edited) when the flag
-// graduates — see docs/PARKED_ITEMS.md §13.
+// Ink + Signal §3.0.1: module_hierarchy_v1 graduated (100% since 2026-06-13;
+// legacy tree deleted per docs/PARKED_ITEMS.md §13.1). Hero-first is the only path.
 export default function CareerScreen() {
-  const hierarchyV1 = useFlagStore((s) => s.isEnabled('module_hierarchy_v1'));
-  if (!hierarchyV1) return <CareerScreenLegacy />;
   return <CareerScreenV1 />;
 }
 

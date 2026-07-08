@@ -18,6 +18,7 @@ import {
   type WebGoal,
 } from '../webStorage';
 import { recordMutation } from '@/sync/runtime';
+import { logDecisionEvent } from './behaviour';
 
 const isWeb = Platform.OS === 'web';
 
@@ -151,7 +152,7 @@ export function getChildGoals(parentId: string) {
     .all();
 }
 
-export function updateGoalStatus(id: string, status: string) {
+export function updateGoalStatus(id: string, status: string, reason?: string) {
   const before = readGoalSnapshot(id);
   const now = new Date().toISOString();
   if (isWeb) {
@@ -163,6 +164,16 @@ export function updateGoalStatus(id: string, status: string) {
       .run();
   }
   recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), status, updatedAt: now } });
+  // Decision log: a status change IS a decision (pause/abandon/complete/resume).
+  // Only log real transitions — a no-op write is not a choice.
+  if (before && before.status !== status) {
+    logDecisionEvent(`goal_${status}`, 'goal', {
+      goalId: id,
+      goalTitle: typeof before.title === 'string' ? before.title : undefined,
+      previousStatus: before.status,
+      ...(reason ? { reason } : {}),
+    });
+  }
 }
 
 /** Parse a goal's JSON `metadata` column into an object. Tolerant: a null,
@@ -196,10 +207,19 @@ export function snoozeGoal(id: string, untilDate: string) {
       .run();
   }
   recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), status: 'paused', metadata, updatedAt: now } });
+  logDecisionEvent('goal_snoozed', 'goal', {
+    goalId: id,
+    goalTitle: before && typeof before.title === 'string' ? before.title : undefined,
+    untilDate,
+  });
 }
 
-/** Resume a postponed goal: status back to 'active' and clear any snoozeUntil. */
-export function resumeGoal(id: string) {
+/**
+ * Resume a postponed goal: status back to 'active' and clear any snoozeUntil.
+ * `auto` marks a scheduler-driven resume (reactivateDueGoals) — only a manual
+ * resume is a user decision, so only that is decision-logged.
+ */
+export function resumeGoal(id: string, auto = false) {
   const before = readGoalSnapshot(id);
   const now = new Date().toISOString();
   const meta = parseGoalMetadata(before?.metadata);
@@ -214,6 +234,12 @@ export function resumeGoal(id: string) {
       .run();
   }
   recordMutation({ entity: 'goals', entityId: id, op: 'update', before, after: { ...(before ?? {}), status: 'active', metadata, updatedAt: now } });
+  if (!auto) {
+    logDecisionEvent('goal_resumed', 'goal', {
+      goalId: id,
+      goalTitle: before && typeof before.title === 'string' ? before.title : undefined,
+    });
+  }
 }
 
 /**
@@ -227,7 +253,7 @@ export function reactivateDueGoals(userId: string, today: string): { id: string;
     const until = parseGoalMetadata(g.metadata).snoozeUntil;
     return typeof until === 'string' && until <= today;
   });
-  for (const g of due) resumeGoal(g.id);
+  for (const g of due) resumeGoal(g.id, true);
   return due.map((g) => ({ id: g.id, title: g.title }));
 }
 
