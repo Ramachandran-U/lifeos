@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -47,7 +47,13 @@ import { ChasingNowCard } from '@/components/modules/polymath/ChasingNowCard';
 import { WeekStatLine } from '@/components/modules/polymath/WeekStatLine';
 import { generateChasingNow, type ChasingSignal, type ChasingThread } from '@/explore/chasing';
 import { FrontierCard } from '@/components/modules/polymath/FrontierCard';
-import { generateFrontier, type Frontier } from '@/explore/frontier';
+import {
+  frontierPairKey,
+  generateFrontier,
+  type Frontier,
+  type FrontierConstraints,
+  type FrontierSignal,
+} from '@/explore/frontier';
 import { ExpeditionProgressRow } from '@/components/modules/polymath/ExpeditionProgressRow';
 import {
   ConstellationView,
@@ -190,7 +196,14 @@ function ExploreScreenV1() {
 
   // ─── "The frontier" — best unexplored edge ───────────────────────────────
   const [frontier, setFrontier] = useState<Frontier | null>(null);
+  const [frontierBusy, setFrontierBusy] = useState(false);
+  // Pairs already shown this session — shuffle excludes them so it feels like
+  // a genuine re-roll, not a coin flip that keeps landing the same way.
+  const seenFrontierPairs = useRef<Array<[string, string]>>([]);
   const frontierEnabled = useFlagStore((s) => s.isEnabled('explore_frontier'));
+  // Frontier controls (shuffle / regenerate / pick endpoints / solo). On by
+  // default; a `false` row in the Worker flags table is the remote kill switch.
+  const frontierControls = useFlagStore((s) => s.getFlag('frontier_controls', true));
   const exploreChasing = useFlagStore((s) => s.isEnabled('explore_chasing'));
 
   // ─── §12.2: Your Maps history ────────────────────────────────────────────
@@ -322,33 +335,97 @@ function ExploreScreenV1() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, interests.length, log.length]);
 
-  // Generate "The frontier" once interests are loaded — the single most fertile
-  // unexplored edge between two interests the user already has. Needs at least
-  // two interests; a null result (no honest edge) is valid.
-  useEffect(() => {
-    if (!userId || !frontierEnabled) return;
-    if (frontier !== null) return;
-    if (interests.length < 2) return;
+  const buildFrontierSignal = useCallback((): FrontierSignal => {
     const today = new Date();
     const recentById = new Map<string, number>();
     log
       .filter((e) => differenceInCalendarDays(today, parseISO(e.date)) <= 14)
       .forEach((e) => recentById.set(e.interestId, (recentById.get(e.interestId) ?? 0) + e.minutesSpent));
-    generateFrontier({
+    return {
       interests: interests.map((i) => ({
         name: i.name,
         category: i.category,
         explorationDepth: i.explorationDepth,
         recentMinutes: recentById.get(i.id) ?? 0,
       })),
-    })
-      .then((f) => {
-        setFrontier(f);
-        if (f) track(EVENTS.frontierShown, { a: f.interestA, b: f.interestB });
-      })
-      .catch(() => setFrontier(null));
+    };
+  }, [interests, log]);
+
+  // One generation path for the initial load AND the frontier controls
+  // (shuffle / regenerate / endpoint picks). `keepOnNull` is set on
+  // user-initiated refreshes so an honest "no edge" (or a failure) keeps the
+  // current card instead of yanking it out from under the user's finger.
+  const runFrontier = useCallback(
+    async (constraints?: FrontierConstraints, keepOnNull = false) => {
+      setFrontierBusy(true);
+      try {
+        const f = await generateFrontier(buildFrontierSignal(), constraints);
+        if (f) {
+          // Dedupe: regenerate keeps returning the pinned pair — don't let it
+          // pile duplicates into the shuffle-exclusion list.
+          const bName = f.interestB;
+          if (
+            bName !== null &&
+            !seenFrontierPairs.current.some(
+              ([a, b]) => frontierPairKey(a, b) === frontierPairKey(f.interestA, bName),
+            )
+          ) {
+            seenFrontierPairs.current.push([f.interestA, bName]);
+          }
+          track(EVENTS.frontierShown, { a: f.interestA, b: f.interestB ?? '' });
+          setFrontier(f);
+        } else if (!keepOnNull) {
+          setFrontier(null);
+        }
+      } catch {
+        if (!keepOnNull) setFrontier(null);
+      } finally {
+        setFrontierBusy(false);
+      }
+    },
+    [buildFrontierSignal],
+  );
+
+  // Generate "The frontier" once interests are loaded — the single most fertile
+  // unexplored edge between two interests the user already has. Needs at least
+  // two interests; a null result (no honest edge) is valid.
+  useEffect(() => {
+    if (!userId || !frontierEnabled) return;
+    if (frontier !== null) return;
+    // An interests/log change while the first generation is still in flight
+    // must not start a second, racing generation.
+    if (frontierBusy) return;
+    if (interests.length < 2) return;
+    runFrontier();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, frontierEnabled, interests.length, log.length]);
+
+  // ─── Frontier controls ──────────────────────────────────────────────────
+  const handleFrontierShuffle = useCallback(() => {
+    track(EVENTS.frontierShuffled, {});
+    runFrontier({ excludePairs: [...seenFrontierPairs.current] }, true);
+  }, [runFrontier]);
+
+  const handleFrontierRegenerate = useCallback(() => {
+    if (!frontier) return;
+    track(EVENTS.frontierRegenerated, { a: frontier.interestA, b: frontier.interestB ?? '' });
+    runFrontier(
+      { pinA: frontier.interestA, pinB: frontier.interestB, avoidHeadline: frontier.headline },
+      true,
+    );
+  }, [frontier, runFrontier]);
+
+  const handleFrontierPickEndpoint = useCallback(
+    (slot: 'a' | 'b', name: string | null) => {
+      if (!frontier) return;
+      // The picker only emits null for slot 'b' (solo mode); guard anyway.
+      const pinA = slot === 'a' && name !== null ? name : frontier.interestA;
+      const pinB = slot === 'b' ? name : frontier.interestB;
+      track(EVENTS.frontierCustomized, { a: pinA, b: pinB ?? '' });
+      runFrontier({ pinA, pinB }, true);
+    },
+    [frontier, runFrontier],
+  );
 
   const totals = useMemo(() => weeklyMinutes(), [weeklyMinutes, interests]);
   const totalMinutesWeek = useMemo(
@@ -593,7 +670,7 @@ function ExploreScreenV1() {
 
   const handleExploreFrontier = useCallback((f: Frontier) => {
     if (!userId) return;
-    track(EVENTS.frontierExplored, { a: f.interestA, b: f.interestB });
+    track(EVENTS.frontierExplored, { a: f.interestA, b: f.interestB ?? '' });
     triggerStreak(userId, 'learning');
     track(EVENTS.curiosityStreakDay, {});
     router.push({
@@ -602,10 +679,26 @@ function ExploreScreenV1() {
         seedTitle: f.headline,
         seedBody: f.insight,
         seedInterest: f.interestA,
-        seedAdjacent: f.interestB,
+        // Solo frontier: no adjacent field — the rabbit hole stays inside one interest.
+        ...(f.interestB !== null ? { seedAdjacent: f.interestB } : {}),
       },
     });
   }, [userId, router, triggerStreak]);
+
+  // Interest names for the frontier endpoint picker.
+  const frontierInterestNames = useMemo(() => interests.map((i) => i.name), [interests]);
+
+  // The controls prop bundle, shared by the hero and demoted render slots.
+  // Undefined handlers (flag off) render the original static card.
+  const frontierControlProps = frontierControls
+    ? {
+        busy: frontierBusy,
+        interestNames: frontierInterestNames,
+        onShuffle: handleFrontierShuffle,
+        onRegenerate: handleFrontierRegenerate,
+        onPickEndpoint: handleFrontierPickEndpoint,
+      }
+    : {};
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -637,7 +730,11 @@ function ExploreScreenV1() {
               <Skeleton height={96} />
             ) : frontierIsHero && frontier ? (
               <Animated.View entering={FadeInDown.duration(scaled(MOTION_BUDGET.hero))}>
-                <FrontierCard frontier={frontier} onExplore={handleExploreFrontier} />
+                <FrontierCard
+                  frontier={frontier}
+                  onExplore={handleExploreFrontier}
+                  {...frontierControlProps}
+                />
               </Animated.View>
             ) : interests.length === 0 ? (
               <Animated.View entering={FadeInDown.duration(scaled(MOTION_BUDGET.hero))}>
@@ -683,7 +780,11 @@ function ExploreScreenV1() {
             <Animated.View
               entering={FadeIn.delay(stagger(2, MOTION_BUDGET.staggerTight)).duration(scaled(MOTION_BUDGET.reveal))}
             >
-              <FrontierCard frontier={frontier} onExplore={handleExploreFrontier} />
+              <FrontierCard
+                frontier={frontier}
+                onExplore={handleExploreFrontier}
+                {...frontierControlProps}
+              />
             </Animated.View>
           ) : pair ? (
             <Animated.View

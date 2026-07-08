@@ -80,6 +80,14 @@ const ALLOWED_EVENTS = new Set([
   // Voice tool usage — the validation signal for flag-gated voice tools
   // (e.g. getMoneyWithPayee). Props: { tool, ok, found?, ambiguous? } — PII-free.
   'voice_tool_invoked',
+  // Explore frontier funnel. shown/explored predate this list (they were
+  // 400ing); shuffled/regenerated/customized are the frontier controls.
+  // Props: { a, b } — interest names the user already shares with the AI path.
+  'frontier_shown',
+  'frontier_explored',
+  'frontier_shuffled',
+  'frontier_regenerated',
+  'frontier_customized',
 ]);
 
 const MAX_PROPS_BYTES = 4 * 1024;

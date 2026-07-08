@@ -70,6 +70,10 @@ export const EVENTS = {
   chasingThreadPulled: 'chasing_thread_pulled',
   frontierShown: 'frontier_shown',
   frontierExplored: 'frontier_explored',
+  // Frontier controls — user-steered generation on the FrontierCard.
+  frontierShuffled: 'frontier_shuffled',
+  frontierRegenerated: 'frontier_regenerated',
+  frontierCustomized: 'frontier_customized',
   expeditionStarted: 'expedition_started',
   expeditionStepCompleted: 'expedition_step_completed',
   expeditionCompleted: 'expedition_completed',
