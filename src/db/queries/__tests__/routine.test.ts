@@ -40,14 +40,16 @@ import { format, subDays } from 'date-fns';
 
 const recordMutationMock = recordMutation as jest.MockedFunction<typeof recordMutation>;
 
-// Relative to "now" (not a hardcoded date) so it always falls inside the ~31-day
-// window readBlockSnapshot scans on web. A fixed past date is a time-bomb: once
-// it ages out of that window, the by-id snapshot reads null and the
-// update/delete/calendar tests fail with no code change (previously 2026-05-27).
-// Anchored a few days back — not exactly today — because readBlockSnapshot bounds
-// its window with toISOString() (UTC) while blocks store local dates, so a
-// local "today" can sort past the UTC window end near midnight in +UTC zones.
-const DATE = format(subDays(new Date(), 3), 'yyyy-MM-dd');
+// A recent date within readBlockSnapshot's ~31-day web scan window, so by-id
+// snapshot lookups (update/delete `before`) resolve. Built from LOCAL date parts
+// — toISOString would shift the day under +ve TZ offsets (e.g. IST) near midnight.
+const DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+})();
 
 function insert(over: Partial<{
   date: string; startTime: string; endTime: string; title: string;
