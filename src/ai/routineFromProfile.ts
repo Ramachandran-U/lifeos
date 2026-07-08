@@ -85,6 +85,8 @@ export function profileToRoutineInput(
     chronotype: profile.chronotype,
     primaryDomains: profile.primaryDomains,
     fixedBlocks: profile.schedule.fixedBlocks,
+    commuteMinutes: profile.schedule.commuteMinutes,
+    transitionMinutes: profile.schedule.transitionMinutes,
     constraints: profile.constraints,
     struggles: profile.struggles,
     currentHabits: profile.habits.current,

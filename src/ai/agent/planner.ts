@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { MOCK_ROUTINE } from '../mocks/routine';
 import { anchorRoutineToWake } from '../routineAnchor';
+import { findTransitionIssues } from '../routineTransitions';
 
 const isMock = () =>
   process.env.EXPO_PUBLIC_USE_AI_MOCK === 'true' || process.env.USE_AI_MOCK === 'true';
@@ -182,6 +183,13 @@ async function planRoutineAgentInner(
       'Honour fixed blocks verbatim. Place high-energy work inside the user\'s productive hours. Avoid ' +
       'reinstating dropped habits. If the recent-history context shows a pattern (e.g. skipped morning ' +
       'workouts, low-energy evenings), adapt the plan to it. ' +
+      'TRANSITIONS ARE REAL TIME: when schedule.commuteMinutes > 0, book a "Commute to work" block ' +
+      '(module rest) ending exactly at workStartTime and a "Commute home" block starting exactly at ' +
+      'workEndTime — each commuteMinutes long; nothing else occupies those windows. Never place two ' +
+      'demanding (medium/high) blocks of different modules back-to-back: leave at least ' +
+      'schedule.transitionMinutes (default 10) between them to sit down, change, or reset. After any ' +
+      'physical health block leave at least 20 minutes (shower/change) before focused work, or follow ' +
+      'it with a rest/meal block. ' +
       'Output JSON: {"blocks":[{startTime,endTime,title,module,energyRequired?}], "rationale": string}. ' +
       'Modules: goal|health|finance|career|social|polymath|rest|work|meal. Times in HH:MM. start < end.',
     model: pickModel('agent.propose'),
@@ -201,6 +209,8 @@ async function planRoutineAgentInner(
             sleepTime: input.sleepTime,
             workStartTime: input.workStartTime,
             workEndTime: input.workEndTime,
+            commuteMinutes: input.commuteMinutes ?? null,
+            transitionMinutes: input.transitionMinutes ?? null,
           },
           goals: input.goals,
           careerFocus: input.careerFocus,
@@ -233,14 +243,26 @@ async function planRoutineAgentInner(
   // — or a degenerate response that drops every block — must NOT discard the
   // already-valid proposed routine. On any such case we fall back to the
   // proposed blocks unchanged rather than throwing the whole generation away.
+  // Ground truth for the reviewer: named transition violations computed
+  // deterministically (routineTransitions.ts), so the critique fixes concrete
+  // problems instead of re-deriving them. Empty array = nothing to hand over.
+  const transitionIssues = findTransitionIssues(proposed.blocks, {
+    transitionMinutes: input.transitionMinutes,
+    commuteMinutes: input.commuteMinutes,
+    workStartTime: input.workStartTime,
+    workEndTime: input.workEndTime,
+  });
+
   let critique: z.infer<typeof CritiqueSchema>;
   try {
     const critiqueRaw = await callAI({
       system:
         'You are a critical reviewer of routine plans. Given a proposed plan, list concrete issues ' +
         '(e.g. overlapping blocks, high-energy work after dinner, no rest, ignored goals, ' +
-        'violations of fixed blocks, chronotype mismatch, reinstated dropped habits) and produce a ' +
-        'revised block list. ' +
+        'violations of fixed blocks, chronotype mismatch, reinstated dropped habits, missing commute ' +
+        'blocks, demanding blocks back-to-back with no transition gap) and produce a revised block ' +
+        'list. If `deterministicIssues` is non-empty, every one of those is a CONFIRMED violation — ' +
+        'fix each in the revised blocks (insert the gap, book the commute, add the buffer). ' +
         'Output JSON: {"issues": string[], "revisedBlocks": [...same shape...]}. If no issues, return [] and the original blocks unchanged.',
       model: pickModel('agent.critique'),
       cacheSystem: true,
@@ -257,11 +279,14 @@ async function planRoutineAgentInner(
               sleepTime: input.sleepTime,
               workStartTime: input.workStartTime,
               workEndTime: input.workEndTime,
+              commuteMinutes: input.commuteMinutes ?? null,
+              transitionMinutes: input.transitionMinutes ?? null,
             },
             goals: input.goals,
             chronotype: input.chronotype,
             fixedBlocks: input.fixedBlocks,
             inferredPreferences: input.inferredPreferences,
+            deterministicIssues: transitionIssues,
             proposedBlocks: proposed.blocks,
           }),
         },

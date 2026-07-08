@@ -64,7 +64,7 @@ describe('buildProfileContext', () => {
     it('renders wake/sleep times', () => {
       const out = buildProfileContext(p({
         ...withName,
-        schedule: { wakeTime: '06:00', sleepTime: '22:30', workStartTime: null, workEndTime: null, fixedBlocks: [] },
+        schedule: { wakeTime: '06:00', sleepTime: '22:30', workStartTime: null, workEndTime: null, fixedBlocks: [], commuteMinutes: null, transitionMinutes: null },
       }));
       expect(out).toContain('wake 06:00, sleep 22:30');
     });
@@ -72,7 +72,7 @@ describe('buildProfileContext', () => {
     it('renders work hours when both are set', () => {
       const out = buildProfileContext(p({
         ...withName,
-        schedule: { wakeTime: null, sleepTime: null, workStartTime: '09:00', workEndTime: '17:00', fixedBlocks: [] },
+        schedule: { wakeTime: null, sleepTime: null, workStartTime: '09:00', workEndTime: '17:00', fixedBlocks: [], commuteMinutes: null, transitionMinutes: null },
       }));
       expect(out).toContain('work 09:00–17:00');
     });
@@ -80,7 +80,7 @@ describe('buildProfileContext', () => {
     it('omits work hours when only one side is set', () => {
       const out = buildProfileContext(p({
         ...withName,
-        schedule: { wakeTime: null, sleepTime: null, workStartTime: '09:00', workEndTime: null, fixedBlocks: [] },
+        schedule: { wakeTime: null, sleepTime: null, workStartTime: '09:00', workEndTime: null, fixedBlocks: [], commuteMinutes: null, transitionMinutes: null },
       }));
       expect(out).not.toContain('work');
     });
@@ -95,7 +95,7 @@ describe('buildProfileContext', () => {
       }));
       const out = buildProfileContext(p({
         ...withName,
-        schedule: { wakeTime: null, sleepTime: null, workStartTime: null, workEndTime: null, fixedBlocks: blocks },
+        schedule: { wakeTime: null, sleepTime: null, workStartTime: null, workEndTime: null, fixedBlocks: blocks, commuteMinutes: null, transitionMinutes: null },
       }));
       expect(out).toContain('Fixed blocks:');
       expect(out).toContain('D (');
