@@ -1,7 +1,7 @@
 import { whatShouldIDoNext } from '../agent/whatNext';
 
 jest.mock('../agent/runtime', () => ({ runToolAgent: jest.fn() }));
-jest.mock('../agent/tools', () => ({ buildLifeOsTools: jest.fn(() => []) }));
+jest.mock('../agent/tools', () => ({ buildLifeOsTools: jest.fn(() => []), isMemoryToolEnabled: jest.fn(() => false) }));
 jest.mock('@/db/queries/aiSuggestions', () => ({ logAiSuggestion: jest.fn(() => Promise.resolve('id')) }));
 
 import { runToolAgent } from '../agent/runtime';

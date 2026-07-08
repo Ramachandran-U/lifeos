@@ -176,3 +176,47 @@ describe('commitActions', () => {
     expect(deps.statuses).toEqual([['good', 'completed']]);
   });
 });
+
+// ── Decision log (memory-loop PR): a confirmed proposal is a decision ────────
+jest.mock('@/db/queries/behaviour', () => ({ logDecisionEvent: jest.fn() }));
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { logDecisionEvent } = require('@/db/queries/behaviour') as {
+  logDecisionEvent: jest.Mock;
+};
+
+describe('commitActions decision log', () => {
+  beforeEach(() => logDecisionEvent.mockClear());
+
+  it('logs coach_action_confirmed for each successfully committed action', async () => {
+    const deps = makeDeps();
+    const actions: ProposedAction[] = [
+      { kind: 'completeBlock', summary: 'Mark 10:00 focus done', payload: { ref: 'b1' } },
+    ];
+    const results = await commitActions(actions, deps);
+    expect(results[0]!.ok).toBe(true);
+    expect(logDecisionEvent).toHaveBeenCalledWith('coach_action_confirmed', 'ai', {
+      kind: 'completeBlock',
+      summary: 'Mark 10:00 focus done',
+    });
+  });
+
+  it('does NOT log for a failed commit (stale ref)', async () => {
+    const deps = { ...makeDeps(), routineBlockExists: () => false };
+    const results = await commitActions(
+      [{ kind: 'completeBlock', summary: 's', payload: { ref: 'gone' } }],
+      deps,
+    );
+    expect(results[0]!.ok).toBe(false);
+    expect(logDecisionEvent).not.toHaveBeenCalled();
+  });
+
+  it('a throwing logger never fails the commit the user just confirmed', async () => {
+    logDecisionEvent.mockImplementation(() => { throw new Error('storage boom'); });
+    const deps = makeDeps();
+    const results = await commitActions(
+      [{ kind: 'skipBlock', summary: 's', payload: { ref: 'b1' } }],
+      deps,
+    );
+    expect(results[0]!.ok).toBe(true);
+  });
+});

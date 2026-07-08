@@ -118,15 +118,8 @@ const ALLOWLIST = new Set<string>([
   'src/components/ui/DomainChip.tsx',
   'src/components/ui/SectionLabel.tsx',
   'src/components/ui/WheelTimePicker.tsx',
-  // W4 foundation (2026-06-12): entries follow the legacy extraction
-  // (app/(tabs)/{career,explore,finance,health,social}.tsx ->
-  // src/screens/legacy/*.legacy.tsx); not growth - the route files are now
-  // clean wrappers and their five entries above were removed 1:1.
-  'src/screens/legacy/CareerScreen.legacy.tsx',
-  'src/screens/legacy/ExploreScreen.legacy.tsx',
-  'src/screens/legacy/FinanceScreen.legacy.tsx',
-  'src/screens/legacy/HealthScreen.legacy.tsx',
-  'src/screens/legacy/SocialScreen.legacy.tsx',
+  // W4 graduation: the five src/screens/legacy/*.legacy.tsx entries were
+  // deleted with the legacy trees (PARKED_ITEMS §13.1). Ratchet −5.
   'src/theme/typography.ts',
 ]);
 

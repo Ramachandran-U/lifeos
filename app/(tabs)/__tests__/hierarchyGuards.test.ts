@@ -8,12 +8,9 @@
  * on the patterns the recomposition kills.
  *
  * Scope notes (decided in the W4 foundation PR, 2026-06-12):
- * - The five SCREEN_FILES are the app/(tabs) ROUTE files only. The verbatim
- *   pre-recomposition trees in src/screens/legacy/*.legacy.tsx are EXEMPT from
- *   every check here — they carry the old surface unchanged until the
- *   module_hierarchy_v1 graduation deletes them (see docs/PARKED_ITEMS.md
- *   §13). This mirrors Guard A's allowlist, which already covered the original
- *   screen files and whose entries followed the extraction 1:1.
+ * - The five SCREEN_FILES are the app/(tabs) ROUTE files only. (The frozen
+ *   pre-recomposition trees that used to live in src/screens/legacy/ were
+ *   deleted on module_hierarchy_v1 graduation — PARKED_ITEMS §13.1.)
  * - HERO_FILES don't all exist yet (each screen PR lands its hero). Missing
  *   files are SKIPPED via fs.existsSync — a deliberate ratchet: the checks arm
  *   themselves the moment a hero file appears.

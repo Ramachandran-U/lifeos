@@ -10,6 +10,13 @@ import { create } from 'zustand';
  *    that includes it in its load effect's deps re-reads immediately.
  *  - `phase` + `lastSyncedAt` drive a visible status pill, so a disabled flag or
  *    a stale device announces itself instead of costing a debugging session.
+ *  - `hydrated` flips true once the engine has completed its FIRST drain pass
+ *    (successful pull, empty pull, failed pull, or a terminal skip — disabled /
+ *    signed-out / no Supabase token). It means "sync has done all it's going to
+ *    do to bring server state down; whatever's local now is what we've got."
+ *    Screens that would otherwise manufacture fresh-id rows to fill an apparent
+ *    gap (e.g. Today's roll-forward clone) wait for this so they don't race the
+ *    pull and end up with the server's copy AND a local duplicate.
  *
  * Intentionally NOT persisted — per-session repaint + status, not state.
  */
@@ -24,12 +31,18 @@ interface SyncState {
   phase: SyncPhase;
   /** Epoch ms of the last successful server round-trip (push or pull). */
   lastSyncedAt: number | null;
+  /** True once the engine has completed its first drain pass this session. */
+  hydrated: boolean;
   /** Bumped by the engine after a pull; no-ops when nothing was applied. */
   markApplied: (count: number) => void;
   /** Set the engine's current activity phase. */
   setPhase: (phase: SyncPhase) => void;
   /** Record a successful server round-trip (sets lastSyncedAt = now). */
   noteSynced: () => void;
+  /** Called by the engine at the end of every drain — flips `hydrated` true. */
+  markHydrated: () => void;
+  /** Reset hydration (on sign-out) so the next user re-hydrates before seeding. */
+  resetHydration: () => void;
 }
 
 export const useSyncStore = create<SyncState>()((set) => ({
@@ -37,10 +50,13 @@ export const useSyncStore = create<SyncState>()((set) => ({
   lastAppliedAt: null,
   phase: 'idle',
   lastSyncedAt: null,
+  hydrated: false,
   markApplied: (count) => {
     if (count <= 0) return;
     set((s) => ({ appliedTick: s.appliedTick + 1, lastAppliedAt: Date.now() }));
   },
   setPhase: (phase) => set({ phase }),
   noteSynced: () => set({ lastSyncedAt: Date.now() }),
+  markHydrated: () => set((s) => (s.hydrated ? s : { hydrated: true })),
+  resetHydration: () => set({ hydrated: false }),
 }));
