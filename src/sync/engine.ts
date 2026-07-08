@@ -279,6 +279,11 @@ function drain(): void {
     } else {
       store.setPhase(!isEnabled() ? 'disabled' : 'signed_out');
     }
+    // First drain done (pull applied / empty / failed, or a terminal skip):
+    // whatever server state was coming has arrived. Screens that seed local
+    // rows to fill a gap (e.g. Today's roll-forward clone) gate on this so they
+    // don't race the pull and produce a duplicate of the server's copy.
+    store.markHydrated();
     gaugeLogSize();
     void maybeCompact();
   })();
@@ -314,6 +319,8 @@ export const syncEngine = {
   /** Stop draining and release the timer + listener. */
   stop(): void {
     started = false;
+    // A new user (post sign-in) must re-hydrate before any gap-filling seed runs.
+    useSyncStore.getState().resetHydration();
     if (timer) {
       clearInterval(timer);
       timer = null;
