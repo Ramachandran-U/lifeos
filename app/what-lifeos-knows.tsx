@@ -340,6 +340,32 @@ export default function WhatLifeOSKnowsScreen() {
               compact
             />
           </View>
+          <View style={styles.row2}>
+            <FieldText
+              label="Commute (min, one-way)"
+              value={profile.schedule.commuteMinutes != null ? String(profile.schedule.commuteMinutes) : ''}
+              placeholder="0 = from home"
+              onChange={(v) => {
+                const n = parseInt(v, 10);
+                const commuteMinutes = Number.isFinite(n) ? Math.min(Math.max(n, 0), 240) : null;
+                save({ ...profile, schedule: { ...profile.schedule, commuteMinutes } }, ['schedule']);
+              }}
+              c={c}
+              compact
+            />
+            <FieldText
+              label="Breather between blocks (min)"
+              value={profile.schedule.transitionMinutes != null ? String(profile.schedule.transitionMinutes) : ''}
+              placeholder="10"
+              onChange={(v) => {
+                const n = parseInt(v, 10);
+                const transitionMinutes = Number.isFinite(n) ? Math.min(Math.max(n, 0), 60) : null;
+                save({ ...profile, schedule: { ...profile.schedule, transitionMinutes } }, ['schedule']);
+              }}
+              c={c}
+              compact
+            />
+          </View>
           {profile.schedule.fixedBlocks.length > 0 ? (
             <View style={{ marginTop: spacing.sm }}>
               <Label style={{ color: c.textMuted, letterSpacing: 1.2 }}>FIXED BLOCKS</Label>

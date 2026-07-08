@@ -82,7 +82,7 @@ describe('mirrorScheduleToProfile', () => {
         sleepTime: '23:00',
         workStartTime: '09:00',
         workEndTime: '17:00',
-        fixedBlocks: [],
+        fixedBlocks: [], commuteMinutes: null, transitionMinutes: null,
       },
       habits: { current: ['workout'], aspirational: [] },
     };

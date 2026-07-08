@@ -36,14 +36,20 @@ import {
 } from '../routine';
 import { webUpsertRoutineBlockById, type WebRoutineBlock } from '../../webStorage';
 import { recordMutation } from '@/sync/runtime';
+import { format, subDays } from 'date-fns';
 
 const recordMutationMock = recordMutation as jest.MockedFunction<typeof recordMutation>;
 
-// Dynamic date: readBlockSnapshot's web branch scans only the last 31 days
-// from the REAL clock, so a hardcoded date is a time bomb (trunk red since
-// ~06-27; found 2026-07-07). Identical fix rides on memory-loop /
-// transition-buffers / feedback-triage — merges cleanly whichever lands first.
-const DATE = new Date().toISOString().slice(0, 10);
+// A recent date within readBlockSnapshot's ~31-day web scan window, so by-id
+// snapshot lookups (update/delete `before`) resolve. Built from LOCAL date parts
+// — toISOString would shift the day under +ve TZ offsets (e.g. IST) near midnight.
+const DATE = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() - 2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+})();
 
 function insert(over: Partial<{
   date: string; startTime: string; endTime: string; title: string;

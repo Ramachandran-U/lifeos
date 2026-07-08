@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { whatShouldIDoNextWithActions } from '@/ai/agent/whatNext';
 import { commitActions, type ProposedAction } from '@/ai/agent/actionQueue';
+import { logDecisionEvent } from '@/db/queries/behaviour';
 
 export type CoachStatus = 'idle' | 'loading' | 'done' | 'error';
 
@@ -95,6 +96,20 @@ export function useCoachActions(userId: string | null): UseCoachActionsResult {
 
   const dismiss = useCallback(
     (index: number) => {
+      // Decision log: skipping a proposal is as much a decision as confirming
+      // one — the "no" the coach should eventually learn from. (Confirms are
+      // logged in commitActions, the commit point shared with voice.)
+      const target = proposalsRef.current[index];
+      if (target && target.state === 'pending') {
+        try {
+          logDecisionEvent('coach_action_skipped', 'ai', {
+            kind: target.action.kind,
+            summary: target.action.summary.slice(0, 120),
+          });
+        } catch {
+          /* observer-only */
+        }
+      }
       patch(index, { state: 'dismissed' });
     },
     [patch],

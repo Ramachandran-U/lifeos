@@ -90,10 +90,8 @@ const ALLOWLIST = new Set<string>([
   'src/components/ui/AuroraGlow.tsx',
   'src/finance/categoryGroups.ts',
   'src/finance/display.ts',
-  // W4 foundation (2026-06-12): entry follows the legacy extraction
-  // (app/(tabs)/health.tsx -> src/screens/legacy/HealthScreen.legacy.tsx);
-  // not growth - the route file is now a clean wrapper.
-  'src/screens/legacy/HealthScreen.legacy.tsx',
+  // W4 graduation: the HealthScreen.legacy.tsx entry was deleted with the
+  // legacy trees (PARKED_ITEMS §13.1). Ratchet −1.
 ]);
 
 function* walk(dir: string): Generator<string> {

@@ -521,6 +521,12 @@ export interface RoutineInput {
     droppedHabits?: string[];
     preferredRestDays?: number[];
   };
+  /** One-way commute in minutes (null/0 = no commute). The planner books
+   *  commute blocks around workStartTime/workEndTime when > 0. */
+  commuteMinutes?: number | null;
+  /** Minimum breather between demanding blocks (change clothes, shower,
+   *  settle). null = planner default (10 min; 20 after physical blocks). */
+  transitionMinutes?: number | null;
   /** Polymath interests the user has flagged "protect time" — the planner must
    *  reserve at least the given weekly minutes for each, spread across the week. */
   protectedInterests?: Array<{ name: string; weeklyMinutes: number }>;
@@ -829,6 +835,15 @@ export const UserProfileSchema = z.object({
     workStartTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
     workEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
     fixedBlocks: z.array(FixedBlockSchema),
+    // Transition realism. Both .default(null) so profiles stored before these
+    // fields existed still parse — getUserProfile returns null on parse
+    // failure, which would silently wipe the user's profile.
+    /** One-way commute, minutes. null/0 = no commute (WFH). When > 0 the
+     *  planner books commute blocks around workStartTime/workEndTime. */
+    commuteMinutes: z.number().int().min(0).max(240).nullable().default(null),
+    /** Minimum breather between demanding blocks (sit down, change clothes,
+     *  settle in). null = planner default (10 min; 20 after workouts). */
+    transitionMinutes: z.number().int().min(0).max(60).nullable().default(null),
   }),
   chronotype: ChronotypeEnum.nullable(),
   primaryDomains: z.array(PrimaryDomainEnum).max(3),
@@ -859,7 +874,7 @@ export function emptyUserProfile(source: UserProfile['source'] = 'chat'): UserPr
     version: 1,
     identity: { firstName: null, ageBand: null, seasonOfLife: null },
     vision: { statement: null, horizon: null, topGoals: [] },
-    schedule: { wakeTime: null, sleepTime: null, workStartTime: null, workEndTime: null, fixedBlocks: [] },
+    schedule: { wakeTime: null, sleepTime: null, workStartTime: null, workEndTime: null, fixedBlocks: [], commuteMinutes: null, transitionMinutes: null },
     chronotype: null,
     primaryDomains: [],
     habits: { current: [], aspirational: [] },

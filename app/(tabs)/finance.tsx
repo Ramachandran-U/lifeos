@@ -36,7 +36,6 @@ import { FinanceGoalCard } from '@/components/modules/finance/FinanceGoalCard';
 import { MilestoneTracker } from '@/components/modules/finance/MilestoneTracker';
 import { WeeklyInsightCard } from '@/components/modules/finance/WeeklyInsightCard';
 import { SubscriptionsBillsCard } from '@/components/modules/finance/SubscriptionsBillsCard';
-import { FinanceScreenLegacy } from '@/screens/legacy/FinanceScreen.legacy';
 import { useAI } from '@/hooks/useAI';
 import { generateFinancialPlan, getWeeklyFinanceInsight } from '@/ai/functions';
 import { useScreenTracking } from '@/hooks/useScreenTracking';
@@ -65,7 +64,6 @@ import { splitTxByPeriod } from '@/finance/analytics';
 import type { TxRecord, TxDirection } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
-import { useFlagStore } from '@/store/useFlagStore';
 
 const webTextInputOutline = Platform.select({
   web: { outlineStyle: 'none' as const } as object,
@@ -126,13 +124,9 @@ function formatRelative(iso: string | null): string {
   return `${days}d ago`;
 }
 
-// Ink + Signal §3.0.1: the route branches exactly once on module_hierarchy_v1.
-// Flag off → the byte-identical legacy tree; flag on → the recomposed
-// hero-first tree below. The legacy file is deleted (not edited) when the flag
-// graduates — see docs/PARKED_ITEMS.md §13.
+// Ink + Signal §3.0.1: module_hierarchy_v1 graduated (100% since 2026-06-13;
+// legacy tree deleted per docs/PARKED_ITEMS.md §13.1). Hero-first is the only path.
 export default function FinanceScreen() {
-  const hierarchyV1 = useFlagStore((s) => s.isEnabled('module_hierarchy_v1'));
-  if (!hierarchyV1) return <FinanceScreenLegacy />;
   return <FinanceScreenV1 />;
 }
 

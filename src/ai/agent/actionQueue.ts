@@ -18,6 +18,7 @@ import { getGoalById as dbGetGoalById } from '@/db/queries/goals';
 import { createFoodEntry as dbCreateFoodEntry, createHealthLog as dbCreateHealthLog } from '@/db/queries/health';
 import { logInteraction as dbLogInteraction, getContact as dbGetContact, type InteractionType } from '@/db/queries/social';
 import { createFinancialGoal as dbCreateFinancialGoal } from '@/db/queries/finance';
+import { logDecisionEvent } from '@/db/queries/behaviour';
 
 export type GoalStatus = 'active' | 'completed' | 'paused' | 'abandoned';
 
@@ -259,6 +260,16 @@ export async function commitActions(
           throw new Error(`${action.kind} is handled by navigation, not commitActions`);
       }
       results.push({ action, ok: true });
+      // Decision log: confirming an AI proposal is a decision. Best-effort —
+      // logging must never fail a commit the user just confirmed.
+      try {
+        logDecisionEvent('coach_action_confirmed', 'ai', {
+          kind: action.kind,
+          summary: action.summary.slice(0, 120),
+        });
+      } catch {
+        /* observer-only */
+      }
     } catch (err) {
       results.push({ action, ok: false, error: err instanceof Error ? err.message : String(err) });
     }

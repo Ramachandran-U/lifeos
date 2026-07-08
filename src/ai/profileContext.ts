@@ -34,6 +34,13 @@ export interface ProfileContextOptions {
   }>;
   /** Optional: today's date in YYYY-MM-DD. Defaults to today. */
   todayDate?: string;
+  /**
+   * Optional: durable memory facts (from the consolidation store) — rendered as
+   * a "LifeOS remembers" section so the chatbot can ground answers in
+   * long-horizon patterns, not just the profile snapshot. Caller pre-filters to
+   * live facts and caps the count (the block stays deliberately short).
+   */
+  memoryFacts?: Array<{ kind: string; text: string }>;
 }
 
 export function buildProfileContext(profile: UserProfile, opts: ProfileContextOptions = {}): string {
@@ -100,6 +107,15 @@ export function buildProfileContext(profile: UserProfile, opts: ProfileContextOp
   if (ip.preferredRestDays.length) ipBits.push(`lighter on ${ip.preferredRestDays.map((d) => DOW_LABELS[d]).join('/')}`);
   if (ip.droppedHabits.length) ipBits.push(`keeps dropping: ${ip.droppedHabits.slice(0, 3).join(', ')}`);
   if (ipBits.length) lines.push(`Learned from behaviour: ${ipBits.join('; ')}`);
+
+  // Durable memory (consolidated long-horizon facts)
+  if (opts.memoryFacts && opts.memoryFacts.length) {
+    lines.push('');
+    lines.push('LifeOS remembers:');
+    for (const f of opts.memoryFacts.slice(0, 8)) {
+      lines.push(`  - [${f.kind}] ${f.text}`);
+    }
+  }
 
   // Today's routine
   if (opts.todayBlocks && opts.todayBlocks.length) {
