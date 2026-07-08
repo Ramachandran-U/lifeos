@@ -408,3 +408,49 @@ describe('selectPlannerGoals (web)', () => {
     expect(selectPlannerGoals(USER)).toEqual(['Mine']);
   });
 });
+
+// ── Decision log (memory-loop PR) — goal status changes are decisions ────────
+import { getEventsLastNDays } from '../behaviour';
+
+function decisions(): Array<{ action?: string; [k: string]: unknown }> {
+  return getEventsLastNDays(1)
+    .filter((e) => e.eventType === 'decision')
+    .map((e) => (e.metadata ? (JSON.parse(e.metadata) as { action?: string }) : {}));
+}
+
+describe('decision log (web)', () => {
+  it('updateGoalStatus logs goal_<status> with title, previous status, and the optional reason', () => {
+    const id = createGoal({ userId: USER, title: 'Learn cello', goalType: 'g', level: 'life' });
+    updateGoalStatus(id, 'paused', 'too busy this quarter');
+    const d = decisions();
+    expect(d).toHaveLength(1);
+    expect(d[0]).toMatchObject({
+      action: 'goal_paused',
+      goalId: id,
+      goalTitle: 'Learn cello',
+      previousStatus: 'active',
+      reason: 'too busy this quarter',
+    });
+  });
+
+  it('a no-op status write logs nothing', () => {
+    const id = createGoal({ userId: USER, title: 'Same', goalType: 'g', level: 'life' });
+    updateGoalStatus(id, 'active');
+    expect(decisions()).toHaveLength(0);
+  });
+
+  it('snooze + manual resume are decisions; the scheduler auto-resume is not', () => {
+    const id = createGoal({ userId: USER, title: 'Snoozy', goalType: 'g', level: 'life' });
+    snoozeGoal(id, '2000-01-01'); // already due
+    expect(decisions().map((d) => d.action)).toEqual(['goal_snoozed']);
+
+    reactivateDueGoals(USER, '2026-07-07'); // auto path → no decision
+    expect(decisions().map((d) => d.action)).toEqual(['goal_snoozed']);
+
+    snoozeGoal(id, '2099-01-01');
+    resumeGoal(id); // manual path → decision
+    expect(decisions().map((d) => d.action)).toEqual([
+      'goal_snoozed', 'goal_snoozed', 'goal_resumed',
+    ]);
+  });
+});

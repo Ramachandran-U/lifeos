@@ -25,3 +25,4 @@ export * from './webStorage/constellationEdges';
 export * from './webStorage/xpEvents';
 export * from './webStorage/quests';
 export * from './webStorage/chests';
+export * from './webStorage/memory';

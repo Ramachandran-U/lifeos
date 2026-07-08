@@ -17,7 +17,7 @@ import { InkCanvas } from '@/components/shared/InkCanvas';
 import { getRoutineBlocksByDate, updateRoutineBlock } from '@/db/queries/routine';
 import { cloneRoutineToDate } from '@/utils/starterRoutine';
 import { upsertReflection, getReflectionByDate, type BlockReview } from '@/db/queries/reflections';
-import { logBehaviourEvent } from '@/db/queries/behaviour';
+import { logBehaviourEvent, logDecisionEvent } from '@/db/queries/behaviour';
 import { track, EVENTS } from '@/utils/telemetry';
 import { suggestTomorrowTweak } from '@/ai/functions';
 import { consolidateMemory } from '@/ai/memory/consolidate';
@@ -233,11 +233,15 @@ export default function EveningReflectScreen() {
     }
     // "add" is not auto-applied in v1 — user can edit the routine manually
     setTweakAccepted(true);
+    // Decision log: accepting the AI's tomorrow-tweak is a decision the
+    // suggestion loop should eventually learn from (today it's write-only).
+    logDecisionEvent('tweak_accepted', 'routine', { kind: tweak?.kind });
     loadTomorrow();
   };
 
   const dismissTweak = () => {
     setTweakAccepted(false);
+    logDecisionEvent('tweak_rejected', 'routine', { kind: tweak?.kind });
   };
 
   const finish = async () => {

@@ -22,7 +22,7 @@
 | **State** | Zustand 5 |
 | **Database** | SQLite (expo-sqlite 16) + Drizzle ORM 0.45 |
 | **Transaction DB** | Dexie (IndexedDB) — web-first, for finance transactions |
-| **AI** | Claude (Anthropic) + Gemini Live (Google), brokered by `workers/ai-proxy` (Cloudflare Workers). The app never holds API keys; bearer is a Supabase JWT. |
+| **AI** | Provider-pluggable LLM proxy — Gemini is the current default (per-task tiered routing via `pickModel`), with a server-side fallback chain (Groq/Anthropic); Gemini Live (Google) for voice. Brokered by `workers/ai-proxy` (Cloudflare Workers). The app never holds API keys; bearer is a Supabase JWT. |
 | **Backend** | Cloudflare Workers (`workers/ai-proxy/`) — `/claude` proxy, `/gemini-live` WebSocket, `/v1/config`, `/v1/prompts`, `/v1/admin/*`, KV-backed daily rate limits. |
 | **Auth** | Supabase Auth (email/password + Google OAuth + Apple) — JWT verified inside the worker via JWKS. Local SQLite users row mirrors the auth identity. |
 | **Data Fetching** | TanStack React Query 5 |
@@ -33,7 +33,7 @@
 | **Cross-platform KV** | `src/utils/kvStore.ts` — async wrapper over localStorage / sessionStorage on web; `expo-secure-store` (sensitive keys) + `@react-native-async-storage/async-storage` on native |
 | **Charts & Gamification Visuals** | `react-native-svg` — HexRadar (Life Balance), LevelRing / AvatarRing (progress rings), Sparkline (XP history). All animated via Reanimated. |
 
-**Architecture pattern:** Local-first client + thin auth/AI broker. Domain data persists on-device in SQLite (web mirrors via localStorage/IndexedDB). All AI traffic routes through `workers/ai-proxy`, which verifies a Supabase JWT, enforces per-user daily rate limits in Workers KV, and forwards to Anthropic or Gemini. Admin-managed feature flags + system prompts are fetched at boot from the worker (`/v1/config`, `/v1/prompts`) and cached in Zustand stores. The app never embeds AI provider keys.
+**Architecture pattern:** Local-first client + thin auth/AI broker. Domain data persists on-device in SQLite (web mirrors via localStorage/IndexedDB). All AI traffic routes through `workers/ai-proxy`, which verifies a Supabase JWT, enforces per-user daily rate limits in Workers KV, and forwards to the configured LLM provider (Gemini default; Groq/Anthropic in the fallback chain). Admin-managed feature flags + system prompts are fetched at boot from the worker (`/v1/config`, `/v1/prompts`) and cached in Zustand stores. The app never embeds AI provider keys.
 
 ### Folder Structure
 
@@ -71,7 +71,7 @@ lifeos/
 │   └── _layout.tsx                # Root: fonts, DB init, theme hydrate, Supabase session, flags/prompts fetch, auth routing
 ├── src/
 │   ├── ai/
-│   │   ├── client.ts              # Claude proxy client (sends Supabase JWT to /claude)
+│   │   ├── client.ts              # LLM proxy client (sends Supabase JWT to /claude — endpoint name is historical)
 │   │   ├── voiceClient.ts         # Gemini Live WebSocket wrapper (?token=<jwt>)
 │   │   ├── functions.ts           # AI orchestration functions (decompose, plan, etc.)
 │   │   ├── modelRouter.ts         # Picks model + maxTokens per task
@@ -102,7 +102,7 @@ lifeos/
 │   │   ├── gmail/                 # OAuth (PKCE) + Gmail API fetcher
 │   │   ├── parsers/               # HDFC / ICICI / Axis regex parsers
 │   │   ├── db/                    # Dexie (IndexedDB) transaction schema
-│   │   ├── categorizer.ts         # Rule-based + Claude fallback categorizer
+│   │   ├── categorizer.ts         # Rule-based + local k-NN + batched-AI fallback categorizer
 │   │   ├── insights.ts            # Behavioural insight detectors
 │   │   └── store/                 # Zustand: transactions, sync state, token
 │   ├── store/                     # Zustand: useUserStore, useGoalStore, useGameStore,
@@ -522,7 +522,7 @@ All functions validate output with Zod schemas, support mock mode via `EXPO_PUBL
 |-------|------|---------|
 | `GET /v1/config` | public | Boot-time config — feature flags + non-sensitive settings |
 | `GET /v1/prompts` | Bearer | System prompts overridable by admin portal |
-| `POST /claude` | Bearer | Forward to Anthropic; rate-limited per user via `RATE_LIMIT` KV |
+| `POST /claude` | Bearer | Forward to the configured LLM provider (Gemini default; endpoint name is historical); rate-limited per user via `RATE_LIMIT` KV |
 | `WS /gemini-live?token=` | Token in query | Gemini Live WebSocket pipe (browsers can't set headers on WS) |
 | `GET /health` | Bearer | Liveness |
 | `/v1/admin/flags`, `/v1/admin/prompts` | Bearer + admin row | Admin portal endpoints; admin allowlist in DB |

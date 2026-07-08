@@ -30,6 +30,10 @@ jest.mock('@/db/webStorage', () => ({
   webUpsertSparkById: jest.fn(),
   webUpsertUserProfile: jest.fn(),
   webUpdateUser: jest.fn(),
+  webUpsertFactById: jest.fn(),
+  webDeleteFact: jest.fn(),
+  webUpsertSuppressionById: jest.fn(),
+  webDeleteSuppression: jest.fn(),
 }));
 
 // Fake drizzle db — every builder method is chainable; get() returns the
@@ -195,6 +199,24 @@ describe('applyState — web routing', () => {
     expect(web.webUpsertReflectionById).toHaveBeenCalled();
   });
 
+  test('memory_facts upsert vs HARD-delete tombstone', async () => {
+    await apply('memory_facts', { id: 'e1', userId: 'u1', kind: 'pattern', text: 'morning person' });
+    expect(web.webUpsertFactById).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'e1', text: 'morning person' }),
+    );
+    await apply('memory_facts', null);
+    expect(web.webDeleteFact).toHaveBeenCalledWith('e1');
+  });
+
+  test('memory_suppressions upsert vs delete tombstone', async () => {
+    await apply('memory_suppressions', { id: 'e1', userId: 'u1', text: 'forgotten' });
+    expect(web.webUpsertSuppressionById).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'e1', text: 'forgotten' }),
+    );
+    await apply('memory_suppressions', null);
+    expect(web.webDeleteSuppression).toHaveBeenCalledWith('e1');
+  });
+
   test('malformed profile JSON is skipped, not thrown', async () => {
     mMaterialize.mockReturnValue({ profile: '{bad json' });
     const out = await applyRemoteMutation(rec('user_profiles', 'e1'), fakeSink(true, { history: [rec('user_profiles', 'e1')] }));
@@ -241,6 +263,20 @@ describe('applyState — native db routing', () => {
     nextGetRow = { id: 'existing' };
     await apply('expedition_progress', { id: 'e1', userId: 'u1', expeditionId: 'x1' });
     expect(dbOps.update).toHaveBeenCalled();
+  });
+
+  test('memory_facts upsert → db.insert; tombstone → db.delete (hard delete)', async () => {
+    await apply('memory_facts', { id: 'e1', userId: 'u1', kind: 'pattern', text: 't' });
+    expect(dbOps.insert).toHaveBeenCalled();
+    await apply('memory_facts', null);
+    expect(dbOps.delete).toHaveBeenCalled();
+  });
+
+  test('memory_suppressions upsert → db.insert; tombstone → db.delete', async () => {
+    await apply('memory_suppressions', { id: 'e1', userId: 'u1', text: 't' });
+    expect(dbOps.insert).toHaveBeenCalled();
+    await apply('memory_suppressions', null);
+    expect(dbOps.delete).toHaveBeenCalled();
   });
 
   test('users update strips identity/credential columns', async () => {

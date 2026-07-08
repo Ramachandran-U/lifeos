@@ -16,6 +16,7 @@ import { db } from '@/db';
 import { memoryFacts, memorySuppressions } from '@/db/schema';
 import {
   webGetFactsByUser,
+  webGetFactById,
   webInsertFact,
   webUpdateFact,
   webDeleteFact,
@@ -25,6 +26,7 @@ import {
   type WebMemoryFact,
   type WebMemorySuppression,
 } from '@/db/webStorage/memory';
+import { recordMutation } from '@/sync/runtime';
 import { embedText } from './embed';
 import { cosine } from './retrieve';
 
@@ -241,6 +243,36 @@ export function getFactsByUser(userId: string): MemoryFact[] {
     .map(decodeRow);
 }
 
+function getFactById(id: string): MemoryFact | null {
+  if (isWeb) {
+    const r = webGetFactById(id);
+    return r ? decodeWebRow(r) : null;
+  }
+  const r = db.select().from(memoryFacts).where(eq(memoryFacts.id, id)).get();
+  return r ? decodeRow(r) : null;
+}
+
+/**
+ * A fact as its stored row (embedding re-serialized to a JSON string), the
+ * snapshot shape the mutation log carries — matches what the sync reducer
+ * writes back on the other device, so fold/materialize round-trips exactly.
+ */
+function factRowSnapshot(f: MemoryFact): Record<string, unknown> {
+  return {
+    id: f.id,
+    userId: f.userId,
+    kind: f.kind,
+    text: f.text,
+    embedding: f.embedding ? JSON.stringify(f.embedding) : null,
+    salience: f.salience,
+    sourceWindow: f.sourceWindow,
+    pinned: f.pinned ?? false,
+    createdAt: f.createdAt,
+    lastSeenAt: f.lastSeenAt,
+    expiresAt: f.expiresAt,
+  };
+}
+
 export interface UpsertFactInput {
   userId: string;
   kind: MemoryFactKind;
@@ -276,52 +308,59 @@ export async function upsertFact(
         .where(eq(memoryFacts.id, dup.id))
         .run();
     }
+    const before = factRowSnapshot(dup);
+    recordMutation({
+      entity: 'memory_facts',
+      entityId: dup.id,
+      op: 'update',
+      before,
+      after: { ...before, salience: bumped, lastSeenAt: nowIso },
+    });
     return dup.id;
   }
 
   const id = nanoid();
   const expiresAt = input.ttlDays ? new Date(now + input.ttlDays * 86_400_000).toISOString() : null;
   const embeddingJson = JSON.stringify(embedding);
+  const row = {
+    id,
+    userId: input.userId,
+    kind: input.kind,
+    text: input.text,
+    embedding: embeddingJson,
+    salience: 1,
+    sourceWindow: input.sourceWindow ?? null,
+    createdAt: nowIso,
+    lastSeenAt: nowIso,
+    expiresAt,
+  };
   if (isWeb) {
-    webInsertFact({
-      id,
-      userId: input.userId,
-      kind: input.kind,
-      text: input.text,
-      embedding: embeddingJson,
-      salience: 1,
-      sourceWindow: input.sourceWindow ?? null,
-      createdAt: nowIso,
-      lastSeenAt: nowIso,
-      expiresAt,
-    });
+    webInsertFact(row);
   } else {
-    db.insert(memoryFacts)
-      .values({
-        id,
-        userId: input.userId,
-        kind: input.kind,
-        text: input.text,
-        embedding: embeddingJson,
-        salience: 1,
-        sourceWindow: input.sourceWindow ?? null,
-        createdAt: nowIso,
-        lastSeenAt: nowIso,
-        expiresAt,
-      })
-      .run();
+    db.insert(memoryFacts).values(row).run();
   }
+  recordMutation({
+    entity: 'memory_facts',
+    entityId: id,
+    op: 'insert',
+    before: null,
+    after: { ...row, pinned: false },
+  });
   return id;
 }
 
-/** Top-k live facts most relevant to `query` for a user. */
+/**
+ * Top-k live facts most relevant to `query` for a user. Works on both
+ * platforms: `getFactsByUser` branches to the web store, and the runtime
+ * embedder is the deterministic hash embedder on web and native alike (the
+ * Voyage key is Node-only), so query and stored embeddings share a space.
+ */
 export async function searchFacts(
   userId: string,
   query: string,
   k = 5,
   nowMs?: number,
 ): Promise<MemoryFact[]> {
-  if (isWeb) return [];
   const facts = getFactsByUser(userId);
   if (facts.length === 0) return [];
   const queryEmbedding = await embedText(query);
@@ -329,28 +368,59 @@ export async function searchFacts(
 }
 
 export function deleteFact(id: string): void {
+  const before = getFactById(id);
   if (isWeb) {
     webDeleteFact(id);
-    return;
+  } else {
+    db.delete(memoryFacts).where(eq(memoryFacts.id, id)).run();
   }
-  db.delete(memoryFacts).where(eq(memoryFacts.id, id)).run();
+  if (before) {
+    recordMutation({
+      entity: 'memory_facts',
+      entityId: id,
+      op: 'delete',
+      before: factRowSnapshot(before),
+      after: null,
+    });
+  }
 }
 
 export function deleteAllFactsForUser(userId: string): void {
+  const rows = getFactsByUser(userId);
   if (isWeb) {
     webDeleteAllFactsForUser(userId);
-    return;
+  } else {
+    db.delete(memoryFacts).where(eq(memoryFacts.userId, userId)).run();
   }
-  db.delete(memoryFacts).where(eq(memoryFacts.userId, userId)).run();
+  for (const f of rows) {
+    recordMutation({
+      entity: 'memory_facts',
+      entityId: f.id,
+      op: 'delete',
+      before: factRowSnapshot(f),
+      after: null,
+    });
+  }
 }
 
 /** Pin or unpin a fact. Pinned facts never decay or expire (see isFactLive). */
 export function setFactPinned(id: string, pinned: boolean): void {
+  const beforeFact = getFactById(id);
   if (isWeb) {
     webUpdateFact(id, { pinned });
-    return;
+  } else {
+    db.update(memoryFacts).set({ pinned }).where(eq(memoryFacts.id, id)).run();
   }
-  db.update(memoryFacts).set({ pinned }).where(eq(memoryFacts.id, id)).run();
+  if (beforeFact) {
+    const before = factRowSnapshot(beforeFact);
+    recordMutation({
+      entity: 'memory_facts',
+      entityId: id,
+      op: 'update',
+      before,
+      after: { ...before, pinned },
+    });
+  }
 }
 
 /**
@@ -363,12 +433,23 @@ export async function addUserFact(userId: string, text: string, kind: MemoryFact
 
 /** Edit a fact's text + kind, re-embedding so dedup/retrieval stay accurate. */
 export async function updateFact(id: string, text: string, kind: MemoryFactKind): Promise<void> {
+  const beforeFact = getFactById(id);
   const embeddingJson = JSON.stringify(await embedText(text));
   if (isWeb) {
     webUpdateFact(id, { text, kind, embedding: embeddingJson });
-    return;
+  } else {
+    db.update(memoryFacts).set({ text, kind, embedding: embeddingJson }).where(eq(memoryFacts.id, id)).run();
   }
-  db.update(memoryFacts).set({ text, kind, embedding: embeddingJson }).where(eq(memoryFacts.id, id)).run();
+  if (beforeFact) {
+    const before = factRowSnapshot(beforeFact);
+    recordMutation({
+      entity: 'memory_facts',
+      entityId: id,
+      op: 'update',
+      before,
+      after: { ...before, text, kind, embedding: embeddingJson },
+    });
+  }
 }
 
 // --- suppression tombstones (so "forget" sticks across consolidations) ---
@@ -408,9 +489,18 @@ export function addSuppression(
   };
   if (isWeb) {
     webInsertSuppression(row);
-    return;
+  } else {
+    db.insert(memorySuppressions).values(row).run();
   }
-  db.insert(memorySuppressions).values(row).run();
+  // Tombstones sync too — a "forget" on one device must stick on every device,
+  // or the other device's next consolidation re-derives the deleted fact.
+  recordMutation({
+    entity: 'memory_suppressions',
+    entityId: row.id,
+    op: 'insert',
+    before: null,
+    after: { ...row },
+  });
 }
 
 /**

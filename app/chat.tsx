@@ -23,6 +23,8 @@ import {
 import { getUserProfile } from '@/db/queries/userProfile';
 import { getRoutineBlocksByDate } from '@/db/queries/routine';
 import { buildProfileContext } from '@/ai/profileContext';
+import { getFactsByUser, isFactLive, effectiveSalience } from '@/ai/rag/memoryStore';
+import { useFlagStore } from '@/store/useFlagStore';
 import { format } from 'date-fns';
 
 const CHAT_PLACEHOLDERS = [
@@ -89,7 +91,22 @@ export default function ChatScreen() {
               module: b.module,
               status: b.status,
             }));
-          contextBlock = buildProfileContext(profile, { todayBlocks, todayDate: today });
+          // Durable memory facts (flag-gated, read-only). Failures degrade to
+          // a memory-less context — chat must never break on the memory store.
+          let memoryFacts: Array<{ kind: string; text: string }> | undefined;
+          if (useFlagStore.getState().isEnabled('agent_memory_tool')) {
+            try {
+              const now = Date.now();
+              memoryFacts = getFactsByUser(userId)
+                .filter((f) => isFactLive(f, now))
+                .sort((a, b) => effectiveSalience(b, now) - effectiveSalience(a, now))
+                .slice(0, 8)
+                .map((f) => ({ kind: f.kind, text: f.text }));
+            } catch {
+              memoryFacts = undefined;
+            }
+          }
+          contextBlock = buildProfileContext(profile, { todayBlocks, todayDate: today, memoryFacts });
           contextCacheRef.current = { key: cacheKey, block: contextBlock };
         }
       }

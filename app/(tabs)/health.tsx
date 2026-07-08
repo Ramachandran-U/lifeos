@@ -30,7 +30,6 @@ import { AddFoodSheet, type FoodEntryEdit } from '@/components/modules/health/Ad
 import { MealSuggestionsCard } from '@/components/modules/health/MealSuggestionsCard';
 import { EditVitalsSheet } from '@/components/modules/health/EditVitalsSheet';
 import { FitDashboard } from '@/components/modules/health/FitDashboard';
-import { HealthScreenLegacy } from '@/screens/legacy/HealthScreen.legacy';
 import {
   getFoodEntriesByDate,
   getRecentWeightLogs,
@@ -48,7 +47,6 @@ import { recoveryFromFitDays, computeRecoveryScore, recoveryBandLabel } from '@/
 import { useAI } from '@/hooks/useAI';
 import { parseBloodReport } from '@/ai/functions';
 import { useGameStore } from '@/store/useGameStore';
-import { useFlagStore } from '@/store/useFlagStore';
 import { tickQuestMetric } from '@/store/useQuestStore';
 import { XP_VALUES } from '@/utils/gamification';
 import { useUserStore } from '@/store/useUserStore';
@@ -90,13 +88,9 @@ function mealByTimeOfDay(now: Date): MealType {
 const GLASS_ML = 250;
 const ENERGY_LEVELS = [1, 2, 3, 4, 5] as const;
 
-// Ink + Signal §3.0.1: the route branches exactly once on module_hierarchy_v1.
-// Flag off → the byte-identical legacy tree; flag on → the recomposed
-// hero-first tree below. The legacy file is deleted (not edited) when the flag
-// graduates — see docs/PARKED_ITEMS.md §13.
+// Ink + Signal §3.0.1: module_hierarchy_v1 graduated (100% since 2026-06-13;
+// legacy tree deleted per docs/PARKED_ITEMS.md §13.1). Hero-first is the only path.
 export default function HealthScreen() {
-  const hierarchyV1 = useFlagStore((s) => s.isEnabled('module_hierarchy_v1'));
-  if (!hierarchyV1) return <HealthScreenLegacy />;
   return <HealthScreenV1 />;
 }
 
