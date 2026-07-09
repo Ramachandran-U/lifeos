@@ -64,24 +64,45 @@ export function findTransitionIssues(
   const minGap = opts.transitionMinutes ?? DEFAULT_TRANSITION_MINUTES;
   const ordered = [...blocks].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
 
+  // Physical block flowing into demanding non-rest work: no time to
+  // shower/change. A rest/meal block IS the buffer. Scans FORWARD past any
+  // in-between neutral blocks (e.g. a 3-min "log workout") so a tiny
+  // interstitial can't hide a real workout→deep-work collision — the gap is
+  // measured from the physical block's end to the first checkpoint block
+  // found, whatever sits between them. Tracks genuinely adjacent pairs it
+  // has already ruled on so the context-switch pass below doesn't re-flag
+  // the same transition.
+  const physicalBufferHandledAdjacent = new Set<number>();
+  for (let i = 0; i < ordered.length; i++) {
+    const cur = ordered[i]!;
+    if (!isPhysical(cur)) continue;
+    for (let j = i + 1; j < ordered.length; j++) {
+      const candidate = ordered[j]!;
+      const gap = toMin(candidate.startTime) - toMin(cur.endTime);
+      if (gap < 0) continue; // overlap — the schedule guards own that class; keep scanning past it
+      if (isRestful(candidate)) break; // buffer satisfied
+      if (isPhysical(candidate)) break; // a newer physical block resets the clock — its own scan covers what follows
+      if (isDemanding(candidate)) {
+        if (gap < POST_PHYSICAL_BUFFER_MINUTES) {
+          issues.push(
+            `"${candidate.title}" starts ${gap} min after the physical block "${cur.title}" — leave ≥${POST_PHYSICAL_BUFFER_MINUTES} min to shower/change, or insert a rest block.`,
+          );
+          if (j === i + 1) physicalBufferHandledAdjacent.add(i);
+        }
+        break; // found the checkpoint either way — stop scanning for this physical block
+      }
+      // neutral block (not physical/restful/demanding) — keep scanning forward
+    }
+  }
+
+  // Two demanding blocks in different modules back-to-back with no breather.
   for (let i = 0; i < ordered.length - 1; i++) {
+    if (physicalBufferHandledAdjacent.has(i)) continue;
     const cur = ordered[i]!;
     const next = ordered[i + 1]!;
     const gap = toMin(next.startTime) - toMin(cur.endTime);
     if (gap < 0) continue; // overlap — the schedule guards own that class
 
-    // Physical block flowing straight into demanding non-rest work: no time to
-    // shower/change. A rest/meal follower IS the buffer.
-    if (isPhysical(cur) && isDemanding(next) && !isRestful(next)) {
-      if (gap < POST_PHYSICAL_BUFFER_MINUTES) {
-        issues.push(
-          `"${next.title}" starts ${gap} min after the physical block "${cur.title}" — leave ≥${POST_PHYSICAL_BUFFER_MINUTES} min to shower/change, or insert a rest block.`,
-        );
-        continue;
-      }
-    }
-
-    // Two demanding blocks in different modules back-to-back with no breather.
     if (
       minGap > 0 &&
       isDemanding(cur) &&
