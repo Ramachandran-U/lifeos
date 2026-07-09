@@ -243,6 +243,17 @@
 
 ---
 
+## 17. Review follow-ups — 2026-07-08 multi-agent review of #226/#230/#232
+
+> Findings from an 8-angle automated review that were judged real but not urgent enough to block the PRs they were found on. The interstitial-bypass bug in #226 and the pin case-sensitivity in #232 were fixed directly (branch `fix/review-followups`); these two need a design decision or cross-cutting scope, not a quick patch.
+
+| # | Item | Why parked | Un-park trigger |
+|---|------|-----------|-----------------|
+| 17.1 🅿️ | **Roll-forward clone (#230): `hydrated` is a session-long latch, not per-date.** `app/(tabs)/index.tsx`'s clone-suppression checks `useSyncStore().hydrated`, which flips true once after the FIRST drain each session and never resets (until sign-out). It answers "has the engine drained at all this session," not "has *today's* state been reconciled" — so a long-lived session that's foregrounded again across midnight, with a fresh drain still in flight for the new day, can still race: today has 0 local blocks, `hydrated` is already latched true from hours ago, the clone mints fresh-id blocks, and the incoming pull for today's plan can't dedupe against them (the original #230 bug, narrower repro). No test exists at the actual fix site (`index.tsx`); only the store primitive (`markHydrated`/`resetHydration`) is covered. | Needs a real design call, not a patch: either expose the sync engine's `pulling` state (currently module-private in `src/sync/engine.ts`) so the guard can check "is a pull for today in flight," or key hydration per-date instead of per-session. Low frequency (needs a long-lived cross-midnight session), so not urgent. | Pick up when: (a) a user reports duplicate/repeating Today blocks after leaving the app open overnight, or (b) `src/sync/engine.ts` is next touched for other reasons — piggyback exposing `pulling` then. Add a regression test at `index.tsx`'s `loadData` (not just the store) when fixed. |
+| 17.2 🅿️ | **Radii compliance ratchet — hardcoded `borderRadius` literals across the polymath sheet family.** `FrontierPickerSheet.tsx`, `DepthSheet.tsx`, `AddInterestSheet.tsx` all hardcode sheet-corner (`24`) and button (`12`) radii instead of `src/theme/radii.ts` tokens (`radii.xl`=28, `radii.control`=14 — neither matches exactly, which is likely *why* they were hardcoded rather than an oversight). CLAUDE.md says "always read tokens from `src/theme/`" but there's no CI guard for it — the existing compliance ratchets (`src/theme/__tests__/*Compliance.test.ts`) cover colors/caps-labels/violet/motion only, not radii/spacing. | Cross-cutting (3+ files already drifted before this review; likely more elsewhere) and the token set may need a new size (e.g. a `sheet` radius ≈24) before files can migrate cleanly — not a one-file fix. | Pick up when: someone's touching the sheet family for other reasons (migrate opportunistically), or when the team wants a `radiiCompliance.test.ts` ratchet added deliberately (mirrors the existing color/caps-label/violet guards — seed it the same way: empty the allowlist, run, the failure list is the seed). |
+
+---
+
 ## Related canonical docs
 
 - [`docs/PARKED_ITEMS_RUNBOOK.md`](PARKED_ITEMS_RUNBOOK.md) — **step-by-step instructions to un-park each item here** (commands, console paths, gotchas)

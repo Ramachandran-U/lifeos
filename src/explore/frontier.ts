@@ -82,6 +82,11 @@ export function frontierPairKey(a: string, b: string): string {
   return [a.trim().toLowerCase(), b.trim().toLowerCase()].sort().join('::');
 }
 
+/** Same interest name modulo case/whitespace — the live model may echo a pin back re-cased. */
+function sameName(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 const isSolo = (c?: FrontierConstraints) => c !== undefined && c.pinB === null;
 
 /**
@@ -138,10 +143,10 @@ export function isValidFrontier(
     ) {
       return false;
     }
-    if (constraints?.pinB && bName !== constraints.pinB) return false;
+    if (constraints?.pinB && !sameName(bName, constraints.pinB)) return false;
   }
 
-  if (constraints?.pinA && f.interestA !== constraints.pinA) return false;
+  if (constraints?.pinA && !sameName(f.interestA, constraints.pinA)) return false;
   if (constraints?.avoidHeadline && f.headline === constraints.avoidHeadline) return false;
   return true;
 }
