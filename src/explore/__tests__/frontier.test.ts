@@ -57,6 +57,11 @@ describe('isValidFrontier', () => {
     expect(isValidFrontier(frontier(), names, { pinB: 'Botany' })).toBe(false);
   });
 
+  it('matches pins case/whitespace-insensitively — a live model may echo a pin re-cased', () => {
+    expect(isValidFrontier(frontier(), names, { pinA: '  systems THINKING  ' })).toBe(true);
+    expect(isValidFrontier(frontier(), names, { pinA: 'Systems thinking', pinB: ' JAZZ piano' })).toBe(true);
+  });
+
   it('rejects a pair the session has already seen (order-insensitive)', () => {
     expect(
       isValidFrontier(frontier(), names, { excludePairs: [['Jazz piano', 'Systems thinking']] }),
