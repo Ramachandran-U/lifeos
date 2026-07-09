@@ -128,6 +128,14 @@ const FALLBACK_FLAGS: Record<string, unknown> = {
   // respects usePreferencesStore.gamification: with gamification !== 'full' the
   // streak/quest slides drop and it degrades to the answer card alone.
   today_hero_carousel_v1: true,
+  // Collapse-completed Today's flow (PARKED 16.11): consecutive finished
+  // blocks fold into one summary strip with expand-in-place + a header
+  // "Show done" toggle. Blocks completed during the current visit stay
+  // expanded (celebration/undo intact) and fold on next focus. Default ON —
+  // founder-cohort testing on EQA (same pattern as today_answer_first_v1);
+  // a `false` row in the Worker flags table is the kill switch. Watch the
+  // block-completion rate after rollout, as with every Today change.
+  today_collapse_done_v1: true,
 };
 
 interface FlagState {
@@ -206,7 +214,9 @@ export const useFlagStore = create<FlagState>()(
       // flipped default-on; drop persisted `false` values.
       // Bumped to v7 (2026-06-18): today_hero_carousel_v1 added as default-on
       // so persisted pre-addition state doesn't shadow the Today hero deck.
-      name: 'lifeos_flags_v7',
+      // Bumped to v8 (2026-07-07): today_collapse_done_v1 added as default-on
+      // so persisted pre-addition state doesn't shadow the collapse strips.
+      name: 'lifeos_flags_v8',
       storage,
       partialize: (state) => ({ flags: state.flags, fetchedAt: state.fetchedAt }),
     },

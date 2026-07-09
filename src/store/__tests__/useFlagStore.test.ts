@@ -76,9 +76,14 @@ describe('FALLBACK_FLAGS baseline', () => {
 });
 
 describe('persist key (AC-11, R12)', () => {
-  it('the store persists under lifeos_flags_v7 — bumped at the 2026-06-18 Today hero deck add', () => {
+  it('the store persists under lifeos_flags_v8 — bumped at the 2026-07-07 collapse-completed add', () => {
     const { useFlagStore } = loadStore(undefined);
-    expect(useFlagStore.persist.getOptions().name).toBe('lifeos_flags_v7');
+    expect(useFlagStore.persist.getOptions().name).toBe('lifeos_flags_v8');
+  });
+
+  it('today_collapse_done_v1 defaults ON in the fallback baseline', () => {
+    const { useFlagStore } = loadStore(undefined);
+    expect(useFlagStore.getState().isEnabled('today_collapse_done_v1')).toBe(true);
   });
 
   it('today_hero_carousel_v1 defaults ON in the fallback baseline', () => {

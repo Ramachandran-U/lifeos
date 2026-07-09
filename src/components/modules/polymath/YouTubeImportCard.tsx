@@ -236,8 +236,13 @@ function ReviewModal({
                   />
                   <View style={{ flex: 1 }}>
                     <Body style={{ color: c.textPrimary, fontFamily: fonts.bodyMedium }}>{it.name}</Body>
+                    {/* `it.why` ("From your subscriptions to channels like …") is
+                        deliberately NOT rendered — founder call 2026-07-07: exposing
+                        the derivation kills the reveal, and the sheet header already
+                        says "From your subscriptions". The field still flows through
+                        the extraction, so a detail view can resurface it later. */}
                     <Caption style={{ color: c.textMuted }}>
-                      {it.category} · {it.weeklyMinutesTarget}m/wk — {it.why}
+                      {it.category} · {it.weeklyMinutesTarget}m/wk
                     </Caption>
                   </View>
                 </Pressable>
