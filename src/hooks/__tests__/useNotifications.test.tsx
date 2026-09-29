@@ -1,5 +1,5 @@
 /**
- * Scheduler-function coverage for src/hooks/useNotifications.ts (node project).
+ * Scheduler-function coverage for src/hooks/useNotifications.ts (components project).
  *
  * Covers the EXPORTED, pure-ish async schedulers — no React rendering:
  *  • scheduleSocialOverdueNudge — 0 / 1 / many body variants + early-return at
@@ -17,25 +17,29 @@
  * node project can't run. Reported as skipped.
  */
 
-// expo-notifications has no node stub in jest.mocks/, so mock it inline. The
-// module under test calls setNotificationHandler at load time and reads the
-// SchedulableTriggerInputTypes enum, so both must be present on the mock.
-const getAllScheduledNotificationsAsync = jest.fn();
-const cancelScheduledNotificationAsync = jest.fn();
-const scheduleNotificationAsync = jest.fn();
-const setNotificationHandler = jest.fn();
-const addNotificationResponseReceivedListener = jest.fn();
-
+// expo-notifications has no stub in jest.mocks/, so mock it inline. The mocks are
+// created INSIDE the factory and pulled back out with jest.requireMock: this suite
+// runs under the `components` project (babel-jest via jest-expo), where the ES
+// `import` of the module under test is hoisted ABOVE any `const` in this file, so a
+// factory closing over outer jest.fn() vars would read them before they exist
+// ("setNotificationHandler is not a function"). The module under test calls
+// setNotificationHandler at load time and reads the SchedulableTriggerInputTypes
+// enum, so both must be present on the mock.
 jest.mock('expo-notifications', () => ({
-  setNotificationHandler,
-  getAllScheduledNotificationsAsync,
-  cancelScheduledNotificationAsync,
-  scheduleNotificationAsync,
-  addNotificationResponseReceivedListener,
+  setNotificationHandler: jest.fn(),
+  getAllScheduledNotificationsAsync: jest.fn(),
+  cancelScheduledNotificationAsync: jest.fn(),
+  scheduleNotificationAsync: jest.fn(),
+  addNotificationResponseReceivedListener: jest.fn(),
   getPermissionsAsync: jest.fn(),
   requestPermissionsAsync: jest.fn(),
   SchedulableTriggerInputTypes: { DATE: 'date', DAILY: 'daily' },
 }));
+
+const notificationsMock = jest.requireMock('expo-notifications') as Record<string, jest.Mock>;
+const mockGetAllScheduledNotificationsAsync = notificationsMock.getAllScheduledNotificationsAsync;
+const mockCancelScheduledNotificationAsync = notificationsMock.cancelScheduledNotificationAsync;
+const mockScheduleNotificationAsync = notificationsMock.scheduleNotificationAsync;
 
 // useNotificationNavigation pulls in expo-router; stub useRouter so the import
 // graph resolves in node (the hook itself is not exercised here).
@@ -57,26 +61,26 @@ interface ScheduleCall {
 }
 
 function lastScheduleArg(): ScheduleCall {
-  const calls = scheduleNotificationAsync.mock.calls;
+  const calls = mockScheduleNotificationAsync.mock.calls;
   return calls[calls.length - 1][0] as ScheduleCall;
 }
 
 beforeEach(() => {
-  getAllScheduledNotificationsAsync.mockReset();
-  cancelScheduledNotificationAsync.mockReset();
-  scheduleNotificationAsync.mockReset();
+  mockGetAllScheduledNotificationsAsync.mockReset();
+  mockCancelScheduledNotificationAsync.mockReset();
+  mockScheduleNotificationAsync.mockReset();
   // cancelNotification() reads the scheduled list before cancelling; default to
   // "nothing scheduled" so the unrelated pre-cancel paths are quiet by default.
-  getAllScheduledNotificationsAsync.mockResolvedValue([]);
-  cancelScheduledNotificationAsync.mockResolvedValue(undefined);
-  scheduleNotificationAsync.mockResolvedValue(undefined);
+  mockGetAllScheduledNotificationsAsync.mockResolvedValue([]);
+  mockCancelScheduledNotificationAsync.mockResolvedValue(undefined);
+  mockScheduleNotificationAsync.mockResolvedValue(undefined);
 });
 
 describe('scheduleSocialOverdueNudge', () => {
   it('uses the generic body when no count is provided', async () => {
     await scheduleSocialOverdueNudge();
 
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(mockScheduleNotificationAsync).toHaveBeenCalledTimes(1);
     const arg = lastScheduleArg();
     expect(arg.identifier).toBe('social_overdue');
     expect(arg.content.body).toContain("haven't reached out to anyone");
@@ -87,7 +91,7 @@ describe('scheduleSocialOverdueNudge', () => {
   it('uses the singular body when exactly one person is overdue', async () => {
     await scheduleSocialOverdueNudge(1);
 
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(mockScheduleNotificationAsync).toHaveBeenCalledTimes(1);
     expect(lastScheduleArg().content.body).toBe(
       'One person in your circle is overdue. A short message tonight will close the loop.',
     );
@@ -96,7 +100,7 @@ describe('scheduleSocialOverdueNudge', () => {
   it('uses the pluralised body with the count when many are overdue', async () => {
     await scheduleSocialOverdueNudge(4);
 
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(mockScheduleNotificationAsync).toHaveBeenCalledTimes(1);
     expect(lastScheduleArg().content.body).toBe(
       '4 people in your circle are overdue. Pick one to reach out to tonight.',
     );
@@ -105,54 +109,54 @@ describe('scheduleSocialOverdueNudge', () => {
   it('early-returns without scheduling when the count is 0', async () => {
     await scheduleSocialOverdueNudge(0);
 
-    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it('always cancels any existing social_overdue nudge first', async () => {
     // One is already scheduled, so the pre-cancel must fire.
-    getAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'social_overdue' }]);
+    mockGetAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'social_overdue' }]);
 
     await scheduleSocialOverdueNudge(2);
 
-    expect(cancelScheduledNotificationAsync).toHaveBeenCalledWith('social_overdue');
+    expect(mockCancelScheduledNotificationAsync).toHaveBeenCalledWith('social_overdue');
   });
 });
 
 describe('refreshSocialOverdueBody', () => {
   it('is a NO-OP when no social_overdue notification is already scheduled (opt-in guard)', async () => {
-    getAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'daily_routine' }]);
+    mockGetAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'daily_routine' }]);
 
     await refreshSocialOverdueBody(5);
 
-    expect(cancelScheduledNotificationAsync).not.toHaveBeenCalled();
-    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(mockCancelScheduledNotificationAsync).not.toHaveBeenCalled();
+    expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it('cancels the nudge when the user has opted in but nobody is overdue (count 0)', async () => {
-    getAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'social_overdue' }]);
+    mockGetAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'social_overdue' }]);
 
     await refreshSocialOverdueBody(0);
 
-    expect(cancelScheduledNotificationAsync).toHaveBeenCalledWith('social_overdue');
-    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(mockCancelScheduledNotificationAsync).toHaveBeenCalledWith('social_overdue');
+    expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it('re-schedules with the live count when one already exists and the count is positive', async () => {
-    getAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'social_overdue' }]);
+    mockGetAllScheduledNotificationsAsync.mockResolvedValue([{ identifier: 'social_overdue' }]);
 
     await refreshSocialOverdueBody(3);
 
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(mockScheduleNotificationAsync).toHaveBeenCalledTimes(1);
     expect(lastScheduleArg().content.body).toBe(
       '3 people in your circle are overdue. Pick one to reach out to tonight.',
     );
   });
 
   it('swallows errors from the scheduled-list lookup (best-effort)', async () => {
-    getAllScheduledNotificationsAsync.mockRejectedValue(new Error('boom'));
+    mockGetAllScheduledNotificationsAsync.mockRejectedValue(new Error('boom'));
 
     await expect(refreshSocialOverdueBody(2)).resolves.toBeUndefined();
-    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
   });
 });
 
@@ -164,7 +168,7 @@ describe('scheduleLocalNotification (via scheduleWeightNotification)', () => {
 
     await scheduleWeightNotification(longAgo);
 
-    expect(scheduleNotificationAsync).not.toHaveBeenCalled();
+    expect(mockScheduleNotificationAsync).not.toHaveBeenCalled();
   });
 
   it('schedules a DATE-triggered reminder when the trigger is in the future', async () => {
@@ -173,7 +177,7 @@ describe('scheduleLocalNotification (via scheduleWeightNotification)', () => {
 
     await scheduleWeightNotification(recent);
 
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1);
+    expect(mockScheduleNotificationAsync).toHaveBeenCalledTimes(1);
     const arg = lastScheduleArg();
     expect(arg.identifier).toBe('weight_reminder');
     expect(arg.trigger.type).toBe('date');
@@ -186,8 +190,8 @@ describe('scheduleOnboardingNotifications', () => {
   it('schedules all three future onboarding check-ins from a fresh install', async () => {
     await scheduleOnboardingNotifications(new Date());
 
-    expect(scheduleNotificationAsync).toHaveBeenCalledTimes(3);
-    const ids = scheduleNotificationAsync.mock.calls.map(
+    expect(mockScheduleNotificationAsync).toHaveBeenCalledTimes(3);
+    const ids = mockScheduleNotificationAsync.mock.calls.map(
       (c) => (c[0] as ScheduleCall).identifier,
     );
     expect(ids).toEqual(['onboarding_day3', 'onboarding_day7', 'onboarding_day14']);
@@ -200,7 +204,7 @@ describe('scheduleOnboardingNotifications', () => {
 
     await scheduleOnboardingNotifications(installed);
 
-    const ids = scheduleNotificationAsync.mock.calls.map(
+    const ids = mockScheduleNotificationAsync.mock.calls.map(
       (c) => (c[0] as ScheduleCall).identifier,
     );
     expect(ids).toEqual(['onboarding_day14']);
