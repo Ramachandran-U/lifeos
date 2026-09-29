@@ -2,6 +2,7 @@ import { syncRecentEmails } from './fetcher';
 import { parseTransactionEmail } from '../parsers/emailParsers';
 import { categorizeBatch } from '../categorizer';
 import { upsertTransactions, type TxRecord } from '../db/transactionDb';
+import { todayKey } from '@/utils/dateKeys';
 
 type GmailMessage = Awaited<ReturnType<typeof syncRecentEmails>>[number];
 type ParsedTx = NonNullable<ReturnType<typeof parseTransactionEmail>>;
@@ -46,7 +47,7 @@ export async function syncFinanceFromGmail(clientId: string): Promise<FinanceSyn
 
   const records: TxRecord[] = parsed.map(({ message, tx }, i) => ({
     id: message.id,
-    date: message.date || new Date().toISOString().slice(0, 10),
+    date: message.date || todayKey(),
     amount: tx.amount,
     direction: tx.direction,
     merchant: tx.merchant,

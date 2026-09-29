@@ -14,6 +14,7 @@ import { normalizeUpiMerchant } from '@/finance/parsers/emailParsers';
 import { categorizeByRule } from '@/finance/categorizer';
 import { nanoid } from '@/utils/id';
 import type { TransactionCategory } from '@/ai/types';
+import { todayKey } from '@/utils/dateKeys';
 
 /** A user-entered transaction (the manual-add path, web-only). Amount is in
  *  whole rupees as typed; the store converts to the paise the table stores. */
@@ -169,7 +170,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
     const id = `manual-${nanoid()}`;
     const rec: TxRecord = {
       id,
-      date: input.date || new Date().toISOString().slice(0, 10),
+      date: input.date || todayKey(),
       amount: amountPaise,
       direction: input.direction,
       merchant: input.merchant.trim() || 'Manual entry',

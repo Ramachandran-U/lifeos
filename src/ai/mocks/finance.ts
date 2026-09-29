@@ -1,4 +1,5 @@
 import type { FinancialPlan, WeeklyFinanceInsight, FinanceInput } from '../types';
+import { localYmd, todayKey } from '@/utils/dateKeys';
 
 function formatInr(n: number): string {
   if (n >= 1e7) return `₹${(n / 1e7).toFixed(n % 1e7 === 0 ? 0 : 1)}Cr`;
@@ -10,7 +11,7 @@ function formatInr(n: number): string {
 function addMonths(iso: string, months: number): string {
   const d = new Date(iso + (iso.length === 10 ? 'T00:00:00Z' : ''));
   d.setUTCMonth(d.getUTCMonth() + months);
-  return d.toISOString().slice(0, 10);
+  return localYmd(d);
 }
 
 function monthsBetween(startIso: string, endIso: string): number {
@@ -27,7 +28,7 @@ function monthsBetween(startIso: string, endIso: string): number {
  */
 export function buildMockFinancialPlan(input: FinanceInput): FinancialPlan {
   const target = Math.max(0, Math.round(input.targetAmount || 0));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const months = monthsBetween(today, input.targetDate || addMonths(today, 24));
   const monthlyTarget = Math.max(1, Math.round(input.monthlySavings || Math.ceil(target / months)));
 

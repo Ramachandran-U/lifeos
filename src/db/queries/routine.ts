@@ -26,8 +26,8 @@ function readBlockSnapshot(id: string): Record<string, unknown> | null {
     const today = new Date();
     const start = new Date(today);
     start.setDate(start.getDate() - 31);
-    const startStr = start.toISOString().slice(0, 10);
-    const endStr = today.toISOString().slice(0, 10);
+    const startStr = localYmd(start);
+    const endStr = localYmd(today);
     const found = webGetRoutineBlocksInRange(startStr, endStr).find((b) => b.id === id);
     return found ? (found as unknown as Record<string, unknown>) : null;
   }
@@ -121,6 +121,7 @@ export function getRoutineBlocksByDate(date: string) {
 }
 
 import { and, gte, lte } from 'drizzle-orm';
+import { localYmd } from '@/utils/dateKeys';
 
 export function getRoutineBlocksInRange(startDate: string, endDate: string) {
   if (isWeb) {

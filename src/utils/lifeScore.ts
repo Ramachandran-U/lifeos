@@ -17,6 +17,7 @@
  */
 
 import type { DomainScores } from '@/utils/gamification';
+import { localYmd } from './dateKeys';
 import type { ScorePoint } from '@/store/useDomainHistoryStore';
 
 const PRIMARY_WEIGHT = 1.5;
@@ -102,7 +103,7 @@ export function computeLifeScoreTrend(
   }
   // Always include today as the final point so a brand-new user sees one
   // value rather than an empty array.
-  if (sortedDates.length === 0 || sortedDates[sortedDates.length - 1] !== todayUtc()) {
+  if (sortedDates.length === 0 || sortedDates[sortedDates.length - 1] !== todayLocal()) {
     history.push(computeLifeScore(current, primaryDomains));
   }
 
@@ -121,8 +122,8 @@ export function computeLifeScoreTrend(
   };
 }
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayLocal(): string {
+  return localYmd(new Date());
 }
 
 export interface LifeScoreBand {

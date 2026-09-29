@@ -14,6 +14,7 @@ import { formatInr } from '@/finance/display';
 import { useRecurringStore } from '@/finance/store/useRecurringStore';
 import { summarizeRecurring, formatDueLabel } from '@/finance/recurringSummary';
 import type { RecurringItemRecord } from '@/finance/db/transactionDb';
+import { todayKey } from '@/utils/dateKeys';
 
 /**
  * Subscription audit + bill-due reminders, fed by useRecurringStore (Gmail).
@@ -31,7 +32,7 @@ export function SubscriptionsBillsCard({ clientId }: { clientId?: string }) {
     void load();
   }, [load, refreshConnection]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   const { subscriptions, bills, monthlySubscriptionTotalPaise } = useMemo(
     () => summarizeRecurring(items),
     [items],

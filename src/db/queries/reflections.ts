@@ -10,6 +10,7 @@ import {
   type WebDailyReflection,
 } from '../webStorage';
 import { recordMutation } from '@/sync/runtime';
+import { localYmd } from '@/utils/dateKeys';
 
 const isWeb = Platform.OS === 'web';
 
@@ -131,7 +132,7 @@ export function getRecentReflections(days: number): Reflection[] {
   if (isWeb) return webGetRecentReflections(days).map(fromWeb);
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  const cutoffStr = localYmd(cutoff);
   const rows = db.select().from(dailyReflections)
     .where(gte(dailyReflections.date, cutoffStr))
     .orderBy(desc(dailyReflections.date))
@@ -156,7 +157,7 @@ export function getReflectionStreak(): number {
   let streak = 0;
   const d = new Date();
   while (true) {
-    const key = d.toISOString().slice(0, 10);
+    const key = localYmd(d);
     if (!dates.has(key)) break;
     streak += 1;
     d.setDate(d.getDate() - 1);

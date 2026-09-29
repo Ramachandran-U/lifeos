@@ -10,12 +10,13 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { track, EVENTS } from './telemetry';
+import { localYmd } from './dateKeys';
 
 const KEY = 'lifeos_app_opened_last';
 const COMEBACK_KEY = 'lifeos_comeback_last';
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayLocal(): string {
+  return localYmd(new Date());
 }
 
 function daysSince(installIso: string | null | undefined, now = new Date()): number {
@@ -69,7 +70,7 @@ async function samplePreviousOpenDay(): Promise<string | null> {
 export function maybeEmitAppOpened(installIso: string | null | undefined): void {
   void (async () => {
     const last = await samplePreviousOpenDay();
-    const today = todayUtc();
+    const today = todayLocal();
     if (last === today) return;
     track(EVENTS.appOpened, { days_since_install: daysSince(installIso) });
     await write(KEY, today);
@@ -113,17 +114,17 @@ export async function detectComeback(now = new Date()): Promise<number | null> {
     samplePreviousOpenDay(),
     read(COMEBACK_KEY),
   ]);
-  return evaluateComeback({ lastOpenDay, lastComebackDay, today: now.toISOString().slice(0, 10) });
+  return evaluateComeback({ lastOpenDay, lastComebackDay, today: localYmd(now) });
 }
 
 export async function markComebackHandled(now = new Date()): Promise<void> {
-  await write(COMEBACK_KEY, now.toISOString().slice(0, 10));
+  await write(COMEBACK_KEY, localYmd(now));
 }
 
 // Exported for tests.
 export const _internal = {
   daysSince,
-  todayUtc,
+  todayLocal,
   resetSessionSample(): void {
     previousOpenDay = undefined;
   },
