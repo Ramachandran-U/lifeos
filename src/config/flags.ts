@@ -66,16 +66,56 @@ export const DEFAULT_FLAGS: Readonly<FeatureFlags> = Object.freeze({
   soundEffects: false,
 });
 
-/** UPPER_SNAKE env-var suffix for each flag, e.g. mutationLog -> MUTATION_LOG. */
-function envKey(flag: FeatureFlag): string {
+/**
+ * UPPER_SNAKE env-var suffix for each flag, e.g. domainNudges ->
+ * EXPO_PUBLIC_FLAG_DOMAIN_NUDGES. Kept as the single definition of the naming
+ * rule; `envFlagCompliance.test.ts` asserts ENV_SOURCES below matches it for
+ * every flag, so the two can never drift.
+ */
+export function envKey(flag: FeatureFlag): string {
   const snake = flag.replace(/([A-Z])/g, '_$1').toUpperCase();
   return `EXPO_PUBLIC_FLAG_${snake}`;
 }
 
+/**
+ * STATIC env reads, one thunk per flag. Do NOT collapse this into a computed
+ * `process.env[envKey(flag)]` lookup — that is the bug this map exists to fix.
+ *
+ * Metro/Expo (and webpack/Vite) substitute a literal `process.env.SOME_NAME`
+ * at BUILD time; they cannot see a key computed at runtime. The previous
+ * implementation built the key with a template literal, so in the web bundle
+ * every EXPO_PUBLIC_FLAG_* read `undefined` and the compiled default silently
+ * won. Setting a flag in .env, deploying, and observing no change — with no
+ * error anywhere — was the result. (Verified in the shipped bundle: the key
+ * builder survived minification while not one flag's variable name appeared.)
+ *
+ * Thunks rather than plain values: the reference stays static for the bundler,
+ * while Node-side tests that mutate or replace `process.env` after import still
+ * read the current value.
+ *
+ * The `Record<FeatureFlag, …>` type makes an omission a COMPILE error — a new
+ * flag without its static read will not typecheck.
+ */
+const ENV_SOURCES: Record<FeatureFlag, () => string | undefined> = {
+  domainNudges: () => process.env.EXPO_PUBLIC_FLAG_DOMAIN_NUDGES,
+  domainNudgesVisible: () => process.env.EXPO_PUBLIC_FLAG_DOMAIN_NUDGES_VISIBLE,
+  overcommitmentDetector: () => process.env.EXPO_PUBLIC_FLAG_OVERCOMMITMENT_DETECTOR,
+  overcommitmentVisible: () => process.env.EXPO_PUBLIC_FLAG_OVERCOMMITMENT_VISIBLE,
+  priorityAdjust: () => process.env.EXPO_PUBLIC_FLAG_PRIORITY_ADJUST,
+  exploreAgenticPrefetch: () => process.env.EXPO_PUBLIC_FLAG_EXPLORE_AGENTIC_PREFETCH,
+  profileAvatarGen: () => process.env.EXPO_PUBLIC_FLAG_PROFILE_AVATAR_GEN,
+  motionPolish: () => process.env.EXPO_PUBLIC_FLAG_MOTION_POLISH,
+  motionTransitions: () => process.env.EXPO_PUBLIC_FLAG_MOTION_TRANSITIONS,
+  celebrationEngine: () => process.env.EXPO_PUBLIC_FLAG_CELEBRATION_ENGINE,
+  riveCompanion: () => process.env.EXPO_PUBLIC_FLAG_RIVE_COMPANION,
+  animatedCharts: () => process.env.EXPO_PUBLIC_FLAG_ANIMATED_CHARTS,
+  soundEffects: () => process.env.EXPO_PUBLIC_FLAG_SOUND_EFFECTS,
+};
+
 const TRUTHY = new Set(['true', '1', 'on', 'yes']);
 
 function readEnv(flag: FeatureFlag): boolean | undefined {
-  const raw = process.env[envKey(flag)];
+  const raw = ENV_SOURCES[flag]();
   if (raw === undefined) return undefined;
   return TRUTHY.has(raw.toLowerCase().trim());
 }

@@ -56,6 +56,8 @@ export const EVENTS = {
   tomorrowRoutineFailed: 'tomorrow_routine_failed',
   tomorrowRoutineGenerated: 'tomorrow_routine_generated',
   uiCrash: 'ui_crash',
+  /** Boot init failed (local DB or auth host). App still renders signed-out. */
+  bootInitFailed: 'boot_init_failed',
   storageUsage: 'storage_usage',
   appOpened: 'app_opened',
   // Explore v2 — sparks + expeditions + constellation
