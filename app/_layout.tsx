@@ -27,6 +27,8 @@ import { isEnabled } from '@/config/flags';
 import { stackTransition, modalTransition, MODAL_ROUTES } from '@/navigation/transitions';
 import { usePromptStore } from '@/store/usePromptStore';
 import { syncEngine } from '@/sync/engine';
+import { track, EVENTS } from '@/utils/telemetry';
+import { withAuthDeadline } from '@/utils/bootSession';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -73,52 +75,60 @@ export default function RootLayout() {
         return;
       }
       didBootInit = true;
-      await initDatabase();
+      try {
+        await initDatabase();
 
-      // Hydrate local user row from any persisted Supabase session so existing
-      // SQLite-backed queries stay the source of truth across the app.
-      const { data: sessionData } = await supabase.auth.getSession();
-      const authUser = sessionData.session?.user;
-      if (authUser?.email) {
-        await ensureLocalUserFromAuth({
-          userId: authUser.id,
-          email: authUser.email,
-          name:
-            (authUser.user_metadata?.name as string | undefined) ||
-            authUser.email.split('@')[0],
-        });
-        setWebSession(authUser.id);
+        // Hydrate local user row from any persisted Supabase session so existing
+        // SQLite-backed queries stay the source of truth across the app.
+        const sessionResult = await withAuthDeadline(() => supabase.auth.getSession());
+        const authUser = sessionResult?.data.session?.user;
+        if (authUser?.email) {
+          await ensureLocalUserFromAuth({
+            userId: authUser.id,
+            email: authUser.email,
+            name:
+              (authUser.user_metadata?.name as string | undefined) ||
+              authUser.email.split('@')[0],
+          });
+          setWebSession(authUser.id);
+        }
+
+        const user = getUser();
+        if (user) {
+          setUser(user.id, user.name, user.email, user.onboardingStage);
+          const parseList = (v: unknown): string[] => {
+            if (Array.isArray(v)) return v as string[];
+            if (typeof v === 'string' && v) { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; } }
+            return [];
+          };
+          const domains = parseList((user as { primaryDomains?: unknown }).primaryDomains);
+          const activated = parseList((user as { activatedModules?: unknown }).activatedModules);
+          const VALID: DomainId[] = ['goals', 'health', 'finance', 'career', 'social', 'polymath'];
+          const isDomain = (s: string): s is DomainId => (VALID as string[]).includes(s);
+          setPrimaryDomains(domains.filter(isDomain));
+          activated.filter(isDomain).forEach(markModuleActivated);
+          setAvatarUri((user as { avatarUri?: string | null }).avatarUri ?? null);
+          setPreferredVoiceId((user as { preferredVoiceId?: string | null }).preferredVoiceId ?? null);
+        }
+        // Fetch admin-portal-managed feature flags. Non-blocking — fallback
+        // values cover the case where the worker is unreachable. Trigger a sync
+        // drain once flags resolve, so a freshly-enabled sync engine pushes the
+        // backlog immediately rather than waiting for the next periodic tick.
+        useFlagStore.getState().fetchFlags({ force: true }).then(() => { void syncEngine.flush(); }).catch(() => {});
+        usePromptStore.getState().fetchPrompts().catch(() => {});
+
+        // Start the sync outbox drain (P1-T5). No-ops unless sync_engine_enabled
+        // && mutation_log_enabled && signed-in; safe to call on every boot.
+        syncEngine.start();
+
+      } catch (err) {
+        // Boot is best-effort. A failure here (corrupt local DB, unreachable
+        // auth host) must still produce a usable signed-out app, never a blank
+        // screen — the `finally` below is the whole point of this try.
+        track(EVENTS.bootInitFailed, { message: err instanceof Error ? err.message : 'unknown' });
+      } finally {
+        setDbReady(true);
       }
-
-      const user = getUser();
-      if (user) {
-        setUser(user.id, user.name, user.email, user.onboardingStage);
-        const parseList = (v: unknown): string[] => {
-          if (Array.isArray(v)) return v as string[];
-          if (typeof v === 'string' && v) { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; } }
-          return [];
-        };
-        const domains = parseList((user as { primaryDomains?: unknown }).primaryDomains);
-        const activated = parseList((user as { activatedModules?: unknown }).activatedModules);
-        const VALID: DomainId[] = ['goals', 'health', 'finance', 'career', 'social', 'polymath'];
-        const isDomain = (s: string): s is DomainId => (VALID as string[]).includes(s);
-        setPrimaryDomains(domains.filter(isDomain));
-        activated.filter(isDomain).forEach(markModuleActivated);
-        setAvatarUri((user as { avatarUri?: string | null }).avatarUri ?? null);
-        setPreferredVoiceId((user as { preferredVoiceId?: string | null }).preferredVoiceId ?? null);
-      }
-      // Fetch admin-portal-managed feature flags. Non-blocking — fallback
-      // values cover the case where the worker is unreachable. Trigger a sync
-      // drain once flags resolve, so a freshly-enabled sync engine pushes the
-      // backlog immediately rather than waiting for the next periodic tick.
-      useFlagStore.getState().fetchFlags({ force: true }).then(() => { void syncEngine.flush(); }).catch(() => {});
-      usePromptStore.getState().fetchPrompts().catch(() => {});
-
-      // Start the sync outbox drain (P1-T5). No-ops unless sync_engine_enabled
-      // && mutation_log_enabled && signed-in; safe to call on every boot.
-      syncEngine.start();
-
-      setDbReady(true);
     }
     init();
 
