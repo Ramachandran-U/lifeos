@@ -16,6 +16,7 @@ import { getDeviceId } from '@/utils/telemetry';
 import { MutationLog, type MutationInput } from './mutationLog';
 import { getProductionHasher } from './hasher';
 import { getLocalSink } from './sink';
+import { increment } from '@/observability/metrics';
 
 let instance: MutationLog | null = null;
 let initPromise: Promise<MutationLog | null> | null = null;
@@ -69,7 +70,11 @@ export function recordMutation(input: MutationInput): void {
       if (!log) return;
       await log.record(input);
     } catch {
-      // Observer-only: never affect the primary write.
+      // Observer-only: never affect the primary write — but never silent either.
+      // A drop here means local DB state and the log have diverged permanently:
+      // the row changed, the event-sourced history did not. Nothing reconciles
+      // that afterwards, so the counter is the only evidence it happened.
+      increment('sync.mutations.dropped', { entity: input.entity, op: input.op });
     }
   })();
   pending.add(p);

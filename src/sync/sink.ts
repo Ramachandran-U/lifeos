@@ -17,6 +17,7 @@
  */
 import { Platform } from 'react-native';
 import type { MutationRecord, MutationSink } from './mutationLog';
+import { increment } from '@/observability/metrics';
 import { compareMutationOrder } from './resolve';
 
 export interface ResumeState {
@@ -111,7 +112,7 @@ function createWebSink(): LocalSink {
     append: async (record: MutationRecord): Promise<void> => {
       const buf = readWebBuffer();
       buf.push({ ...record, syncState: 'pending' });
-      if (buf.length > WEB_CAP) buf.splice(0, buf.length - WEB_CAP);
+      evictOldest(buf);
       writeWebBuffer(buf);
     },
     async readPending(limit: number): Promise<MutationRecord[]> {
@@ -141,7 +142,7 @@ function createWebSink(): LocalSink {
       const buf = readWebBuffer();
       if (buf.some((e) => e.id === record.id)) return false; // idempotent
       buf.push({ ...record, syncState: 'applied_remote' });
-      if (buf.length > WEB_CAP) buf.splice(0, buf.length - WEB_CAP);
+      evictOldest(buf);
       writeWebBuffer(buf);
       return true;
     },
@@ -213,6 +214,32 @@ function stripSyncState(e: WebEntry): MutationRecord {
   };
 }
 
+/**
+ * Drop the oldest entries so the ring buffer respects `WEB_CAP`, REPORTING what
+ * was lost. Eviction is positional, so it can discard a record that was never
+ * pushed — that is permanent history loss, and it used to happen silently.
+ *
+ * Policy is unchanged here on purpose: this makes the loss measurable first.
+ * `sync.log.evicted{state=pending}` > 0 in the field is the signal that the cap
+ * (or the eviction order) needs to change.
+ */
+function evictOldest(buf: WebEntry[]): void {
+  if (buf.length <= WEB_CAP) return;
+  const dropped = buf.splice(0, buf.length - WEB_CAP);
+  let pending = 0;
+  let acked = 0;
+  let appliedRemote = 0;
+  for (const e of dropped) {
+    const state = e.syncState ?? 'pending';
+    if (state === 'pending') pending += 1;
+    else if (state === 'acked') acked += 1;
+    else appliedRemote += 1;
+  }
+  if (pending > 0) increment('sync.log.evicted', { state: 'pending' }, pending);
+  if (acked > 0) increment('sync.log.evicted', { state: 'acked' }, acked);
+  if (appliedRemote > 0) increment('sync.log.evicted', { state: 'applied_remote' }, appliedRemote);
+}
+
 function readWebBuffer(): WebEntry[] {
   try {
     const raw = localStorage.getItem(WEB_KEY);
@@ -228,10 +255,20 @@ function writeWebBuffer(buf: WebEntry[]): void {
   try {
     localStorage.setItem(WEB_KEY, JSON.stringify(buf));
   } catch {
-    // Quota exceeded — drop oldest 20% and retry once. If still failing,
-    // give up silently rather than break the primary write.
-    buf.splice(0, Math.floor(buf.length * 0.2));
-    try { localStorage.setItem(WEB_KEY, JSON.stringify(buf)); } catch { /* give up */ }
+    // Quota exceeded — drop oldest 20% and retry once. If still failing, give up
+    // rather than break the primary write. Both outcomes are reported: a silent
+    // give-up here means the tail of the log never reached disk at all.
+    const shed = Math.floor(buf.length * 0.2);
+    const dropped = buf.splice(0, shed);
+    let pendingLost = 0;
+    for (const e of dropped) if ((e.syncState ?? 'pending') === 'pending') pendingLost += 1;
+    increment('sync.log.quota_shed', {}, dropped.length);
+    if (pendingLost > 0) increment('sync.log.evicted', { state: 'pending', cause: 'quota' }, pendingLost);
+    try {
+      localStorage.setItem(WEB_KEY, JSON.stringify(buf));
+    } catch {
+      increment('sync.log.write_failed');
+    }
   }
 }
 

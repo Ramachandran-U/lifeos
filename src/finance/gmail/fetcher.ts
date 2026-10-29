@@ -4,6 +4,7 @@
  */
 
 import { getAccessToken } from './oauth';
+import { localYmd } from '@/utils/dateKeys';
 
 const BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -120,7 +121,7 @@ export function safeEmailDate(dateHeader: string | undefined): string {
   if (!dateHeader) return '';
   const ms = Date.parse(dateHeader);
   if (Number.isNaN(ms)) return '';
-  return new Date(ms).toISOString().slice(0, 10);
+  return localYmd(new Date(ms));
 }
 
 export async function fetchEmailBody(

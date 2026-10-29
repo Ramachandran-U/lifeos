@@ -29,6 +29,7 @@
  */
 import { Platform } from 'react-native';
 import { encryptBackup, decryptBackup, type BackupEnvelope } from './backupCrypto';
+import { todayKey } from '@/utils/dateKeys';
 
 interface BackupPayload {
   app: 'lifeos';
@@ -185,7 +186,7 @@ async function pickAndRead(): Promise<string | null> {
 export async function exportBackup(passphrase: string): Promise<void> {
   const payload = await gatherBackup();
   const envelope = encryptBackup(JSON.stringify(payload), passphrase);
-  const filename = `lifeos-backup-${new Date().toISOString().slice(0, 10)}.lifeos.json`;
+  const filename = `lifeos-backup-${todayKey()}.lifeos.json`;
   await writeAndShare(JSON.stringify(envelope), filename);
 }
 

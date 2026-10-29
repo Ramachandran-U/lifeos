@@ -18,6 +18,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { localYmd } from '@/utils/dateKeys';
 
 const WINDOW_SIZE = 90;
 
@@ -50,8 +51,8 @@ const storage = createJSONStorage(() =>
   Platform.OS === 'web' ? window.localStorage : AsyncStorage,
 );
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
+function todayLocal(): string {
+  return localYmd(new Date());
 }
 
 export const useXpHistoryStore = create<XpHistoryState>()(
@@ -60,7 +61,7 @@ export const useXpHistoryStore = create<XpHistoryState>()(
       entries: [],
 
       record: (totalXP) => {
-        const today = todayUtc();
+        const today = todayLocal();
         const arr = get().entries;
         const last = arr[arr.length - 1];
         if (last?.date === today) {

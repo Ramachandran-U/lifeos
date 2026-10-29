@@ -64,6 +64,7 @@ import { splitTxByPeriod } from '@/finance/analytics';
 import type { TxRecord, TxDirection } from '@/finance/db/transactionDb';
 import { useUserStore } from '@/store/useUserStore';
 import { useGameStore } from '@/store/useGameStore';
+import { localYmd } from '@/utils/dateKeys';
 
 const webTextInputOutline = Platform.select({
   web: { outlineStyle: 'none' as const } as object,
@@ -1174,7 +1175,7 @@ function GoalsTab({
 
   // True savings rate from transactions (if available)
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const monthStart = localYmd(new Date(now.getFullYear(), now.getMonth(), 1));
   const thisMonth = transactions.filter((t) => t.date >= monthStart);
   const credits = thisMonth.filter((t) => t.direction === 'credit').reduce((s, t) => s + t.amount, 0);
   const debits = thisMonth.filter((t) => t.direction === 'debit').reduce((s, t) => s + t.amount, 0);
@@ -1528,8 +1529,8 @@ function formatDateHeader(iso: string): string {
   const d = new Date(iso);
   const today = new Date();
   const yest = new Date(Date.now() - 86400_000);
-  if (iso === today.toISOString().slice(0, 10)) return 'Today';
-  if (iso === yest.toISOString().slice(0, 10)) return 'Yesterday';
+  if (iso === localYmd(today)) return 'Today';
+  if (iso === localYmd(yest)) return 'Yesterday';
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 

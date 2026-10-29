@@ -40,6 +40,10 @@ export interface MeasureDeps {
 }
 
 function addDays(date: string, days: number): string {
+  // INTENTIONALLY UTC: the input is anchored at UTC midnight on the line below,
+  // so formatting back through toISOString() is timezone-invariant day math on a
+  // YYYY-MM-DD string — NOT a local-calendar key. Do not switch this to localYmd:
+  // that would re-introduce a DST/offset shift into the day arithmetic.
   const ms = Date.parse(`${date}T00:00:00Z`) + days * 86_400_000;
   return new Date(ms).toISOString().slice(0, 10);
 }

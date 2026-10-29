@@ -30,6 +30,7 @@ import { useUserStore } from '@/store/useUserStore';
 import { createFinancialGoal } from '@/db/queries/finance';
 import { logBehaviourEvent } from '@/db/queries/behaviour';
 import type { FinancialPlan } from '@/ai/types';
+import { localYmd } from '@/utils/dateKeys';
 
 const GOAL_TYPES: Array<{ value: string; label: string }> = [
   { value: 'emergency_fund',     label: 'Emergency fund' },
@@ -79,7 +80,7 @@ export default function Day7FinanceScreen() {
   const targetDate = (() => {
     const d = new Date();
     d.setMonth(d.getMonth() + timelineMonths);
-    return d.toISOString().slice(0, 10);
+    return localYmd(d);
   })();
 
   const handleGenerate = async () => {

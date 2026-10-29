@@ -19,7 +19,16 @@ import { format, subDays } from 'date-fns';
 import { getXpDailyTotals } from '../xpEvents';
 import { webInsertXpEvent, type WebXpEvent } from '../../webStorage/xpEvents';
 
-const NOW = new Date('2026-06-10T12:00:00');
+// TIME-BOMB GUARD: webInsertXpEvent prunes on insert against the REAL clock
+// (XP_EVENTS_RETENTION_DAYS = 95), so a hard-coded fixture date silently ages
+// out of the retention window and zeroes the ledger — this suite went red on
+// 2026-09-13 with the old literal `new Date('2026-06-10T12:00:00')`. Anchor the
+// fixture to the real current day so the events always land inside the window.
+const NOW = (() => {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  return d;
+})();
 const dayAgo = (n: number) => format(subDays(NOW, n), 'yyyy-MM-dd');
 
 function event(dayLocal: string, amount: number): WebXpEvent {
